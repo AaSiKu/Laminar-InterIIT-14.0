@@ -1,0 +1,9 @@
+
+source:
+  docker_image: "airbyte/source-finnhub" # GENERATED | string | A Public Docker Airbyte Source. Example: `airbyte/source-faker:0.1.4`. (see connectors list at: "https://hub.docker.com/search?q=airbyte%2Fsource-" )
+  config: # PREGENERATED | object | PLEASE UPDATE this pre-generated config
+    api_key: ${FINNHUB_API_KEY} # SECRET (please store in environment variables) | REQUIRED | string | The API key to use for authentication
+    symbols: [] # REQUIRED | array
+    market_news_category: "general" # REQUIRED | string | This parameter can be 1 of the following values general, forex, crypto, merger.
+    exchange: "US" # REQUIRED | string | More info: https://finnhub.io/docs/api/stock-symbols
+    start_date_2: "2025-10-10T00:00:00Z" # REQUIRED | string
