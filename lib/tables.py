@@ -134,21 +134,22 @@ class DifferenceNode(Node):
     category: str = Field(default="Table")
     node_id: str = Field(default="difference")
 
-class UpdateRowsNode(JoinNode):
-    """Updates rows of left table with rows from right table.
+class UpdateRowsNode(Node):
+    """Updates rows of left table with rows from right table (matched by ID).
     
-    This is implemented as a Left Join.
+    Maps to pw.Table.update_rows().
     """
     category: str = Field(default="Table")
     node_id: str = Field(default="update_rows")
-    # This is the key change:
-    how: Union[str, pw.JoinMode] = Field(default="left")
 
 
-class UpdateCellsNode(JoinNode):
+class UpdateCellsNode(Node):
+    """Updates cells of left table with values from right table (matched by ID).
+    
+    Maps to pw.Table.update_cells().
+    """
     category: str = Field(default="Table")
     node_id: str = Field(default="update_cells")
-    how: Union[str, pw.JoinMode] = Field(default="left")
 
 
 class RestrictNode(JoinNode):
