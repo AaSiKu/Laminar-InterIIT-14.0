@@ -1,17 +1,54 @@
-import pathway as pw
-from typing import Any, List, Optional, Tuple, Union
+from abc import ABC, abstractmethod
+from typing import Any, Optional, Callable, List
+from enum import Enum
 from pydantic import BaseModel, Field
-
+from datetime import datetime, timedelta
 
 class Node(BaseModel):
-    """Base node for pathway table operations.
-
-    Attributes:
-        category: logical category (e.g. 'io', 'transform', 'join')
-        node_id: node id (string) used to identify the node type
-    """
     category: str
     node_id: str
+
+class FilterNode(Node):
+    category: str = Field(default="Table") 
+    col: int
+    op: str
+    value: float
+
+class SortNode(Node):
+    category: str = Field(default="Table") 
+    key: Any  # which column to sort
+    instance: Field(default=None)
+
+class SlidingNode(Node):
+    category: str = Field(default="temporal")
+    origin: float | datetime
+    hop: float | timedelta
+    duration: Optional[float | timedelta] = None
+    ratio: Optional[int] = None
+
+class TumblingNode(Node):
+    category: str = Field(default="temporal")
+    origin: float | datetime | None
+    duration: float | timedelta
+
+class SessionNode(Node):
+    category: str = Field(default="temporal")
+    max_gap: Optional[float | timedelta] = None
+    predicate: Optional[str] = None
+
+class WindowByNode(Node):
+    category: str = Field(default="temporal")
+    time_col: int
+    window_type: str  # sliding, tumbling, session
+    instance_col: Optional[int] = None
+
+class IntervalsOverNode(Node):
+    category: str = Field(default="temporal")
+    at_col: int
+    lower_bound: float | timedelta
+    upper_bound: float | timedelta
+    is_outer: bool = True
+
 
 
 class JoinNode(Node):
@@ -62,53 +99,56 @@ class OuterJoinNode(JoinNode):
     node_id: str = Field(default="join_outer")
     how: Union[str, pw.JoinMode] = Field(default="outer")
 
-
-class ConcatNode(JoinNode):
-    """Concat node configuration. Concatenates two tables (requires disjoint ids)."""
+class ConcatNode(Node):
+    """Concatenates this table with other tables.
+    
+    Requires schemas to be identical and IDs to be disjoint.
+    Maps to pw.Table.concat().
+    """
     category: str = Field(default="Table")
     node_id: str = Field(default="concat")
-    on: List[Union[Tuple[str, str], Any]] = Field(default_factory=list)
-    how: Union[str, pw.JoinMode] = Field(default="inner")
 
 
-class ConcatReindexNode(JoinNode):
-    """Concat with reindex node configuration. Concatenates and reindexes all rows."""
+class ConcatReindexNode(Node):
+    """Concatenates this table with other tables and reindexes.
+    
+    Maps to pw.Table.concat_reindex().
+    """
     category: str = Field(default="Table")
     node_id: str = Field(default="concat_reindex")
-    on: List[Union[Tuple[str, str], Any]] = Field(default_factory=list)
-    how: Union[str, pw.JoinMode] = Field(default="inner")
 
 
-class IntersectNode(JoinNode):
-    """Intersect node configuration. Restricts left table to keys appearing in right table."""
+class IntersectNode(Node):
+    """Keeps rows from the left table whose IDs appear in the right table.
+    
+    Maps to pw.Table.intersect().
+    """
     category: str = Field(default="Table")
     node_id: str = Field(default="intersect")
-    on: List[Union[Tuple[str, str], Any]] = Field(default_factory=list)
-    how: Union[str, pw.JoinMode] = Field(default="inner")
 
-
-class DifferenceNode(JoinNode):
-    """Difference node configuration. Restricts left table to keys NOT appearing in right table."""
+class DifferenceNode(Node):
+    """Keeps rows from the left table whose IDs do NOT appear in the right table.
+    
+    Maps to pw.Table.difference().
+    """
     category: str = Field(default="Table")
     node_id: str = Field(default="difference")
-    on: List[Union[Tuple[str, str], Any]] = Field(default_factory=list)
-    how: Union[str, pw.JoinMode] = Field(default="inner")
-
 
 class UpdateRowsNode(JoinNode):
-    """Update rows node configuration. Updates rows of left table with rows from right table."""
+    """Updates rows of left table with rows from right table.
+    
+    This is implemented as a Left Join.
+    """
     category: str = Field(default="Table")
     node_id: str = Field(default="update_rows")
-    on: List[Union[Tuple[str, str], Any]] = Field(default_factory=list)
-    how: Union[str, pw.JoinMode] = Field(default="inner")
+    # This is the key change:
+    how: Union[str, pw.JoinMode] = Field(default="left")
 
 
 class UpdateCellsNode(JoinNode):
-    """Update cells node configuration. Updates cells of left table with values from right table."""
     category: str = Field(default="Table")
     node_id: str = Field(default="update_cells")
-    on: List[Union[Tuple[str, str], Any]] = Field(default_factory=list)
-    how: Union[str, pw.JoinMode] = Field(default="inner")
+    how: Union[str, pw.JoinMode] = Field(default="left")
 
 
 class RestrictNode(JoinNode):
