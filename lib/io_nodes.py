@@ -1,6 +1,7 @@
 from pydantic import BaseModel, Field
 from typing import Optional, Dict, Any, List
 import pathway as pw
+from typing import Literal
 
 # Base Node Classes
 class Node(BaseModel):
@@ -19,20 +20,18 @@ class InputNode(Node):
 
 class OutputNode(Node):
     category: str = Field(default="io")
+    schema: type[pw.Schema]
 
 
-# ============ INPUT CONNECTORS ============
-
-# 1. Kafka / Redpanda
+# 1. Kafka
 class KafkaNode(InputNode):
     topic: str
     node_id: str = Field(default="kafka")
     rdkafka_settings: Dict[str, Any]
     format: str = Field(default="json")  # raw, csv, json, plaintext
     json_field_paths: Optional[Dict[str, str]] = None
-    autogenerate_key: bool = Field(default=False)
-    with_metadata: bool = Field(default=False)
-    start_from_timestamp_ms: Optional[int] = None
+    # autogenerate_key: bool = Field(default=False)
+    # start_from_timestamp_ms: Optional[int] = None
 
 
 class RedpandaNode(InputNode):
@@ -41,28 +40,31 @@ class RedpandaNode(InputNode):
     rdkafka_settings: Dict[str, Any]
     format: str = Field(default="json")
     with_metadata: bool = Field(default=False)
-
+    table_schema: type[pw.Schema]
 
 # 2. CSV
 class CsvNode(InputNode):
     path: str
     node_id: str = Field(default="csv")
-    delimiter: str = Field(default=",")
-    quote: str = Field(default='"')
-    escape: Optional[str] = None
-    enable_double_quote_escapes: bool = Field(default=True)
-    enable_quoting: bool = Field(default=True)
-    comment_character: Optional[str] = None
-    with_metadata: bool = Field(default=False)
-    object_pattern: str = Field(default="*")
+    table_schema: type[pw.Schema]
+    # delimiter: str = Field(default=",")
+    # quote: str = Field(default='"')
+    # escape: Optional[str] = None
+    # enable_double_quote_escapes: bool = Field(default=True)
+    # enable_quoting: bool = Field(default=True)
+    # comment_character: Optional[str] = None
+    # with_metadata: bool = Field(default=False)
+    # object_pattern: str = Field(default="*")
 
 
 # 3. JSON Lines
 class JsonLinesNode(InputNode):
     path: str
+    table_schema: type[pw.Schema]
     node_id: str = Field(default="jsonlines")
-    with_metadata: bool = Field(default=False)
-    object_pattern: str = Field(default="*")
+    table_schema: type[pw.Schema]
+    # with_metadata: bool = Field(default=False)
+    # object_pattern: str = Field(default="*")
 
 
 # 4. Airbyte
@@ -70,7 +72,7 @@ class AirbyteNode(InputNode):
     config_file_path: str
     streams: List[str]
     node_id: str = Field(default="airbyte")
-    execution_type: str = Field(default="local")  # local or remote
+    # execution_type: str = Field(default="local")  # local or remote
     env_vars: Optional[Dict[str, str]] = None
     enforce_method: Optional[str] = None
     refresh_interval_ms: int = Field(default=60000)
@@ -82,6 +84,7 @@ class DebeziumNode(InputNode):
     topic_name: str
     node_id: str = Field(default="debezium")
     db_type: Optional[str] = None  # postgres, mongodb, mysql
+    table_schema: type[pw.Schema]
 
 
 # 6. S3
@@ -89,9 +92,10 @@ class S3Node(InputNode):
     path: str
     aws_s3_settings: Dict[str, Any]
     format: str
+    table_schema: type[pw.Schema]
     node_id: str = Field(default="s3")
     csv_settings: Optional[Dict[str, Any]] = None
-    json_field_paths: Optional[Dict[str, str]] = None
+    # json_field_paths: Optional[Dict[str, str]] = None
     with_metadata: bool = Field(default=False)
 
 
@@ -110,22 +114,15 @@ class DeltaLakeNode(InputNode):
     node_id: str = Field(default="deltalake")
     version: Optional[int] = None
     datetime_column: Optional[str] = None
-
+    table_schema: type[pw.Schema]
 
 # 9. Iceberg
 class IcebergNode(InputNode):
     catalog: str
     table_name: str
     node_id: str = Field(default="iceberg")
+    table_schema: type[pw.Schema]
 
-
-# 10. File System
-class FileSystemNode(InputNode):
-    path: str
-    format: str  # csv, json, plaintext, binary
-    node_id: str = Field(default="fs")
-    object_pattern: str = Field(default="*")
-    with_metadata: bool = Field(default=False)
 
 
 # 11. Plain Text
@@ -144,6 +141,7 @@ class HTTPNode(InputNode):
     headers: Optional[Dict[str, str]] = None
     request_timeout_ms: Optional[int] = None
     allow_redirects: bool = Field(default=True)
+    table_schema: type[pw.Schema]
 
 
 # 13. MongoDB
@@ -152,6 +150,7 @@ class MongoDBNode(InputNode):
     database: str
     collection: str
     node_id: str = Field(default="mongodb")
+    table_schema: type[pw.Schema]
 
 
 # 14. PostgreSQL (via Debezium)
@@ -176,27 +175,25 @@ class GoogleDriveNode(InputNode):
     with_metadata: bool = Field(default=False)
 
 
-# 17. SharePoint
-class SharePointNode(InputNode):
-    url: str
-    tenant: str
-    client_id: str
-    node_id: str = Field(default="sharepoint")
-    with_metadata: bool = Field(default=False)
+
 
 
 # 18. Kinesis
 class KinesisNode(InputNode):
     stream_name: str
+    format : Literal['plaintext', 'raw', 'json']
     aws_credentials: Dict[str, Any]
     node_id: str = Field(default="kinesis")
+    table_schema: type[pw.Schema]
 
 
 # 19. NATS
 class NATSNode(InputNode):
     servers: List[str]
+    format : Literal['plaintext', 'raw', 'json']
     subject: str
     node_id: str = Field(default="nats")
+    table_schema: type[pw.Schema]
 
 
 # 20. MQTT
@@ -205,6 +202,8 @@ class MQTTNode(InputNode):
     topic: str
     node_id: str = Field(default="mqtt")
     port: int = Field(default=1883)
+    table_schema: type[pw.Schema]
+
 
 
 # 21. Python Connector
@@ -212,23 +211,14 @@ class PythonConnectorNode(InputNode):
     subject: Any  # ConnectorSubject instance
     node_id: str = Field(default="python")
 
-
-# 22. Pandas
-class PandasNode(InputNode):
-    dataframe: Any  # pd.DataFrame
-    node_id: str = Field(default="pandas")
-
-
-# 23. Markdown
-class MarkdownNode(InputNode):
-    path: str
-    node_id: str = Field(default="markdown")
+    
 
 
 # ============ OUTPUT CONNECTORS ============
 
 # 1. Kafka Write
 class KafkaWriteNode(OutputNode):
+    table_schema: type[pw.Schema]
     rdkafka_settings: Dict[str, Any]
     topic_name: str
     format: str = Field(default="json")
@@ -237,6 +227,7 @@ class KafkaWriteNode(OutputNode):
 
 # 2. Redpanda Write
 class RedpandaWriteNode(OutputNode):
+    table_schema: type[pw.Schema]
     rdkafka_settings: Dict[str, Any]
     topic_name: str
     format: str = Field(default="json")
@@ -245,36 +236,41 @@ class RedpandaWriteNode(OutputNode):
 
 # 3. CSV Write
 class CsvWriteNode(OutputNode):
+    table_schema: type[pw.Schema]
     filename: str
     node_id: str = Field(default="csv_write")
 
 
 # 4. JSON Lines Write
 class JsonLinesWriteNode(OutputNode):
+    table_schema: type[pw.Schema]
     filename: str
     node_id: str = Field(default="jsonlines_write")
 
 
 # 5. PostgreSQL Write
 class PostgreSQLWriteNode(OutputNode):
+    table_schema: type[pw.Schema]
     postgres_settings: Dict[str, Any]
     table_name: str
     primary_keys: List[str]
     node_id: str = Field(default="postgres_write")
-    output_table_type: str = Field(default="stream")  # stream or snapshot
+    # output_table_type: str = Field(default="stream")  # stream or snapshot
 
 
 # 6. MySQL Write
 class MySQLWriteNode(OutputNode):
+    table_schema: type[pw.Schema]
     mysql_settings: Dict[str, Any]
     table_name: str
     primary_keys: List[str]
     node_id: str = Field(default="mysql_write")
-    output_table_type: str = Field(default="stream")
+    # output_table_type: str = Field(default="stream")
 
 
 # 7. MongoDB Write
 class MongoDBWriteNode(OutputNode):
+    table_schema: type[pw.Schema]
     uri: str
     database: str
     collection: str
@@ -288,11 +284,13 @@ class BigQueryWriteNode(OutputNode):
     dataset: str
     table: str
     node_id: str = Field(default="bigquery_write")
+    table_schema: type[pw.Schema]
 
 
 # 9. Elasticsearch Write
 class ElasticsearchWriteNode(OutputNode):
     hosts: List[str]
+    table_schema: type[pw.Schema]
     index: str
     node_id: str = Field(default="elasticsearch_write")
     username: Optional[str] = None
@@ -301,34 +299,17 @@ class ElasticsearchWriteNode(OutputNode):
 
 # 10. DynamoDB Write
 class DynamoDBWriteNode(OutputNode):
+    table_schema: type[pw.Schema]
     table_name: str
     aws_credentials: Dict[str, Any]
     node_id: str = Field(default="dynamodb_write")
 
 
-# 11. S3 Write
-class S3WriteNode(OutputNode):
-    path: str
-    aws_s3_settings: Dict[str, Any]
-    format: str
-    node_id: str = Field(default="s3_write")
-
-
-# 12. Delta Lake Write
-class DeltaLakeWriteNode(OutputNode):
-    uri: str
-    node_id: str = Field(default="deltalake_write")
-
-
-# 13. Iceberg Write
-class IcebergWriteNode(OutputNode):
-    catalog: str
-    table_name: str
-    node_id: str = Field(default="iceberg_write")
 
 
 # 14. Google PubSub Write
 class PubSubWriteNode(OutputNode):
+    table_schema: type[pw.Schema]
     topic: str
     credentials_file: str
     node_id: str = Field(default="pubsub_write")
@@ -336,6 +317,7 @@ class PubSubWriteNode(OutputNode):
 
 # 15. Kinesis Write
 class KinesisWriteNode(OutputNode):
+    table_schema: type[pw.Schema]
     stream_name: str
     aws_credentials: Dict[str, Any]
     node_id: str = Field(default="kinesis_write")
@@ -343,23 +325,27 @@ class KinesisWriteNode(OutputNode):
 
 # 16. NATS Write
 class NATSWriteNode(OutputNode):
-    servers: List[str]
-    subject: str
+    table_schema: type[pw.Schema]
+    uri: str
+    topic: str
+    format : Literal['json', 'dsv', 'plaintext', 'raw']
     node_id: str = Field(default="nats_write")
 
 
 # 17. MQTT Write
 class MQTTWriteNode(OutputNode):
+    table_schema: type[pw.Schema]
+
     broker: str
     topic: str
     node_id: str = Field(default="mqtt_write")
-    port: int = Field(default=1883)
+    # port: int = Field(default=1883)
 
 
 # 18. Logstash Write
 class LogstashWriteNode(OutputNode):
-    host: str
-    port: int
+    table_schema: type[pw.Schema]
+    endpoint : str
     node_id: str = Field(default="logstash_write")
 
 
@@ -369,23 +355,3 @@ class QuestDBWriteNode(OutputNode):
     port: int
     node_id: str = Field(default="questdb_write")
 
-
-# 20. Slack Write
-class SlackWriteNode(OutputNode):
-    webhook_url: str
-    node_id: str = Field(default="slack_write")
-
-
-# 21. Python Output
-class PythonOutputNode(OutputNode):
-    callback: Any  # Callback function
-    node_id: str = Field(default="python_output")
-
-
-# 22. Subscribe (for debugging/monitoring)
-class SubscribeNode(OutputNode):
-    on_change: Any  # Callback function
-    on_end: Optional[Any] = None
-    on_time_end: Optional[Any] = None
-    node_id: str = Field(default="subscribe")
-    sort_by: Optional[List[str]] = None
