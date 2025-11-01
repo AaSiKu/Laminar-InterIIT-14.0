@@ -9,13 +9,8 @@ import {
   addEdge,
   Handle,
   Position,
-  Node,
-  Edge,
-  NodeChange,
-  EdgeChange,
-  Connection,
-  NodeTypes,
 } from "@xyflow/react";
+import "@xyflow/react/dist/style.css";
 
 import {
   AppBar,
@@ -41,11 +36,8 @@ const theme = createTheme({
   },
 });
 
-interface MuiNodeProps {
-  data: { label: string };
-}
-
-const MuiNode = memo(({ data }: MuiNodeProps) => {
+// 🎯 Custom node component using MUI Box inside
+const MuiNode = memo(({ data }) => {
   return (
     <Paper
       elevation={3}
@@ -65,6 +57,7 @@ const MuiNode = memo(({ data }: MuiNodeProps) => {
     >
       <Handle type="target" position={Position.Top} />
       <Typography variant="body1">{data.label}</Typography>
+      {/* 👇 You can use Box freely inside the node */}
       <Box
         sx={{
           mt: 1,
@@ -83,10 +76,10 @@ const MuiNode = memo(({ data }: MuiNodeProps) => {
   );
 });
 
-const nodeTypes: NodeTypes = { muiNode: MuiNode };
+const nodeTypes = { muiNode: MuiNode };
 
-export default function Dashboard() {
-  const initialNodes: Node[] = [
+export default function App() {
+  const initialNodes = [
     {
       id: "n1",
       type: "muiNode",
@@ -101,25 +94,23 @@ export default function Dashboard() {
     },
   ];
 
-  const initialEdges: Edge[] = [
+  const initialEdges = [
     { id: "e1-2", source: "n1", target: "n2", animated: true },
   ];
 
-  const [nodes, setNodes] = useState<Node[]>(initialNodes);
-  const [edges, setEdges] = useState<Edge[]>(initialEdges);
+  const [nodes, setNodes] = useState(initialNodes);
+  const [edges, setEdges] = useState(initialEdges);
 
   const onNodesChange = useCallback(
-    (changes: NodeChange[]) => setNodes((ns) => applyNodeChanges(changes, ns)),
+    (changes) => setNodes((ns) => applyNodeChanges(changes, ns)),
     []
   );
-
   const onEdgesChange = useCallback(
-    (changes: EdgeChange[]) => setEdges((es) => applyEdgeChanges(changes, es)),
+    (changes) => setEdges((es) => applyEdgeChanges(changes, es)),
     []
   );
-
   const onConnect = useCallback(
-    (params: Connection) => setEdges((es) => addEdge({ ...params, animated: true }, es)),
+    (params) => setEdges((es) => addEdge({ ...params, animated: true }, es)),
     []
   );
 
@@ -144,6 +135,7 @@ export default function Dashboard() {
   return (
     <ThemeProvider theme={theme}>
       <Box sx={{ width: "100vw", height: "100vh", bgcolor: "background.default" }}>
+        {/* Header */}
         <AppBar
           position="static"
           color="inherit"
@@ -172,9 +164,9 @@ export default function Dashboard() {
           </Toolbar>
         </AppBar>
 
+        {/* React Flow Canvas */}
         <Box sx={{ height: "85vh" }}>
           <ReactFlow
-          panOnDrag={false}
             nodes={nodes}
             edges={edges}
             nodeTypes={nodeTypes}
