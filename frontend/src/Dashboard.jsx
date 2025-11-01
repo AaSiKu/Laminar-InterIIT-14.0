@@ -1,4 +1,4 @@
-import { useState, useCallback, memo } from "react";
+import { useState, useCallback, memo, useEffect } from "react";
 import {
   ReactFlow,
   Background,
@@ -11,7 +11,6 @@ import {
   Position,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
-
 import {
   AppBar,
   Toolbar,
@@ -36,7 +35,6 @@ const theme = createTheme({
   },
 });
 
-// 🎯 Custom node component using MUI Box inside
 const MuiNode = memo(({ data }) => {
   return (
     <Paper
@@ -57,7 +55,6 @@ const MuiNode = memo(({ data }) => {
     >
       <Handle type="target" position={Position.Top} />
       <Typography variant="body1">{data.label}</Typography>
-      {/* 👇 You can use Box freely inside the node */}
       <Box
         sx={{
           mt: 1,
@@ -78,7 +75,7 @@ const MuiNode = memo(({ data }) => {
 
 const nodeTypes = { muiNode: MuiNode };
 
-export default function App() {
+export function Dashboard({ sidebarOpen, setOpen, dashboardSidebarOpen }) {
   const initialNodes = [
     {
       id: "n1",
@@ -100,6 +97,22 @@ export default function App() {
 
   const [nodes, setNodes] = useState(initialNodes);
   const [edges, setEdges] = useState(initialEdges);
+
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        const result = await window.storage.get('react-flow-data');
+        if (result) {
+          const data = JSON.parse(result.value);
+          setNodes(data.nodes);
+          setEdges(data.edges);
+        }
+      } catch (error) {
+        console.log('No saved data found');
+      }
+    };
+    loadData();
+  }, []);
 
   const onNodesChange = useCallback(
     (changes) => setNodes((ns) => applyNodeChanges(changes, ns)),
@@ -132,10 +145,59 @@ export default function App() {
     setEdges(initialEdges);
   };
 
+  const handleSave = async () => {
+    const flowData = { nodes, edges };
+    await window.storage.set('react-flow-data', JSON.stringify(flowData));
+  };
+
+  const handleExport = () => {
+    const data = JSON.stringify({ nodes, edges }, null, 2);
+    const blob = new Blob([data], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'flow.json';
+    a.click();
+  };
+
+  const drawerWidth = sidebarOpen ? 64 + (dashboardSidebarOpen ? 250 : 0) : 64;
+
   return (
-    <ThemeProvider theme={theme}>
-      <Box sx={{ width: "100vw", height: "100vh", bgcolor: "background.default" }}>
-        {/* Header */}
+    <>
+      <style>{`
+        .react-flow__minimap {
+          border: none !important;
+          box-shadow: none !important;
+          background: white !important;
+        }
+        .react-flow__controls {
+          box-shadow: 0 2px 8px rgba(0,0,0,0.15) !important;
+        }
+        .react-flow__panel {
+          margin: 10px !important;
+        }
+        .react-flow .react-flow__edges {
+          cursor: crosshair !important;
+        }
+        .react-flow__node {
+          cursor: grab !important;
+        }
+        .react-flow__node.dragging {
+          cursor: grabbing !important;
+        }
+        .react-flow__pane {
+          cursor: default !important;
+        }
+      `}</style>
+      
+      <Box 
+        sx={{ 
+          transition: 'none',
+          width: `calc(100vw - ${drawerWidth}px)`,
+          height: "100vh", 
+          bgcolor: "background.default" 
+        }}
+      >
         <AppBar
           position="static"
           color="inherit"
@@ -144,18 +206,21 @@ export default function App() {
             borderBottom: 1,
             borderColor: "divider",
             bgcolor: "background.paper",
-            height: "15vh",
-            display: "flex",
-            justifyContent: "center",
           }}
         >
-          <Toolbar sx={{ display: "flex", justifyContent: "space-between" }}>
+          <Toolbar sx={{ display: "flex", height:"12vh", justifyContent: "space-between" }}>
             <Typography variant="h6" color="text.primary">
-              My Flow Editor
+              React Flow
             </Typography>
             <Box sx={{ display: "flex", gap: 2 }}>
               <Button variant="outlined" onClick={handleReset}>
                 Reset
+              </Button>
+              <Button variant="outlined" onClick={handleSave}>
+                Save
+              </Button>
+              <Button variant="outlined" onClick={handleExport}>
+                Export
               </Button>
               <Button variant="contained" onClick={handleAddNode}>
                 + Add Node
@@ -164,8 +229,7 @@ export default function App() {
           </Toolbar>
         </AppBar>
 
-        {/* React Flow Canvas */}
-        <Box sx={{ height: "85vh" }}>
+        <Box sx={{ height: "87vh", bgcolor: "white" }}>
           <ReactFlow
             nodes={nodes}
             edges={edges}
@@ -179,13 +243,14 @@ export default function App() {
               nodeColor={(n) =>
                 n.id === "n1" ? theme.palette.primary.main : theme.palette.secondary.main
               }
-              style={{ background: "#fff" }}
+              style={{ background:"white", border:"none", padding: 0, margin: 0 }}
+              maskColor="rgba(0, 0, 0, 0.1)"
             />
             <Controls />
             <Background color="#aaa" gap={16} />
           </ReactFlow>
         </Box>
       </Box>
-    </ThemeProvider>
+    </>
   );
 }
