@@ -1,0 +1,11 @@
+fastapi
+uvicorn[standard]
+python-multipart
+pathway[xpack-llm,xpack-llm-docs]
+unstructured[pdf]
+pdfminer.six
+litellm
+google-generativeai
+pydantic
+python-dotenv
+pdf2image
