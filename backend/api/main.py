@@ -65,7 +65,7 @@ def get_schema_for_node(node: Union[str, Type[Any]]) -> dict:
 
 
 @app.get("/{node_name}")
-def schema_for_node(node_name: object):
+def schema_for_node(node_name: str):
 
     schema_obj = get_schema_for_node(node_name)
     return JSONResponse(schema_obj)
