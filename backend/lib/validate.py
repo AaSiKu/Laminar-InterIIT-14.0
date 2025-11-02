@@ -1,8 +1,8 @@
 import inspect
 from pydantic import ValidationError
 from typing import List, Dict, Any, Literal, get_args, get_origin
-import io_nodes
-import tables
+from . import io_nodes
+from . import tables
 
 def get_node_class_map():
     """
@@ -59,9 +59,7 @@ def validate_nodes(node_data_list: List[Dict[str, Any]]):
             validated = node_class(**node_data)
             validated_nodes.append(validated)
         except ValidationError as e:
-            raise ValidationError(
-                f"Validation failed for node_id='{node_id}': {e}"
-            ) from e
+            raise ValueError(f"Validation failed for node_id='{node_id}': {e}") from e
 
     return validated_nodes
 
