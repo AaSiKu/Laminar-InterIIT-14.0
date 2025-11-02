@@ -44,9 +44,9 @@ const Sidebar = ({ setDashboardSidebarOpen, dashboardSidebarOpen }) => {
           width: collapsedWidth,
           boxSizing: 'border-box',
           overflowX: 'hidden',
-          backgroundColor: '#f5f5f5',
+          backgroundColor: '#ffffffff',
           borderRight: '1px solid #e0e0e0',
-          zIndex:1000
+          zIndex:2000,
         },
       }}
     >

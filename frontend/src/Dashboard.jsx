@@ -20,6 +20,8 @@ import {
   Paper,
   ThemeProvider,
   createTheme,
+  useTheme,
+  useMediaQuery,
 } from "@mui/material";
 
 const theme = createTheme({
@@ -76,6 +78,8 @@ const MuiNode = memo(({ data }) => {
 const nodeTypes = { muiNode: MuiNode };
 
 export function Dashboard({ sidebarOpen, setOpen, dashboardSidebarOpen }) {
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const initialNodes = [
     {
       id: "n1",
@@ -160,7 +164,7 @@ export function Dashboard({ sidebarOpen, setOpen, dashboardSidebarOpen }) {
     a.click();
   };
 
-  const drawerWidth = sidebarOpen ? 64 + (dashboardSidebarOpen ? 250 : 0) : 64;
+  const drawerWidth = 64 + (dashboardSidebarOpen && !isMobile ? 250 : 0);
 
   return (
     <>
@@ -192,7 +196,7 @@ export function Dashboard({ sidebarOpen, setOpen, dashboardSidebarOpen }) {
       
       <Box 
         sx={{ 
-          transition: 'none',
+          transition: 'margin-left 0.3s ease',
           width: `calc(100vw - ${drawerWidth}px)`,
           height: "100vh", 
           bgcolor: "background.default" 
@@ -212,7 +216,7 @@ export function Dashboard({ sidebarOpen, setOpen, dashboardSidebarOpen }) {
             <Typography variant="h6" color="text.primary">
               React Flow
             </Typography>
-            <Box sx={{ display: "flex", gap: 2 }}>
+            {/* <Box sx={{ display: "flex", gap: 2 }}>
               <Button variant="outlined" onClick={handleReset}>
                 Reset
               </Button>
@@ -225,7 +229,7 @@ export function Dashboard({ sidebarOpen, setOpen, dashboardSidebarOpen }) {
               <Button variant="contained" onClick={handleAddNode}>
                 + Add Node
               </Button>
-            </Box>
+            </Box> */}
           </Toolbar>
         </AppBar>
 

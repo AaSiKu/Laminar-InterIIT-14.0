@@ -16,36 +16,40 @@ const theme = createTheme({
     fontWeightMedium: 600,
   },
 });
-// In your parent component
+
 const fileStructure = [
   {
     name: 'src',
     type: 'folder',
+    id: '123',
     children: [
       {
         name: 'components',
         type: 'folder',
+        id: '1234',
         children: [
-          { name: 'Header.jsx', type: 'file' },
-          { name: 'Footer.jsx', type: 'file' },
+          { name: 'Header.jsx', type: 'file', id:'124'},
+          { name: 'Footer.jsx', type: 'file', id:'234'},
         ]
       },
       {
         name: 'pages',
         type: 'folder',
+        id:'2345',
         children: [
-          { name: 'Home.jsx', type: 'file' },
-          { name: 'About.jsx', type: 'file' },
+          { name: 'Home.jsx', type: 'file', id: '3458'},
+          { name: 'About.jsx', type: 'file', id: '3456'},
         ]
       },
-      { name: 'App.jsx', type: 'file' },
+      { name: 'App.jsx', type: 'file', id:'4567548'},
     ]
   },
   {
     name: 'public',
     type: 'folder',
+    id: '35786',
     children: [
-      { name: 'index.html', type: 'file' },
+      { name: 'index.html', type: 'file', id:'6345' },
     ]
   },
   { name: 'package.json', type: 'file' },
@@ -64,7 +68,7 @@ export default function App() {
           setDashboardSidebarOpen={setDashboardSidebarOpen} 
           dashboardSidebarOpen={dashboardSidebarOpen} 
         />
-        
+
         <DashboardSidebar 
           open={dashboardSidebarOpen} 
           onClose={() => setDashboardSidebarOpen(false)}
