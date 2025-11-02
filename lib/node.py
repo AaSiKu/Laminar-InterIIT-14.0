@@ -4,3 +4,4 @@ from pydantic import BaseModel
 class Node(BaseModel):
     category: str
     node_id: str
+    n_inputs : int
