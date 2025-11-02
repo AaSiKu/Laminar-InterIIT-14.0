@@ -1,352 +1,313 @@
-from pydantic import  Field
-from typing import Optional, Dict, Any, List
+from pydantic import Field, field_validator
+from typing import Optional, Dict, Any, List, Literal
 import pathway as pw
-from typing import Literal
 from node import Node
+import json
 
-class InputNode(Node):
-    schema: type[pw.Schema]
+class IONode(Node):
+    table_schema: Any
     category: Literal['io']
-    mode: Optional[str] = Field(default="streaming")  
-    autocommit_duration_ms: Optional[int] = Field(default=1500)
-    name: Optional[str] = None
-    max_backlog_size: Optional[int] = None
+    name: Optional[str] = Field(default="None")
 
+    @field_validator("table_schema", mode="before")
+    @classmethod
+    def validate_schema(cls, value):
+        # If it's already a Pathway schema class, accept as-is
+        if isinstance(value, type) and issubclass(value, pw.Schema):
+            return value
 
-class OutputNode(Node):
-    category: Literal['io']
-    schema: type[pw.Schema]
+        # If it's a JSON string, parse and convert
+        if isinstance(value, str):
+            try:
+                parsed = json.loads(value)
+                if not isinstance(parsed, dict):
+                    raise TypeError("Schema JSON must represent a dictionary.")
+                return pw.schema_from_dict(parsed)
+            except json.JSONDecodeError as e:
+                raise ValueError(f"Invalid JSON for schema: {e}")
+            except Exception as e:
+                raise ValueError(f"Failed to construct Pathway schema: {e}")
 
+        # If it's already a dict, support that too
+        if isinstance(value, dict):
+            try:
+                return pw.schema_from_dict(value)
+            except Exception as e:
+                raise ValueError(f"Invalid Pathway schema dict: {e}")
 
-# 1. Kafka
-class KafkaNode(InputNode):
+        raise TypeError(
+            f"table_schema must be either a Pathway Schema class, "
+            f"a JSON string, or a dict — got {type(value).__name__}"
+        )
+
+# ============ INPUT CONNECTORS ============
+
+class KafkaNode(IONode):
     topic: str
-    node_id: str = Field(default="kafka")
+    node_id: Literal["kafka"]
     rdkafka_settings: Dict[str, Any]
-    format: str = Field(default="json")  # raw, csv, json, plaintext
+    format: Literal["raw", "csv", "json", "plaintext"] = "json"
     json_field_paths: Optional[Dict[str, str]] = None
-    # autogenerate_key: bool = Field(default=False)
-    # start_from_timestamp_ms: Optional[int] = None
 
 
-class RedpandaNode(InputNode):
+class RedpandaNode(IONode):
     topic: str
-    node_id: str = Field(default="redpanda")
+    node_id: Literal["redpanda"]
     rdkafka_settings: Dict[str, Any]
-    format: str = Field(default="json")
-    with_metadata: bool = Field(default=False)
-    table_schema: type[pw.Schema]
+    format: Literal["json"] = "json"
+    with_metadata: bool = False
+    
 
-# 2. CSV
-class CsvNode(InputNode):
+
+class CsvNode(IONode):
     path: str
-    node_id: str = Field(default="csv")
-    table_schema: type[pw.Schema]
-    # delimiter: str = Field(default=",")
-    # quote: str = Field(default='"')
-    # escape: Optional[str] = None
-    # enable_double_quote_escapes: bool = Field(default=True)
-    # enable_quoting: bool = Field(default=True)
-    # comment_character: Optional[str] = None
-    # with_metadata: bool = Field(default=False)
-    # object_pattern: str = Field(default="*")
+    node_id: Literal["csv"]
+    
 
 
-# 3. JSON Lines
-class JsonLinesNode(InputNode):
+class JsonLinesNode(IONode):
     path: str
-    table_schema: type[pw.Schema]
-    node_id: str = Field(default="jsonlines")
-    table_schema: type[pw.Schema]
-    # with_metadata: bool = Field(default=False)
-    # object_pattern: str = Field(default="*")
+    
+    node_id: Literal["jsonlines"]
 
 
-# 4. Airbyte
-class AirbyteNode(InputNode):
+class AirbyteNode(IONode):
     config_file_path: str
     streams: List[str]
-    node_id: str = Field(default="airbyte")
-    # execution_type: str = Field(default="local")  # local or remote
+    node_id: Literal["airbyte"]
     env_vars: Optional[Dict[str, str]] = None
     enforce_method: Optional[str] = None
     refresh_interval_ms: int = Field(default=60000)
 
 
-# 5. Debezium
-class DebeziumNode(InputNode):
+class DebeziumNode(IONode):
     rdkafka_settings: Dict[str, Any]
     topic_name: str
-    node_id: str = Field(default="debezium")
-    db_type: Optional[str] = None  # postgres, mongodb, mysql
-    table_schema: type[pw.Schema]
+    node_id: Literal["debezium"]
+    db_type: Optional[str] = None
+    
 
 
-# 6. S3
-class S3Node(InputNode):
+class S3Node(IONode):
     path: str
     aws_s3_settings: Dict[str, Any]
     format: str
-    table_schema: type[pw.Schema]
-    node_id: str = Field(default="s3")
+    
+    node_id: Literal["s3"]
     csv_settings: Optional[Dict[str, Any]] = None
-    # json_field_paths: Optional[Dict[str, str]] = None
-    with_metadata: bool = Field(default=False)
+    with_metadata: bool = False
 
 
-# 7. MinIO
-class MinIONode(InputNode):
+class MinIONode(IONode):
     path: str
     minio_settings: Dict[str, Any]
     format: str
-    node_id: str = Field(default="minio")
-    with_metadata: bool = Field(default=False)
+    node_id: Literal["minio"]
+    with_metadata: bool = False
 
 
-# 8. Delta Lake
-class DeltaLakeNode(InputNode):
+class DeltaLakeNode(IONode):
     uri: str
-    node_id: str = Field(default="deltalake")
+    node_id: Literal["deltalake"]
     version: Optional[int] = None
     datetime_column: Optional[str] = None
-    table_schema: type[pw.Schema]
+    
 
-# 9. Iceberg
-class IcebergNode(InputNode):
+
+class IcebergNode(IONode):
     catalog: str
     table_name: str
-    node_id: str = Field(default="iceberg")
-    table_schema: type[pw.Schema]
+    node_id: Literal["iceberg"]
+    
 
 
-
-# 11. Plain Text
-class PlainTextNode(InputNode):
+class PlainTextNode(IONode):
     path: str
-    node_id: str = Field(default="plaintext")
+    node_id: Literal["plaintext"]
     object_pattern: str = Field(default="*")
-    with_metadata: bool = Field(default=False)
+    with_metadata: bool = True
 
 
-# 12. HTTP
-class HTTPNode(InputNode):
+class HTTPNode(IONode):
     url: str
-    node_id: str = Field(default="http")
-    method: str = Field(default="GET")
+    node_id: Literal["http"]
+    method: Literal["GET", "POST", "PUT", "DELETE"] = "GET"
     headers: Optional[Dict[str, str]] = None
-    request_timeout_ms: Optional[int] = None
-    allow_redirects: bool = Field(default=True)
-    table_schema: type[pw.Schema]
+    allow_redirects: bool = True
+    
 
 
-# 13. MongoDB
-class MongoDBNode(InputNode):
+class MongoDBNode(IONode):
     uri: str
     database: str
     collection: str
-    node_id: str = Field(default="mongodb")
-    table_schema: type[pw.Schema]
+    node_id: Literal["mongodb"]
+    
 
 
-# 14. PostgreSQL (via Debezium)
-class PostgreSQLNode(InputNode):
+class PostgreSQLNode(IONode):
     rdkafka_settings: Dict[str, Any]
     topic_name: str
-    node_id: str = Field(default="postgres")
+    node_id: Literal["postgres"]
 
 
-# 15. SQLite
-class SQLiteNode(InputNode):
+class SQLiteNode(IONode):
     path: str
     table_name: str
-    node_id: str = Field(default="sqlite")
+    node_id: Literal["sqlite"]
 
 
-# 16. Google Drive
-class GoogleDriveNode(InputNode):
+class GoogleDriveNode(IONode):
     object_id: str
     service_user_credentials_file: str
-    node_id: str = Field(default="gdrive")
-    with_metadata: bool = Field(default=False)
+    node_id: Literal["gdrive"]
+    with_metadata: bool = False
 
 
-
-
-
-# 18. Kinesis
-class KinesisNode(InputNode):
+class KinesisNode(IONode):
     stream_name: str
-    format : Literal['plaintext', 'raw', 'json']
+    format: Literal["plaintext", "raw", "json"]
     aws_credentials: Dict[str, Any]
-    node_id: str = Field(default="kinesis")
-    table_schema: type[pw.Schema]
+    node_id: Literal["kinesis"]
+    
 
 
-# 19. NATS
-class NATSNode(InputNode):
+class NATSNode(IONode):
     servers: List[str]
-    format : Literal['plaintext', 'raw', 'json']
+    format: Literal["plaintext", "raw", "json"]
     subject: str
-    node_id: str = Field(default="nats")
-    table_schema: type[pw.Schema]
+    node_id: Literal["nats"]
+    
 
 
-# 20. MQTT
-class MQTTNode(InputNode):
+class MQTTNode(IONode):
     broker: str
     topic: str
-    node_id: str = Field(default="mqtt")
+    node_id: Literal["mqtt"]
     port: int = Field(default=1883)
-    table_schema: type[pw.Schema]
-
-
-
-# 21. Python Connector
-class PythonConnectorNode(InputNode):
-    subject: Any  # ConnectorSubject instance
-    node_id: str = Field(default="python")
-
     
+
+
+class PythonConnectorNode(IONode):
+    subject: Any
+    node_id: Literal["python"]
 
 
 # ============ OUTPUT CONNECTORS ============
 
-# 1. Kafka Write
-class KafkaWriteNode(OutputNode):
-    table_schema: type[pw.Schema]
+class KafkaWriteNode(IONode):
+    
     rdkafka_settings: Dict[str, Any]
     topic_name: str
-    format: str = Field(default="json")
-    node_id: str = Field(default="kafka_write")
+    format: Literal["json"] = "json"
+    node_id: Literal["kafka_write"]
 
 
-# 2. Redpanda Write
-class RedpandaWriteNode(OutputNode):
-    table_schema: type[pw.Schema]
+class RedpandaWriteNode(IONode):
+    
     rdkafka_settings: Dict[str, Any]
     topic_name: str
-    format: str = Field(default="json")
-    node_id: str = Field(default="redpanda_write")
+    format: Literal["json"] = "json"
+    node_id: Literal["redpanda_write"]
 
 
-# 3. CSV Write
-class CsvWriteNode(OutputNode):
-    table_schema: type[pw.Schema]
+class CsvWriteNode(IONode):
+    
     filename: str
-    node_id: str = Field(default="csv_write")
+    node_id: Literal["csv_write"]
 
 
-# 4. JSON Lines Write
-class JsonLinesWriteNode(OutputNode):
-    table_schema: type[pw.Schema]
+class JsonLinesWriteNode(IONode):
+    
     filename: str
-    node_id: str = Field(default="jsonlines_write")
+    node_id: Literal["jsonlines_write"]
 
 
-# 5. PostgreSQL Write
-class PostgreSQLWriteNode(OutputNode):
-    table_schema: type[pw.Schema]
+class PostgreSQLWriteNode(IONode):
+    
     postgres_settings: Dict[str, Any]
     table_name: str
     primary_keys: List[str]
-    node_id: str = Field(default="postgres_write")
-    # output_table_type: str = Field(default="stream")  # stream or snapshot
+    node_id: Literal["postgres_write"]
 
 
-# 6. MySQL Write
-class MySQLWriteNode(OutputNode):
-    table_schema: type[pw.Schema]
+class MySQLWriteNode(IONode):
+    
     mysql_settings: Dict[str, Any]
     table_name: str
     primary_keys: List[str]
-    node_id: str = Field(default="mysql_write")
-    # output_table_type: str = Field(default="stream")
+    node_id: Literal["mysql_write"]
 
 
-# 7. MongoDB Write
-class MongoDBWriteNode(OutputNode):
-    table_schema: type[pw.Schema]
+class MongoDBWriteNode(IONode):
+    
     uri: str
     database: str
     collection: str
-    node_id: str = Field(default="mongodb_write")
+    node_id: Literal["mongodb_write"]
 
 
-# 8. BigQuery Write
-class BigQueryWriteNode(OutputNode):
+class BigQueryWriteNode(IONode):
     credentials_file: str
     project_id: str
     dataset: str
     table: str
-    node_id: str = Field(default="bigquery_write")
-    table_schema: type[pw.Schema]
+    node_id: Literal["bigquery_write"]
+    
 
 
-# 9. Elasticsearch Write
-class ElasticsearchWriteNode(OutputNode):
+class ElasticsearchWriteNode(IONode):
     hosts: List[str]
-    table_schema: type[pw.Schema]
+    
     index: str
-    node_id: str = Field(default="elasticsearch_write")
+    node_id: Literal["elasticsearch_write"]
     username: Optional[str] = None
     password: Optional[str] = None
 
 
-# 10. DynamoDB Write
-class DynamoDBWriteNode(OutputNode):
-    table_schema: type[pw.Schema]
+class DynamoDBWriteNode(IONode):
+    
     table_name: str
     aws_credentials: Dict[str, Any]
-    node_id: str = Field(default="dynamodb_write")
+    node_id: Literal["dynamodb_write"]
 
 
-
-
-# 14. Google PubSub Write
-class PubSubWriteNode(OutputNode):
-    table_schema: type[pw.Schema]
+class PubSubWriteNode(IONode):
+    
     topic: str
     credentials_file: str
-    node_id: str = Field(default="pubsub_write")
+    node_id: Literal["pubsub_write"]
 
 
-# 15. Kinesis Write
-class KinesisWriteNode(OutputNode):
-    table_schema: type[pw.Schema]
+class KinesisWriteNode(IONode):
+    
     stream_name: str
     aws_credentials: Dict[str, Any]
-    node_id: str = Field(default="kinesis_write")
+    node_id: Literal["kinesis_write"]
 
 
-# 16. NATS Write
-class NATSWriteNode(OutputNode):
-    table_schema: type[pw.Schema]
+class NATSWriteNode(IONode):
+    
     uri: str
     topic: str
-    format : Literal['json', 'dsv', 'plaintext', 'raw']
-    node_id: str = Field(default="nats_write")
+    format: Literal["json", "dsv", "plaintext", "raw"]
+    node_id: Literal["nats_write"]
 
 
-# 17. MQTT Write
-class MQTTWriteNode(OutputNode):
-    table_schema: type[pw.Schema]
-
+class MQTTWriteNode(IONode):
+    
     broker: str
     topic: str
-    node_id: str = Field(default="mqtt_write")
-    # port: int = Field(default=1883)
+    node_id: Literal["mqtt_write"]
 
 
-# 18. Logstash Write
-class LogstashWriteNode(OutputNode):
-    table_schema: type[pw.Schema]
-    endpoint : str
-    node_id: str = Field(default="logstash_write")
+class LogstashWriteNode(IONode):
+    
+    endpoint: str
+    node_id: Literal["logstash_write"]
 
 
-# 19. QuestDB Write
-class QuestDBWriteNode(OutputNode):
+class QuestDBWriteNode(IONode):
     host: str
     port: int
-    node_id: str = Field(default="questdb_write")
-
+    node_id: Literal["questdb_write"]

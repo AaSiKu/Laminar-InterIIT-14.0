@@ -3,6 +3,8 @@ from typing import TypedDict, Callable, Any
 from collections import defaultdict
 import pathway as pw
 import json
+from lib.validate import validate_nodes
+from lib.node import Node
 
 class MappingValues(TypedDict):
     node_fn: Callable[[list[pw.Table] | pw.Table], pw.Table]
@@ -29,8 +31,7 @@ def get_all_params(obj):
 class Graph(TypedDict):
     parsing_order : list[int]
     dependencies: defaultdict[int, list[int]]
-    # TODO: change this type from Any to the base class we would get from lib/
-    nodes: Any
+    nodes: Node
 
 flowchart_file = "flowchart.json"
 """
@@ -40,8 +41,7 @@ def read() -> Graph:
     with open(flowchart_file, "r") as f:
         data = json.loads(f)
         # array of nodes, in this file nodes will be identified by their indexes in this array
-        nodes = data["nodes"]
-        # TODO: VALIDATE if this is a valid graph or not using a validate function we will implement in lib/
+        nodes = validate_nodes(data["nodes"])
         dependencies = defaultdict(list)
         for (_from,_to) in data["edges"]:
             dependencies[_to].append(_from)
@@ -59,7 +59,7 @@ def build(graph : Graph):
     node_outputs = [None] * len(nodes)
     for node_index in graph["parsing_order"]:
         node = nodes[node_index]
-        mapping = mappings[node.id]
+        mapping = mappings[node.node_id]
 
         ## Note: VERY IMPORTANT, we are assuming that the edges array in the flowchart.json provides dependencies in the order they are to be used
         ## i.e if node 3 requires node 1 as the first input and node 2 as the second input , then in the edges array in flowchart.json
