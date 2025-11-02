@@ -1,17 +1,12 @@
-from pydantic import BaseModel, Field
+from pydantic import  Field
 from typing import Optional, Dict, Any, List
 import pathway as pw
 from typing import Literal
-
-# Base Node Classes
-class Node(BaseModel):
-    category: str
-    node_id: str
-
+from node import Node
 
 class InputNode(Node):
     schema: type[pw.Schema]
-    category: str = Field(default="io")
+    category: Literal['io']
     mode: Optional[str] = Field(default="streaming")  
     autocommit_duration_ms: Optional[int] = Field(default=1500)
     name: Optional[str] = None
@@ -19,7 +14,7 @@ class InputNode(Node):
 
 
 class OutputNode(Node):
-    category: str = Field(default="io")
+    category: Literal['io']
     schema: type[pw.Schema]
 
 

@@ -1,12 +1,8 @@
-from abc import ABC, abstractmethod
-from typing import Any, Optional, Callable, List
-from enum import Enum
-from pydantic import BaseModel, Field
+from typing import Any, Optional, List, Union, Tuple, Literal
+from pydantic import Field
 from datetime import datetime, timedelta
-
-class Node(BaseModel):
-    category: str
-    node_id: str
+import pathway as pw
+from node import Node
 
 class FilterNode(Node):
     category: str = Field(default="Table") 
@@ -16,34 +12,34 @@ class FilterNode(Node):
 
 class SortNode(Node):
     category: str = Field(default="Table") 
-    key: Any  # which column to sort
-    instance: Field(default=None)
+    key: str  # which column to sort
+    # instance: Field(default=None)
 
 class SlidingNode(Node):
-    category: str = Field(default="temporal")
+    category: Literal["temporal"]
     origin: float | datetime
     hop: float | timedelta
     duration: Optional[float | timedelta] = None
     ratio: Optional[int] = None
 
 class TumblingNode(Node):
-    category: str = Field(default="temporal")
+    category: Literal["temporal"]
     origin: float | datetime | None
     duration: float | timedelta
 
 class SessionNode(Node):
-    category: str = Field(default="temporal")
+    category: Literal["temporal"]
     max_gap: Optional[float | timedelta] = None
     predicate: Optional[str] = None
 
 class WindowByNode(Node):
-    category: str = Field(default="temporal")
+    category: Literal["temporal"]
     time_col: int
     window_type: str  # sliding, tumbling, session
     instance_col: Optional[int] = None
 
 class IntervalsOverNode(Node):
-    category: str = Field(default="temporal")
+    category: Literal["temporal"]
     at_col: int
     lower_bound: float | timedelta
     upper_bound: float | timedelta
