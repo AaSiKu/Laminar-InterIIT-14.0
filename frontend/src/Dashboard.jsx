@@ -18,89 +18,16 @@ import {
   Button,
   Box,
   Paper,
-  ThemeProvider,
-  createTheme,
   useTheme,
   useMediaQuery,
+  Alert
 } from "@mui/material";
+import { fetchFileData} from "./services/dashboard.api";
 
-const theme = createTheme({
-  palette: {
-    primary: { main: "#3b82f6" },
-    secondary: { main: "#10b981" },
-    background: { default: "#f9fafb", paper: "#fff" },
-  },
-  shape: { borderRadius: 8 },
-  typography: {
-    fontFamily: "Inter, Roboto, sans-serif",
-    fontWeightMedium: 600,
-  },
-});
-
-const MuiNode = memo(({ data }) => {
-  return (
-    <Paper
-      elevation={3}
-      sx={{
-        p: 2,
-        borderRadius: 2,
-        minWidth: 140,
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "center",
-        gap: 1,
-        bgcolor: "background.paper",
-        border: "1px solid",
-        borderColor: "divider",
-        boxShadow: 2,
-      }}
-    >
-      <Handle type="target" position={Position.Top} />
-      <Typography variant="body1">{data.label}</Typography>
-      <Box
-        sx={{
-          mt: 1,
-          px: 1.5,
-          py: 0.5,
-          borderRadius: 1,
-          bgcolor: "secondary.light",
-          color: "white",
-          fontSize: "0.75rem",
-        }}
-      >
-        MUI Box inside
-      </Box>
-      <Handle type="source" position={Position.Bottom} />
-    </Paper>
-  );
-});
-
-const nodeTypes = { muiNode: MuiNode };
-
-export function Dashboard({ sidebarOpen, setOpen, dashboardSidebarOpen }) {
+export function Dashboard({dashboardSidebarOpen,nodes, setNodes,edges, setEdges }) {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
-  const initialNodes = [
-    {
-      id: "n1",
-      type: "muiNode",
-      position: { x: 0, y: 0 },
-      data: { label: "Node 1" },
-    },
-    {
-      id: "n2",
-      type: "muiNode",
-      position: { x: 200, y: 100 },
-      data: { label: "Node 2" },
-    },
-  ];
-
-  const initialEdges = [
-    { id: "e1-2", source: "n1", target: "n2", animated: true },
-  ];
-
-  const [nodes, setNodes] = useState(initialNodes);
-  const [edges, setEdges] = useState(initialEdges);
+  
 
   useEffect(() => {
     const loadData = async () => {
@@ -110,13 +37,31 @@ export function Dashboard({ sidebarOpen, setOpen, dashboardSidebarOpen }) {
           const data = JSON.parse(result.value);
           setNodes(data.nodes);
           setEdges(data.edges);
+        } else {
+          // If no saved data, load from API
+          await loadFlowFromAPI('default');
         }
       } catch (error) {
         console.log('No saved data found');
+        await loadFlowFromAPI('default');
       }
     };
+    
     loadData();
   }, []);
+
+  const loadFlowFromAPI = async (fileId) => {
+    try {
+      const flowData = await fetchFileData(fileId);
+      
+      if (flowData && flowData.nodes && flowData.edges) {
+        setNodes(flowData.nodes);
+        setEdges(flowData.edges);
+      }
+    } catch (error) {
+      <Alert severity="error">{error}</Alert>
+    }
+  };
 
   const onNodesChange = useCallback(
     (changes) => setNodes((ns) => applyNodeChanges(changes, ns)),
@@ -164,36 +109,10 @@ export function Dashboard({ sidebarOpen, setOpen, dashboardSidebarOpen }) {
     a.click();
   };
 
-  const drawerWidth = 64 + (dashboardSidebarOpen && !isMobile ? 250 : 0);
+  const drawerWidth = 64 + (dashboardSidebarOpen && !isMobile ? 325 : 0);
 
   return (
     <>
-      <style>{`
-        .react-flow__minimap {
-          border: none !important;
-          box-shadow: none !important;
-          background: white !important;
-        }
-        .react-flow__controls {
-          box-shadow: 0 2px 8px rgba(0,0,0,0.15) !important;
-        }
-        .react-flow__panel {
-          margin: 10px !important;
-        }
-        .react-flow .react-flow__edges {
-          cursor: crosshair !important;
-        }
-        .react-flow__node {
-          cursor: grab !important;
-        }
-        .react-flow__node.dragging {
-          cursor: grabbing !important;
-        }
-        .react-flow__pane {
-          cursor: default !important;
-        }
-      `}</style>
-      
       <Box 
         sx={{ 
           transition: 'margin-left 0.3s ease',
@@ -229,7 +148,15 @@ export function Dashboard({ sidebarOpen, setOpen, dashboardSidebarOpen }) {
               <Button variant="contained" onClick={handleAddNode}>
                 + Add Node
               </Button>
-            </Box> */}
+            {/* <Button variant="outlined" onClick={handleReset}>
+              Reset
+            </Button>
+            <Button 
+              variant="outlined" 
+              onClick={() => loadFlowFromAPI('your-file-id')}
+            >
+              Load from API
+            </Button> */}
           </Toolbar>
         </AppBar>
 
@@ -250,11 +177,132 @@ export function Dashboard({ sidebarOpen, setOpen, dashboardSidebarOpen }) {
               style={{ background:"white", border:"none", padding: 0, margin: 0 }}
               maskColor="rgba(0, 0, 0, 0.1)"
             />
-            <Controls />
+            <Controls position="top-right"/>
             <Background color="#aaa" gap={16} />
           </ReactFlow>
         </Box>
       </Box>
+      
+      <style>{`
+        .react-flow__minimap {
+          border: none !important;
+          box-shadow: none !important;
+          background: white !important;
+        }
+        .react-flow__controls {
+          box-shadow: 0 2px 8px rgba(0,0,0,0.15) !important;
+          background:rgba(0,0,0,0);
+          background: transparent !important;
+          box-shadow: none !important;
+        }
+
+        .react-flow__controls-button {
+          box-shadow: 0 2px 4px rgba(0,0,0,0.1) !important;
+        }
+
+        /* Zoom In button */
+        .react-flow__controls-zoomin {
+          background: #3b82f6 !important;
+        }
+        
+        .react-flow__controls-zoomin svg {
+          fill: white !important;
+        }
+        
+        /* Zoom Out button */
+        .react-flow__controls-zoomout {
+          background: #10b981 !important;
+        }
+        
+        .react-flow__controls-zoomout svg {
+          fill: white !important;
+        }
+        
+        /* Fit View button */
+        .react-flow__controls-fitview {
+          background: #f59e0b !important;
+        }
+        
+        .react-flow__controls-fitview svg {
+          fill: white !important;
+        }
+        
+        /* Interactive/Lock button */
+        .react-flow__controls-interactive {
+          background: #ef4444 !important;
+        }
+        
+        .react-flow__controls-interactive svg {
+          fill: white !important;
+        }
+        
+        /* Hover states for individual buttons */
+        .react-flow__controls-zoomin:hover {
+          background: #2563eb !important;
+        }
+        
+        .react-flow__controls-zoomout:hover {
+          background: #059669 !important;
+        }
+        .react-flow__panel {
+          margin: 10px !important;
+        }
+        .react-flow .react-flow__edges {
+          cursor: crosshair !important;
+        }
+        .react-flow__node {
+          cursor: grab !important;
+        }
+        .react-flow__node.dragging {
+          cursor: grabbing !important;
+        }
+        .react-flow__pane {
+          cursor: default !important;
+        }
+      `}</style>
     </>
   );
 }
+
+
+
+const MuiNode = memo(({ data }) => {
+  return (
+    <Paper
+      elevation={3}
+      sx={{
+        p: 2,
+        borderRadius: 2,
+        minWidth: 140,
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        gap: 1,
+        bgcolor: "background.paper",
+        border: "1px solid",
+        borderColor: "divider",
+        boxShadow: 2,
+      }}
+    >
+      <Handle type="target" position={Position.Top} />
+      <Typography variant="body1">{data.label}</Typography>
+      <Box
+        sx={{
+          mt: 1,
+          px: 1.5,
+          py: 0.5,
+          borderRadius: 1,
+          bgcolor: "secondary.light",
+          color: "white",
+          fontSize: "0.75rem",
+        }}
+      >
+        MUI Box inside
+      </Box>
+      <Handle type="source" position={Position.Bottom} />
+    </Paper>
+  );
+});
+
+
+const nodeTypes = { muiNode: MuiNode };

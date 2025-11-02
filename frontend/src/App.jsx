@@ -60,6 +60,8 @@ const fileStructure = [
 
 export default function App() {
   const [dashboardSidebarOpen, setDashboardSidebarOpen] = useState(false);
+    const [nodes, setNodes] = useState([]);
+    const [edges, setEdges] = useState([]);
 
   return (
     <ThemeProvider theme={theme}>
@@ -73,10 +75,18 @@ export default function App() {
           open={dashboardSidebarOpen} 
           onClose={() => setDashboardSidebarOpen(false)}
           fileStructure={fileStructure}
+          nodes={nodes}
+          setNodes={setNodes}
+          edges={edges}
+          setEdges={setEdges}
         />
         <Dashboard 
           sidebarOpen={true} 
           dashboardSidebarOpen={dashboardSidebarOpen} 
+          nodes={nodes}
+          setNodes={setNodes}
+          edges={edges}
+          setEdges={setEdges}
         />
       </Box>
     </ThemeProvider>
