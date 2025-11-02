@@ -4,10 +4,13 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..",
 
 from fastapi import FastAPI, Request, status, HTTPException, Response
 from fastapi.responses import JSONResponse
-from typing import Any, List, Dict, Union, Optional, Type
+from typing import Any, List, Dict, Union, Optional, Type, Awaitable
 import inspect
 from pydantic import BaseModel
+from contextlib import asynccontextmanager
 import json
+import asyncio
+import docker
 
 from lib.io_nodes import (
     KafkaNode, RedpandaNode, CsvNode, DebeziumNode,
@@ -18,6 +21,10 @@ from lib.io_nodes import (
     MongoDBWriteNode, BigQueryWriteNode, ElasticsearchWriteNode, DynamoDBWriteNode, 
     PubSubWriteNode, KinesisWriteNode, NATSWriteNode, MQTTWriteNode, LogstashWriteNode,
     QuestDBWriteNode
+)
+
+from backend.pipeline.dockerScript import (
+    run_docker_container_with_json, stop_docker_container
 )
 
 NODES: Dict[str, Any] = {
@@ -33,7 +40,14 @@ NODES: Dict[str, Any] = {
     ] if cls is not None
 }
 
-app = FastAPI(title="Pipeline API")
+# https://fastapi.tiangolo.com/fa/advanced/events/
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    app.state.docker_client = docker.from_env()
+    yield
+    app.state.docker_client.close()
+
+app = FastAPI(title="Pipeline API", lifespan = lifespan)
 
 def get_base_pydantic_model(model_class: type) -> type:
     mro = getattr(model_class, "__mro__", ())
@@ -43,7 +57,7 @@ def get_base_pydantic_model(model_class: type) -> type:
     return model_class
 
 
-@app.get("/schema/all")
+@app.get("/")
 def schema_index(request: Request):
     return {"nodes": list(NODES.keys())}
 
@@ -61,21 +75,30 @@ def get_schema_for_node(node: Union[str, Type[Any]]) -> dict:
 
     if hasattr(cls, "model_json_schema"):
         return cls.model_json_schema()
-    return cls.model_json_schema()
+    return cls.schema()
 
 
-@app.get("/schema/{node_name}")
+@app.get("/{node_name}")
 def schema_for_node(node_name: str):
 
     schema_obj = get_schema_for_node(node_name)
     return JSONResponse(schema_obj)
 
-# import json
-# from backend.api.test import NODES
+@app.post("/spinup")
+async def docker_spinup(load: dict, request: Request):
+    
+    client = request.app.state.docker_client
+    result = run_docker_container_with_json(client, load)
 
-# for name, cls in NODES.items():
-#     if hasattr(cls, "model_json_schema"):
-#         schema = cls.model_json_schema()
-#     else:
-#         schema = cls.schema()
-#     print(json.dumps(schema, indent=2, default=str))
+    return JSONResponse(result)
+
+@app.post("/spindown")
+async def docker_spindown(body: dict, request: Request):
+
+    client = request.app.state.docker_client
+    container_id = body.get("container_id")
+
+    response = stop_docker_container(client, container_id)
+    return JSONResponse(response)
+
+
