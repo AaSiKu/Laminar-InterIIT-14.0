@@ -43,13 +43,13 @@ def get_base_pydantic_model(model_class: type) -> type:
     return model_class
 
 
-@app.get("/")
+@app.get("/schema/all")
 def schema_index(request: Request):
     return {"nodes": list(NODES.keys())}
 
 def get_schema_for_node(node: Union[str, Type[Any]]) -> dict:
     if inspect.isclass(node):
-        cls: Optional[Type[Any]] = node  
+        cls: Optional[Type[Any]] = node
     else:
         cls = NODES.get(node)
 
@@ -61,10 +61,10 @@ def get_schema_for_node(node: Union[str, Type[Any]]) -> dict:
 
     if hasattr(cls, "model_json_schema"):
         return cls.model_json_schema()
-    return cls.schema()
+    return cls.model_json_schema()
 
 
-@app.get("/{node_name}")
+@app.get("/schema/{node_name}")
 def schema_for_node(node_name: str):
 
     schema_obj = get_schema_for_node(node_name)
