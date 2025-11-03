@@ -9,3 +9,11 @@ google-generativeai
 pydantic
 python-dotenv
 pdf2image
+langchain
+langgraph
+langchain-core
+langchain-groq
+langchain-openai
+huggingface-hub
+dotenv
+mcp
