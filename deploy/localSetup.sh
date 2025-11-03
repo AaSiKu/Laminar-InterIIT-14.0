@@ -71,7 +71,7 @@ echo "Starting RAG server in background..."
 # Use nohup to keep the server running after the script exits.
 # Redirect stdout (>) and stderr (2>&1) to a log file.
 # Run in the background (&).
-nohup uvicorn pathway_rag.main:app --port $RAG_SERVER_PORT --reload > logs/rag.log 2>&1 &
+nohup uvicorn rag.main:app --port $RAG_SERVER_PORT --reload > logs/rag.log 2>&1 &
 
 # Print the Process ID (PID) of the background job
 echo "Server started with PID: $!"
