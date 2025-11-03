@@ -5,11 +5,14 @@ import time
 import logging
 from pathlib import Path
 from dotenv import load_dotenv
-load_dotenv()
 from fastapi import FastAPI, UploadFile, File, HTTPException
 from pydantic import BaseModel
 from typing import List, Dict, Any
-from rag_pipeline import PathwayRAGSystem
+from rag.rag_pipeline import PathwayRAGSystem
+from rag.constant import UPLOADS_DIR
+
+
+load_dotenv()
 
 # setting up logging
 logging.basicConfig(
@@ -38,6 +41,7 @@ app = FastAPI(
 
 rag_system: PathwayRAGSystem | None = None
 
+# TODO: Lookinto https://fastapi.tiangolo.com/advanced/events/#async-context-manager
 @app.on_event("startup")
 async def startup_event():
     """Initialize the RAG system on startup."""

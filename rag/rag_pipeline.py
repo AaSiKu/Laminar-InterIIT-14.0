@@ -1,19 +1,18 @@
-import os
 import pathway as pw
-import time
-import uuid
 import queue
 import threading
 import logging
+import os
+import time
+import litellm
 from dotenv import load_dotenv
+from pathway.xpacks.llm import parsers, splitters, embedders, llms
+from pathway.xpacks.llm.document_store import DocumentStore
+from pathway.stdlib.indexing import BruteForceKnnFactory
+from rag.constant import UPLOADS_DIR
 
 # Load environment variables
 load_dotenv()
-
-from pathway.xpacks.llm import parsers, splitters, embedders, llms
-from pathway.xpacks.llm import prompts
-from pathway.xpacks.llm.document_store import DocumentStore
-from pathway.stdlib.indexing import BruteForceKnnFactory
 
 # Setup logging - cleaner format
 logging.basicConfig(
@@ -31,8 +30,6 @@ logging.getLogger('pathway_engine.connectors.monitoring').setLevel(logging.ERROR
 logging.getLogger('httpx').setLevel(logging.WARNING)
 logging.getLogger('httpcore').setLevel(logging.WARNING)
 
-# --- Configuration ---
-DATA_DIR = "./uploads"
 
 # Validate API key
 api_key = os.getenv("GOOGLE_API_KEY")
@@ -46,10 +43,11 @@ try:
 except Exception as e:
     logger.error(f"❌ Failed to initialize embedder: {str(e)}")
     raise
+embedder = embedders.GeminiEmbedder(model="models/text-embedding-004")
 
 llm = llms.LiteLLMChat(
-    model="gemini/models/gemini-1.5-pro-latest", 
-    temperature=0.3, 
+    model="gemini/models/gemini-1.5-pro-latest",
+    temperature=0.3,
     max_tokens=250
 )
 
@@ -91,7 +89,7 @@ class PushableConnectorSubject(pw.io.python.ConnectorSubject):
 
 
 class PathwayRAGSystem:
-    def __init__(self, data_dir=DATA_DIR, results_store=None):
+    def __init__(self, data_dir=UPLOADS_DIR, results_store=None):
         
         # results_store is shared between pathway and fastapi for polling results
         self.results_store = results_store if results_store is not None else {}
@@ -240,7 +238,6 @@ class PathwayRAGSystem:
             Includes retry logic for rate limit errors.
             """
             try:
-                import litellm
                 
                 # Suppress litellm verbose logging
                 litellm.suppress_debug_info = True
