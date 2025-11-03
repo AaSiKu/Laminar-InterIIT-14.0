@@ -6,3 +6,9 @@
 - For scaling this can be run on Kubernetes (which pathway supports intrinsically)
 - We will have a mapping variable that maps node ids to pathway class references
 - A small API server that receives 
+
+
+
+#### Docker start up api
+1. Required docker demon to be running in background.
+2. Need to integrate it with our pipeline image generation.
