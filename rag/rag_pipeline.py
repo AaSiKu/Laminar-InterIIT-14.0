@@ -1,11 +1,48 @@
 import pathway as pw
 import queue
 import threading
+import logging
+import os
+import time
+import litellm
+from dotenv import load_dotenv
 from pathway.xpacks.llm import parsers, splitters, embedders, llms
 from pathway.xpacks.llm.document_store import DocumentStore
 from pathway.stdlib.indexing import BruteForceKnnFactory
 from rag.constant import UPLOADS_DIR
 
+# Load environment variables
+load_dotenv()
+
+# Setup logging - cleaner format
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(message)s',
+    datefmt='%H:%M:%S'
+)
+logger = logging.getLogger(__name__)
+
+# Suppress verbose logging from external libraries
+logging.getLogger('LiteLLM').setLevel(logging.ERROR)
+logging.getLogger('litellm').setLevel(logging.ERROR)
+logging.getLogger('pathway_engine').setLevel(logging.WARNING)
+logging.getLogger('pathway_engine.connectors.monitoring').setLevel(logging.ERROR)
+logging.getLogger('httpx').setLevel(logging.WARNING)
+logging.getLogger('httpcore').setLevel(logging.WARNING)
+
+
+# Validate API key
+api_key = os.getenv("GOOGLE_API_KEY")
+if not api_key:
+    logger.error("❌ GOOGLE_API_KEY not found in environment variables!")
+    raise ValueError("GOOGLE_API_KEY environment variable is required")
+
+try:
+    embedder = embedders.GeminiEmbedder(model="models/text-embedding-004")
+    logger.info("✅ Embedder initialized")
+except Exception as e:
+    logger.error(f"❌ Failed to initialize embedder: {str(e)}")
+    raise
 embedder = embedders.GeminiEmbedder(model="models/text-embedding-004")
 
 llm = llms.LiteLLMChat(
@@ -89,7 +126,14 @@ class PathwayRAGSystem:
             dimensions=768, # gemini embedding dimension
         )
         
-        parser = parsers.UnstructuredParser()
+        # Use OpenParser as fallback for better error handling
+        # UnstructuredParser can crash on unsupported files
+        try:
+            parser = parsers.UnstructuredParser()
+        except Exception as e:
+            logger.warning(f"⚠️  UnstructuredParser failed, using OpenParser: {str(e)}")
+            parser = parsers.OpenParser()
+        
         # Increase chunk size for better context - 512 tokens ~= 2 paragraphs
         text_splitter = splitters.TokenCountSplitter(max_tokens=512)
         
@@ -149,24 +193,18 @@ class PathwayRAGSystem:
         
         @pw.udf # udf to extract context from retrieved docs
         def extract_context(docs: pw.Json) -> str:
+            """Extract text content from retrieved documents."""
             try:
-                print(f"DEBUG extract_context: docs type={type(docs)}, docs={docs}")
-                
                 # Convert pw.Json to list
                 if hasattr(docs, 'as_list'):
                     doc_list = docs.as_list()
                 elif isinstance(docs, list):
                     doc_list = docs
                 else:
-                    print(f"DEBUG: docs is not list or pw.Json, converting to string")
                     return str(docs)
                 
-                print(f"DEBUG: doc_list has {len(doc_list)} items")
-                
                 context_pieces = []
-                for i, doc in enumerate(doc_list):
-                    print(f"DEBUG: doc[{i}] type={type(doc)}, doc={doc}")
-                    
+                for doc in doc_list:
                     # Try different ways to extract text
                     text = None
                     if hasattr(doc, 'get'):
@@ -180,16 +218,11 @@ class PathwayRAGSystem:
                     
                     if text:
                         context_pieces.append(text)
-                        print(f"DEBUG: Extracted text length: {len(text)}")
                 
-                result = "\n\n---\n\n".join(context_pieces)
-                print(f"DEBUG: Final context length: {len(result)}")
-                return result
+                return "\n\n---\n\n".join(context_pieces)
                 
             except Exception as e:
-                print(f"Error in extract_context: {e}")
-                import traceback
-                traceback.print_exc()
+                logger.error(f"❌ Error extracting context: {str(e)}")
                 return ""
         
         queries_with_context = queries_with_docs.select(
@@ -200,9 +233,15 @@ class PathwayRAGSystem:
         
         @pw.udf
         def generate_response_direct(context: str, query: str) -> str:
-            """Generate response by calling LiteLLM directly with proper message format."""
+            """
+            Generate response by calling LiteLLM directly with proper message format.
+            Includes retry logic for rate limit errors.
+            """
             try:
-                import litellm
+                
+                # Suppress litellm verbose logging
+                litellm.suppress_debug_info = True
+                litellm.set_verbose = False
                 
                 context_str = str(context) if context else ""
                 query_str = str(query) if query else ""
@@ -220,23 +259,57 @@ Query:
                 
                 messages = [{"role": "user", "content": prompt_text}]
                 
-
-                import os
+                # Get API key from environment
                 api_key = os.getenv("GOOGLE_API_KEY")
+                if not api_key:
+                    logger.error("GOOGLE_API_KEY not set in environment")
+                    return "Error: API key not configured"
                 
-                response = litellm.completion(
-                    model="gemini/gemini-2.0-flash",
-                    messages=messages,
-                    temperature=0.3,
-                    max_tokens=250,
-                    api_key=api_key
-                )
+                # Retry logic for rate limits
+                max_retries = 3
+                retry_delay = 2
                 
-                return response.choices[0].message.content
+                for attempt in range(max_retries):
+                    try:
+                        logger.info(f"🤖 Generating LLM response (attempt {attempt + 1}/{max_retries})...")
+                        
+                        response = litellm.completion(
+                            model="gemini/gemini-2.0-flash",
+                            messages=messages,
+                            temperature=0.3,
+                            max_tokens=250,
+                            api_key=api_key
+                        )
+                        
+                        logger.info(f"✅ LLM response generated successfully")
+                        return response.choices[0].message.content
+                        
+                    except Exception as api_error:
+                        error_str = str(api_error)
+                        
+                        # Extract just the error code and message
+                        if "429" in error_str or "RESOURCE_EXHAUSTED" in error_str:
+                            error_type = "Rate limit exceeded"
+                        elif "401" in error_str or "UNAUTHENTICATED" in error_str:
+                            error_type = "Invalid API key"
+                        elif "403" in error_str or "PERMISSION_DENIED" in error_str:
+                            error_type = "Permission denied"
+                        else:
+                            error_type = "API error"
+                        
+                        if attempt < max_retries - 1:
+                            wait_time = retry_delay * (2 ** attempt)
+                            logger.warning(f"⚠️  {error_type} - Retrying in {wait_time}s...")
+                            time.sleep(wait_time)
+                            continue
+                        else:
+                            logger.error(f"❌ {error_type} after {max_retries} attempts")
+                            return f"Error: {error_type}. Please try again later."
+                
+                return "Error: Failed to generate response after multiple attempts"
+                
             except Exception as e:
-                print(f"Error in generate_response_direct: {e}")
-                import traceback
-                traceback.print_exc()
+                logger.error(f"❌ Unexpected error in LLM generation: {str(e)}")
                 return f"Error generating response: {str(e)}"
         
         self.response_output = queries_with_context.select(
@@ -257,6 +330,7 @@ Query:
     
     # --- Callback methods ---
     def _on_retrieve_change(self, key, row, time, is_addition):
+        """Callback for retrieve pipeline results."""
         if is_addition:
             try:
                 if hasattr(row, '_asdict'):
@@ -264,16 +338,17 @@ Query:
                 elif isinstance(row, dict):
                     row_dict = row
                 else:
-                    # Fallback for simple tuple
                     row_dict = {'request_id': row[0], 'result': row[1]}
                 
                 request_id = row_dict.get('request_id')
                 if request_id:
                     self.results_store[request_id] = row_dict
+                    
             except Exception as e:
-                print(f"Error in _on_retrieve_change: {e}, row type: {type(row)}, row: {row}")
+                logger.error(f"❌ Error in retrieve callback: {str(e)}")
     
     def _on_response_change(self, key, row, time, is_addition):
+        """Callback for response pipeline results."""
         if is_addition:
             try:
                 if hasattr(row, '_asdict'):
@@ -281,19 +356,19 @@ Query:
                 elif isinstance(row, dict):
                     row_dict = row
                 else:
-                    # Fallback for simple tuple
                     row_dict = {'request_id': row[0], 'response': row[1]}
 
                 request_id = row_dict.get('request_id')
                 if request_id:
                     self.results_store[request_id] = row_dict
-                    print(f"DEBUG: Stored result for request_id {request_id}")
+                    
             except Exception as e:
-                print(f"Error in _on_response_change: {e}, row type: {type(row)}, row: {row}")
+                logger.error(f"❌ Error in response callback: {str(e)}")
 
     # --- run_aside method ---
     def run_aside(self):
-        print("Starting Pathway pipeline in the background...")
+        """Start Pathway pipeline in a background thread."""
+        logger.info("🚀 Starting Pathway pipeline...")
         
         def run_pathway():
             try:
@@ -301,17 +376,18 @@ Query:
                     monitoring_level=pw.MonitoringLevel.NONE,
                 )
             except Exception as e:
-                print(f"Error in Pathway pipeline: {e}")
-                import traceback
-                traceback.print_exc()
+                logger.error(f"❌ Pathway pipeline error: {str(e)}")
         
         self.pathway_thread = threading.Thread(target=run_pathway, daemon=True)
         self.pathway_thread.start()
-        print("Pathway pipeline is running.")
+        logger.info("✅ Pathway pipeline running")
         return self.pathway_thread
     
     def stop(self):
-        if hasattr(self, 'retrieve_input_subject'):
-            self.retrieve_input_subject.stop()
-        if hasattr(self, 'response_input_subject'):
-            self.response_input_subject.stop()
+        """Stop the Pathway pipeline (cleanup method)."""
+        logger.info("Stopping Pathway pipeline...")
+        if hasattr(self, 'retrieve_connector'):
+            self.retrieve_connector.stop()
+        if hasattr(self, 'response_connector'):
+            self.response_connector.stop()
+        logger.info("Pathway pipeline stopped")
