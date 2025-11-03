@@ -11,7 +11,7 @@ from lib.io_nodes import (
 
 
 __all__ = [
-    "kafkaNode", "RedpandaNode", "CsvNode", "DebeziumNode",
+    "KafkaNode", "RedpandaNode", "CsvNode", "DebeziumNode",
     "S3Node", "MinIONode", "DeltaLakeNode", "IcebergNode", "PlainTextNode", "HTTPNode",
     "MongoDBNode", "PostgreSQLNode", "SQLiteNode", "GoogleDriveNode", "kinesisNode",
     "NATSNode", "MQTTNode", "PythonConnectorNode", "kafkaWriteNode", "RedPandaWriteNode",
