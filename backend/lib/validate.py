@@ -3,6 +3,7 @@ from pydantic import ValidationError
 from typing import List, Dict, Any, Literal, get_args, get_origin
 from . import io_nodes
 from . import tables
+from .node import Node
 
 def get_node_class_map():
     """
@@ -29,7 +30,7 @@ def get_node_class_map():
 
 node_map = get_node_class_map()
 
-def validate_nodes(node_data_list: List[Dict[str, Any]]):
+def validate_nodes(node_data_list: List[Dict[str, Any]]) -> List[Node]:
     """
     Validate an array of node objects using dynamically loaded Pydantic models.
 

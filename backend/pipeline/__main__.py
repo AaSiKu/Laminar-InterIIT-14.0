@@ -7,10 +7,11 @@ from lib.node import Node
 from .mappings import mappings
 import pathway as pw
 from dotenv import load_dotenv
+import os
 
 load_dotenv()
 
-
+pw.set_license_key(os.environ["PATHWAY_LICENSE_KEY"])
 
 
 class Graph(TypedDict):
@@ -27,10 +28,14 @@ def read() -> Graph:
         data = json.load(f)
         # array of nodes, in this file nodes will be identified by their indexes in this array
         nodes = validate_nodes(data["nodes"])
-        dependencies = defaultdict(list)
+        dependencies = defaultdict[int](list)
         for (_from,_to) in data["edges"]:
             dependencies[_to].append(_from)
-        # TODO: only allow exactly node.n_inputs for each node
+
+        for origin,dep in dependencies.items():
+            node = nodes[origin]
+            if len(dep) != node.n_inputs:
+                raise Exception(f"A {node.node_id} node can only have {node.n_inputs} inputs")
         return {
             "parsing_order" : [0] if len(nodes) == 1 else toposort_flatten(dependencies,nodes),
             "nodes" : nodes,
