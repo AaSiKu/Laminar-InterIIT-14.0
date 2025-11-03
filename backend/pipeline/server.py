@@ -5,7 +5,10 @@ from fastapi import FastAPI, Request, HTTPException
 from motor.motor_asyncio import AsyncIOMotorClient
 from contextlib import asynccontextmanager
 import uvicorn
+from dotenv import load_dotenv
+from bson import ObjectId
 
+load_dotenv()
 MONGO_URI = os.getenv("MONGO_URI")
 MONGO_DB = os.getenv("MONGO_DB", "db")
 MONGO_COLLECTION = os.getenv("MONGO_COLLECTION", "pipelines")
@@ -25,7 +28,7 @@ async def lifespan(app: FastAPI):
     mongo_client = AsyncIOMotorClient(MONGO_URI)
     db = mongo_client[MONGO_DB]
     collection = db[MONGO_COLLECTION]
-    print(f"✅ Connected to MongoDB at {MONGO_URI}, DB: {MONGO_DB}")
+    print(f"✅ Connected to MongoDB at {MONGO_URI}, DB: {MONGO_DB}", flush=True)
 
     yield  # Hand over control to FastAPI runtime
 
@@ -80,13 +83,13 @@ async def trigger_pipeline(request: Request):
         raise HTTPException(status_code=400, detail="PIPELINE_ID not set in environment")
 
     # Fetch record
-    record = await collection.find_one({"_id": pipeline_id})
+    record = await collection.find_one({"_id": ObjectId(pipeline_id)})
     if not record:
         raise HTTPException(status_code=404, detail=f"No pipeline found with id={pipeline_id}")
 
     # Write flowchart.json
     with open("flowchart.json", "w") as f:
-        json.dump(record, f, indent=2)
+        json.dump(record["pipeline"], f, indent=2)
 
     # Run pipeline
     run_pipeline()

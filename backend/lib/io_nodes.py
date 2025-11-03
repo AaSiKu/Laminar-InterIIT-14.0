@@ -134,7 +134,8 @@ class HTTPNode(InputNode):
     method: Literal["GET", "POST", "PUT", "DELETE"] = "GET"
     headers: Optional[Dict[str, str]] = None
     allow_redirects: bool = True
-    
+    format : Literal["raw","json"] = "json"
+
 class MongoDBNode(InputNode):
     uri: str
     database: str
