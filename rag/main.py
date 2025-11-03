@@ -3,15 +3,13 @@ import uuid
 import asyncio
 import time
 from dotenv import load_dotenv
-load_dotenv()
 from fastapi import FastAPI, UploadFile, File, HTTPException
 from pydantic import BaseModel
 from typing import List, Dict, Any
+from rag.rag_pipeline import PathwayRAGSystem
+from rag.constant import UPLOADS_DIR
 
-from rag_pipeline import PathwayRAGSystem
-
-# --- Configuration ---
-UPLOADS_DIR = "./uploads"
+load_dotenv()
 
 app = FastAPI(
     title="Pathway RAG API",
@@ -20,6 +18,7 @@ app = FastAPI(
 
 rag_system: PathwayRAGSystem | None = None
 
+# TODO: Lookinto https://fastapi.tiangolo.com/advanced/events/#async-context-manager
 @app.on_event("startup")
 async def startup_event():
     global rag_system
