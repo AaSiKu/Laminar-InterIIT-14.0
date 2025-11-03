@@ -10,33 +10,13 @@ from pydantic import BaseModel
 from contextlib import asynccontextmanager
 import docker
 
-from lib.io_nodes import (
-    KafkaNode, RedpandaNode, CsvNode, DebeziumNode,
-    S3Node, MinIONode, DeltaLakeNode, IcebergNode, PlainTextNode, HTTPNode, 
-    MongoDBNode, PostgreSQLNode, SQLiteNode, GoogleDriveNode, KinesisNode, 
-    NATSNode, MQTTNode, PythonConnectorNode, KafkaWriteNode, RedpandaWriteNode, 
-    CsvWriteNode, JsonLinesWriteNode, PostgreSQLWriteNode, MySQLWriteNode, 
-    MongoDBWriteNode, BigQueryWriteNode, ElasticsearchWriteNode, DynamoDBWriteNode, 
-    PubSubWriteNode, KinesisWriteNode, NATSWriteNode, MQTTWriteNode, LogstashWriteNode,
-    QuestDBWriteNode
-)
+from lib.validate import node_map
+NODES: Dict[str, BaseModel] = node_map
+
 
 from backend.pipeline.dockerScript import (
     run_docker_container_with_json, stop_docker_container
 )
-
-NODES: Dict[str, Any] = {
-    cls.__name__: cls for cls in [
-        KafkaNode, RedpandaNode, CsvNode, DebeziumNode,
-        S3Node, MinIONode, DeltaLakeNode, IcebergNode, PlainTextNode, HTTPNode, 
-        MongoDBNode, PostgreSQLNode, SQLiteNode, GoogleDriveNode, KinesisNode, 
-        NATSNode, MQTTNode, PythonConnectorNode, KafkaWriteNode, RedpandaWriteNode, 
-        CsvWriteNode, JsonLinesWriteNode, PostgreSQLWriteNode, MySQLWriteNode, 
-        MongoDBWriteNode, BigQueryWriteNode, ElasticsearchWriteNode, DynamoDBWriteNode, 
-        PubSubWriteNode, KinesisWriteNode, NATSWriteNode, MQTTWriteNode, LogstashWriteNode,
-        QuestDBWriteNode
-    ] if cls is not None
-}
 
 # https://fastapi.tiangolo.com/fa/advanced/events/
 @asynccontextmanager
