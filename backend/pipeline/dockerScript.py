@@ -1,3 +1,5 @@
+# A demo Dockerfile with the same name is to be added in the pipeline folder. 
+# The JSON file will be parsed and processed as environment variables within the container
 import docker
 import json
 import os
