@@ -2,14 +2,12 @@
 import sys, os
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..")))
 
-from fastapi import FastAPI, Request, status, HTTPException, Response
+from fastapi import FastAPI, Request, status, HTTPException
 from fastapi.responses import JSONResponse
-from typing import Any, List, Dict, Union, Optional, Type, Awaitable
+from typing import Any, Dict, Union, Optional, Type
 import inspect
 from pydantic import BaseModel
 from contextlib import asynccontextmanager
-import json
-import asyncio
 import docker
 
 from lib.io_nodes import (
@@ -57,7 +55,7 @@ def get_base_pydantic_model(model_class: type) -> type:
     return model_class
 
 
-@app.get("/")
+@app.get("/schema/all")
 def schema_index(request: Request):
     return {"nodes": list(NODES.keys())}
 
@@ -75,10 +73,10 @@ def get_schema_for_node(node: Union[str, Type[Any]]) -> dict:
 
     if hasattr(cls, "model_json_schema"):
         return cls.model_json_schema()
-    return cls.schema()
+    return cls.model_json_schema()
 
 
-@app.get("/{node_name}")
+@app.get("/schema/{node_name}")
 def schema_for_node(node_name: str):
 
     schema_obj = get_schema_for_node(node_name)
