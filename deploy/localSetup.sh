@@ -8,7 +8,8 @@ VENV_DIR="venv"
 REQS_FILE="requirements.txt"
 
 # Server ports
-API_SERVR_PORT=8081
+API_SERVER_PORT=8081
+RAG_SERVER_PORT=8082
 
 # ---------------------
 
@@ -45,17 +46,17 @@ else
     echo "Warning: '$REQS_FILE' not found. Skipping dependency installation."
 fi
 
+# Create the logs directory if it doesn't exist
+mkdir -p logs
+
 ### 5. Start FastAPI Server in Background
 echo "---"
 echo "Starting FastAPI server in background..."
 
-# Create the logs directory if it doesn't exist
-mkdir -p logs
-
 # Use nohup to keep the server running after the script exits.
 # Redirect stdout (>) and stderr (2>&1) to a log file.
 # Run in the background (&).
-nohup uvicorn backend.api.main:app --port $API_SERVR_PORT --reload > logs/api.log 2>&1 &
+nohup uvicorn backend.api.main:app --port $API_SERVER_PORT --reload > logs/api.log 2>&1 &
 
 # Print the Process ID (PID) of the background job
 echo "Server started with PID: $!"
@@ -63,4 +64,21 @@ echo "Logs are being written to: logs/api.log"
 echo "You can monitor the logs with: tail -f logs/api.log"
 
 echo "---"
+
+### 6. Start RAG Server in Background
+echo "Starting RAG server in background..."
+
+# Use nohup to keep the server running after the script exits.
+# Redirect stdout (>) and stderr (2>&1) to a log file.
+# Run in the background (&).
+nohup uvicorn rag.main:app --port $RAG_SERVER_PORT --reload > logs/rag.log 2>&1 &
+
+# Print the Process ID (PID) of the background job
+echo "Server started with PID: $!"
+echo "Logs are being written to: logs/rag.log"
+echo "You can monitor the logs with: tail -f logs/rag.log"
+
+echo "---"
+
+
 echo "Setup script finished."
