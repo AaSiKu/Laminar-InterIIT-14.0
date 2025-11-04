@@ -1,5 +1,6 @@
 #TODO: Exception Handling
 import sys, os
+from pymongo import MongoClient
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..")))
 
 from fastapi import FastAPI, Request, status, HTTPException
@@ -9,9 +10,18 @@ import inspect
 from pydantic import BaseModel
 from contextlib import asynccontextmanager
 import docker
+import bcrypt
+from validate_email import validate_email
+from fastapi.middleware.cors import CORSMiddleware
 
 from lib.validate import node_map
 NODES: Dict[str, BaseModel] = node_map
+
+
+# save logic
+
+from pydantic import BaseModel
+
 
 
 from backend.pipeline.dockerScript import (
@@ -25,8 +35,26 @@ async def lifespan(app: FastAPI):
     yield
     app.state.docker_client.close()
 
-app = FastAPI(title="Pipeline API", lifespan = lifespan)
 
+roles= {"admin", "user"}
+
+
+app = FastAPI(title="Pipeline API")
+
+origins = [
+    "http://localhost.tiangolo.com",
+    "https://localhost.tiangolo.com",
+    "http://localhost",
+    "http://localhost:5173",
+]
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 def get_base_pydantic_model(model_class: type) -> type:
     mro = getattr(model_class, "__mro__", ())
     for i, cls in enumerate(mro):
@@ -80,3 +108,60 @@ async def docker_spindown(body: dict, request: Request):
     return JSONResponse(response)
 
 
+
+# from pydantic import BaseModel
+# from typing import List, Optional
+
+# # Each key-value property inside data.properties
+# class Property(BaseModel):
+#     label: str
+#     value: str
+
+# # Position object
+# class Position(BaseModel):
+#     x: float
+#     y: float
+
+# # Data object inside a Node
+# class NodeData(BaseModel):
+#     label: str
+#     properties: List[Property]
+
+# # Each node in the graph
+# class Node(BaseModel):
+#     id: str
+#     type: str
+#     position: Position
+#     data: NodeData
+
+# # Each edge between nodes
+# class Edge(BaseModel):
+#     id: str
+#     source: str
+#     sourceHandle: Optional[str] = None
+#     target: str
+#     targetHandle: Optional[str] = None
+#     type: Optional[str] = None
+#     label: Optional[str] = None
+#     animated: Optional[bool] = False
+
+# # The overall graph schema
+# class GraphSchema(BaseModel):
+#     nodes: List[Node]
+#     edges: List[Edge]
+
+client = MongoClient(os.getenv("MONGO_URI", "mongodb://localhost:27017"))
+db = client["pipeline_db"]
+collection = db["graphs"]
+
+
+class Graph(BaseModel):
+    graph: str
+
+@app.post("/save")
+def save(data: Graph):
+    try:
+        result = collection.insert_one(data.model_dump())
+        return {"message": "Saved successfully", "id": str(result.inserted_id)}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))

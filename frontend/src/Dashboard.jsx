@@ -41,7 +41,37 @@ export function Dashboard({dashboardSidebarOpen,nodes, setNodes,edges, setEdges 
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const [selectedNode, setSelectedNode] = useState(null);
-  
+  const [rfInstance, setRfInstance] = useState(null);  
+
+  const onSave = async (e) => {
+    e.preventDefault()
+    if (rfInstance) {
+      const flow = rfInstance.toObject();
+      console.log("clicked")
+      const my_string = JSON.stringify(flow)
+
+    const res = await fetch("http://localhost:8000/save", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      // send the string wrapped in an object as JSON
+      body:  JSON.stringify({"graph": my_string}) ,
+    });
+
+    const data = await res.json();
+    console.log(data)
+  };
+  }
+
+  // const onSave = useCallback(() => {
+  //   if (rfInstance) {
+  //     const flow = rfInstance.toObject();
+  //     console.log("clicked")
+  //     // localStorage.setItem(flowKey, JSON.stringify(flow));
+  //   }
+  // }, [rfInstance]);
+
 
   useEffect(() => {
     const loadData = async () => {
@@ -187,6 +217,10 @@ export function Dashboard({dashboardSidebarOpen,nodes, setNodes,edges, setEdges 
         </AppBar>
 
         <Box sx={{ height: "87vh", bgcolor: "white" }}>
+
+        <button className="xy-theme__button" onClick={onSave}>
+          save
+        </button>
           <ReactFlow
             nodes={nodes}
             edges={edges}
@@ -195,6 +229,7 @@ export function Dashboard({dashboardSidebarOpen,nodes, setNodes,edges, setEdges 
             onEdgesChange={onEdgesChange}
             onConnect={onConnect}
             onNodeClick={onNodeClick}
+            onInit={setRfInstance}
             fitView
           >
             {/* <MiniMap
@@ -206,87 +241,12 @@ export function Dashboard({dashboardSidebarOpen,nodes, setNodes,edges, setEdges 
             /> */}
             <Controls position="top-right"/>
             <Background color="#aaa" gap={16} />
+
+      
           </ReactFlow>
         </Box>
       </Box>
-      
-      <style>{`
-        .react-flow__minimap {
-          border: none !important;
-          box-shadow: none !important;
-          background: white !important;
-        }
-        .react-flow__controls {
-          box-shadow: 0 2px 8px rgba(0,0,0,0.15) !important;
-          background:rgba(0,0,0,0);
-          background: transparent !important;
-          box-shadow: none !important;
-        }
 
-        .react-flow__controls-button {
-          box-shadow: 0 2px 4px rgba(0,0,0,0.1) !important;
-        }
-
-        /* Zoom In button */
-        .react-flow__controls-zoomin {
-          background: #3b82f6 !important;
-        }
-        
-        .react-flow__controls-zoomin svg {
-          fill: white !important;
-        }
-        
-        /* Zoom Out button */
-        .react-flow__controls-zoomout {
-          background: #10b981 !important;
-        }
-        
-        .react-flow__controls-zoomout svg {
-          fill: white !important;
-        }
-        
-        /* Fit View button */
-        .react-flow__controls-fitview {
-          background: #f59e0b !important;
-        }
-        
-        .react-flow__controls-fitview svg {
-          fill: white !important;
-        }
-        
-        /* Interactive/Lock button */
-        .react-flow__controls-interactive {
-          background: #ef4444 !important;
-        }
-        
-        .react-flow__controls-interactive svg {
-          fill: white !important;
-        }
-        
-        /* Hover states for individual buttons */
-        .react-flow__controls-zoomin:hover {
-          background: #2563eb !important;
-        }
-        
-        .react-flow__controls-zoomout:hover {
-          background: #059669 !important;
-        }
-        .react-flow__panel {
-          margin: 10px !important;
-        }
-        .react-flow .react-flow__edges {
-          cursor: crosshair !important;
-        }
-        .react-flow__node {
-          cursor: grab !important;
-        }
-        .react-flow__node.dragging {
-          cursor: grabbing !important;
-        }
-        .react-flow__pane {
-          cursor: default !important;
-        }
-      `}</style>
       
       {/* Right property drawer */}
       <PropertyBar
