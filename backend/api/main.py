@@ -9,6 +9,10 @@ import inspect
 from pydantic import BaseModel
 from contextlib import asynccontextmanager
 import docker
+import logging
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 from lib.validate import node_map
 NODES: Dict[str, BaseModel] = node_map
@@ -21,9 +25,23 @@ from backend.pipeline.dockerScript import (
 # https://fastapi.tiangolo.com/fa/advanced/events/
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    app.state.docker_client = docker.from_env()
+    
+    try:
+        app.state.docker_client = docker.from_env()
+        logger.info("docker client created")
+    except Exception as e:
+        app.state.docker_client = None
+        logger.error(f"error initializing docker client: {str(e)}")
+    
     yield
-    app.state.docker_client.close()
+    
+    if getattr(app.state, "docker_client", None):
+        try:
+            app.state.docker_client.close()
+            logger.info("docker client closed")
+        except Exception as e:
+            logger.error(f"error closing docker file: {str(e)}")
+
 
 app = FastAPI(title="Pipeline API", lifespan = lifespan)
 
