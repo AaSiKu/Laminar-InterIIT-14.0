@@ -2,3 +2,4 @@
 logs/
 __pycache__/
 rag/uploads
+.vscode

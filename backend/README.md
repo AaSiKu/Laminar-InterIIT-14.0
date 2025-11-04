@@ -7,7 +7,7 @@
     MONGO_COLLECTION=pipelines
     ```
    - Note if you are running mongo db inside the host device of the docker container, set `MONGODB_URI=mongodb://host.docker.internal:27017`
-2. Build the image: `docker build pathway_pipeline -f PIPELINE_DOCKERFILE .`
+2. Build the image: `docker build -t pathway_pipeline -f PIPELINE_DOCKERFILE .`
    - Note that we will only build this image once at the start, and it will be used for the entire lifetime of our application
 3. Run the container
     `docker run -p 8000:8000 -e PIPELINE_ID=<PIPELINE_ID> pathway_pipeline`
