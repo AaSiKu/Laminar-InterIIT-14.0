@@ -81,20 +81,52 @@ def schema_for_node(node_name: str):
     return JSONResponse(schema_obj)
 
 @app.post("/spinup")
-async def docker_spinup(load: dict, request: Request):
+async def docker_spinup(request: Request):
+    if not request.app.state.docker_client:
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="docker client not available")
+    
+    try:
+        payload = await request.json()
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"invalid JSON body: {str(e)}")
     
     client = request.app.state.docker_client
-    result = run_docker_container_with_json(client, load)
+    
+    try:
+        result = run_docker_container_with_json(client, payload)
+        return JSONResponse(result, status_code=status.HTTP_201_CREATED)
+    except Exception as exc:
+        logger.error(f"spinup failed: {exc}")
+        return JSONResponse({"error": str(exc)}, status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)@app.post("/spinup")
 
-    return JSONResponse(result)
 
 @app.post("/spindown")
-async def docker_spindown(body: dict, request: Request):
-
-    client = request.app.state.docker_client
+async def docker_spindown(request: Request):
+    """
+    Expects JSON body: {"container_id": "..."}.
+    Stops and removes the container.
+    """
+    if not request.app.state.docker_client:
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="docker client not available")
+    
+    try:
+        body = await request.json()
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"invalid JSON body: {str(e)}")
+    
     container_id = body.get("container_id")
-
-    response = stop_docker_container(client, container_id)
-    return JSONResponse(response)
+    if not container_id:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="provide container_id in body")
+    
+    client = request.app.state.docker_client
+    
+    try:
+        result = stop_docker_container(client, container_id)
+        return JSONResponse(result, status_code=status.HTTP_200_OK)
+    except docker.errors.NotFound:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"container {container_id} not found")
+    except Exception as exc:
+        logger.error(f"spindown failed: {exc}")
+        return JSONResponse({"error": str(exc)}, status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 

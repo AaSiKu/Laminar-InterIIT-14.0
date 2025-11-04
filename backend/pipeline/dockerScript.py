@@ -13,18 +13,24 @@ logging.getLogger(__name__)
 
 def run_docker_container_with_json(client, json_input_data, tag: str = 'test'):
     
-    dockerfile_path = os.path.join(os.path.dirname(__file__), "Dockerfile")
-    build_context = os.path.dirname(dockerfile_path)
-    client.images.build(path = build_context, dockerfile = dockerfile_path, tag = tag)
+    backend_dir = os.path.dirname(os.path.dirname(__file__))
+    dockerfile_path = os.path.join(backend_dir, "PIPELINE_DOCKERFILE")
+
+    if not os.path.exists(dockerfile_path):
+        logging.error(f"dockerfile not found at {dockerfile_path}")
+
+    logging.info(f"Building docker image from: {dockerfile_path} with tag: {tag}")
+    # build_context = os.path.dirname(dockerfile_path)
+    client.images.build(path = backend_dir, dockerfile = dockerfile_path, tag = tag)
     json_string = json.dumps(json_input_data)
     container = client.containers.run(
             "test",
             detach = True,
             environment = {
                 "APP_CONFIG": json_string
-                }
+                },
             )
-
+    logging.info(f"Container ID: {container.id}")
     for _ in container.logs(stream  = True):
         print(_.decode('utf-8').strip())
     container.reload()
