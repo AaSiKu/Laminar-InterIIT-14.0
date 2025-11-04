@@ -3,8 +3,13 @@
 import docker
 import json
 import os
+import logging
 
 # client = docker.from_env()
+
+logging.BASIC_FORMAT = "%(asctime)s %(levelname)s %(name)s: %(message)s"
+logging.basicConfig(level = logging.INFO, format = logging.BASIC_FORMAT)
+logging.getLogger(__name__)
 
 def run_docker_container_with_json(client, json_input_data, tag: str = 'test'):
     
@@ -39,12 +44,20 @@ def run_docker_container_with_json(client, json_input_data, tag: str = 'test'):
 
 def stop_docker_container(client, container_id: str):
 
-    container = client.containers.get(container_id)
-    status = getattr(container, "status", None)
+    try:
+        container = client.containers.get(container_id)
+        status = getattr(container, "status", None)
+    except Exception as e:
+        logging.info(f"container ID: {container_id} not found: {e}")        
+    
     container.reload()
 
-    container.stop()
-    container.remove()
+    try:
+        if container.status == "running":
+            container.stop()
+        container.remove()
+    except Exception as e:
+       logging.info(f"error stopping and removing container: {e}")
 
     return {
             "id": container.id,
