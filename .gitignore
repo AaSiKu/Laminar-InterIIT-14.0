@@ -2,3 +2,5 @@
 logs/
 __pycache__/
 rag/uploads
+flowchart.json
+output.log

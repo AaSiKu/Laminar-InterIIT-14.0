@@ -61,7 +61,6 @@ def build(graph : Graph):
 
 if __name__ == "__main__":
     graph = read()
-    print(graph["parsing_order"])
     node_outputs : List[pw.Table] = build(graph)
     pw.run()
     
