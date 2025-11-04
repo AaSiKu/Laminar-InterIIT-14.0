@@ -22,11 +22,25 @@ import {
   useMediaQuery,
   Alert
 } from "@mui/material";
-import { fetchFileData} from "./services/dashboard.api";
+import { fetchFileData } from "./services/dashboard.api";
+import { BaseNode } from "./components/NodeTypes/BaseNode";
+import { PropertyBar } from "./components/propertyBar";
+import { InputNode } from "./components/NodeTypes/InputNode";
+import { ProcessXNode } from "./components/NodeTypes/ProcessXNode";
+import { DecisionNode } from "./components/NodeTypes/DecisionNode";
+import { OutputNode } from "./components/NodeTypes/OutputNode";
+
+const nodeTypes = {
+  input: InputNode,
+  processX: ProcessXNode,
+  decision: DecisionNode,
+  output: OutputNode,
+};
 
 export function Dashboard({dashboardSidebarOpen,nodes, setNodes,edges, setEdges }) {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
+  const [selectedNode, setSelectedNode] = useState(null);
   
 
   useEffect(() => {
@@ -38,12 +52,10 @@ export function Dashboard({dashboardSidebarOpen,nodes, setNodes,edges, setEdges 
           setNodes(data.nodes);
           setEdges(data.edges);
         } else {
-          // If no saved data, load from API
           await loadFlowFromAPI('default');
         }
-      } catch (error) {
-        console.log('No saved data found');
-        await loadFlowFromAPI('default');
+      } catch {
+        await loadFlowFromAPI("default");
       }
     };
     
@@ -109,6 +121,20 @@ export function Dashboard({dashboardSidebarOpen,nodes, setNodes,edges, setEdges 
     a.click();
   };
 
+  const onNodeClick = (event, node) => {
+    setSelectedNode(node);
+  };
+
+  const handleUpdateProperties = (nodeId, updatedProps) => {
+    setNodes((nds) =>
+      nds.map((n) =>
+        n.id === nodeId
+          ? { ...n, data: { ...n.data, properties: updatedProps } }
+          : n
+      )
+    );
+  };
+
   const drawerWidth = 64 + (dashboardSidebarOpen && !isMobile ? 325 : 0);
 
   return (
@@ -168,15 +194,16 @@ export function Dashboard({dashboardSidebarOpen,nodes, setNodes,edges, setEdges 
             onNodesChange={onNodesChange}
             onEdgesChange={onEdgesChange}
             onConnect={onConnect}
+            onNodeClick={onNodeClick}
             fitView
           >
-            <MiniMap
+            {/* <MiniMap
               nodeColor={(n) =>
                 n.id === "n1" ? theme.palette.primary.main : theme.palette.secondary.main
               }
               style={{ background:"white", border:"none", padding: 0, margin: 0 }}
               maskColor="rgba(0, 0, 0, 0.1)"
-            />
+            /> */}
             <Controls position="top-right"/>
             <Background color="#aaa" gap={16} />
           </ReactFlow>
@@ -260,49 +287,14 @@ export function Dashboard({dashboardSidebarOpen,nodes, setNodes,edges, setEdges 
           cursor: default !important;
         }
       `}</style>
+      
+      {/* Right property drawer */}
+      <PropertyBar
+        open={Boolean(selectedNode)}
+        selectedNode={selectedNode}
+        onClose={() => setSelectedNode(null)}
+        onUpdateProperties={handleUpdateProperties}
+      />
     </>
   );
 }
-
-
-
-const MuiNode = memo(({ data }) => {
-  return (
-    <Paper
-      elevation={3}
-      sx={{
-        p: 2,
-        borderRadius: 2,
-        minWidth: 140,
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "center",
-        gap: 1,
-        bgcolor: "background.paper",
-        border: "1px solid",
-        borderColor: "divider",
-        boxShadow: 2,
-      }}
-    >
-      <Handle type="target" position={Position.Top} />
-      <Typography variant="body1">{data.label}</Typography>
-      <Box
-        sx={{
-          mt: 1,
-          px: 1.5,
-          py: 0.5,
-          borderRadius: 1,
-          bgcolor: "secondary.light",
-          color: "white",
-          fontSize: "0.75rem",
-        }}
-      >
-        MUI Box inside
-      </Box>
-      <Handle type="source" position={Position.Bottom} />
-    </Paper>
-  );
-});
-
-
-const nodeTypes = { muiNode: MuiNode };
