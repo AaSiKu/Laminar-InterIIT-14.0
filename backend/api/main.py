@@ -12,15 +12,14 @@ from pydantic import BaseModel
 from contextlib import asynccontextmanager
 import docker
 from fastapi.middleware.cors import CORSMiddleware
-import logging
 from backend.lib.validate import node_map
+from utils.logging import get_logger, configure_root
 from backend.api.dockerScript import (
     run_pipeline_container, stop_docker_container
 )
 
-# TODO: Extract out the logging logic out
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
+configure_root()
+logger = get_logger(__name__)
 
 load_dotenv()
 
