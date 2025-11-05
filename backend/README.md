@@ -14,6 +14,7 @@
     Here `<PIPELINE_ID>` should be the `_id` in the `pipelines` collection of `pipeline_db` database in mongodb of the pipeline you want to run
 4. Start the pipeline with `curl -X POST http://localhost:8000/trigger`
 5. Stop it with `curl -X POST http://localhost:8000/stop`
+6. Check out `tests/pipeline` for more tools.
 
 # Docker start up api
 1. Required docker demon to be running in background.

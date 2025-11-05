@@ -23,9 +23,12 @@ async def user_generator():
         }
         
         # 2. Format as a Server-Sent Event (SSE)
-        # The format is "data: <your_json_string>\n\n"
-        yield f"data: {json.dumps(user_data)}\n\n"
-        
+        # The format is "data: <your_json_string>\n\n"\
+
+        # NOTE: the below cmd can only be used for python connector for frontend use
+        # yield f"data: {json.dumps(user_data)}\n\n"
+        yield f"{json.dumps(user_data)} \n"
+
         # 3. Wait for 1 second before generating the next user
         # This keeps the stream going without overwhelming the server
         await asyncio.sleep(1)

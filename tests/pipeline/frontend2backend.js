@@ -1,5 +1,7 @@
-export const fetchFileData = async (fileId) => {
-  return {
+import fs from "fs";
+
+export const convertJsonToFlowchart = () => {
+  const pipeline = {
     nodes: [
       {
         id: "1",
@@ -56,4 +58,13 @@ export const fetchFileData = async (fileId) => {
       },
     ],
   };
+  fs.writeFile("./flowchart.json", JSON.stringify(pipeline), (err) => {
+    if (err) {
+      console.error("Error writing file:", err);
+    } else {
+      console.log("File saved successfully!");
+    }
+  });
 };
+
+convertJsonToFlowchart();
