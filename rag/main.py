@@ -10,22 +10,18 @@ from pydantic import BaseModel
 from typing import List, Dict, Any
 from rag.rag_pipeline import PathwayRAGSystem
 from rag.constant import UPLOADS_DIR
+from utils.logging import configure_root, get_logger
 
 
 load_dotenv()
 
-# setting up logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(levelname)s - %(message)s',
-    datefmt='%H:%M:%S'
-)
-logger = logging.getLogger(__name__)
+configure_root()
+logger = get_logger(__name__)
 
 # Suppress verbose logging from uvicorn and other libraries
-logging.getLogger('uvicorn.access').setLevel(logging.WARNING)
-logging.getLogger('pathway_engine').setLevel(logging.WARNING)
-logging.getLogger('pathway_engine.connectors.monitoring').setLevel(logging.ERROR)
+get_logger('uvicorn.access').setLevel(logging.WARNING)
+get_logger('pathway_engine').setLevel(logging.WARNING)
+get_logger('pathway_engine.connectors.monitoring').setLevel(logging.ERROR)
 
 # --- Configuration ---
 UPLOADS_DIR = "./uploads"
