@@ -25,16 +25,16 @@ import {
 import { fetchFileData } from "./services/dashboard.api";
 import { BaseNode } from "./components/NodeTypes/BaseNode";
 import { PropertyBar } from "./components/propertyBar";
-import { InputNode } from "./components/NodeTypes/InputNode";
+import { InNode } from "./components/NodeTypes/InNode";
 import { ProcessXNode } from "./components/NodeTypes/ProcessXNode";
 import { DecisionNode } from "./components/NodeTypes/DecisionNode";
-import { OutputNode } from "./components/NodeTypes/OutputNode";
+import { OutNode } from "./components/NodeTypes/OutNode";
 
 const nodeTypes = {
-  input: InputNode,
+  in: InNode,
   processX: ProcessXNode,
   decision: DecisionNode,
-  output: OutputNode,
+  out: OutNode,
 };
 
 export function Dashboard({dashboardSidebarOpen,nodes, setNodes,edges, setEdges }) {
@@ -245,8 +245,6 @@ export function Dashboard({dashboardSidebarOpen,nodes, setNodes,edges, setEdges 
           </ReactFlow>
         </Box>
       </Box>
-
-      
       {/* Right property drawer */}
       <PropertyBar
         open={Boolean(selectedNode)}

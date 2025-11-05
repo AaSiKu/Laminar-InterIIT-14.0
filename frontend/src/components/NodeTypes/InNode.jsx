@@ -1,17 +1,19 @@
 import React from "react";
 import { BaseNode } from "./BaseNode";
 
-export const InputNode = ({ id, data, selected }) => {
+export const InNode = ({ id, data, selected }) => {
   return (
     <BaseNode
       id={id}
       data={data}
       selected={selected}
       styles={{
-        
         bgColor: "#E3F2FD",
         hoverBgColor: "#BBDEFB",
         color: "#2196F3",
+        borderColor: "#7b1fa2",
+        minWidth: 140,
+        minHeight: 140,
       }}
       inputs={[]} // no inputs
       outputs={[{ id: "out", color: "#4caf50" }]}

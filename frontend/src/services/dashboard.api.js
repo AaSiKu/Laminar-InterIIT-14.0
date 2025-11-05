@@ -3,13 +3,13 @@ export const fetchFileData = async (fileId) => {
     nodes: [
       {
         id: "1",
-        type: "input",
-        position: { x: 250, y: 50 },
-        node_id: "kafka",
+        type: "in",
+        position: { x: -300, y: 150 },
+        node_id: "http",
         category: "io",
         data: {
           ui: {
-            label: "Start Node",
+            label: "http stream node",
             iconUrl: "ABC",
           },
           properties: [
@@ -30,13 +30,13 @@ export const fetchFileData = async (fileId) => {
       },
       {
         id: "2",
-        type: "output",
-        position: { x: 250, y: 500 },
+        type: "out",
+        position: { x: 300, y: 150 },
         node_id: "jsonlines_write",
         category: "io",
         data: {
           ui: {
-            label: "End Node",
+            label: "json file writter",
             iconUrl: "ABC",
           },
           properties: [{ label: "filename", value: "log.output", type: "str" }],
