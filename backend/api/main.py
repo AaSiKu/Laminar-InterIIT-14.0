@@ -1,5 +1,6 @@
 import logging
 import sys, os
+import subprocess
 from dotenv import load_dotenv
 from motor.motor_asyncio import AsyncIOMotorClient
 from bson.objectid import ObjectId
@@ -11,21 +12,16 @@ from pydantic import BaseModel
 from contextlib import asynccontextmanager
 import docker
 from fastapi.middleware.cors import CORSMiddleware
-import logging
 from backend.lib.validate import node_map
+from utils.logging import get_logger, configure_root
 from backend.api.dockerScript import (
     run_pipeline_container, stop_docker_container
 )
 
-# TODO: Extract out the logging logic out
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
+configure_root()
+logger = get_logger(__name__)
 
 load_dotenv()
-
-
-# TODO: Where is it needed ?
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..")))
 
 MONGO_URI = os.getenv("MONGO_URI")
 MONGO_DB = os.getenv("MONGO_DB", "db")
@@ -92,7 +88,12 @@ def get_base_pydantic_model(model_class: type) -> type:
 
 @app.get("/schema/all")
 def schema_index(request: Request):
-    return {"nodes": list(NODES.keys())}
+    io_node_ids = [node_id for node_id, cls in NODES.items() if cls.__module__ == 'backend.lib.io_nodes']
+    table_ids = [node_id for node_id, cls in NODES.items() if cls.__module__ == 'backend.lib.tables']
+    return {
+        "io_nodes": io_node_ids,
+        "table_nodes": table_ids
+    }
 
 def get_schema_for_node(node: Union[str, Type[Any]]) -> dict:
     if inspect.isclass(node):
@@ -134,6 +135,9 @@ async def docker_spinup(request: SpinupSpinDownRequest):
 
     try:
         result = run_pipeline_container(client, request.pipeline_id)
+        # https://forums.docker.com/t/accessing-host-machine-from-within-docker-container/14248/10
+        command = f"docker exec {request.pipeline_id} route | awk '/^default/ {{ print $2 }}'"
+        ip = subprocess.run(command, shell=True, capture_output=True, text=True, check=True)
         # Save the results of the container
         await workflow_collection.update_one(
             {'_id': ObjectId(request.pipeline_id)},
@@ -141,8 +145,7 @@ async def docker_spinup(request: SpinupSpinDownRequest):
                 '$set':{
                     'container_id': result['id'],
                     'host_port': result['host_port'],
-                    # TODO: implement logic for ip
-                    'host_ip': "TODO",
+                    'host_ip': ip.stdout.strip(),
                     'status': False, # the status is of pipeline, it will be toggled from the docker container
                 }
             }
@@ -153,6 +156,7 @@ async def docker_spinup(request: SpinupSpinDownRequest):
     except Exception as exc:
         logger.error(f"Spinup failed for '{request.pipeline_id}': {exc}")
         return JSONResponse({"error": str(exc)}, status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
 
 @app.post("/spindown")
 async def docker_spindown(request: SpinupSpinDownRequest):

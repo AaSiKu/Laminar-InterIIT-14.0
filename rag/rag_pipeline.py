@@ -10,25 +10,21 @@ from pathway.xpacks.llm import parsers, splitters, embedders, llms
 from pathway.xpacks.llm.document_store import DocumentStore
 from pathway.stdlib.indexing import BruteForceKnnFactory
 from rag.constant import UPLOADS_DIR
+from utils.logging import configure_root, get_logger
 
 # Load environment variables
 load_dotenv()
 
-# Setup logging - cleaner format
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(levelname)s - %(message)s',
-    datefmt='%H:%M:%S'
-)
-logger = logging.getLogger(__name__)
+configure_root()
+logger = get_logger(__name__)
 
 # Suppress verbose logging from external libraries
-logging.getLogger('LiteLLM').setLevel(logging.ERROR)
-logging.getLogger('litellm').setLevel(logging.ERROR)
-logging.getLogger('pathway_engine').setLevel(logging.WARNING)
-logging.getLogger('pathway_engine.connectors.monitoring').setLevel(logging.ERROR)
-logging.getLogger('httpx').setLevel(logging.WARNING)
-logging.getLogger('httpcore').setLevel(logging.WARNING)
+get_logger('LiteLLM').setLevel(logging.ERROR)
+get_logger('litellm').setLevel(logging.ERROR)
+get_logger('pathway_engine').setLevel(logging.WARNING)
+get_logger('pathway_engine.connectors.monitoring').setLevel(logging.ERROR)
+get_logger('httpx').setLevel(logging.WARNING)
+get_logger('httpcore').setLevel(logging.WARNING)
 
 
 # Validate API key
