@@ -4,6 +4,7 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..",
 
 from fastapi import FastAPI, Request, status, HTTPException
 from fastapi.responses import JSONResponse
+from fastapi.middleware.cors import CORSMiddleware 
 from typing import Any, Dict, Union, Optional, Type
 import inspect
 from pydantic import BaseModel
@@ -26,6 +27,15 @@ async def lifespan(app: FastAPI):
     app.state.docker_client.close()
 
 app = FastAPI(title="Pipeline API", lifespan = lifespan)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # You can restrict this later, e.g. ["http://localhost:3000"]
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 
 def get_base_pydantic_model(model_class: type) -> type:
     mro = getattr(model_class, "__mro__", ())

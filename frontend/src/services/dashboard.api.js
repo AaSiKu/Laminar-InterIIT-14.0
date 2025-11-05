@@ -1,4 +1,4 @@
-
+const BACKEND_URL="http://127.0.0.1:8000"//will fetch from env later 
 export const fetchFileData = async (fileId) => {
     //make a default prop for inital things
   return {
@@ -117,4 +117,27 @@ export const fetchFileData = async (fileId) => {
       }
     ]
   };
+};
+export const fetchNodeTypes = async () => {
+  try {
+    const res = await fetch(`${BACKEND_URL}/schema/all`);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    return data;
+  } catch (err) {
+    console.error("Error fetching node types:", err);
+    return {}; // fallback empty
+  }
+};
+
+export const fetchNodeSchema = async (nodeName) => {
+  try {
+    const res = await fetch(`${BACKEND_URL}/schema/${nodeName}`);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const schema = await res.json();
+    return schema;
+  } catch (err) {
+    console.error(`Error fetching schema for ${nodeName}:`, err);
+    return null;
+  }
 };

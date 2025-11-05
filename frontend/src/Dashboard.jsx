@@ -24,16 +24,20 @@ import {
 } from "@mui/material";
 import { fetchFileData } from "./services/dashboard.api";
 import { BaseNode } from "./components/NodeTypes/BaseNode";
-import { PropertyBar } from "./components/propertyBar";
+import { PropertyBar } from './components/PropertyBar';
 import { InputNode } from "./components/NodeTypes/InputNode";
 import { ProcessXNode } from "./components/NodeTypes/ProcessXNode";
 import { DecisionNode } from "./components/NodeTypes/DecisionNode";
 import { OutputNode } from "./components/NodeTypes/OutputNode";
+import { NodeDrawer } from "./components/NodeDrawer";
+
 
 const nodeTypes = {
   input: InputNode,
+  airbyte: InputNode,
   processX: ProcessXNode,
   decision: DecisionNode,
+  csv: OutputNode,
   output: OutputNode,
 };
 
@@ -41,6 +45,7 @@ export function Dashboard({dashboardSidebarOpen,nodes, setNodes,edges, setEdges 
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const [selectedNode, setSelectedNode] = useState(null);
+  const [drawerOpen, setDrawerOpen] = useState(false);
   
 
   useEffect(() => {
@@ -88,15 +93,15 @@ export function Dashboard({dashboardSidebarOpen,nodes, setNodes,edges, setEdges 
     []
   );
 
-  const handleAddNode = () => {
+  const handleAddNode = (Node_type,Node_data) => {
     const id = `n${nodes.length + 1}`;
     setNodes((prev) => [
       ...prev,
       {
         id,
-        type: "muiNode",
+        type: Node_type,
         position: { x: Math.random() * 300, y: Math.random() * 300 },
-        data: { label: `Node ${nodes.length + 1}` },
+        data: { ...Node_data, label: `Node ${nodes.length + 1}`},
       },
     ]);
   };
@@ -121,7 +126,8 @@ export function Dashboard({dashboardSidebarOpen,nodes, setNodes,edges, setEdges 
     a.click();
   };
 
-  const onNodeClick = (event, node) => {
+  const onNodeDoubleClick = (event, node) => {
+    event.preventDefault();
     setSelectedNode(node);
   };
 
@@ -171,9 +177,6 @@ export function Dashboard({dashboardSidebarOpen,nodes, setNodes,edges, setEdges 
               <Button variant="outlined" onClick={handleExport}>
                 Export
               </Button>
-              <Button variant="contained" onClick={handleAddNode}>
-                + Add Node
-              </Button>
             {/* <Button variant="outlined" onClick={handleReset}>
               Reset
             </Button>
@@ -183,6 +186,17 @@ export function Dashboard({dashboardSidebarOpen,nodes, setNodes,edges, setEdges 
             >
               Load from API
             </Button> */}
+
+              {/* <Button variant="contained" onClick={handleAddNodeSINP}>
+                + Add Node
+              </Button> */}
+              <Button
+                variant="contained"
+                onClick={() => setDrawerOpen(true)}
+              >
+                + Add Node
+              </Button>
+
           </Toolbar>
         </AppBar>
 
@@ -194,7 +208,7 @@ export function Dashboard({dashboardSidebarOpen,nodes, setNodes,edges, setEdges 
             onNodesChange={onNodesChange}
             onEdgesChange={onEdgesChange}
             onConnect={onConnect}
-            onNodeClick={onNodeClick}
+            onNodeDoubleClick={onNodeDoubleClick}
             fitView
           >
             {/* <MiniMap
@@ -277,9 +291,6 @@ export function Dashboard({dashboardSidebarOpen,nodes, setNodes,edges, setEdges 
         .react-flow .react-flow__edges {
           cursor: crosshair !important;
         }
-        .react-flow__node {
-          cursor: grab !important;
-        }
         .react-flow__node.dragging {
           cursor: grabbing !important;
         }
@@ -289,6 +300,12 @@ export function Dashboard({dashboardSidebarOpen,nodes, setNodes,edges, setEdges 
       `}</style>
       
       {/* Right property drawer */}
+      <NodeDrawer
+        open={drawerOpen}
+        onClose={() => setDrawerOpen(false)}
+        onAddNode={handleAddNode}
+      />
+
       <PropertyBar
         open={Boolean(selectedNode)}
         selectedNode={selectedNode}
