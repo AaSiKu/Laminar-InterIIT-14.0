@@ -1,9 +1,11 @@
 from toposort import toposort_flatten
-from typing import TypedDict, List
+from typing import TypedDict, List, Tuple, Dict
 from collections import defaultdict
 import json
 from lib.validate import validate_nodes
 from lib.node import Node
+from lib.agent import Agent
+from .agentic import build_agentic_graph
 from .mappings import mappings
 import pathway as pw
 from dotenv import load_dotenv
@@ -13,11 +15,17 @@ load_dotenv()
 
 pw.set_license_key(os.environ["PATHWAY_LICENSE_KEY"])
 
-
 class Graph(TypedDict):
     parsing_order : list[int]
     dependencies: defaultdict[int, list[int]]
     nodes: List[Node]
+
+class Flowchart(TypedDict):
+    edges: List[Tuple[int,int]]
+    nodes: List[Dict[str,any]]
+    agents: List[Agent]
+    name: str
+
 
 flowchart_file = "flowchart.json"
 """
@@ -25,10 +33,12 @@ Reads the flowchart, toposorts it and returns the dependency order.
 """
 def read() -> Graph:
     with open(flowchart_file, "r") as f:
-        data = json.load(f)
+        data : Flowchart = json.load(f)
         # array of nodes, in this file nodes will be identified by their indexes in this array
         nodes = validate_nodes(data["nodes"])
-        dependencies = defaultdict[int](list)
+        dependencies = defaultdict[int,list](list)
+        agents = [Agent(**agent) for agent in data["agents"]]
+
         for (_from,_to) in data["edges"]:
             dependencies[_to].append(_from)
 
@@ -36,6 +46,7 @@ def read() -> Graph:
             node = nodes[origin]
             if len(dep) != node.n_inputs:
                 raise Exception(f"A {node.node_id} node can only have {node.n_inputs} inputs")
+            
         return {
             "parsing_order" : [0] if len(nodes) == 1 else toposort_flatten(dependencies,nodes),
             "nodes" : nodes,
@@ -47,6 +58,7 @@ Builds the entire pathway computational graph in the order of toposort after whi
 def build(graph : Graph):
     nodes = graph["nodes"]
     node_outputs = [None] * len(nodes)
+
     for node_index in graph["parsing_order"]:
         node = nodes[node_index]
         mapping = mappings[node.node_id]
@@ -56,6 +68,7 @@ def build(graph : Graph):
         ## (1,3) will come first then (2,3)
         args = [node_outputs[input_node_ind] for input_node_ind in graph["dependencies"][node_index]]
         node_outputs[node_index] = mapping["node_fn"](args,node)
+
     return node_outputs
 
 
