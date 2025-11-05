@@ -2,7 +2,7 @@
 import React from "react";
 import { BaseNode } from "./BaseNode";
 
-export const OutputNode = ({ id, data, selected }) => {
+export const OutNode = ({ id, data, selected }) => {
   return (
     <BaseNode
       id={id}

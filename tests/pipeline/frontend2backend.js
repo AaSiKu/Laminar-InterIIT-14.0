@@ -1,15 +1,17 @@
-export const fetchFileData = async (fileId) => {
-  return {
+import fs from "fs";
+
+export const convertJsonToFlowchart = () => {
+  const pipeline = {
     nodes: [
       {
         id: "1",
-        type: "in",
-        position: { x: -300, y: 150 },
-        node_id: "http",
+        type: "input",
+        position: { x: 250, y: 50 },
+        node_id: "kafka",
         category: "io",
         data: {
           ui: {
-            label: "http stream node",
+            label: "Start Node",
             iconUrl: "ABC",
           },
           properties: [
@@ -30,13 +32,13 @@ export const fetchFileData = async (fileId) => {
       },
       {
         id: "2",
-        type: "out",
-        position: { x: 300, y: 150 },
+        type: "output",
+        position: { x: 250, y: 500 },
         node_id: "jsonlines_write",
         category: "io",
         data: {
           ui: {
-            label: "json file writter",
+            label: "End Node",
             iconUrl: "ABC",
           },
           properties: [{ label: "filename", value: "log.output", type: "str" }],
@@ -56,4 +58,13 @@ export const fetchFileData = async (fileId) => {
       },
     ],
   };
+  fs.writeFile("./flowchart.json", JSON.stringify(pipeline), (err) => {
+    if (err) {
+      console.error("Error writing file:", err);
+    } else {
+      console.log("File saved successfully!");
+    }
+  });
 };
+
+convertJsonToFlowchart();

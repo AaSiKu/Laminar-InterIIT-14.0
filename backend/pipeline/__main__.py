@@ -20,17 +20,32 @@ class Graph(TypedDict):
     nodes: List[Node]
 
 flowchart_file = "flowchart.json"
-"""
-Reads the flowchart, toposorts it and returns the dependency order.
-"""
+
+def id2index(nodes: List[dict]) -> dict[str, int]:
+    """
+    Converts the ids to index of the node, mapping for the toposort logic
+    """
+    mapping = {}
+    for index, node in enumerate(nodes):
+        if 'id' not in node:
+            raise KeyError("No id present for edge mapping")
+        mapping[node['id']] = index
+    return mapping
+
+
 def read() -> Graph:
+    """
+    Reads the flowchart, toposorts it and returns the dependency order.
+    """
     with open(flowchart_file, "r") as f:
         data = json.load(f)
         # array of nodes, in this file nodes will be identified by their indexes in this array
         nodes = validate_nodes(data["nodes"])
+        # build an id index mapping for edges
+        id2index_map = id2index(data["nodes"])
         dependencies = defaultdict[int](list)
-        for (_from,_to) in data["edges"]:
-            dependencies[_to].append(_from)
+        for edge in data["edges"]:
+            dependencies[id2index_map[edge["target"]]].append(id2index_map[edge["source"]])
 
         for origin,dep in dependencies.items():
             node = nodes[origin]
@@ -41,10 +56,11 @@ def read() -> Graph:
             "nodes" : nodes,
             "dependencies" : dependencies,
         }
-"""
-Builds the entire pathway computational graph in the order of toposort after which we only need to call pw.run
-"""
+
 def build(graph : Graph):
+    """
+    Builds the entire pathway computational graph in the order of toposort after which we only need to call pw.run
+    """
     nodes = graph["nodes"]
     node_outputs = [None] * len(nodes)
     for node_index in graph["parsing_order"]:
@@ -61,8 +77,7 @@ def build(graph : Graph):
 
 if __name__ == "__main__":
     graph = read()
-    print(graph["parsing_order"])
     node_outputs : List[pw.Table] = build(graph)
     pw.run()
-    
+
 
