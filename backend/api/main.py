@@ -10,7 +10,6 @@ from pydantic import BaseModel
 from contextlib import asynccontextmanager
 import docker
 import logging
-from dotenv import load_dotenv
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -19,27 +18,32 @@ from lib.validate import node_map
 NODES: Dict[str, BaseModel] = node_map
 
 
-load_dotenv()
-
-from backend.api.dockerScript import (
-    run_pipeline_container, stop_docker_container
+from backend.pipeline.dockerScript import (
+    run_docker_container_with_json, stop_docker_container
 )
 
 # https://fastapi.tiangolo.com/fa/advanced/events/
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    
     try:
         app.state.docker_client = docker.from_env()
-        logger.info("Docker client created")
+        logger.info("docker client created")
     except Exception as e:
         app.state.docker_client = None
-        logger.error(f"Error initializing docker client: {str(e)}")
+        logger.error(f"error initializing docker client: {str(e)}")
+    
     yield
+    
     if getattr(app.state, "docker_client", None):
-        app.state.docker_client.close()
-        logger.info("Docker client closed")
+        try:
+            app.state.docker_client.close()
+            logger.info("docker client closed")
+        except Exception as e:
+            logger.error(f"error closing docker file: {str(e)}")
 
-app = FastAPI(title="Pipeline API", lifespan=lifespan)
+
+app = FastAPI(title="Pipeline API", lifespan = lifespan)
 
 def get_base_pydantic_model(model_class: type) -> type:
     mro = getattr(model_class, "__mro__", ())
@@ -76,44 +80,53 @@ def schema_for_node(node_name: str):
     schema_obj = get_schema_for_node(node_name)
     return JSONResponse(schema_obj)
 
-class SpinupSpinDownRequest(BaseModel):
-    pipeline_id: str
-
 @app.post("/spinup")
-async def docker_spinup(request: SpinupSpinDownRequest, http_request: Request):
-    """
-    Spins up a container from the 'pathway_pipeline' image.
-    - Expects JSON: `{"pipeline_id": "..."`}
-    - Returns the dynamically assigned host port.
-    """
-    client = http_request.app.state.docker_client
-    if not client:
-        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Docker client not available")
-
+async def docker_spinup(request: Request):
+    if not request.app.state.docker_client:
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="docker client not available")
+    
     try:
-        result = run_pipeline_container(client, request.pipeline_id)
+        payload = await request.json()
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"invalid JSON body: {str(e)}")
+    
+    client = request.app.state.docker_client
+    
+    try:
+        result = run_docker_container_with_json(client, payload)
         return JSONResponse(result, status_code=status.HTTP_201_CREATED)
-    except docker.errors.ImageNotFound as e:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
     except Exception as exc:
-        logger.error(f"Spinup failed for '{request.pipeline_id}': {exc}")
-        return JSONResponse({"error": str(exc)}, status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        logger.error(f"spinup failed: {exc}")
+        return JSONResponse({"error": str(exc)}, status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)@app.post("/spinup")
+
 
 @app.post("/spindown")
-async def docker_spindown(request: SpinupSpinDownRequest, http_request: Request):
+async def docker_spindown(request: Request):
     """
-    Stops and removes the container identified by its name (pipeline_id).
-    - Expects JSON: `{"pipeline_id": "..."}`
+    Expects JSON body: {"container_id": "..."}.
+    Stops and removes the container.
     """
-    client = http_request.app.state.docker_client
-    if not client:
-        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Docker client not available")
-
+    if not request.app.state.docker_client:
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="docker client not available")
+    
     try:
-        result = stop_docker_container(client, request.pipeline_id)
+        body = await request.json()
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"invalid JSON body: {str(e)}")
+    
+    container_id = body.get("container_id")
+    if not container_id:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="provide container_id in body")
+    
+    client = request.app.state.docker_client
+    
+    try:
+        result = stop_docker_container(client, container_id)
         return JSONResponse(result, status_code=status.HTTP_200_OK)
     except docker.errors.NotFound:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Container '{request.pipeline_id}' not found")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"container {container_id} not found")
     except Exception as exc:
-        logger.error(f"Spindown failed for '{request.pipeline_id}': {exc}")
+        logger.error(f"spindown failed: {exc}")
         return JSONResponse({"error": str(exc)}, status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
