@@ -68,7 +68,6 @@ def run_pipeline_container(client: docker.DockerClient,
         "image": os.getenv("PIPELINE_IMAGE_NAME"),
         "host_port": assigned_port
     }
-    return True
 
 def stop_docker_container(client: docker.DockerClient, pipeline_id: str):
     """
