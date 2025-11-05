@@ -5,7 +5,7 @@ export const fetchFileData = async (fileId) => {
     nodes: [
       {
         id: "1",
-        type: "input",
+        type: "in",
         position: { x: 250, y: 50 },
         data: {
           label: "Start Node",
@@ -56,7 +56,7 @@ export const fetchFileData = async (fileId) => {
       },
       {
         id: "5",
-        type: "output",
+        type: "out",
         position: { x: 250, y: 500 },
         data: {
           label: "End Node",
