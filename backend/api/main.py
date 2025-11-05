@@ -24,10 +24,6 @@ logger = logging.getLogger(__name__)
 
 load_dotenv()
 
-
-# TODO: Where is it needed ?
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..")))
-
 MONGO_URI = os.getenv("MONGO_URI")
 MONGO_DB = os.getenv("MONGO_DB", "db")
 WORKFLOW_COLLECTION = os.getenv("MONGO_COLLECTION", "pipelines")
@@ -140,8 +136,9 @@ async def docker_spinup(request: SpinupSpinDownRequest):
 
     try:
         result = run_pipeline_container(client, request.pipeline_id)
+        # https://forums.docker.com/t/accessing-host-machine-from-within-docker-container/14248/10
         command = f"docker exec {request.pipeline_id} route | awk '/^default/ {{ print $2 }}'"
-        result = subprocess.run(command, shell=True, capture_output=True, text=True, check=True)
+        ip = subprocess.run(command, shell=True, capture_output=True, text=True, check=True)
         # Save the results of the container
         await workflow_collection.update_one(
             {'_id': ObjectId(request.pipeline_id)},
@@ -149,8 +146,7 @@ async def docker_spinup(request: SpinupSpinDownRequest):
                 '$set':{
                     'container_id': result['id'],
                     'host_port': result['host_port'],
-                    # TODO: implement logic for ip
-                    'host_ip': result.stdout.strip(),
+                    'host_ip': ip.stdout.strip(),
                     'status': False, # the status is of pipeline, it will be toggled from the docker container
                 }
             }
