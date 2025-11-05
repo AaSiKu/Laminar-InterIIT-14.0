@@ -152,9 +152,11 @@ async def docker_spinup(request: SpinupSpinDownRequest):
             }
         )
         return JSONResponse(result, status_code=status.HTTP_201_CREATED)
+    except docker.errors.ImageNotFound as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
     except Exception as exc:
-        logger.error(f"spinup failed: {exc}")
-        return JSONResponse({"error": str(exc)}, status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)@app.post("/spinup")
+        logger.error(f"Spinup failed for '{request.pipeline_id}': {exc}")
+        return JSONResponse({"error": str(exc)}, status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 @app.post("/spindown")
@@ -182,9 +184,9 @@ async def docker_spindown(request: SpinupSpinDownRequest):
         )
         return JSONResponse(result, status_code=status.HTTP_200_OK)
     except docker.errors.NotFound:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"container {container_id} not found")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Container '{request.pipeline_id}' not found")
     except Exception as exc:
-        logger.error(f"spindown failed: {exc}")
+        logger.error(f"Spindown failed for '{request.pipeline_id}': {exc}")
         return JSONResponse({"error": str(exc)}, status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 # ------- User Actions on Workflow --------- #
