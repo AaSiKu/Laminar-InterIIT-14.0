@@ -1,8 +1,7 @@
-#TODO: Exception Handling
 import sys, os
-from pymongo import MongoClient
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..")))
-
+from dotenv import load_dotenv
+from motor.motor_asyncio import AsyncIOMotorClient
+from bson.objectid import ObjectId
 from fastapi import FastAPI, Request, status, HTTPException
 from fastapi.responses import JSONResponse
 from typing import Any, Dict, Union, Optional, Type
@@ -10,44 +9,58 @@ import inspect
 from pydantic import BaseModel
 from contextlib import asynccontextmanager
 import docker
-import bcrypt
-from validate_email import validate_email
 from fastapi.middleware.cors import CORSMiddleware
-
-from lib.validate import node_map
-NODES: Dict[str, BaseModel] = node_map
-
-
-# save logic
-
 from pydantic import BaseModel
-
-
-
+from lib.validate import node_map
 from backend.pipeline.dockerScript import (
     run_docker_container_with_json, stop_docker_container
 )
 
-# https://fastapi.tiangolo.com/fa/advanced/events/
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..")))
+
+load_dotenv()
+MONGO_URI = os.getenv("MONGO_URI")
+MONGO_DB = os.getenv("MONGO_DB", "db")
+MONGO_COLLECTION = os.getenv("MONGO_COLLECTION", "pipelines")
+
+mongo_client = None
+db = None
+collection = None
+docker_client = None
+NODES: Dict[str, BaseModel] = node_map
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    app.state.docker_client = docker.from_env()
+    global mongo_client, db, collection, docker_client
+
+    # ---- STARTUP ----
+    if not MONGO_URI:
+        raise RuntimeError("MONGO_URI not set in environment")
+
+    mongo_client = AsyncIOMotorClient(MONGO_URI)
+    db = mongo_client[MONGO_DB]
+    collection = db[MONGO_COLLECTION]
+    print(f"Connected to MongoDB at {MONGO_URI}, DB: {MONGO_DB}", flush=True)
+    docker_client = docker.from_env()
+    print(f"Connected to docker demon")
+
     yield
-    app.state.docker_client.close()
 
-
-roles= {"admin", "user"}
+     # ---- SHUTDOWN ----
+    if docker_client:
+        docker_client.close()
+        print("Docker connection closed")
+    if mongo_client:
+        mongo_client.close()
+        print("MongoDB connection closed.")
 
 
 app = FastAPI(title="Pipeline API")
 
 origins = [
-    "http://localhost.tiangolo.com",
-    "https://localhost.tiangolo.com",
     "http://localhost",
     "http://localhost:5173",
 ]
-
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
@@ -55,6 +68,8 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# ----- Helper functions ------- #
 def get_base_pydantic_model(model_class: type) -> type:
     mro = getattr(model_class, "__mro__", ())
     for i, cls in enumerate(mro):
@@ -90,12 +105,12 @@ def schema_for_node(node_name: str):
     schema_obj = get_schema_for_node(node_name)
     return JSONResponse(schema_obj)
 
+
 @app.post("/spinup")
 async def docker_spinup(load: dict, request: Request):
-    
+
     client = request.app.state.docker_client
     result = run_docker_container_with_json(client, load)
-
     return JSONResponse(result)
 
 @app.post("/spindown")
@@ -108,52 +123,7 @@ async def docker_spindown(body: dict, request: Request):
     return JSONResponse(response)
 
 
-
-# from pydantic import BaseModel
-# from typing import List, Optional
-
-# # Each key-value property inside data.properties
-# class Property(BaseModel):
-#     label: str
-#     value: str
-
-# # Position object
-# class Position(BaseModel):
-#     x: float
-#     y: float
-
-# # Data object inside a Node
-# class NodeData(BaseModel):
-#     label: str
-#     properties: List[Property]
-
-# # Each node in the graph
-# class Node(BaseModel):
-#     id: str
-#     type: str
-#     position: Position
-#     data: NodeData
-
-# # Each edge between nodes
-# class Edge(BaseModel):
-#     id: str
-#     source: str
-#     sourceHandle: Optional[str] = None
-#     target: str
-#     targetHandle: Optional[str] = None
-#     type: Optional[str] = None
-#     label: Optional[str] = None
-#     animated: Optional[bool] = False
-
-# # The overall graph schema
-# class GraphSchema(BaseModel):
-#     nodes: List[Node]
-#     edges: List[Edge]
-
-client = MongoClient(os.getenv("MONGO_URI", "mongodb://localhost:27017"))
-db = client["pipeline_db"]
-collection = db["graphs"]
-
+# ------- User Actions on Workflow --------- #
 
 class Graph(BaseModel):
     graph: str

@@ -23,19 +23,20 @@ async def lifespan(app: FastAPI):
 
     # ---- STARTUP ----
     if not MONGO_URI:
-        raise RuntimeError("❌ MONGO_URI not set in environment")
+        raise RuntimeError("MONGO_URI not set in environment")
 
     mongo_client = AsyncIOMotorClient(MONGO_URI)
     db = mongo_client[MONGO_DB]
     collection = db[MONGO_COLLECTION]
-    print(f"✅ Connected to MongoDB at {MONGO_URI}, DB: {MONGO_DB}", flush=True)
+    print(f"Connected to MongoDB at {MONGO_URI}, DB: {MONGO_DB}", flush=True)
 
-    yield  # Hand over control to FastAPI runtime
+    # Hand over control to FastAPI runtime
+    yield
 
     # ---- SHUTDOWN ----
     if mongo_client:
         mongo_client.close()
-        print("🛑 MongoDB connection closed.")
+        print("MongoDB connection closed.")
 
 app = FastAPI(title="Pipeline API", lifespan=lifespan)
 
@@ -47,20 +48,20 @@ pipeline_process: subprocess.Popen | None = None
 def stop_pipeline():
     global pipeline_process
     if pipeline_process and pipeline_process.poll() is None:
-        print("🛑 Stopping running pipeline...")
+        print("Stopping running pipeline...")
         pipeline_process.terminate()
         try:
             pipeline_process.wait(timeout=5)
         except subprocess.TimeoutExpired:
             pipeline_process.kill()
-        print("✅ Pipeline stopped.")
+        print("Pipeline stopped.")
         pipeline_process = None
 
 
 def run_pipeline():
     global pipeline_process
     stop_pipeline()
-    print("🚀 Starting new pipeline...")
+    print("Starting new pipeline...")
     pipeline_process = subprocess.Popen(["python3", "-m", "pipeline"], stdout=open("pipeline.log", "w"), stderr=subprocess.STDOUT)
 
 
