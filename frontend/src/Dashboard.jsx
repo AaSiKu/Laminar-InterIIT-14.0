@@ -3,12 +3,9 @@ import {
   ReactFlow,
   Background,
   Controls,
-  MiniMap,
   applyNodeChanges,
   applyEdgeChanges,
   addEdge,
-  Handle,
-  Position,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import {
@@ -17,34 +14,15 @@ import {
   Typography,
   Button,
   Box,
-  Paper,
   useTheme,
   useMediaQuery,
   Alert
 } from "@mui/material";
 import { fetchFileData } from "./services/dashboard.api";
-import { BaseNode } from "./components/NodeTypes/BaseNode";
 import { PropertyBar } from './components/PropertyBar';
 import { NodeDrawer } from "./components/NodeDrawer";
+import {nodeTypes, generateNode} from "./utils/dashboard.utils"
 
-import { InNode } from "./components/NodeTypes/InNode";
-import { OutNode } from "./components/NodeTypes/OutNode";
-import { InputNode } from "./components/NodeTypes/InputNode";
-import { ProcessXNode } from "./components/NodeTypes/ProcessXNode";
-import { DecisionNode } from "./components/NodeTypes/DecisionNode";
-import { OutputNode } from "./components/NodeTypes/OutputNode";
-
-
-const nodeTypes = {
-  in: InNode,
-  out: OutNode,
-  input: InputNode,
-  airbyte: InputNode,
-  processX: ProcessXNode,
-  decision: DecisionNode,
-  csv: OutputNode,
-  output: OutputNode,
-};
 
 export function Dashboard({dashboardSidebarOpen,nodes, setNodes,edges, setEdges }) {
   const theme = useTheme();
@@ -127,37 +105,8 @@ export function Dashboard({dashboardSidebarOpen,nodes, setNodes,edges, setEdges 
     []
   );
 
-  const handleAddNode = (Node_type,Node_data) => {
-    const id = `n${nodes.length + 1}`;
-    setNodes((prev) => [
-      ...prev,
-      {
-        id,
-        type: Node_type,
-        position: { x: Math.random() * 300, y: Math.random() * 300 },
-        data: { ...Node_data, label: `Node ${nodes.length + 1}`},
-      },
-    ]);
-  };
-
-  const handleReset = () => {
-    setNodes(initialNodes);
-    setEdges(initialEdges);
-  };
-
-  const handleSave = async () => {
-    const flowData = { nodes, edges };
-    await window.storage.set('react-flow-data', JSON.stringify(flowData));
-  };
-
-  const handleExport = () => {
-    const data = JSON.stringify({ nodes, edges }, null, 2);
-    const blob = new Blob([data], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'flow.json';
-    a.click();
+  const handleAddNode = (schema) => {
+    setNodes((prev) => [...prev,generateNode(schema,nodes)]);
   };
 
   const onNodeDoubleClick = (event, node) => {
@@ -167,7 +116,7 @@ export function Dashboard({dashboardSidebarOpen,nodes, setNodes,edges, setEdges 
 
   const handleUpdateProperties = (nodeId, updatedProps) => {
     setNodes((nds) =>
-      nds.map((n) =>
+      nds.map((n,idx) =>
         n.id === nodeId
           ? { ...n, data: { ...n.data, properties: updatedProps } }
           : n
@@ -201,29 +150,6 @@ export function Dashboard({dashboardSidebarOpen,nodes, setNodes,edges, setEdges 
             <Typography variant="h6" color="text.primary">
               React Flow
             </Typography>
-            {/* <Box sx={{ display: "flex", gap: 2 }}>
-              <Button variant="outlined" onClick={handleReset}>
-                Reset
-              </Button>
-              <Button variant="outlined" onClick={handleSave}>
-                Save
-              </Button>
-              <Button variant="outlined" onClick={handleExport}>
-                Export
-              </Button>
-            {/* <Button variant="outlined" onClick={handleReset}>
-              Reset
-            </Button>
-            <Button 
-              variant="outlined" 
-              onClick={() => loadFlowFromAPI('your-file-id')}
-            >
-              Load from API
-            </Button> */}
-
-              {/* <Button variant="contained" onClick={handleAddNodeSINP}>
-                + Add Node
-              </Button> */}
               <Button
                 variant="contained"
                 onClick={() => setDrawerOpen(true)}
@@ -250,17 +176,8 @@ export function Dashboard({dashboardSidebarOpen,nodes, setNodes,edges, setEdges 
             onInit={setRfInstance}
             fitView
           >
-            {/* <MiniMap
-              nodeColor={(n) =>
-                n.id === "n1" ? theme.palette.primary.main : theme.palette.secondary.main
-              }
-              style={{ background:"white", border:"none", padding: 0, margin: 0 }}
-              maskColor="rgba(0, 0, 0, 0.1)"
-            /> */}
             <Controls position="top-right"/>
             <Background color="#aaa" gap={16} />
-
-      
           </ReactFlow>
         </Box>
       </Box>

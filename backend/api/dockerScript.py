@@ -22,10 +22,10 @@ def run_pipeline_container(client: docker.DockerClient,
     # 1. Check if the base pipeline image exists
     try:
         client.images.get(os.getenv("PIPELINE_IMAGE_NAME"))
-        logger.info(f"Base image '{os.getenv("PIPELINE_IMAGE_NAME")}' found.")
+        logging.info(f"Base image '{os.getenv('PIPELINE_IMAGE_NAME')}' found.")
     except docker.errors.ImageNotFound:
-        msg = f"Base image '{os.getenv("PIPELINE_IMAGE_NAME")}' not found. Please build it first."
-        logger.error(msg)
+        msg = f"Base image '{os.getenv('PIPELINE_IMAGE_NAME')}' not found. Please build it first."
+        logging.error(msg)
         raise docker.errors.ImageNotFound(msg)
 
    # 2. Check if a container with the same name (pipeline_id) already exists

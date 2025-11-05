@@ -139,7 +139,7 @@ export const BaseNode = memo(
         {properties.length > 0 && (
           <Stack spacing={0.5}>
             {properties.map((prop, idx) => {
-              if (prop.type === "str")
+              if (prop.type === "string")
                 return (
                   <Typography
                     key={idx}

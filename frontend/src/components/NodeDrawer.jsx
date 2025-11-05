@@ -42,7 +42,6 @@ export const NodeDrawer = ({ open, onClose, onAddNode }) => {
         setLoading(true);
         const data = await fetchNodeTypes();
         // data.input=["hello"];
-        console.log(data);
         setNodeCategories(data || {});
 
         // clse all sections by default
@@ -64,11 +63,10 @@ export const NodeDrawer = ({ open, onClose, onAddNode }) => {
     setOpenSections((prev) => ({ ...prev, [key]: !prev[key] }));
   };
 
-  const handleAddNode = async (nodeName) => {// not working // need input node specifications
+  const handleAddNode = async (nodeName) => {
     try {
       const schema = await fetchNodeSchema(nodeName);
-      const properties = schema?.properties || {};
-      onAddNode(nodeName, { properties });
+      onAddNode(schema);
       onClose();
     } catch (err) {
       console.error("Failed to add node:", err);
@@ -207,7 +205,7 @@ export const NodeDrawer = ({ open, onClose, onAddNode }) => {
           No node categories found.
         </Typography>
       ) : (
-        Object.entries(nodeCategories).map(([key, nodes]) =>
+        Object.entries(nodeCategories).map(([key, nodes],idx) =>
           renderCategory(key, nodes)
         )
       )}
