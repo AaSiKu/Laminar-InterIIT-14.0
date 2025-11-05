@@ -1,5 +1,6 @@
 import logging
 import sys, os
+import subprocess
 from dotenv import load_dotenv
 from motor.motor_asyncio import AsyncIOMotorClient
 from bson.objectid import ObjectId
@@ -139,6 +140,8 @@ async def docker_spinup(request: SpinupSpinDownRequest):
 
     try:
         result = run_pipeline_container(client, request.pipeline_id)
+        command = f"docker exec {request.pipeline_id} route | awk '/^default/ {{ print $2 }}'"
+        result = subprocess.run(command, shell=True, capture_output=True, text=True, check=True)
         # Save the results of the container
         await workflow_collection.update_one(
             {'_id': ObjectId(request.pipeline_id)},
@@ -147,7 +150,7 @@ async def docker_spinup(request: SpinupSpinDownRequest):
                     'container_id': result['id'],
                     'host_port': result['host_port'],
                     # TODO: implement logic for ip
-                    'host_ip': "TODO",
+                    'host_ip': result.stdout.strip(),
                     'status': False, # the status is of pipeline, it will be toggled from the docker container
                 }
             }
