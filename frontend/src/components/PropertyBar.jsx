@@ -8,6 +8,7 @@ import {
   Button,
   Stack,
   Alert,
+  Snackbar,
 } from "@mui/material";
 
 export const PropertyBar = ({
@@ -17,9 +18,10 @@ export const PropertyBar = ({
   onUpdateProperties,
 }) => {
   const [properties, setProperties] = useState([]);
+  const [snackbarOpen, setSnackbarOpen] = useState(false);
 
   useEffect(() => {
-    if (selectedNode?.data?.properties) {
+    if (selectedNode?.data?.properties?.length > 0) {
       setProperties(selectedNode.data.properties);
     } else {
       setProperties([]);
@@ -33,10 +35,22 @@ export const PropertyBar = ({
   };
 
   const handleSave = () => {
+    if (selectedNode) {
     onUpdateProperties(selectedNode.id, properties);
+      setSnackbarOpen(true);
+    }
+    onClose();
+  };
+
+  const handleCancel = () => {
+    if (selectedNode?.data?.properties) {
+      setProperties(selectedNode.data.properties);
+    }
+    onClose();
   };
 
   return (
+    <>
     <Drawer
       anchor="right"
       open={open}
@@ -57,7 +71,23 @@ export const PropertyBar = ({
       {!selectedNode ? (
         <Alert severity="info">Select a node to view its properties.</Alert>
       ) : properties.length === 0 ? (
-        <Alert severity="warning">This node has no editable properties.</Alert>
+          <Box
+            sx={{
+              mt: 4,
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              textAlign: "center",
+              color: "text.secondary",
+            }}
+          >
+            <Typography variant="body1" sx={{ mb: 1 }}>
+              ⚙ No properties found for this node
+            </Typography>
+            <Typography variant="body2">
+              You can search or add properties later.
+            </Typography>
+          </Box>
       ) : (
         <Stack spacing={2}>
           {properties.map((prop, index) => (
@@ -71,11 +101,37 @@ export const PropertyBar = ({
               size="small"
             />
           ))}
+
+            <Stack direction="row" spacing={1} justifyContent="flex-end">
+              <Button variant="outlined" color="inherit" onClick={handleCancel}>
+                Cancel
+              </Button>
           <Button variant="contained" color="primary" onClick={handleSave}>
-            Save Changes
+                Save
           </Button>
         </Stack>
+          </Stack>
       )}
     </Drawer>
+
+      <Snackbar
+        open={snackbarOpen}
+        autoHideDuration={3000}
+        onClose={() => setSnackbarOpen(false)}
+        anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
+        message="✔ Node properties saved successfully"
+        sx={{
+          bottom: 40,
+          "& .MuiSnackbarContent-root": {
+            backgroundColor: "#4caf50",
+            color: "white",
+            fontSize: "0.85rem",
+            padding: "6px 16px",
+            borderRadius: "8px",
+            minWidth: "unset",
+          },
+        }}
+      />
+    </>
   );
 };

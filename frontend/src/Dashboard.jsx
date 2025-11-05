@@ -24,17 +24,26 @@ import {
 } from "@mui/material";
 import { fetchFileData } from "./services/dashboard.api";
 import { BaseNode } from "./components/NodeTypes/BaseNode";
-import { PropertyBar } from "./components/propertyBar";
+import { PropertyBar } from './components/PropertyBar';
+import { NodeDrawer } from "./components/NodeDrawer";
+
 import { InNode } from "./components/NodeTypes/InNode";
+import { OutNode } from "./components/NodeTypes/OutNode";
+import { InputNode } from "./components/NodeTypes/InputNode";
 import { ProcessXNode } from "./components/NodeTypes/ProcessXNode";
 import { DecisionNode } from "./components/NodeTypes/DecisionNode";
-import { OutNode } from "./components/NodeTypes/OutNode";
+import { OutputNode } from "./components/NodeTypes/OutputNode";
+
 
 const nodeTypes = {
   in: InNode,
+  out: OutNode,
+  input: InputNode,
+  airbyte: InputNode,
   processX: ProcessXNode,
   decision: DecisionNode,
-  out: OutNode,
+  csv: OutputNode,
+  output: OutputNode,
 };
 
 export function Dashboard({dashboardSidebarOpen,nodes, setNodes,edges, setEdges }) {
@@ -42,6 +51,7 @@ export function Dashboard({dashboardSidebarOpen,nodes, setNodes,edges, setEdges 
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const [selectedNode, setSelectedNode] = useState(null);
   const [rfInstance, setRfInstance] = useState(null);  
+  const [drawerOpen, setDrawerOpen] = useState(false);
 
   const onSave = async (e) => {
     e.preventDefault()
@@ -117,15 +127,15 @@ export function Dashboard({dashboardSidebarOpen,nodes, setNodes,edges, setEdges 
     []
   );
 
-  const handleAddNode = () => {
+  const handleAddNode = (Node_type,Node_data) => {
     const id = `n${nodes.length + 1}`;
     setNodes((prev) => [
       ...prev,
       {
         id,
-        type: "muiNode",
+        type: Node_type,
         position: { x: Math.random() * 300, y: Math.random() * 300 },
-        data: { label: `Node ${nodes.length + 1}` },
+        data: { ...Node_data, label: `Node ${nodes.length + 1}`},
       },
     ]);
   };
@@ -150,7 +160,8 @@ export function Dashboard({dashboardSidebarOpen,nodes, setNodes,edges, setEdges 
     a.click();
   };
 
-  const onNodeClick = (event, node) => {
+  const onNodeDoubleClick = (event, node) => {
+    event.preventDefault();
     setSelectedNode(node);
   };
 
@@ -200,9 +211,6 @@ export function Dashboard({dashboardSidebarOpen,nodes, setNodes,edges, setEdges 
               <Button variant="outlined" onClick={handleExport}>
                 Export
               </Button>
-              <Button variant="contained" onClick={handleAddNode}>
-                + Add Node
-              </Button>
             {/* <Button variant="outlined" onClick={handleReset}>
               Reset
             </Button>
@@ -212,6 +220,17 @@ export function Dashboard({dashboardSidebarOpen,nodes, setNodes,edges, setEdges 
             >
               Load from API
             </Button> */}
+
+              {/* <Button variant="contained" onClick={handleAddNodeSINP}>
+                + Add Node
+              </Button> */}
+              <Button
+                variant="contained"
+                onClick={() => setDrawerOpen(true)}
+              >
+                + Add Node
+              </Button>
+
           </Toolbar>
         </AppBar>
 
@@ -227,7 +246,7 @@ export function Dashboard({dashboardSidebarOpen,nodes, setNodes,edges, setEdges 
             onNodesChange={onNodesChange}
             onEdgesChange={onEdgesChange}
             onConnect={onConnect}
-            onNodeClick={onNodeClick}
+            onNodeDoubleClick={onNodeDoubleClick}
             onInit={setRfInstance}
             fitView
           >
@@ -246,6 +265,12 @@ export function Dashboard({dashboardSidebarOpen,nodes, setNodes,edges, setEdges 
         </Box>
       </Box>
       {/* Right property drawer */}
+      <NodeDrawer
+        open={drawerOpen}
+        onClose={() => setDrawerOpen(false)}
+        onAddNode={handleAddNode}
+      />
+
       <PropertyBar
         open={Boolean(selectedNode)}
         selectedNode={selectedNode}
