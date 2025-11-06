@@ -6,6 +6,7 @@ from motor.motor_asyncio import AsyncIOMotorClient
 from bson.objectid import ObjectId
 from fastapi import FastAPI, Request, status, HTTPException
 from fastapi.responses import JSONResponse
+from fastapi.middleware.cors import CORSMiddleware 
 from typing import Any, Dict, Union, Optional, Type
 import inspect
 from pydantic import BaseModel
