@@ -1,16 +1,17 @@
-const BACKEND_URL="http://127.0.0.1:8000"//will fetch from env later 
-export const fetchFileData = async (fileId) => {
-  return {
+import fs from "fs";
+
+export const convertJsonToFlowchart = () => {
+  const pipeline = {
     nodes: [
       {
         id: "1",
-        type: "in",
-        position: { x: -300, y: 150 },
-        node_id: "http",
+        type: "input",
+        position: { x: 250, y: 50 },
+        node_id: "kafka",
         category: "io",
         data: {
           ui: {
-            label: "http stream node",
+            label: "Start Node",
             iconUrl: "ABC",
           },
           properties: [
@@ -31,13 +32,13 @@ export const fetchFileData = async (fileId) => {
       },
       {
         id: "2",
-        type: "out",
-        position: { x: 300, y: 150 },
+        type: "output",
+        position: { x: 250, y: 500 },
         node_id: "jsonlines_write",
         category: "io",
         data: {
           ui: {
-            label: "json file writter",
+            label: "End Node",
             iconUrl: "ABC",
           },
           properties: [{ label: "filename", value: "log.output", type: "str" }],
@@ -57,27 +58,13 @@ export const fetchFileData = async (fileId) => {
       },
     ],
   };
-};
-export const fetchNodeTypes = async () => {
-  try {
-    const res = await fetch(`${BACKEND_URL}/schema/all`);
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const data = await res.json();
-    return data;
-  } catch (err) {
-    console.error("Error fetching node types:", err);
-    return {}; // fallback empty
-  }
+  fs.writeFile("./flowchart.json", JSON.stringify(pipeline), (err) => {
+    if (err) {
+      console.error("Error writing file:", err);
+    } else {
+      console.log("File saved successfully!");
+    }
+  });
 };
 
-export const fetchNodeSchema = async (nodeName) => {
-  try {
-    const res = await fetch(`${BACKEND_URL}/schema/${nodeName}`);
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const schema = await res.json();
-    return schema;
-  } catch (err) {
-    console.error(`Error fetching schema for ${nodeName}:`, err);
-    return null;
-  }
-};
+convertJsonToFlowchart();

@@ -1,4 +1,3 @@
-
 import React, { memo, useState, useCallback } from "react";
 import { Handle, Position, useReactFlow } from "@xyflow/react";
 import {
@@ -14,12 +13,7 @@ import {
   ListItemText,
   Divider,
 } from "@mui/material";
-import {
-  ContentCopy,
-  ContentCut,
-  Delete,
-  FileCopy,
-} from "@mui/icons-material";
+import { ContentCopy, ContentCut, Delete, FileCopy } from "@mui/icons-material";
 
 export const BaseNode = memo(
   ({
@@ -70,10 +64,26 @@ export const BaseNode = memo(
 
     // Combine default + custom context menu options
     const menuOptions = [
-      { label: "Copy", icon: <ContentCopy fontSize="small" />, onClick: handleCopy },
-      { label: "Cut", icon: <ContentCut fontSize="small" />, onClick: handleCut },
-      { label: "Duplicate", icon: <FileCopy fontSize="small" />, onClick: handleDuplicate },
-      { label: "Delete", icon: <Delete fontSize="small" />, onClick: handleDelete },
+      {
+        label: "Copy",
+        icon: <ContentCopy fontSize="small" />,
+        onClick: handleCopy,
+      },
+      {
+        label: "Cut",
+        icon: <ContentCut fontSize="small" />,
+        onClick: handleCut,
+      },
+      {
+        label: "Duplicate",
+        icon: <FileCopy fontSize="small" />,
+        onClick: handleDuplicate,
+      },
+      {
+        label: "Delete",
+        icon: <Delete fontSize="small" />,
+        onClick: handleDelete,
+      },
       { divider: true },
       ...contextMenu,
     ];
@@ -92,13 +102,15 @@ export const BaseNode = memo(
         elevation={selected ? 8 : 2}
         className="Sahil"
         sx={{
-          boxShadow:"none",
+          boxShadow: "none",
           minWidth: styles.minWidth || 200,
           minHeight: styles.minHeight || 100,
           borderRadius: styles.borderRadius || 2,
           p: 2,
           position: "relative",
-          borderColor: selected ? "primary.main" : styles.borderColor || "divider",
+          borderColor: selected
+            ? "primary.main"
+            : styles.borderColor || "divider",
           bgcolor: styles.bgColor || "background.paper",
           color: styles.color || "text.primary",
           transition: "all 0.2s ease",
@@ -112,25 +124,33 @@ export const BaseNode = memo(
         }}
       >
         {/* Node title */}
-        <Typography 
-          variant="subtitle1" 
-          sx={{ 
-            fontWeight: 600, 
+        <Typography
+          variant="subtitle1"
+          sx={{
+            fontWeight: 600,
             textAlign: "center",
-            mb: properties.length > 0 ? 1 : 0
+            mb: properties.length > 0 ? 1 : 0,
           }}
         >
-          {data?.label || "Node"}
+          {data?.ui?.label || "Node"}
         </Typography>
 
         {/* Properties */}
         {properties.length > 0 && (
           <Stack spacing={0.5}>
-            {properties.map((prop, idx) => (
-              <Typography key={idx} variant="caption" color="text.secondary">
-                {prop.label}: {prop.value}
-              </Typography>
-            ))}
+            {properties.map((prop, idx) => {
+              if (prop.type === "string")
+                return (
+                  <Typography
+                    key={idx}
+                    variant="caption"
+                    color="text.secondary"
+                  >
+                    {prop.label}: {prop.value}
+                  </Typography>
+                );
+              else if (prop.type === "json") return <p>Json to be rendered</p>;
+            })}
           </Stack>
         )}
 

@@ -1,3 +1,9 @@
+# Documentation
+- Each pipeline runs inside its own docker container
+- Each docker container has a small FastAPI server that can get requests from the outside world and triggers/stops the pipeline
+- On trigger, the server fetches the pipeline flowchart from the mongo db database, saves it in a local flowchart.json and builds a dynamic pathway computational graph based on that, and then runs it
+- The flowchart.json should have a `nodes` array which is made up of `Node` objects from `lib/`. i.e they should have `node_id`, `category`, and the node specific hyper parameters. It should also have an `edges` array with (from,to) tuples which define the connections between nodes
+
 # Instructions to run a single pipeline
 1. Set environment variables inside `pipeline/.env`
    ```
@@ -14,6 +20,7 @@
     Here `<PIPELINE_ID>` should be the `_id` in the `pipelines` collection of `pipeline_db` database in mongodb of the pipeline you want to run
 4. Start the pipeline with `curl -X POST http://localhost:8000/trigger`
 5. Stop it with `curl -X POST http://localhost:8000/stop`
+6. Check out `tests/pipeline` for more tools.
 
 # Docker start up api
 1. Required docker demon to be running in background.
