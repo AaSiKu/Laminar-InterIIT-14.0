@@ -15,7 +15,7 @@ import { Close } from '@mui/icons-material';
 import { useMediaQuery, useTheme } from '@mui/material';
 import { fetchFileData } from '../services/dashboard.api';
 
-const DashboardSidebar = ({ open, onClose, fileStructure, nodes, setNodes,edges, setEdges }) => {
+const DashboardSidebar = ({ open, onClose, fileStructure, setFileStructure, nodes, setNodes,edges, setEdges }) => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const drawerWidth = 325;

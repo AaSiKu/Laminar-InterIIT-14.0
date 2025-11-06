@@ -18,13 +18,13 @@ import {
   useMediaQuery,
   Alert
 } from "@mui/material";
-import { fetchFileData } from "./services/dashboard.api";
-import { PropertyBar } from './components/PropertyBar';
-import { NodeDrawer } from "./components/NodeDrawer";
-import {nodeTypes, generateNode} from "./utils/dashboard.utils"
+import { fetchFileData } from "../services/dashboard.api";
+import { PropertyBar } from '../components/PropertyBar';
+import { NodeDrawer } from "../components/NodeDrawer";
+import {nodeTypes, generateNode} from "../utils/dashboard.utils"
 
 
-export function Dashboard({dashboardSidebarOpen,nodes, setNodes,edges, setEdges }) {
+export default function Dashboard({dashboardSidebarOpen,nodes, setNodes,edges, setEdges }) {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const [selectedNode, setSelectedNode] = useState(null);
@@ -37,7 +37,7 @@ export function Dashboard({dashboardSidebarOpen,nodes, setNodes,edges, setEdges 
       const flow = rfInstance.toObject();
       console.log("clicked")
 
-    const res = await fetch("http://localhost:8081/save", {
+    const res = await fetch("http://localhost:8000/save", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -106,8 +106,14 @@ export function Dashboard({dashboardSidebarOpen,nodes, setNodes,edges, setEdges 
   );
 
   const handleAddNode = (schema) => {
-    setNodes((prev) => [...prev,generateNode(schema,nodes)]);
+    setNodes((prevNodes) => {
+      console.log("hua")
+      const newNode = generateNode(schema, prevNodes); // use prev state
+      console.log("haa")
+      return [...prevNodes, newNode];
+    });
   };
+
 
   const onNodeDoubleClick = (event, node) => {
     event.preventDefault();
@@ -131,9 +137,12 @@ export function Dashboard({dashboardSidebarOpen,nodes, setNodes,edges, setEdges 
       <Box 
         sx={{ 
           transition: 'margin-left 0.3s ease',
+          position: 'absolute', 
+          top:"0",
           width: `calc(100vw - ${drawerWidth}px)`,
           height: "100vh", 
-          bgcolor: "background.default" 
+          bgcolor: "background.default",
+          left:drawerWidth
         }}
       >
         <AppBar
@@ -146,7 +155,7 @@ export function Dashboard({dashboardSidebarOpen,nodes, setNodes,edges, setEdges 
             bgcolor: "background.paper",
           }}
         >
-          <Toolbar sx={{ display: "flex", height:"12vh", justifyContent: "space-between" }}>
+          <Toolbar sx={{ display: "flex", height:"10vh", justifyContent: "space-between" }}>
             <Typography variant="h6" color="text.primary">
               React Flow
             </Typography>
@@ -160,7 +169,7 @@ export function Dashboard({dashboardSidebarOpen,nodes, setNodes,edges, setEdges 
           </Toolbar>
         </AppBar>
 
-        <Box sx={{ height: "87vh", bgcolor: "white" }}>
+        <Box sx={{ height: "90vh", bgcolor: "white" , left:drawerWidth}}>
 
         <button className="xy-theme__button" onClick={onSave}>
           save
@@ -186,6 +195,8 @@ export function Dashboard({dashboardSidebarOpen,nodes, setNodes,edges, setEdges 
         open={drawerOpen}
         onClose={() => setDrawerOpen(false)}
         onAddNode={handleAddNode}
+        setNodes={setNodes}
+
       />
 
       <PropertyBar

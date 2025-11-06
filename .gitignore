@@ -5,3 +5,5 @@ rag/uploads
 flowchart.json
 output.log
 .vscode
+
+venv/

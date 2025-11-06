@@ -12,12 +12,13 @@ import inspect
 from pydantic import BaseModel
 from contextlib import asynccontextmanager
 import docker
-from fastapi.middleware.cors import CORSMiddleware
 from backend.lib.validate import node_map
 from utils.logging import get_logger, configure_root
 from backend.api.dockerScript import (
     run_pipeline_container, stop_docker_container
 )
+from backend.auth.routes import router as auth_router
+
 
 configure_root()
 logger = get_logger(__name__)
@@ -50,6 +51,15 @@ async def lifespan(app: FastAPI):
     workflow_collection = db[WORKFLOW_COLLECTION]
     user_collection = db[USER_COLLECTION]
     print(f"Connected to MongoDB at {MONGO_URI}, DB: {MONGO_DB}", flush=True)
+
+    app.state.user_collection = user_collection
+    app.state.secret_key = os.getenv("SECRET_KEY")
+    app.state.algorithm = os.getenv("ALGORITHM", "HS256")
+    app.state.access_token_expire_minutes = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", 60))
+    app.state.revoked_tokens = set()
+    app.state.refresh_token_expire_minutes = int(os.getenv("REFRESH_TOKEN_EXPIRE_MINUTES", 43200))  # default 30 days
+
+
 
     docker_client = docker.from_env()
     print(f"Connected to docker demon")
@@ -188,6 +198,10 @@ async def docker_spindown(request: SpinupSpinDownRequest):
     except Exception as exc:
         logger.error(f"Spindown failed for '{request.pipeline_id}': {exc}")
         return JSONResponse({"error": str(exc)}, status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    
+# Include the modular auth router
+app.include_router(auth_router, prefix="/auth", tags=["auth"])
+
 
 # ------- User Actions on Workflow --------- #
 

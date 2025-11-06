@@ -1,60 +1,15 @@
 import { useState } from 'react';
 import { ThemeProvider, createTheme, Box } from "@mui/material";
-import { Dashboard } from './Dashboard.jsx';
-import Sidebar from './components/sidebar.jsx';
-import DashboardSidebar from './components/DashboardSidebar.jsx';
-
-const theme = createTheme({
-  palette: {
-    primary: { main: "#3b82f6" },
-    secondary: { main: "#10b981" },
-    background: { default: "#f9fafb", paper: "#fff" },
-  },
-  shape: { borderRadius: 8 },
-  typography: {
-    fontFamily: "Inter, Roboto, sans-serif",
-    fontWeightMedium: 600,
-  },
-});
-
-const fileStructure = [
-  {
-    name: 'src',
-    type: 'folder',
-    id: '123',
-    children: [
-      {
-        name: 'components',
-        type: 'folder',
-        id: '1234',
-        children: [
-          { name: 'Header.jsx', type: 'file', id:'124'},
-          { name: 'Footer.jsx', type: 'file', id:'234'},
-        ]
-      },
-      {
-        name: 'pages',
-        type: 'folder',
-        id:'2345',
-        children: [
-          { name: 'Home.jsx', type: 'file', id: '3458'},
-          { name: 'About.jsx', type: 'file', id: '3456'},
-        ]
-      },
-      { name: 'App.jsx', type: 'file', id:'4567548'},
-    ]
-  },
-  {
-    name: 'public',
-    type: 'folder',
-    id: '35786',
-    children: [
-      { name: 'index.html', type: 'file', id:'6345' },
-    ]
-  },
-  { name: 'package.json', type: 'file' },
-  { name: 'README.md', type: 'file' },
-];
+import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
+import { AuthProvider } from "./context/AuthContext";
+import ProtectedRoute from "./components/ProtectedRoute";
+import Sidebar from "./components/sidebar.jsx";
+import DashboardSidebar from "./components/DashboardSidebar.jsx";
+import LoginPage from "./pages/LoginPage.jsx";
+import SignupPage from "./pages/SignupPage.jsx";
+import Dashboard from "./pages/Dashboard.jsx";
+import UsersPage from "./pages/UsersPage.jsx";
+import AnalyticsPage from "./pages/AnalyticsPage.jsx";
 
 
 
@@ -62,33 +17,65 @@ export default function App() {
   const [dashboardSidebarOpen, setDashboardSidebarOpen] = useState(false);
     const [nodes, setNodes] = useState([]);
     const [edges, setEdges] = useState([]);
+    const [sidebarOpen, setSideBarOpen]= useState(false);
 
   return (
-    <ThemeProvider theme={theme}>
-      <Box sx={{ display: 'flex' }}>
-        <Sidebar 
-          setDashboardSidebarOpen={setDashboardSidebarOpen} 
-          dashboardSidebarOpen={dashboardSidebarOpen} 
+    <Router>
+      <AuthProvider>
+        {/* Sidebar and dashboard sidebar */}
+        <Sidebar
+          setDashboardSidebarOpen={setDashboardSidebarOpen}
+          dashboardSidebarOpen={dashboardSidebarOpen}
+          sidebarOpen={sidebarOpen}
+          setSideBarOpen={setSideBarOpen}
+        />
+        <DashboardSidebar
+          open={dashboardSidebarOpen}
+          onClose={() => setDashboardSidebarOpen(false)}
         />
 
-        <DashboardSidebar 
-          open={dashboardSidebarOpen} 
-          onClose={() => setDashboardSidebarOpen(false)}
-          fileStructure={fileStructure}
-          nodes={nodes}
-          setNodes={setNodes}
-          edges={edges}
-          setEdges={setEdges}
-        />
-        <Dashboard 
-          sidebarOpen={true} 
-          dashboardSidebarOpen={dashboardSidebarOpen} 
-          nodes={nodes}
-          setNodes={setNodes}
-          edges={edges}
-          setEdges={setEdges}
-        />
-      </Box>
-    </ThemeProvider>
+        <Routes>
+          {/* Public routes */}
+          <Route path="/auth/login" element={<LoginPage />} />
+          <Route path="/auth/signup" element={<SignupPage />} />
+
+          {/* Protected routes */}
+          <Route
+            path="/dashboard"
+            element={
+              <ProtectedRoute>
+                <Dashboard
+                  dashboardSidebarOpen={dashboardSidebarOpen}
+                  setDashboardSidebarOpen={setDashboardSidebarOpen}
+                  nodes={nodes}
+                  setNodes={setNodes}
+                  edges={edges}
+                  setEdges={setEdges}
+                />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/users"
+            element={
+              <ProtectedRoute>
+                <UsersPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/analytics"
+            element={
+              <ProtectedRoute>
+                <AnalyticsPage />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* Default route */}
+          <Route path="/" element={<Navigate to="/dashboard" />} />
+        </Routes>
+      </AuthProvider>
+    </Router>
   );
 }
