@@ -1,34 +1,37 @@
-import { useState, useCallback, memo, useEffect } from "react";
+import { useState, useCallback, useEffect } from "react";
 import {
   ReactFlow,
   Background,
   Controls,
-  MiniMap,
   applyNodeChanges,
   applyEdgeChanges,
   addEdge,
-  Handle,
-  Position,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import {
   AppBar,
   Toolbar,
-  Typography,
   Button,
   Box,
-  Paper,
   useTheme,
   useMediaQuery,
-  Alert
+  Alert,
+  Snackbar,
+  CircularProgress,
 } from "@mui/material";
-import { fetchFileData } from "./services/dashboard.api";
-import { BaseNode } from "./components/NodeTypes/BaseNode";
 import { PropertyBar } from "./components/propertyBar";
 import { InNode } from "./components/NodeTypes/InNode";
 import { ProcessXNode } from "./components/NodeTypes/ProcessXNode";
 import { DecisionNode } from "./components/NodeTypes/DecisionNode";
 import { OutNode } from "./components/NodeTypes/OutNode";
+import { useGlobalContext } from "./components/context";
+import {
+  savePipelineAPI,
+  toggleStatus as togglePipelineStatus,
+  fetchAndSetPipeline,
+  spinupPipeline,
+  spindownPipeline
+} from "./components/utils/pipelineHelperFunc";
 
 const nodeTypes = {
   in: InNode,
@@ -37,117 +40,118 @@ const nodeTypes = {
   out: OutNode,
 };
 
-export function Dashboard({dashboardSidebarOpen,nodes, setNodes,edges, setEdges }) {
+export function Dashboard({ dashboardSidebarOpen }) {
   const theme = useTheme();
-  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
+  const isMobile = useMediaQuery(theme.breakpoints.down("md"));
   const [selectedNode, setSelectedNode] = useState(null);
-  const [rfInstance, setRfInstance] = useState(null);  
-
-  const onSave = async (e) => {
-    e.preventDefault()
-    if (rfInstance) {
-      const flow = rfInstance.toObject();
-      console.log("clicked")
-
-    const res = await fetch("http://localhost:8081/save", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      // send the string wrapped in an object as JSON
-      body:  JSON.stringify({"path":"/","graph": flow}) ,
-    });
-
-    const data = await res.json();
-    console.log(data)
-  };
-  }
-
-  // const onSave = useCallback(() => {
-  //   if (rfInstance) {
-  //     const flow = rfInstance.toObject();
-  //     console.log("clicked")
-  //     // localStorage.setItem(flowKey, JSON.stringify(flow));
-  //   }
-  // }, [rfInstance]);
-
+  const {
+    currentEdges,
+    currentNodes,
+    setCurrentNodes,
+    setRfInstance,
+    setCurrentEdges,
+    currentPipelineStatus,
+    setCurrentPipelineStatus,
+    rfInstance,
+    currentPipelineId,
+    setCurrentPipelineId,
+    loading,
+    setLoading,
+    error,
+    setError,
+    setViewport,
+    containerId, 
+    setContainerId,
+  } = useGlobalContext();
 
   useEffect(() => {
-    const loadData = async () => {
-      try {
-        const result = await window.storage.get('react-flow-data');
-        if (result) {
-          const data = JSON.parse(result.value);
-          setNodes(data.nodes);
-          setEdges(data.edges);
-        } else {
-          await loadFlowFromAPI('default');
-        }
-      } catch {
-        await loadFlowFromAPI("default");
-      }
-    };
-    
-    loadData();
-  }, []);
+    if (currentPipelineId) {
+      setLoading(true);
+      fetchAndSetPipeline(currentPipelineId, {
+        setCurrentEdges,
+        setCurrentNodes,
+        setViewport,
+        setCurrentPipelineStatus,
+        setContainerId,
+      })
+        .catch((err) => setError(err.message))
+        .finally(() => setLoading(false));
+    }
+  }, [currentPipelineId, setCurrentEdges, setCurrentNodes, setViewport, setCurrentPipelineStatus, setLoading, setError, setContainerId]);
 
-  const loadFlowFromAPI = async (fileId) => {
+  const onNodesChange = useCallback(
+    (changes) => setCurrentNodes((ns) => applyNodeChanges(changes, ns)),
+    [setCurrentNodes]
+  );
+
+  const onEdgesChange = useCallback(
+    (changes) => setCurrentEdges((es) => applyEdgeChanges(changes, es)),
+    [setCurrentEdges]
+  );
+
+  const onConnect = useCallback(
+    (params) =>
+      setCurrentEdges((es) => addEdge({ ...params, animated: true }, es)),
+    [setCurrentEdges]
+  );
+
+  const savePipeline = async (path) => {
+    if (!rfInstance) return;
+    setLoading(true);
+    setError(null);
     try {
-      const flowData = await fetchFileData(fileId);
-      
-      if (flowData && flowData.nodes && flowData.edges) {
-        setNodes(flowData.nodes);
-        setEdges(flowData.edges);
+      const flow = rfInstance.toObject();
+      const data = await savePipelineAPI(flow, currentPipelineId, path);
+      if (currentPipelineId === null) {
+        setCurrentPipelineId(data.id);
       }
-    } catch (error) {
-      <Alert severity="error">{error}</Alert>
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
     }
   };
 
-  const onNodesChange = useCallback(
-    (changes) => setNodes((ns) => applyNodeChanges(changes, ns)),
-    []
-  );
-  const onEdgesChange = useCallback(
-    (changes) => setEdges((es) => applyEdgeChanges(changes, es)),
-    []
-  );
-  const onConnect = useCallback(
-    (params) => setEdges((es) => addEdge({ ...params, animated: true }, es)),
-    []
-  );
-
-  const handleAddNode = () => {
-    const id = `n${nodes.length + 1}`;
-    setNodes((prev) => [
-      ...prev,
-      {
-        id,
-        type: "muiNode",
-        position: { x: Math.random() * 300, y: Math.random() * 300 },
-        data: { label: `Node ${nodes.length + 1}` },
-      },
-    ]);
+  const handleToggleStatus = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const newStatus = await togglePipelineStatus(
+        currentPipelineId,
+        currentPipelineStatus
+      );
+      setCurrentPipelineStatus(newStatus['status'] === 'stopped' ? false : true);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleReset = () => {
-    setNodes(initialNodes);
-    setEdges(initialEdges);
+  const handleSpinup = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const data = await spinupPipeline(currentPipelineId);
+      setContainerId(data.id);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleSave = async () => {
-    const flowData = { nodes, edges };
-    await window.storage.set('react-flow-data', JSON.stringify(flowData));
-  };
-
-  const handleExport = () => {
-    const data = JSON.stringify({ nodes, edges }, null, 2);
-    const blob = new Blob([data], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'flow.json';
-    a.click();
+  const handleSpindown = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      await spindownPipeline(currentPipelineId);
+      setContainerId(null);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const onNodeClick = (event, node) => {
@@ -155,25 +159,26 @@ export function Dashboard({dashboardSidebarOpen,nodes, setNodes,edges, setEdges 
   };
 
   const handleUpdateProperties = (nodeId, updatedProps) => {
-    setNodes((nds) =>
+    setCurrentNodes((nds) =>
       nds.map((n) =>
         n.id === nodeId
-          ? { ...n, data: { ...n.data, properties: updatedProps } }
+          ? { ...n, data: { ...n.data, ...updatedProps } }
           : n
       )
     );
+    setSelectedNode(null);
   };
 
   const drawerWidth = 64 + (dashboardSidebarOpen && !isMobile ? 325 : 0);
 
   return (
     <>
-      <Box 
-        sx={{ 
-          transition: 'margin-left 0.3s ease',
+      <Box
+        sx={{
+          transition: "margin-left 0.3s ease",
           width: `calc(100vw - ${drawerWidth}px)`,
-          height: "100vh", 
-          bgcolor: "background.default" 
+          height: "100vh",
+          bgcolor: "background.default",
         }}
       >
         <AppBar
@@ -186,65 +191,62 @@ export function Dashboard({dashboardSidebarOpen,nodes, setNodes,edges, setEdges 
             bgcolor: "background.paper",
           }}
         >
-          <Toolbar sx={{ display: "flex", height:"12vh", justifyContent: "space-between" }}>
-            <Typography variant="h6" color="text.primary">
-              React Flow
-            </Typography>
-            {/* <Box sx={{ display: "flex", gap: 2 }}>
-              <Button variant="outlined" onClick={handleReset}>
-                Reset
-              </Button>
-              <Button variant="outlined" onClick={handleSave}>
+          <Toolbar
+            sx={{
+              display: "flex",
+              height: "6vh",
+              justifyContent: "end",
+            }}
+          >
+            <Box sx={{ display: "flex", gap: 2, justifyContent: "end" }}>
+              {loading && <CircularProgress size={24} />}
+              <Button
+                variant="outlined"
+                onClick={() => savePipeline()}
+                disabled={loading}
+              >
                 Save
               </Button>
-              <Button variant="outlined" onClick={handleExport}>
-                Export
+              <Button
+                variant="outlined"
+                onClick={handleSpinup}
+                disabled={loading || !currentPipelineId || !!containerId}
+              >
+                Spin Up
               </Button>
-              <Button variant="contained" onClick={handleAddNode}>
-                + Add Node
+              <Button
+                variant="outlined"
+                onClick={handleToggleStatus}
+                disabled={loading || !currentPipelineId || !containerId}
+              >
+                {currentPipelineStatus ? "Stop" : "Run"}
               </Button>
-            {/* <Button variant="outlined" onClick={handleReset}>
-              Reset
-            </Button>
-            <Button 
-              variant="outlined" 
-              onClick={() => loadFlowFromAPI('your-file-id')}
-            >
-              Load from API
-            </Button> */}
+              <Button
+                variant="outlined"
+                onClick={handleSpindown}
+                disabled={loading || !currentPipelineId || !containerId}
+              >
+                Spin Down
+              </Button>
+            </Box>
           </Toolbar>
         </AppBar>
-
-        <Box sx={{ height: "87vh", bgcolor: "white" }}>
-
-        <button className="xy-theme__button" onClick={onSave}>
-          save
-        </button>
-          <ReactFlow
-            nodes={nodes}
-            edges={edges}
-            nodeTypes={nodeTypes}
-            onNodesChange={onNodesChange}
-            onEdgesChange={onEdgesChange}
-            onConnect={onConnect}
-            onNodeClick={onNodeClick}
-            onInit={setRfInstance}
-            fitView
-          >
-            {/* <MiniMap
-              nodeColor={(n) =>
-                n.id === "n1" ? theme.palette.primary.main : theme.palette.secondary.main
-              }
-              style={{ background:"white", border:"none", padding: 0, margin: 0 }}
-              maskColor="rgba(0, 0, 0, 0.1)"
-            /> */}
-            <Controls position="top-right"/>
-            <Background color="#aaa" gap={16} />
-
-      
-          </ReactFlow>
-        </Box>
+        <ReactFlow
+          nodes={currentNodes}
+          edges={currentEdges}
+          nodeTypes={nodeTypes}
+          onNodesChange={onNodesChange}
+          onEdgesChange={onEdgesChange}
+          onConnect={onConnect}
+          onNodeClick={onNodeClick}
+          onInit={setRfInstance}
+          fitView
+        >
+          <Controls position="top-right" />
+          <Background color="#aaa" gap={16} />
+        </ReactFlow>
       </Box>
+
       {/* Right property drawer */}
       <PropertyBar
         open={Boolean(selectedNode)}
@@ -252,6 +254,20 @@ export function Dashboard({dashboardSidebarOpen,nodes, setNodes,edges, setEdges 
         onClose={() => setSelectedNode(null)}
         onUpdateProperties={handleUpdateProperties}
       />
+      <Snackbar
+        open={!!error}
+        autoHideDuration={6000}
+        onClose={() => setError(null)}
+        anchorOrigin={{ vertical: "top", horizontal: "center" }}
+      >
+        <Alert
+          onClose={() => setError(null)}
+          severity="error"
+          sx={{ width: "100%" }}
+        >
+          {error}
+        </Alert>
+      </Snackbar>
     </>
   );
 }
