@@ -15,7 +15,7 @@ import {
   ExpandLess,
   Extension,
 } from "@mui/icons-material";
-import { fetchNodeTypes, fetchNodeSchema } from "../services/dashboard.api";
+import { fetchNodeTypes, fetchNodeSchema } from "../utils/dashboard.api";
 
 /**
  * Generates a consistent color for a given string (e.g. node name)

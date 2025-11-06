@@ -7,6 +7,6 @@
     chmod +x deploy/localSetup.sh
     ./deploy/localSetup.sh
 ```
-3. This script will run the api server in the background on `9001` port with `--reload` enabled, we can add more servers later.
+3. This script will run the api server in the background on `8081` port with `--reload` enabled, we can add more servers later.
 4. To stop the servers you will need to kill the process using `kill <PID>` (PID can be found form the script output)
 5. All the logs of the servers can be found inside `/logs/` folders
