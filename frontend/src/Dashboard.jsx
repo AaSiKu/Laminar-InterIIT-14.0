@@ -1,4 +1,5 @@
 import { useState, useCallback, memo, useEffect } from "react";
+import { useNavigate } from 'react-router-dom'; // Import useNavigate
 import {
   ReactFlow,
   Background,
@@ -21,6 +22,7 @@ import {
 import { fetchFileData } from "./services/dashboard.api";
 import { PropertyBar } from './components/PropertyBar';
 import { NodeDrawer } from "./components/NodeDrawer";
+// AnalyticsDialog is NOT imported
 import {nodeTypes, generateNode} from "./utils/dashboard.utils"
 
 
@@ -30,35 +32,44 @@ export function Dashboard({dashboardSidebarOpen,nodes, setNodes,edges, setEdges 
   const [selectedNode, setSelectedNode] = useState(null);
   const [rfInstance, setRfInstance] = useState(null);  
   const [drawerOpen, setDrawerOpen] = useState(false);
+  
+  const [flowObjectId, setFlowObjectId] = useState(null); 
+  const navigate = useNavigate(); // Initialize navigate
 
+  // onSave with try...catch to prevent crashing
   const onSave = async (e) => {
-    e.preventDefault()
-    if (rfInstance) {
+    e.preventDefault();
+    if (!rfInstance) return; 
+
+    try {
       const flow = rfInstance.toObject();
-      console.log("clicked")
+      console.log("clicked");
 
-    const res = await fetch("http://localhost:8081/save", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      // send the string wrapped in an object as JSON
-      body:  JSON.stringify({"path":"/","graph": flow}) ,
-    });
+      const res = await fetch("http://localhost:8081/save", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({"path":"/","graph": flow}),
+      });
 
-    const data = await res.json();
-    console.log(data)
+      if (!res.ok) {
+        const errorText = await res.text();
+        throw new Error(`Server responded with ${res.status}: ${errorText}`);
+      }
+
+      const data = await res.json(); 
+      
+      if (data.id) { 
+        setFlowObjectId(data.id);
+      }
+      console.log(data);
+
+    } catch (error) {
+      console.error("Failed to save flow:", error);
+      alert("Error saving flow: " + error.message); 
+    }
   };
-  }
-
-  // const onSave = useCallback(() => {
-  //   if (rfInstance) {
-  //     const flow = rfInstance.toObject();
-  //     console.log("clicked")
-  //     // localStorage.setItem(flowKey, JSON.stringify(flow));
-  //   }
-  // }, [rfInstance]);
-
 
   useEffect(() => {
     const loadData = async () => {
@@ -68,6 +79,9 @@ export function Dashboard({dashboardSidebarOpen,nodes, setNodes,edges, setEdges 
           const data = JSON.parse(result.value);
           setNodes(data.nodes);
           setEdges(data.edges);
+          if (data.id) {
+            setFlowObjectId(data.id);
+          }
         } else {
           await loadFlowFromAPI('default');
         }
@@ -77,7 +91,7 @@ export function Dashboard({dashboardSidebarOpen,nodes, setNodes,edges, setEdges 
     };
     
     loadData();
-  }, []);
+  }, [setNodes, setEdges]); // Added dependencies
 
   const loadFlowFromAPI = async (fileId) => {
     try {
@@ -86,23 +100,25 @@ export function Dashboard({dashboardSidebarOpen,nodes, setNodes,edges, setEdges 
       if (flowData && flowData.nodes && flowData.edges) {
         setNodes(flowData.nodes);
         setEdges(flowData.edges);
+        
+        setFlowObjectId(flowData.id || fileId); 
       }
     } catch (error) {
-      <Alert severity="error">{error}</Alert>
+      console.error("Failed to load flow from API:", error);
     }
   };
-
+  
   const onNodesChange = useCallback(
     (changes) => setNodes((ns) => applyNodeChanges(changes, ns)),
-    []
+    [setNodes]
   );
   const onEdgesChange = useCallback(
     (changes) => setEdges((es) => applyEdgeChanges(changes, es)),
-    []
+    [setEdges]
   );
   const onConnect = useCallback(
     (params) => setEdges((es) => addEdge({ ...params, animated: true }, es)),
-    []
+    [setEdges]
   );
 
   const handleAddNode = (schema) => {
@@ -125,6 +141,15 @@ export function Dashboard({dashboardSidebarOpen,nodes, setNodes,edges, setEdges 
   };
 
   const drawerWidth = 64 + (dashboardSidebarOpen && !isMobile ? 325 : 0);
+
+  // Click handler for the Analytics button
+  const handleAnalyticsClick = () => {
+    if (flowObjectId) {
+      navigate(`/analytics/${flowObjectId}`);
+    } else {
+      alert("Please save the flow first to get an ID.");
+    }
+  };
 
   return (
     <>
@@ -150,18 +175,28 @@ export function Dashboard({dashboardSidebarOpen,nodes, setNodes,edges, setEdges 
             <Typography variant="h6" color="text.primary">
               React Flow
             </Typography>
+              
+            <Box sx={{ display: 'flex', gap: 1 }}>
+              <Button
+                variant="outlined"
+                onClick={handleAnalyticsClick} // Use navigate
+                disabled={!flowObjectId} 
+              >
+                Analytics
+              </Button>
               <Button
                 variant="contained"
                 onClick={() => setDrawerOpen(true)}
               >
                 + Add Node
               </Button>
+            </Box>
 
           </Toolbar>
         </AppBar>
 
         <Box sx={{ height: "87vh", bgcolor: "white" }}>
-
+        
         <button className="xy-theme__button" onClick={onSave}>
           save
         </button>
@@ -181,19 +216,21 @@ export function Dashboard({dashboardSidebarOpen,nodes, setNodes,edges, setEdges 
           </ReactFlow>
         </Box>
       </Box>
-      {/* Right property drawer */}
+      
+      {/* Side drawers */}
       <NodeDrawer
         open={drawerOpen}
         onClose={() => setDrawerOpen(false)}
         onAddNode={handleAddNode}
       />
-
       <PropertyBar
         open={Boolean(selectedNode)}
         selectedNode={selectedNode}
         onClose={() => setSelectedNode(null)}
         onUpdateProperties={handleUpdateProperties}
       />
+
+      {/* AnalyticsDialog is GONE */}
     </>
   );
 }
