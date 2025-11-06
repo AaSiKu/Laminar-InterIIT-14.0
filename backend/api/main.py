@@ -77,7 +77,7 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="Pipeline API", lifespan=lifespan)
 origins = [
-    "http://localhost",
+    "http://localhost:4173",
     "http://localhost:5173",
 ]
 app.add_middleware(

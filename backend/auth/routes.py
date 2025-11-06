@@ -1,12 +1,18 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from fastapi.responses import JSONResponse
+from fastapi.requests import Request
+
+
 app = FastAPI()
 
 # Allow your frontend origin(s)
 origins = [
-    "http://localhost:3000",  # frontend
-    "http://127.0.0.1:3000",  # sometimes used
+    "http://localhost:5173",  # frontend
+    "http://127.0.0.1:5173", 
+    "http://localhost:4173",  # frontend
+    "http://127.0.0.1:4173",  # sometimes used
 ]
 
 app.add_middleware(
@@ -47,17 +53,28 @@ async def signup(request: Request, data: UserCreate):
         raise HTTPException(status_code=400, detail="Email already registered")
 
     # Create user
+    # Normalize email
+    email_normalized = data.email.strip().lower()
+
+    # Check if user exists
+    existing = await crud.get_user_by_email(user_collection, email_normalized)
+    if existing:
+        raise HTTPException(status_code=400, detail="Email already registered")
+
+    # Save user
+    data.email = email_normalized
+
     user = await crud.create_user(user_collection, data)
     return UserOut(id=str(user["_id"]), email=user["email"], full_name=user.get("full_name"))
 
 @router.post("/login", response_model=dict)
 async def login(request: Request, form_data: OAuth2PasswordRequestForm = Depends()):
     user_collection = request.app.state.user_collection
-    user = await crud.get_user_by_email(user_collection, form_data.username)
-    if not user:
-        raise HTTPException(status_code=401, detail="Invalid credentials")
+    # Normalize login email
+    user_email = form_data.username.strip().lower()
 
-    if not utils.verify_password(form_data.password, user["hashed_password"]):
+    user = await crud.get_user_by_email(user_collection, user_email)
+    if not user or not utils.verify_password(form_data.password, user["hashed_password"]):
         raise HTTPException(status_code=401, detail="Invalid credentials")
 
     access_token = utils.create_access_token(
@@ -100,3 +117,15 @@ async def get_me(request: Request, token: str = Depends(oauth2_scheme)):
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
     return UserOut(id=str(user["_id"]), email=user["email"], full_name=user.get("full_name"))
+
+
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    # Log the exception
+    logger.error(f"Unhandled exception: {exc}")
+    # Return JSON response with CORS headers
+    response = JSONResponse(
+        status_code=500,
+        content={"detail": str(exc)}
+    )
+    return response
