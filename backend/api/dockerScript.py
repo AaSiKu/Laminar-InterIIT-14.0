@@ -5,10 +5,11 @@ import docker
 import os
 import logging
 from dotenv import load_dotenv
+import logging
+from utils.logging import get_logger, configure_root
 
-logging.BASIC_FORMAT = "%(asctime)s %(levelname)s %(name)s: %(message)s"
-logging.basicConfig(level = logging.INFO, format = logging.BASIC_FORMAT)
-logging.getLogger(__name__)
+configure_root()
+logger = get_logger(__name__)
 
 load_dotenv()
 
@@ -21,20 +22,20 @@ def run_pipeline_container(client: docker.DockerClient,
     # 1. Check if the base pipeline image exists
     try:
         client.images.get(os.getenv("PIPELINE_IMAGE_NAME"))
-        logging.info(f"Base image '{os.getenv("PIPELINE_IMAGE_NAME")}' found.")
+        logging.info(f"Base image '{os.getenv('PIPELINE_IMAGE_NAME')}' found.")
     except docker.errors.ImageNotFound:
-        msg = f"Base image '{os.getenv("PIPELINE_IMAGE_NAME")}' not found. Please build it first."
+        msg = f"Base image '{os.getenv('PIPELINE_IMAGE_NAME')}' not found. Please build it first."
         logging.error(msg)
         raise docker.errors.ImageNotFound(msg)
 
    # 2. Check if a container with the same name (pipeline_id) already exists
     try:
         client.containers.get(pipeline_id)
-        logging.warning(f"Container '{pipeline_id}' already exists.")
+        logger.warning(f"Container '{pipeline_id}' already exists.")
         raise ValueError(f"Container '{pipeline_id}' already exists")
     except docker.errors.NotFound:
         # the container does not exist
-        logging.info(f"No existing container named '{pipeline_id}'. Proceeding.")
+        logger.info(f"No existing container named '{pipeline_id}'. Proceeding.")
         pass
 
     # 3. Run the new container
@@ -54,9 +55,9 @@ def run_pipeline_container(client: docker.DockerClient,
     try:
         # This logic works whether the port was specified or assigned
         assigned_port = container.ports[os.getenv("CONTAINER_PORT")][0]['HostPort']
-        logging.info(f"Container '{pipeline_id}' (ID: {container.id}) running on host port {assigned_port}")
+        logger.info(f"Container '{pipeline_id}' (ID: {container.id}) running on host port {assigned_port}")
     except (KeyError, IndexError, TypeError):
-        logging.error(f"Could not determine host port for container {container.id}")
+        logger.error(f"Could not determine host port for container {container.id}")
         container.stop()
         container.remove()
         raise Exception("Failed to assign host port for the container.")
@@ -77,12 +78,12 @@ def stop_docker_container(client: docker.DockerClient, pipeline_id: str):
         container = client.containers.get(pipeline_id) # Find by name
         status_before = container.status
         container_id = container.id
-        logging.info(f"Found container '{pipeline_id}' (ID: {container_id}) with status: {status_before}")
+        logger.info(f"Found container '{pipeline_id}' (ID: {container_id}) with status: {status_before}")
 
         if container.status == "running":
             container.stop()
         container.remove()
-        logging.info(f"Stopped and removed container: {pipeline_id}")
+        logger.info(f"Stopped and removed container: {pipeline_id}")
 
         return {
             "id": container_id,
@@ -91,5 +92,5 @@ def stop_docker_container(client: docker.DockerClient, pipeline_id: str):
             "stopped_and_removed": True
         }
     except docker.errors.NotFound:
-        logging.warning(f"Container with name '{pipeline_id}' not found.")
+        logger.warning(f"Container with name '{pipeline_id}' not found.")
         raise # Re-raise to be caught by the endpoint

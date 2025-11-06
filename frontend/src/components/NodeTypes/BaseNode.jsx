@@ -100,7 +100,6 @@ export const BaseNode = memo(
       <Paper
         onContextMenu={handleContextMenu}
         elevation={selected ? 8 : 2}
-        className="Sahil"
         sx={{
           boxShadow: "none",
           minWidth: styles.minWidth || 200,
@@ -119,7 +118,7 @@ export const BaseNode = memo(
             transform: "scale(1.02)",
             boxShadow: 4,
           },
-          // ✅ Remove any background bleed
+          // Remove any background bleed
           overflow: "visible",
         }}
       >

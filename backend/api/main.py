@@ -1,10 +1,12 @@
 import logging
 import sys, os
+import subprocess
 from dotenv import load_dotenv
 from motor.motor_asyncio import AsyncIOMotorClient
 from bson.objectid import ObjectId
 from fastapi import FastAPI, Request, status, HTTPException
 from fastapi.responses import JSONResponse
+from fastapi.middleware.cors import CORSMiddleware 
 from typing import Any, Dict, Union, Optional, Type
 import inspect
 from pydantic import BaseModel
@@ -15,19 +17,15 @@ import logging
 import httpx
 import socket
 from backend.lib.validate import node_map
+from utils.logging import get_logger, configure_root
 from backend.api.dockerScript import (
     run_pipeline_container, stop_docker_container
 )
 
-# TODO: Extract out the logging logic out
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
+configure_root()
+logger = get_logger(__name__)
 
 load_dotenv()
-
-
-# TODO: Where is it needed ?
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..")))
 
 MONGO_URI = os.getenv("MONGO_URI")
 MONGO_DB = os.getenv("MONGO_DB", "db")
@@ -99,9 +97,36 @@ def get_base_pydantic_model(model_class: type) -> type:
 @app.get("/schema/all")
 def schema_index(request: Request):
     """
-    Returns a list of all available node types.
+    Returns category wise list of all available node types.
     """
-    return {"nodes": list(NODES.keys())}
+    io_node_ids = [node_id for node_id, cls in NODES.items() if cls.__module__ == 'backend.lib.io_nodes']
+    table_ids = [node_id for node_id, cls in NODES.items() if cls.__module__ == 'backend.lib.tables']
+    return {
+        "io_nodes": io_node_ids,
+        "table_nodes": table_ids
+    }
+
+def _remap_schema_types(schema: dict) -> dict:
+    """
+    Recursively traverses a JSON schema and remaps standard JSON types
+    to Python-style type names.
+    """
+    if isinstance(schema, dict):
+        for key, value in schema.items():
+            if key == 'type':
+                if value == 'string':
+                    schema[key] = 'str'
+                elif value == 'integer':
+                    schema[key] = 'int'
+                elif value == 'number':
+                    schema[key] = 'float'
+                elif value == 'boolean':
+                    schema[key] = 'bool'
+            else:
+                schema[key] = _remap_schema_types(value)
+    elif isinstance(schema, list):
+        return [_remap_schema_types(item) for item in schema]
+    return schema
 
 def get_schema_for_node(node: Union[str, Type[Any]]) -> dict:
     """
@@ -119,8 +144,11 @@ def get_schema_for_node(node: Union[str, Type[Any]]) -> dict:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="node is not a Pydantic model class")
 
     if hasattr(cls, "model_json_schema"):
-        return cls.model_json_schema()
-    return cls.model_json_schema()
+        schema = cls.model_json_schema()
+    else:
+        schema = cls.model_json_schema()
+    
+    return _remap_schema_types(schema)
 
 
 @app.get("/schema/{node_name}")
@@ -171,6 +199,7 @@ async def docker_spinup(request: PipelineIdRequest):
     except Exception as exc:
         logger.error(f"Spinup failed for '{request.pipeline_id}': {exc}")
         return JSONResponse({"error": str(exc)}, status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
 
 @app.post("/spindown")
 async def docker_spindown(request: PipelineIdRequest):

@@ -20,30 +20,22 @@ import {
   CircularProgress,
 } from "@mui/material";
 import { PropertyBar } from "./components/propertyBar";
-import { InNode } from "./components/NodeTypes/InNode";
-import { ProcessXNode } from "./components/NodeTypes/ProcessXNode";
-import { DecisionNode } from "./components/NodeTypes/DecisionNode";
-import { OutNode } from "./components/NodeTypes/OutNode";
+import { NodeDrawer } from "./components/NodeDrawer";
+import { nodeTypes, generateNode } from "./utils/dashboard.utils";
 import { useGlobalContext } from "./components/context";
 import {
   savePipelineAPI,
   toggleStatus as togglePipelineStatus,
   fetchAndSetPipeline,
   spinupPipeline,
-  spindownPipeline
-} from "./components/utils/pipelineHelperFunc";
-
-const nodeTypes = {
-  in: InNode,
-  processX: ProcessXNode,
-  decision: DecisionNode,
-  out: OutNode,
-};
+  spindownPipeline,
+} from "./utils/pipelineHelperFunc";
 
 export function Dashboard({ dashboardSidebarOpen }) {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("md"));
   const [selectedNode, setSelectedNode] = useState(null);
+  const [drawerOpen, setDrawerOpen] = useState(false);
   const {
     currentEdges,
     currentNodes,
@@ -60,7 +52,7 @@ export function Dashboard({ dashboardSidebarOpen }) {
     error,
     setError,
     setViewport,
-    containerId, 
+    containerId,
     setContainerId,
   } = useGlobalContext();
 
@@ -77,7 +69,16 @@ export function Dashboard({ dashboardSidebarOpen }) {
         .catch((err) => setError(err.message))
         .finally(() => setLoading(false));
     }
-  }, [currentPipelineId, setCurrentEdges, setCurrentNodes, setViewport, setCurrentPipelineStatus, setLoading, setError, setContainerId]);
+  }, [
+    currentPipelineId,
+    setCurrentEdges,
+    setCurrentNodes,
+    setViewport,
+    setCurrentPipelineStatus,
+    setLoading,
+    setError,
+    setContainerId,
+  ]);
 
   const onNodesChange = useCallback(
     (changes) => setCurrentNodes((ns) => applyNodeChanges(changes, ns)),
@@ -94,6 +95,14 @@ export function Dashboard({ dashboardSidebarOpen }) {
       setCurrentEdges((es) => addEdge({ ...params, animated: true }, es)),
     [setCurrentEdges]
   );
+
+  const handleAddNode = (schema) => {
+    setCurrentNodes((prev) => [...prev, generateNode(schema, currentNodes)]);
+  };
+
+  const onNodeDoubleClick = (event, node) => {
+    event.preventDefault();
+  };
 
   const savePipeline = async (path) => {
     if (!rfInstance) return;
@@ -120,7 +129,9 @@ export function Dashboard({ dashboardSidebarOpen }) {
         currentPipelineId,
         currentPipelineStatus
       );
-      setCurrentPipelineStatus(newStatus['status'] === 'stopped' ? false : true);
+      setCurrentPipelineStatus(
+        newStatus["status"] === "stopped" ? false : true
+      );
     } catch (err) {
       setError(err.message);
     } finally {
@@ -160,9 +171,9 @@ export function Dashboard({ dashboardSidebarOpen }) {
 
   const handleUpdateProperties = (nodeId, updatedProps) => {
     setCurrentNodes((nds) =>
-      nds.map((n) =>
+      nds.map((n, idx) =>
         n.id === nodeId
-          ? { ...n, data: { ...n.data, ...updatedProps } }
+          ? { ...n, data: { ...n.data, properties: updatedProps } }
           : n
       )
     );
@@ -228,6 +239,10 @@ export function Dashboard({ dashboardSidebarOpen }) {
               >
                 Spin Down
               </Button>
+              <Button variant="contained" onClick={() => setDrawerOpen(true)}>
+                {" "}
+                + Add Node
+              </Button>
             </Box>
           </Toolbar>
         </AppBar>
@@ -247,7 +262,12 @@ export function Dashboard({ dashboardSidebarOpen }) {
         </ReactFlow>
       </Box>
 
-      {/* Right property drawer */}
+      <NodeDrawer
+        open={drawerOpen}
+        onClose={() => setDrawerOpen(false)}
+        onAddNode={handleAddNode}
+      />
+
       <PropertyBar
         open={Boolean(selectedNode)}
         selectedNode={selectedNode}
