@@ -3,16 +3,17 @@ from pydantic import ValidationError
 from typing import List, Dict, Any, Literal, get_args, get_origin
 from . import io_nodes
 from . import tables
+from . import rag
 from .node import Node
 
 def get_node_class_map():
     """
-    Collect all node classes from lib/io_node.py and lib/tables.py
+    Collect all node classes from lib/io_node.py, lib/tables.py, and lib/rag.py
     that define a class attribute `node_id`, and return a mapping
     of node_id -> class reference.
     """
     node_class_map = {}
-    modules = [io_nodes, tables]
+    modules = [io_nodes, tables, rag]
 
     for module in modules:
         for name, cls in inspect.getmembers(module, inspect.isclass):
