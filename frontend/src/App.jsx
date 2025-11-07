@@ -19,6 +19,7 @@ export default function App() {
     const [edges, setEdges] = useState([]);
     const {login, isAuthenticated } = useContext(AuthContext);
     const [sidebarOpen, setSideBarOpen]= useState(false);
+    const {fileStructure,setFileStructure}=useState({});
 
   return (
     <>
