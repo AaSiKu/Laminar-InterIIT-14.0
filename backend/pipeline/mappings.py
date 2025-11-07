@@ -482,3 +482,13 @@ rag_mappings: dict[str, MappingValues] = {
     },
 }
 
+# ---------------------------------------
+# Final unified mapping
+# RAG MAPPINGS
+# ---------------------------------------
+mappings: dict[str, MappingValues] = {
+    **output_connector_mappings,
+    **input_connector_mappings,
+    **table_mappings,
+    **rag_mappings
+}
