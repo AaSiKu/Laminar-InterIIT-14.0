@@ -4,14 +4,19 @@ import subprocess
 from dotenv import load_dotenv
 from motor.motor_asyncio import AsyncIOMotorClient
 from bson.objectid import ObjectId
-from fastapi import FastAPI, Request, status, HTTPException
+from fastapi import FastAPI, Request, status, HTTPException, Depends
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware 
+from fastapi.security import OAuth2PasswordBearer
 from typing import Any, Dict, Union, Optional, Type
 import inspect
 from pydantic import BaseModel
 from contextlib import asynccontextmanager
 import docker
+from jose import JWTError, jwt
+from datetime import datetime, timezone, timedelta
+
+# --- Local Imports ---
 from backend.lib.validate import node_map
 from utils.logging import get_logger, configure_root
 from backend.api.dockerScript import (
@@ -35,6 +40,7 @@ USER_COLLECTION = os.getenv("USER_COLLECTION", "users")
 mongo_client = None
 db = None
 workflow_collection = None
+user_collection = None
 docker_client = None
 NODES: Dict[str, BaseModel] = node_map
 
@@ -88,7 +94,44 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# ----- Helper functions ------- #
+
+# ---------------- AUTH HELPERS ---------------- #
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
+
+async def get_current_user(
+    token: str = Depends(oauth2_scheme),
+    request: Request = None
+):
+    """
+    Extracts and validates the current user from JWT.
+    """
+    credentials_exception = HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Could not validate credentials",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
+
+    try:
+        payload = jwt.decode(
+            token,
+            request.app.state.secret_key,
+            algorithms=[request.app.state.algorithm],
+        )
+        email: str = payload.get("sub")
+        if email is None:
+            raise credentials_exception
+
+        user = await request.app.state.user_collection.find_one({"email": email})
+        if not user:
+            raise credentials_exception
+
+        return user
+
+    except JWTError:
+        raise credentials_exception
+
+
+# ---------------- HELPER FUNCTIONS ---------------- #
 def get_base_pydantic_model(model_class: type) -> type:
     mro = getattr(model_class, "__mro__", ())
     for i, cls in enumerate(mro):
@@ -210,21 +253,30 @@ class Graph(BaseModel):
     graph: Any
 
 @app.post("/save")
-async def save(data: Graph):
+async def save_graph(data: Graph, current_user: dict = Depends(get_current_user)):
     """
-    Saves the workflow to pipline db
+    Saves a workflow graph to the pipeline database, linked to the current user.
     """
     try:
-        result = await  workflow_collection.insert_one({
-            # TODO: set the remaining fields
-            'user': 'TODO: later save from the auth token extraction',
-            'path': data.path,
-            'pipeline': data.graph,
-            'container_id': "",
-            'host_port': "",
-            'host_ip': "",
-            'status': False
-            })
-        return {"message": "Saved successfully", "id": str(result.inserted_id)}
+        #TODO: set the rf instance to the previous rf if it is not a new file
+        user_identifier = str(current_user["_id"])
+        doc = {
+            "user": user_identifier,
+            "path": data.path,
+            "pipeline": data.graph,
+            "container_id": "",
+            "host_port": "",
+            "host_ip": "",
+            "status": False
+        }
+
+        result = await workflow_collection.insert_one(doc)
+        print(result)
+        return {
+            "message": "Saved successfully",
+            "id": str(result.inserted_id),
+            "user": user_identifier
+        }
+
     except Exception as e:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))

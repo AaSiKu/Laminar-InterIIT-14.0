@@ -17,6 +17,7 @@ export default function SignupPage() {
     try {
       const res = await fetch("http://localhost:8000/auth/signup", {
         method: "POST",
+        mode: "cors",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, password, full_name: fullName }),
       });

@@ -1,4 +1,9 @@
-from fastapi import FastAPI
+
+from fastapi import APIRouter, Depends, HTTPException, Request, status, FastAPI
+from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
+from datetime import timedelta
+from . import crud, utils
+from .schemas import UserCreate, UserOut, Token
 from fastapi.middleware.cors import CORSMiddleware
 
 from fastapi.responses import JSONResponse
@@ -22,15 +27,10 @@ app.add_middleware(
     allow_methods=["*"],          # allow all HTTP methods
     allow_headers=["*"],          # allow all headers
 )
-from fastapi import APIRouter, Depends, HTTPException, Request, status, FastAPI
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
-from datetime import timedelta
-from . import crud, utils
-from .schemas import UserCreate, UserOut, Token
-
 router = APIRouter()
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth")
+
+
 
 @router.post("/signup", response_model=UserOut)
 async def signup(request: Request, data: UserCreate):
@@ -44,9 +44,7 @@ async def signup(request: Request, data: UserCreate):
             status_code=400, 
             detail="Password must be 8+ chars, include uppercase, lowercase, number, special char"
         )
-
-## if you want i can merge the error into one for safety
-
+    ## if you want i can merge the error into one for safety
     # Check if user exists
     existing = await crud.get_user_by_email(user_collection, data.email)
     if existing:
@@ -66,6 +64,9 @@ async def signup(request: Request, data: UserCreate):
 
     user = await crud.create_user(user_collection, data)
     return UserOut(id=str(user["_id"]), email=user["email"], full_name=user.get("full_name"))
+
+
+
 
 @router.post("/login", response_model=dict)
 async def login(request: Request, form_data: OAuth2PasswordRequestForm = Depends()):
@@ -88,6 +89,9 @@ async def login(request: Request, form_data: OAuth2PasswordRequestForm = Depends
 
     return {"access_token": access_token, "refresh_token": refresh_token, "token_type": "bearer"}
 
+
+
+
 @router.post("/refresh", response_model=Token)
 async def refresh_token(request: Request, token: str = Depends(oauth2_scheme)):
     token_data = utils.decode_token(token)
@@ -102,12 +106,18 @@ async def refresh_token(request: Request, token: str = Depends(oauth2_scheme)):
     )
     return Token(access_token=access_token)
 
+
+
+
 @router.post("/logout")
 async def logout(request: Request, token: str = Depends(oauth2_scheme)):
     if not hasattr(request.app.state, "revoked_tokens"):
         request.app.state.revoked_tokens = set()
     request.app.state.revoked_tokens.add(token)
     return {"message": "Token revoked successfully"}
+
+
+
 
 @router.get("/me", response_model=UserOut)
 async def get_me(request: Request, token: str = Depends(oauth2_scheme)):
@@ -119,13 +129,3 @@ async def get_me(request: Request, token: str = Depends(oauth2_scheme)):
     return UserOut(id=str(user["_id"]), email=user["email"], full_name=user.get("full_name"))
 
 
-@app.exception_handler(Exception)
-async def global_exception_handler(request: Request, exc: Exception):
-    # Log the exception
-    logger.error(f"Unhandled exception: {exc}")
-    # Return JSON response with CORS headers
-    response = JSONResponse(
-        status_code=500,
-        content={"detail": str(exc)}
-    )
-    return response

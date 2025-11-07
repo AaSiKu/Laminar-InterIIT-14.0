@@ -1,7 +1,6 @@
-import { useState } from 'react';
+import { useState, useContext } from 'react';
 import { ThemeProvider, createTheme, Box } from "@mui/material";
 import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
-import { AuthProvider } from "./context/AuthContext";
 import ProtectedRoute from "./components/ProtectedRoute";
 import Sidebar from "./components/sidebar.jsx";
 import DashboardSidebar from "./components/DashboardSidebar.jsx";
@@ -10,6 +9,7 @@ import SignupPage from "./pages/SignupPage.jsx";
 import Dashboard from "./pages/Dashboard.jsx";
 import UsersPage from "./pages/UsersPage.jsx";
 import AnalyticsPage from "./pages/AnalyticsPage.jsx";
+import { AuthContext } from './context/AuthContext';
 
 
 
@@ -17,11 +17,11 @@ export default function App() {
   const [dashboardSidebarOpen, setDashboardSidebarOpen] = useState(false);
     const [nodes, setNodes] = useState([]);
     const [edges, setEdges] = useState([]);
+    const {login, isAuthenticated } = useContext(AuthContext);
     const [sidebarOpen, setSideBarOpen]= useState(false);
 
   return (
-    <Router>
-      <AuthProvider>
+    <>
         {/* Sidebar and dashboard sidebar */}
         <Sidebar
           setDashboardSidebarOpen={setDashboardSidebarOpen}
@@ -32,11 +32,21 @@ export default function App() {
         <DashboardSidebar
           open={dashboardSidebarOpen}
           onClose={() => setDashboardSidebarOpen(false)}
+          fileStructure={fileStructure}
+          setFileStructure={setFileStructure}
+          nodes={nodes}
+          setNodes={setNodes}
+          edges={edges}
+          setEdges={setEdges}
+
         />
 
         <Routes>
           {/* Public routes */}
-          <Route path="/auth/login" element={<LoginPage />} />
+          <Route path="/auth/login" element={<LoginPage 
+            login={login}
+            isAuthenticated={isAuthenticated}
+          />} />
           <Route path="/auth/signup" element={<SignupPage />} />
 
           {/* Protected routes */}
@@ -51,6 +61,7 @@ export default function App() {
                   setNodes={setNodes}
                   edges={edges}
                   setEdges={setEdges}
+                  login={login}
                 />
               </ProtectedRoute>
             }
@@ -75,7 +86,6 @@ export default function App() {
           {/* Default route */}
           <Route path="/" element={<Navigate to="/dashboard" />} />
         </Routes>
-      </AuthProvider>
-    </Router>
+    </>
   );
 }

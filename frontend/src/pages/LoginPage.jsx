@@ -2,8 +2,7 @@ import React, { useState, useContext } from "react";
 import { Box, Container, TextField, Button, Typography, Alert, Paper } from "@mui/material";
 import { AuthContext } from "../context/AuthContext";
 
-export default function LoginPage() {
-  const { login, isAuthenticated } = useContext(AuthContext);
+export default function LoginPage({login, isAuthenticated}) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -18,6 +17,7 @@ export default function LoginPage() {
     try {
       const res = await fetch("http://localhost:8000/auth/login", {
         method: "POST",
+        mode: "cors",
         headers: { "Content-Type": "application/x-www-form-urlencoded" },
         body: new URLSearchParams({ username: email, password }),
       });
@@ -72,7 +72,10 @@ export default function LoginPage() {
           </Button>
         </Box>
         <Typography sx={{ mt: 2, textAlign: "center", color: "gray" }}>
-          Don't have an account? <a href="/auth/signup" style={{ color: "#764ba2", textDecoration: "none", fontWeight: 500 }}>Sign Up</a>
+          Don't have an account?{" "}
+          <a href="/auth/signup" style={{ color: "#764ba2", textDecoration: "none", fontWeight: 500 }}>
+            Sign Up
+          </a>
         </Typography>
       </Paper>
     </Box>

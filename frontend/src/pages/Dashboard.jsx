@@ -24,7 +24,7 @@ import { NodeDrawer } from "../components/NodeDrawer";
 import {nodeTypes, generateNode} from "../utils/dashboard.utils"
 
 
-export default function Dashboard({dashboardSidebarOpen,nodes, setNodes,edges, setEdges }) {
+export default function Dashboard({dashboardSidebarOpen,nodes, setNodes,edges, setEdges,login }) {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const [selectedNode, setSelectedNode] = useState(null);
@@ -32,6 +32,7 @@ export default function Dashboard({dashboardSidebarOpen,nodes, setNodes,edges, s
   const [drawerOpen, setDrawerOpen] = useState(false);
 
   const onSave = async (e) => {
+    const token = localStorage.getItem("access_token");
     e.preventDefault()
     if (rfInstance) {
       const flow = rfInstance.toObject();
@@ -41,13 +42,20 @@ export default function Dashboard({dashboardSidebarOpen,nodes, setNodes,edges, s
       method: "POST",
       headers: {
         "Content-Type": "application/json",
+        "Authorization": `Bearer ${token}`,
       },
       // send the string wrapped in an object as JSON
       body:  JSON.stringify({"path":"/","graph": flow}) ,
     });
 
+    if (!res.ok) {
+      const err = await res.json();
+      console.error("Error saving:", err);
+      alert(`Error: ${err.detail || "Failed to save"}`);
+      return;
+    }
+
     const data = await res.json();
-    console.log(data)
   };
   }
 
