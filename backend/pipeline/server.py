@@ -7,6 +7,8 @@ from contextlib import asynccontextmanager
 import uvicorn
 from dotenv import load_dotenv
 from bson import ObjectId
+from pydantic import BaseModel
+import csv
 
 load_dotenv()
 MONGO_URI = os.getenv("MONGO_URI")
@@ -16,6 +18,14 @@ MONGO_COLLECTION = os.getenv("MONGO_COLLECTION", "pipelines")
 mongo_client = None
 db = None
 collection = None
+
+PROMPTS_FILE = "prompts.csv"
+
+
+def create_prompts_file():
+    with open(PROMPTS_FILE, "w") as f:
+        f.write("")
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -79,6 +89,7 @@ async def trigger_pipeline(request: Request):
     saves it as flowchart.json, and runs `python3 -m pipeline`.
     """
     pipeline_id = os.getenv("PIPELINE_ID")
+    create_prompts_file()
     if not pipeline_id:
         raise HTTPException(status_code=400, detail="PIPELINE_ID not set in environment")
 
@@ -95,6 +106,22 @@ async def trigger_pipeline(request: Request):
     run_pipeline()
 
     return {"status": "started", "id": pipeline_id}
+
+class PromptIn(BaseModel):
+    prompt: str
+
+@app.post("/prompt")
+def prompt(body: PromptIn):
+    file_path = PROMPTS_FILE
+
+    # Append prompt to CSV (single column "prompts")
+    with open(file_path, "a", newline="") as f:
+        writer = csv.writer(f)
+        if f.tell() == 0:
+            writer.writerow(["prompts"])  # header only if file does not exist
+        writer.writerow([body.prompt])
+
+    return {"status": "ok", "saved": body.prompt}
 
 
 @app.post("/stop")
