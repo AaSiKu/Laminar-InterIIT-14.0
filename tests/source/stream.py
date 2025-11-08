@@ -28,10 +28,14 @@ async def user_generator():
         # This keeps the stream going without overwhelming the server
         await asyncio.sleep(1)
 
-async def frontend_user_generator():
-    async for val in user_generator():
-        # Wrap each JSON line in proper SSE format
-        yield f"data: {val}\n\n"
+
+
+def return_frontend_generator(generator):
+    async def frontend_generator():
+        async for val in generator():
+            # Wrap each JSON line in proper SSE format
+            yield f"data: {val}\n\n"
+    return frontend_generator
 
 @app.get("/stream-users")
 async def stream_users(request: Request):
@@ -40,7 +44,7 @@ async def stream_users(request: Request):
     We set the media type to "text/event-stream" for SSE.
     """
     frontend = request.query_params.get("frontend")
-    return StreamingResponse(frontend_user_generator() if frontend=="true" else user_generator(), media_type="text/event-stream")
+    return StreamingResponse(return_frontend_generator(user_generator) if frontend=="true" else user_generator(), media_type="text/event-stream")
 
 @app.get("/")
 async def get_client_page():
