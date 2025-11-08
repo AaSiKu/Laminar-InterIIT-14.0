@@ -1,11 +1,13 @@
 import React, { useState, useContext } from "react";
 import { Box, Container, TextField, Button, Typography, Alert, Paper } from "@mui/material";
 import { AuthContext } from "../context/AuthContext";
+import { useGlobalContext } from "../context/GlobalContext";
 
-export default function LoginPage({login, isAuthenticated}) {
+export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const {login,isAuthenticated} = useGlobalContext();
 
   if (isAuthenticated) {
     return <Typography sx={{ mt: 10, textAlign: "center" }}>Already logged in</Typography>;
@@ -18,6 +20,7 @@ export default function LoginPage({login, isAuthenticated}) {
       const res = await fetch("http://localhost:8000/auth/login", {
         method: "POST",
         mode: "cors",
+        credentials:"include",
         headers: { "Content-Type": "application/x-www-form-urlencoded" },
         body: new URLSearchParams({ username: email, password }),
       });

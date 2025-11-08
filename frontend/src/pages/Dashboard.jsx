@@ -20,21 +20,20 @@ import {
   Snackbar,
   CircularProgress,
 } from "@mui/material";
-import { fetchFileData } from "./services/dashboard.api";
-import { PropertyBar } from './components/PropertyBar';
-import { NodeDrawer } from "./components/NodeDrawer";
-import {nodeTypes, generateNode} from "./utils/dashboard.utils"
-import { useGlobalContext } from "./components/context";
+import { PropertyBar } from '../components/PropertyBar';
+import { NodeDrawer } from "../components/NodeDrawer";
+import {nodeTypes, generateNode} from "../utils/dashboard.utils"
+import { useGlobalContext } from "../context/GlobalContext";
 import {
   savePipelineAPI,
   toggleStatus as togglePipelineStatus,
   fetchAndSetPipeline,
   spinupPipeline,
   spindownPipeline,
-} from "./utils/pipelineHelperFunc";
+} from "../utils/pipelineHelperFunc";
 
 
-export default function Dashboard({dashboardSidebarOpen,nodes, setNodes,edges, setEdges,login }) {
+export default function Dashboard() {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("md"));
   const [selectedNode, setSelectedNode] = useState(null);
@@ -50,9 +49,10 @@ export default function Dashboard({dashboardSidebarOpen,nodes, setNodes,edges, s
     setCurrentEdges,
     currentPipelineStatus,
     setCurrentPipelineStatus,
-    rfInstance,
     currentPipelineId,
+    rfInstance,
     setCurrentPipelineId,
+    dashboardSidebarOpen,
     loading,
     setLoading,
     error,
@@ -61,42 +61,6 @@ export default function Dashboard({dashboardSidebarOpen,nodes, setNodes,edges, s
     containerId,
     setContainerId,
   } = useGlobalContext();
-
-  const onSave = async (e) => {
-    const token = localStorage.getItem("access_token");
-    e.preventDefault()
-    if (rfInstance) {
-      const flow = rfInstance.toObject();
-      console.log("clicked")
-
-    const res = await fetch("http://localhost:8081/save", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${token}`,
-      },
-      // send the string wrapped in an object as JSON
-      body:  JSON.stringify({"path":"/","graph": flow}) ,
-    });
-
-    if (!res.ok) {
-      const err = await res.json();
-      console.error("Error saving:", err);
-      alert(`Error: ${err.detail || "Failed to save"}`);
-      return;
-    }
-
-    const data = await res.json();
-  };
-  }
-
-  // const onSave = useCallback(() => {
-  //   if (rfInstance) {
-  //     const flow = rfInstance.toObject();
-  //     console.log("clicked")
-  //     // localStorage.setItem(flowKey, JSON.stringify(flow));
-  //   }
-  // }, [rfInstance]);
 
 
   useEffect(() => {
@@ -141,28 +105,6 @@ export default function Dashboard({dashboardSidebarOpen,nodes, setNodes,edges, s
 
   const handleAddNode = (schema) => {
     setCurrentNodes((prev) => [...prev, generateNode(schema, currentNodes)]);
-  };
-
-
-  const onNodeDoubleClick = (event, node) => {
-    event.preventDefault();
-  };
-
-  const savePipeline = async (path) => {
-    if (!rfInstance) return;
-    setLoading(true);
-    setError(null);
-    try {
-      const flow = rfInstance.toObject();
-      const data = await savePipelineAPI(flow, currentPipelineId, path);
-      if (currentPipelineId === null) {
-        setCurrentPipelineId(data.id);
-      }
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
   };
 
   const handleToggleStatus = async () => {
@@ -239,6 +181,8 @@ export default function Dashboard({dashboardSidebarOpen,nodes, setNodes,edges, s
       <Box
         sx={{
           transition: "margin-left 0.3s ease",
+          left: drawerWidth,
+          position: "absolute",
           width: `calc(100vw - ${drawerWidth}px)`,
           height: "100vh",
           bgcolor: "background.default",
@@ -265,7 +209,7 @@ export default function Dashboard({dashboardSidebarOpen,nodes, setNodes,edges, s
               {loading && <CircularProgress size={24} />}
               <Button
                 variant="outlined"
-                onClick={() => savePipeline()}
+                onClick={() => savePipelineAPI(currentPipelineId,rfInstance,currentPipelineId,setCurrentPipelineId,setLoading,setError)}
                 disabled={loading}
               >
                 Save
@@ -328,8 +272,7 @@ export default function Dashboard({dashboardSidebarOpen,nodes, setNodes,edges, s
         open={drawerOpen}
         onClose={() => setDrawerOpen(false)}
         onAddNode={handleAddNode}
-        setNodes={setNodes}
-
+        setNodes={setCurrentNodes}
       />
       <PropertyBar
         open={Boolean(selectedNode)}

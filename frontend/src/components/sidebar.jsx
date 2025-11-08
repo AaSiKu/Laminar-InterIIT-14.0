@@ -19,11 +19,13 @@ import {
 } from '@mui/icons-material';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
+import { useGlobalContext } from '../context/GlobalContext';
 
-const Sidebar = ({ setDashboardSidebarOpen, dashboardSidebarOpen, sidebarOpen, setSideBarOpen }) => {
+const Sidebar = () => {
   const navigate = useNavigate();
   const { logout, isAuthenticated } = useContext(AuthContext);
   const location = useLocation();
+  const { setDashboardSidebarOpen, dashboardSidebarOpen, sidebarOpen, setSideBarOpen } = useGlobalContext();
 
    useEffect(() => {
     if (location.pathname === '/auth/login' || location.pathname === '/auth/signup') {
