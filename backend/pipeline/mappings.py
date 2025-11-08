@@ -1,4 +1,5 @@
-from typing import TypedDict, Callable, Any, Dict
+from typing import TypedDict, Callable, Any, Dict, List
+from lib.node import Node
 import pathway as pw
 
 # ---------------------------------------
@@ -320,9 +321,23 @@ input_connector_mappings = {
     },
 }
 
-# ---------------------------------------
-# TABLE / TEMPORAL OPERATIONS
-# ---------------------------------------
+
+def join(inputs: List[pw.Table],node: Node) -> pw.Table:
+    left,right = inputs
+    col1, col2 = node.on
+    col1 = get_col(left,col1)
+    col2 = get_col(right,col2)
+    joined = left.join(
+            right,
+            on=col1 == col2,
+            how=node.how
+    )
+    return joined.select(
+        *[get_col(left,col) for col in left.without(col1).column_names()],
+        *[get_col(right,col) for col in right.without(col1).column_names()],
+        *[[col1] if node.on[0] == node.on[1] else [col1,col2] ]
+    )
+
 table_mappings: dict[str, MappingValues] = {
     "filter": {
         "node_fn": lambda inputs, node: inputs[0].filter(
@@ -388,11 +403,7 @@ table_mappings: dict[str, MappingValues] = {
     },
 
     "join": {
-        "node_fn": lambda inputs, node: inputs[0].join(
-            inputs[1],
-            on=[get_col(inputs[0],col1) == get_col(inputs[1],col2) for col1,col2 in node.on],
-            how=node.how
-        ),
+        "node_fn": join,
     },
 }
 

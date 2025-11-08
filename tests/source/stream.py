@@ -16,7 +16,7 @@ async def user_generator():
     while True:
         # 1. Generate fake user data
         user_data = {
-            "id": str(fake.uuid4()),
+            "user_id": str(fake.uuid4()),
             "name": fake.name(),
             "email": fake.email(),
             "job": fake.job()
@@ -26,7 +26,7 @@ async def user_generator():
 
         # 3. Wait for 1 second before generating the next user
         # This keeps the stream going without overwhelming the server
-        await asyncio.sleep(1)
+        await asyncio.sleep(15)
 
 
 
