@@ -42,20 +42,41 @@ class Graph(Flowchart):
 
 
 flowchart_file = "flowchart.json"
-"""
-Reads the flowchart, toposorts it and returns the dependency order.
-"""
+
+def id2index(nodes: List[dict]) -> dict[str, int]:
+    """
+    Converts the ids to index of the node, mapping for the toposort logic
+    """
+    mapping = {}
+    for index, node in enumerate(nodes):
+        if 'id' not in node:
+            raise KeyError("No id present for edge mapping")
+        mapping[node['id']] = index
+    return mapping
+
+
 def read() -> Graph:
+    """
+    Reads the flowchart, toposorts it and returns the dependency order.
+    """
     with open(flowchart_file, "r") as f:
         data : Flowchart = json.load(f)
         # array of nodes, in this file nodes will be identified by their indexes in this array
         nodes = validate_nodes(data["nodes"])
+<<<<<<< HEAD
         dependencies = defaultdict[int,list](list)
         agents = [Agent(**agent) for agent in data["agents"]]
 
         # TODO: Do not allow any outputs from the RAG node
         for (_from,_to) in data["edges"]:
             dependencies[_to].append(_from)
+=======
+        # build an id index mapping for edges
+        id2index_map = id2index(data["nodes"])
+        dependencies = defaultdict[int](list)
+        for edge in data["edges"]:
+            dependencies[id2index_map[edge["target"]]].append(id2index_map[edge["source"]])
+>>>>>>> main
 
         for origin,dep in dependencies.items():
             node = nodes[origin]
@@ -69,10 +90,11 @@ def read() -> Graph:
             "dependencies" : dependencies,
             "agents": agents,
         }
-"""
-Builds the entire pathway computational graph in the order of toposort after which we only need to call pw.run
-"""
+
 def build(graph : Graph):
+    """
+    Builds the entire pathway computational graph in the order of toposort after which we only need to call pw.run
+    """
     nodes = graph["nodes"]
     node_outputs : List[pw.Table] = [None] * len(nodes)
 
@@ -128,5 +150,5 @@ if __name__ == "__main__":
 
     # TODO: Implement logging (appending) to a file output and error handling which will be stored/sent to the frontend for all cases 
     pw.run()
-    
+
 

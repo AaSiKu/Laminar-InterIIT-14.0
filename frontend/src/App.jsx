@@ -1,9 +1,12 @@
 import { useState } from 'react';
 import { ThemeProvider, createTheme, Box } from "@mui/material";
+import { BrowserRouter, Routes, Route } from 'react-router-dom'; // Import router
 import { Dashboard } from './Dashboard.jsx';
 import Sidebar from './components/sidebar.jsx';
 import DashboardSidebar from './components/DashboardSidebar.jsx';
+import { AnalyticsPage } from './AnalyticsPage.jsx'; // Import the new page
 
+// --- Theme (as you provided) ---
 const theme = createTheme({
   palette: {
     primary: { main: "#3b82f6" },
@@ -17,6 +20,7 @@ const theme = createTheme({
   },
 });
 
+// --- FileStructure (as you provided) ---
 const fileStructure = [
   {
     name: 'src',
@@ -56,39 +60,51 @@ const fileStructure = [
   { name: 'README.md', type: 'file' },
 ];
 
-
-
 export default function App() {
-  const [dashboardSidebarOpen, setDashboardSidebarOpen] = useState(false);
-    const [nodes, setNodes] = useState([]);
-    const [edges, setEdges] = useState([]);
-
   return (
     <ThemeProvider theme={theme}>
-      <Box sx={{ display: 'flex' }}>
-        <Sidebar 
-          setDashboardSidebarOpen={setDashboardSidebarOpen} 
-          dashboardSidebarOpen={dashboardSidebarOpen} 
-        />
-
-        <DashboardSidebar 
-          open={dashboardSidebarOpen} 
-          onClose={() => setDashboardSidebarOpen(false)}
-          fileStructure={fileStructure}
-          nodes={nodes}
-          setNodes={setNodes}
-          edges={edges}
-          setEdges={setEdges}
-        />
-        <Dashboard 
-          sidebarOpen={true} 
-          dashboardSidebarOpen={dashboardSidebarOpen} 
-          nodes={nodes}
-          setNodes={setNodes}
-          edges={edges}
-          setEdges={setEdges}
-        />
-      </Box>
+      <BrowserRouter>
+        <Routes>
+          {/* Route for the main dashboard */}
+          <Route path="/" element={<MainDashboardLayout />} />
+          
+          {/* Route for the analytics page */}
+          <Route path="/analytics/:flowId" element={<AnalyticsPage />} />
+        </Routes>
+      </BrowserRouter>
     </ThemeProvider>
+  );
+}
+
+// This component is your old App layout
+function MainDashboardLayout() {
+  const [dashboardSidebarOpen, setDashboardSidebarOpen] = useState(false);
+  const [nodes, setNodes] = useState([]);
+  const [edges, setEdges] = useState([]);
+
+  return (
+    <Box sx={{ display: 'flex' }}>
+      <Sidebar 
+        setDashboardSidebarOpen={setDashboardSidebarOpen} 
+        dashboardSidebarOpen={dashboardSidebarOpen} 
+      />
+      <DashboardSidebar 
+        open={dashboardSidebarOpen} 
+        onClose={() => setDashboardSidebarOpen(false)}
+        fileStructure={fileStructure}
+        nodes={nodes}
+        setNodes={setNodes}
+        edges={edges}
+        setEdges={setEdges}
+      />
+      <Dashboard 
+        sidebarOpen={true} 
+        dashboardSidebarOpen={dashboardSidebarOpen} 
+        nodes={nodes}
+        setNodes={setNodes}
+        edges={edges}
+        setEdges={setEdges}
+      />
+    </Box>
   );
 }
