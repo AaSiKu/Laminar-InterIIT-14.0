@@ -6,6 +6,7 @@ from jose import jwt, JWTError
 from fastapi import HTTPException, status
 from . import config
 from .schemas import TokenData
+from fastapi.security import OAuth2PasswordRequestForm
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 

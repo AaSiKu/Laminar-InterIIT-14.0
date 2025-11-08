@@ -1,5 +1,6 @@
 .env
-logs/
+deploy/logs/
+deploy/pids
 __pycache__/
 rag/uploads
 flowchart.json

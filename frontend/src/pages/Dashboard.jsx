@@ -1,4 +1,5 @@
 import { useState, useCallback, memo, useEffect } from "react";
+import { useNavigate } from "react-router-dom"; // Import useNavigate
 import {
   ReactFlow,
   Background,
@@ -11,25 +12,55 @@ import "@xyflow/react/dist/style.css";
 import {
   AppBar,
   Toolbar,
-  Typography,
   Button,
   Box,
   useTheme,
   useMediaQuery,
-  Alert
+  Alert,
+  Snackbar,
+  CircularProgress,
 } from "@mui/material";
-import { fetchFileData } from "../services/dashboard.api";
-import { PropertyBar } from '../components/PropertyBar';
-import { NodeDrawer } from "../components/NodeDrawer";
-import {nodeTypes, generateNode} from "../utils/dashboard.utils"
+import { fetchFileData } from "./services/dashboard.api";
+import { PropertyBar } from './components/PropertyBar';
+import { NodeDrawer } from "./components/NodeDrawer";
+import {nodeTypes, generateNode} from "./utils/dashboard.utils"
+import { useGlobalContext } from "./components/context";
+import {
+  savePipelineAPI,
+  toggleStatus as togglePipelineStatus,
+  fetchAndSetPipeline,
+  spinupPipeline,
+  spindownPipeline,
+} from "./utils/pipelineHelperFunc";
 
 
 export default function Dashboard({dashboardSidebarOpen,nodes, setNodes,edges, setEdges,login }) {
   const theme = useTheme();
-  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
+  const isMobile = useMediaQuery(theme.breakpoints.down("md"));
   const [selectedNode, setSelectedNode] = useState(null);
-  const [rfInstance, setRfInstance] = useState(null);  
   const [drawerOpen, setDrawerOpen] = useState(false);
+
+
+  const navigate = useNavigate();
+  const {
+    currentEdges,
+    currentNodes,
+    setCurrentNodes,
+    setRfInstance,
+    setCurrentEdges,
+    currentPipelineStatus,
+    setCurrentPipelineStatus,
+    rfInstance,
+    currentPipelineId,
+    setCurrentPipelineId,
+    loading,
+    setLoading,
+    error,
+    setError,
+    setViewport,
+    containerId,
+    setContainerId,
+  } = useGlobalContext();
 
   const onSave = async (e) => {
     const token = localStorage.getItem("access_token");
@@ -38,7 +69,7 @@ export default function Dashboard({dashboardSidebarOpen,nodes, setNodes,edges, s
       const flow = rfInstance.toObject();
       console.log("clicked")
 
-    const res = await fetch("http://localhost:8000/save", {
+    const res = await fetch("http://localhost:8081/save", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -69,88 +100,148 @@ export default function Dashboard({dashboardSidebarOpen,nodes, setNodes,edges, s
 
 
   useEffect(() => {
-    const loadData = async () => {
-      try {
-        const result = await window.storage.get('react-flow-data');
-        if (result) {
-          const data = JSON.parse(result.value);
-          setNodes(data.nodes);
-          setEdges(data.edges);
-        } else {
-          await loadFlowFromAPI('default');
-        }
-      } catch {
-        await loadFlowFromAPI("default");
-      }
-    };
-    
-    loadData();
-  }, []);
-
-  const loadFlowFromAPI = async (fileId) => {
-    try {
-      const flowData = await fetchFileData(fileId);
-      
-      if (flowData && flowData.nodes && flowData.edges) {
-        setNodes(flowData.nodes);
-        setEdges(flowData.edges);
-      }
-    } catch (error) {
-      <Alert severity="error">{error}</Alert>
+    if (currentPipelineId) {
+      setLoading(true);
+      fetchAndSetPipeline(currentPipelineId, {
+        setCurrentEdges,
+        setCurrentNodes,
+        setViewport,
+        setCurrentPipelineStatus,
+        setContainerId,
+      })
+        .catch((err) => setError(err.message))
+        .finally(() => setLoading(false));
     }
-  };
+  }, [
+    currentPipelineId,
+    setCurrentEdges,
+    setCurrentNodes,
+    setViewport,
+    setCurrentPipelineStatus,
+    setLoading,
+    setError,
+    setContainerId,
+  ]);
 
   const onNodesChange = useCallback(
-    (changes) => setNodes((ns) => applyNodeChanges(changes, ns)),
-    []
+    (changes) => setCurrentNodes((ns) => applyNodeChanges(changes, ns)),
+    [setCurrentNodes]
   );
+
   const onEdgesChange = useCallback(
-    (changes) => setEdges((es) => applyEdgeChanges(changes, es)),
-    []
+    (changes) => setCurrentEdges((es) => applyEdgeChanges(changes, es)),
+    [setCurrentEdges]
   );
+
   const onConnect = useCallback(
-    (params) => setEdges((es) => addEdge({ ...params, animated: true }, es)),
-    []
+    (params) =>
+      setCurrentEdges((es) => addEdge({ ...params, animated: true }, es)),
+    [setCurrentEdges]
   );
 
   const handleAddNode = (schema) => {
-    setNodes((prevNodes) => {
-      console.log("hua")
-      const newNode = generateNode(schema, prevNodes); // use prev state
-      console.log("haa")
-      return [...prevNodes, newNode];
-    });
+    setCurrentNodes((prev) => [...prev, generateNode(schema, currentNodes)]);
   };
 
 
   const onNodeDoubleClick = (event, node) => {
     event.preventDefault();
+  };
+
+  const savePipeline = async (path) => {
+    if (!rfInstance) return;
+    setLoading(true);
+    setError(null);
+    try {
+      const flow = rfInstance.toObject();
+      const data = await savePipelineAPI(flow, currentPipelineId, path);
+      if (currentPipelineId === null) {
+        setCurrentPipelineId(data.id);
+      }
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleToggleStatus = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const newStatus = await togglePipelineStatus(
+        currentPipelineId,
+        currentPipelineStatus
+      );
+      setCurrentPipelineStatus(
+        newStatus["status"] === "stopped" ? false : true
+      );
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSpinup = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const data = await spinupPipeline(currentPipelineId);
+      setContainerId(data.id);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSpindown = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      await spindownPipeline(currentPipelineId);
+      setContainerId(null);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const onNodeClick = (event, node) => {
     setSelectedNode(node);
   };
 
   const handleUpdateProperties = (nodeId, updatedProps) => {
-    setNodes((nds) =>
-      nds.map((n,idx) =>
+    setCurrentNodes((nds) =>
+      nds.map((n, idx) =>
         n.id === nodeId
           ? { ...n, data: { ...n.data, properties: updatedProps } }
           : n
       )
     );
+    setSelectedNode(null);
   };
 
   const drawerWidth = 64 + (dashboardSidebarOpen && !isMobile ? 325 : 0);
 
+  const handleAnalyticsClick = () => {
+    if (currentPipelineId) {
+      navigate(`/analytics/${currentPipelineId}`);
+    } else {
+      setError("Please save the flow first to get an ID.");
+    }
+  };
+
   return (
     <>
-      <Box 
-        sx={{ 
-          transition: 'margin-left 0.3s ease',
-          position: 'absolute', 
-          top:"0",
+      <Box
+        sx={{
+          transition: "margin-left 0.3s ease",
           width: `calc(100vw - ${drawerWidth}px)`,
-          height: "100vh", 
+          height: "100vh",
           bgcolor: "background.default",
-          left:drawerWidth
         }}
       >
         <AppBar
@@ -163,42 +254,76 @@ export default function Dashboard({dashboardSidebarOpen,nodes, setNodes,edges, s
             bgcolor: "background.paper",
           }}
         >
-          <Toolbar sx={{ display: "flex", height:"10vh", justifyContent: "space-between" }}>
-            <Typography variant="h6" color="text.primary">
-              React Flow
-            </Typography>
+          <Toolbar
+            sx={{
+              display: "flex",
+              height: "6vh",
+              justifyContent: "end",
+            }}
+          >
+            <Box sx={{ display: "flex", gap: 2, justifyContent: "end", alignContent: "center" }}>
+              {loading && <CircularProgress size={24} />}
               <Button
-                variant="contained"
-                onClick={() => setDrawerOpen(true)}
+                variant="outlined"
+                onClick={() => savePipeline()}
+                disabled={loading}
               >
+                Save
+              </Button>
+              <Button
+                variant="outlined"
+                onClick={handleSpinup}
+                disabled={loading || !currentPipelineId || !!containerId}
+              >
+                Spin Up
+              </Button>
+              <Button
+                variant="outlined"
+                onClick={handleToggleStatus}
+                disabled={loading || !currentPipelineId || !containerId}
+              >
+                {currentPipelineStatus ? "Stop" : "Run"}
+              </Button>
+              <Button
+                variant="outlined"
+                onClick={handleSpindown}
+                disabled={loading || !currentPipelineId || !containerId}
+              >
+                Spin Down
+              </Button>
+              <Button
+                variant="outlined"
+                onClick={handleAnalyticsClick} // Use navigate
+                disabled={!currentPipelineId}
+              >
+                Analytics
+              </Button>
+              <Button variant="contained" onClick={() => setDrawerOpen(true)}>
+                {" "}
                 + Add Node
               </Button>
-
+            </Box>
           </Toolbar>
         </AppBar>
 
-        <Box sx={{ height: "90vh", bgcolor: "white" , left:drawerWidth}}>
-
-        <button className="xy-theme__button" onClick={onSave}>
-          save
-        </button>
+        <Box sx={{ height: "87vh", bgcolor: "white" }}>
           <ReactFlow
-            nodes={nodes}
-            edges={edges}
+            nodes={currentNodes}
+            edges={currentEdges}
             nodeTypes={nodeTypes}
             onNodesChange={onNodesChange}
             onEdgesChange={onEdgesChange}
             onConnect={onConnect}
-            onNodeDoubleClick={onNodeDoubleClick}
+            onNodeClick={onNodeClick}
             onInit={setRfInstance}
             fitView
           >
-            <Controls position="top-right"/>
+            <Controls position="top-right" />
             <Background color="#aaa" gap={16} />
           </ReactFlow>
         </Box>
       </Box>
-      {/* Right property drawer */}
+
       <NodeDrawer
         open={drawerOpen}
         onClose={() => setDrawerOpen(false)}
@@ -206,13 +331,26 @@ export default function Dashboard({dashboardSidebarOpen,nodes, setNodes,edges, s
         setNodes={setNodes}
 
       />
-
       <PropertyBar
         open={Boolean(selectedNode)}
         selectedNode={selectedNode}
         onClose={() => setSelectedNode(null)}
         onUpdateProperties={handleUpdateProperties}
       />
+      <Snackbar
+        open={!!error}
+        autoHideDuration={6000}
+        onClose={() => setError(null)}
+        anchorOrigin={{ vertical: "top", horizontal: "center" }}
+      >
+        <Alert
+          onClose={() => setError(null)}
+          severity="error"
+          sx={{ width: "100%" }}
+        >
+          {error}
+        </Alert>
+      </Snackbar>
     </>
   );
 }

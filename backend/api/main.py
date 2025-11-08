@@ -1,6 +1,5 @@
 import logging
-import sys, os
-import subprocess
+import os
 from dotenv import load_dotenv
 from motor.motor_asyncio import AsyncIOMotorClient
 from bson.objectid import ObjectId
@@ -14,16 +13,15 @@ from pydantic import BaseModel
 from contextlib import asynccontextmanager
 import docker
 from jose import JWTError, jwt
-from datetime import datetime, timezone, timedelta
-
-# --- Local Imports ---
+import httpx
+import socket
 from backend.lib.validate import node_map
 from utils.logging import get_logger, configure_root
 from backend.api.dockerScript import (
     run_pipeline_container, stop_docker_container
 )
 from backend.auth.routes import router as auth_router
-
+from backend.auth.routes import get_current_user
 
 configure_root()
 logger = get_logger(__name__)
@@ -68,7 +66,7 @@ async def lifespan(app: FastAPI):
 
 
     docker_client = docker.from_env()
-    print(f"Connected to docker demon")
+    print(f"Connected to docker daemon")
 
     yield
 
@@ -83,8 +81,11 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="Pipeline API", lifespan=lifespan)
 origins = [
+    # TODO: Add final domain, port here
     "http://localhost:4173",
+    "http://localhost",
     "http://localhost:5173",
+    "http://localhost:8083"
 ]
 app.add_middleware(
     CORSMiddleware,
@@ -98,41 +99,12 @@ app.add_middleware(
 # ---------------- AUTH HELPERS ---------------- #
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
 
-async def get_current_user(
-    token: str = Depends(oauth2_scheme),
-    request: Request = None
-):
-    """
-    Extracts and validates the current user from JWT.
-    """
-    credentials_exception = HTTPException(
-        status_code=status.HTTP_401_UNAUTHORIZED,
-        detail="Could not validate credentials",
-        headers={"WWW-Authenticate": "Bearer"},
-    )
-
-    try:
-        payload = jwt.decode(
-            token,
-            request.app.state.secret_key,
-            algorithms=[request.app.state.algorithm],
-        )
-        email: str = payload.get("sub")
-        if email is None:
-            raise credentials_exception
-
-        user = await request.app.state.user_collection.find_one({"email": email})
-        if not user:
-            raise credentials_exception
-
-        return user
-
-    except JWTError:
-        raise credentials_exception
-
-
 # ---------------- HELPER FUNCTIONS ---------------- #
 def get_base_pydantic_model(model_class: type) -> type:
+    """
+    Traverses the Method Resolution Order (MRO) of a class to find the first
+    Pydantic BaseModel subclass.
+    """
     mro = getattr(model_class, "__mro__", ())
     for i, cls in enumerate(mro):
         if cls is BaseModel:
@@ -142,6 +114,9 @@ def get_base_pydantic_model(model_class: type) -> type:
 
 @app.get("/schema/all")
 def schema_index(request: Request):
+    """
+    Returns category wise list of all available node types.
+    """
     io_node_ids = [node_id for node_id, cls in NODES.items() if cls.__module__ == 'backend.lib.io_nodes']
     table_ids = [node_id for node_id, cls in NODES.items() if cls.__module__ == 'backend.lib.tables']
     return {
@@ -149,7 +124,32 @@ def schema_index(request: Request):
         "table_nodes": table_ids
     }
 
+def _remap_schema_types(schema: dict) -> dict:
+    """
+    Recursively traverses a JSON schema and remaps standard JSON types
+    to Python-style type names.
+    """
+    if isinstance(schema, dict):
+        for key, value in schema.items():
+            if key == 'type':
+                if value == 'string':
+                    schema[key] = 'str'
+                elif value == 'integer':
+                    schema[key] = 'int'
+                elif value == 'number':
+                    schema[key] = 'float'
+                elif value == 'boolean':
+                    schema[key] = 'bool'
+            else:
+                schema[key] = _remap_schema_types(value)
+    elif isinstance(schema, list):
+        return [_remap_schema_types(item) for item in schema]
+    return schema
+
 def get_schema_for_node(node: Union[str, Type[Any]]) -> dict:
+    """
+    Retrieves the Pydantic JSON schema for a given node type.
+    """
     if inspect.isclass(node):
         cls: Optional[Type[Any]] = node
     else:
@@ -162,22 +162,27 @@ def get_schema_for_node(node: Union[str, Type[Any]]) -> dict:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="node is not a Pydantic model class")
 
     if hasattr(cls, "model_json_schema"):
-        return cls.model_json_schema()
-    return cls.model_json_schema()
+        schema = cls.model_json_schema()
+    else:
+        schema = cls.model_json_schema()
+    
+    return _remap_schema_types(schema)
 
 
 @app.get("/schema/{node_name}")
 def schema_for_node(node_name: str):
-
+    """
+    Returns the JSON schema for a specific node type.
+    """
     schema_obj = get_schema_for_node(node_name)
-    return JSONResponse(schema_obj)
+    return schema_obj   
 
 # ------- Docker container functions ------- #
-class SpinupSpinDownRequest(BaseModel):
+class PipelineIdRequest(BaseModel):
     pipeline_id: str
 
 @app.post("/spinup")
-async def docker_spinup(request: SpinupSpinDownRequest):
+async def docker_spinup(request: PipelineIdRequest):
     """
     Spins up a container from the 'pathway_pipeline' image.
     - Expects JSON: `{"pipeline_id": "..."`}
@@ -189,9 +194,11 @@ async def docker_spinup(request: SpinupSpinDownRequest):
 
     try:
         result = run_pipeline_container(client, request.pipeline_id)
-        # https://forums.docker.com/t/accessing-host-machine-from-within-docker-container/14248/10
-        command = f"docker exec {request.pipeline_id} route | awk '/^default/ {{ print $2 }}'"
-        ip = subprocess.run(command, shell=True, capture_output=True, text=True, check=True)
+        # A trick to get the primary outbound IP address of the machine by connecting to a public DNS server.
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        s.connect(("8.8.8.8", 80))
+        host_ip = s.getsockname()[0]
+        s.close()
         # Save the results of the container
         await workflow_collection.update_one(
             {'_id': ObjectId(request.pipeline_id)},
@@ -199,7 +206,7 @@ async def docker_spinup(request: SpinupSpinDownRequest):
                 '$set':{
                     'container_id': result['id'],
                     'host_port': result['host_port'],
-                    'host_ip': ip.stdout.strip(),
+                    'host_ip': host_ip,
                     'status': False, # the status is of pipeline, it will be toggled from the docker container
                 }
             }
@@ -213,7 +220,7 @@ async def docker_spinup(request: SpinupSpinDownRequest):
 
 
 @app.post("/spindown")
-async def docker_spindown(request: SpinupSpinDownRequest):
+async def docker_spindown(request: PipelineIdRequest):
     """
     Stops and removes the container identified by its name (pipeline_id).
     - Expects JSON: `{"pipeline_id": "..."}`
@@ -246,37 +253,208 @@ async def docker_spindown(request: SpinupSpinDownRequest):
 app.include_router(auth_router, prefix="/auth", tags=["auth"])
 
 
+@app.post("/run")
+async def run_pipeline_endpoint(request: PipelineIdRequest):
+    """
+    Triggers a pipeline to run in its container.
+    """
+    pipeline = await workflow_collection.find_one({'_id': ObjectId(request.pipeline_id)})
+    if not pipeline or not pipeline.get('host_port'):
+        raise HTTPException(status_code=404, detail="Pipeline not found or not running")
+
+    port = pipeline['host_port']
+    ip = pipeline['host_ip']
+    url = f"http://{ip}:{port}/trigger"
+    
+    async with httpx.AsyncClient() as client:
+        try:
+            response = await client.post(url)
+            response.raise_for_status()
+            await workflow_collection.update_one(
+                {'_id': ObjectId(request.pipeline_id)},
+                {'$set': {'status': True}}
+            )
+            return response.json()
+        except httpx.RequestError as exc:
+            raise HTTPException(status_code=500, detail=f"Failed to trigger pipeline: {exc}")
+
+@app.post("/stop")
+async def stop_pipeline_endpoint(request: PipelineIdRequest):
+    """
+    Stops a running pipeline in its container.
+    """
+    pipeline = await workflow_collection.find_one({'_id': ObjectId(request.pipeline_id)})
+    if not pipeline or not pipeline.get('host_port'):
+        raise HTTPException(status_code=404, detail="Pipeline not found or not running")
+
+    port = pipeline['host_port']
+    ip = pipeline['host_ip']
+    url = f"http://{ip}:{port}/stop"
+    
+    async with httpx.AsyncClient() as client:
+        try:
+            response = await client.post(url)
+            response.raise_for_status()
+            await workflow_collection.update_one(
+                {'_id': ObjectId(request.pipeline_id)},
+                {'$set': {'status': False}}
+            )
+            return response.json()
+        except httpx.RequestError as exc:
+            raise HTTPException(status_code=500, detail=f"Failed to stop pipeline: {exc}")
+
+@app.post("/run")
+async def run_pipeline_endpoint(request: PipelineIdRequest):
+    """
+    Triggers a pipeline to run in its container.
+    """
+    pipeline = await workflow_collection.find_one({'_id': ObjectId(request.pipeline_id)})
+    if not pipeline or not pipeline.get('host_port'):
+        raise HTTPException(status_code=404, detail="Pipeline not found or not running")
+
+    port = pipeline['host_port']
+    ip = pipeline['host_ip']
+    url = f"http://{ip}:{port}/trigger"
+    
+    async with httpx.AsyncClient() as client:
+        try:
+            response = await client.post(url)
+            response.raise_for_status()
+            await workflow_collection.update_one(
+                {'_id': ObjectId(request.pipeline_id)},
+                {'$set': {'status': True}}
+            )
+            return response.json()
+        except httpx.RequestError as exc:
+            raise HTTPException(status_code=500, detail=f"Failed to trigger pipeline: {exc}")
+
+@app.post("/stop")
+async def stop_pipeline_endpoint(request: PipelineIdRequest):
+    """
+    Stops a running pipeline in its container.
+    """
+    pipeline = await workflow_collection.find_one({'_id': ObjectId(request.pipeline_id)})
+    if not pipeline or not pipeline.get('host_port'):
+        raise HTTPException(status_code=404, detail="Pipeline not found or not running")
+
+    port = pipeline['host_port']
+    ip = pipeline['host_ip']
+    url = f"http://{ip}:{port}/stop"
+    
+    async with httpx.AsyncClient() as client:
+        try:
+            response = await client.post(url)
+            response.raise_for_status()
+            await workflow_collection.update_one(
+                {'_id': ObjectId(request.pipeline_id)},
+                {'$set': {'status': False}}
+            )
+            return response.json()
+        except httpx.RequestError as exc:
+            raise HTTPException(status_code=500, detail=f"Failed to stop pipeline: {exc}")
+
 # ------- User Actions on Workflow --------- #
 
 class Graph(BaseModel):
+    pipeline_id: Optional[str] = None
     path: str
-    graph: Any
+    pipeline: Any
 
 @app.post("/save")
-async def save_graph(data: Graph, current_user: dict = Depends(get_current_user)):
+async def save_graph(
+    data: Graph,
+    current_user: dict = Depends(get_current_user)
+):
     """
     Saves a workflow graph to the pipeline database, linked to the current user.
     """
     try:
-        #TODO: set the rf instance to the previous rf if it is not a new file
         user_identifier = str(current_user["_id"])
+        print(f"Saving pipeline for user: {user_identifier}", flush=True)
+        print(f"Pipeline ID: {data.pipeline_id}", flush=True)
+        
+        # If pipeline_id exists, try to update
+        if data.pipeline_id:
+            try:
+                existing = await workflow_collection.find_one({
+                    '_id': ObjectId(data.pipeline_id),
+                    'user': user_identifier
+                })
+            except Exception as e:
+                print(f"Error finding pipeline: {e}", flush=True)
+                existing = None
+            
+            if existing:
+                # Pipeline exists - update it
+                result = await workflow_collection.update_one(
+                    {'_id': ObjectId(data.pipeline_id)},
+                    {
+                        '$set': {
+                            "path": data.path,
+                            "pipeline": data.pipeline,
+                        }
+                    }
+                )
+                
+                print(f"Updated pipeline: {data.pipeline_id}, matched: {result.matched_count}, modified: {result.modified_count}", flush=True)
+                
+                return {
+                    "message": "Updated successfully",
+                    "id": data.pipeline_id,
+                    "user": user_identifier
+                }
+        
+        # If we reach here, either no pipeline_id was provided or it didn't exist
+        # Create new pipeline
+        print(f"Creating new pipeline", flush=True)
         doc = {
             "user": user_identifier,
             "path": data.path,
-            "pipeline": data.graph,
+            "pipeline": data.pipeline,
             "container_id": "",
             "host_port": "",
             "host_ip": "",
             "status": False
         }
-
         result = await workflow_collection.insert_one(doc)
-        print(result)
+        
+        if not result.inserted_id:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Failed to insert pipeline"
+            )
+        
+        inserted_id = str(result.inserted_id)
+        print(f"Inserted new pipeline: {inserted_id}", flush=True)
+        
         return {
             "message": "Saved successfully",
-            "id": str(result.inserted_id),
+            "id": inserted_id,
             "user": user_identifier
         }
 
+    except HTTPException:
+        raise
     except Exception as e:
+        logger.error(f"Save error: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Database error: {str(e)}"
+        )
+
+
+@app.post("/retrieve")
+async def retrieve(data: PipelineIdRequest):
+    """
+    Retrieve back the workflow json from mongo
+    """
+    try:
+        result = await workflow_collection.find_one({'_id': ObjectId(data.pipeline_id)})
+        if not result:
+            raise HTTPException(status_code=404, detail="Pipeline not found")
+        
+        result['_id'] = str(result['_id'])
+        return {"message": "Pipeline data retrieved successfully", **result}
+    except Exception as e:
+        logger.error(f"Retrieve error: {e}")
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
