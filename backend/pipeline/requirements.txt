@@ -7,3 +7,7 @@ toposort==1.10
 uvicorn==0.38.0
 psycopg2-binary==2.9.11
 sqlalchemy==2.0.44
+langchain==1.0.3
+langchain_core==1.0.3
+langchain_groq=1.0.0
+langgraph==1.0.2
