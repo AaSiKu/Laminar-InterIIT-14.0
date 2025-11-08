@@ -51,6 +51,7 @@ def read() -> Graph:
         dependencies = defaultdict[int,list](list)
         agents = [Agent(**agent) for agent in data["agents"]]
 
+        # TODO: Do not allow any outputs from the RAG node
         for (_from,_to) in data["edges"]:
             dependencies[_to].append(_from)
 
@@ -89,7 +90,9 @@ def build(graph : Graph):
         ## Persist snapshot to postgre
         primary_keys = [get_col(table,col) for col in table.schema.primary_key_columns()]
         pw.io.postgres.write(table, connection_string_write, f"{node.node_id}__{node_index}", output_table_type="snapshot", primary_key=primary_keys, init_mode="create_if_not_exists")
+        
 
+        # TODO: For the RAG node, expose it as a tool to our agentic graph
     return node_outputs
 
 
