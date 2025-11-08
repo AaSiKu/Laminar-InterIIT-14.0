@@ -322,6 +322,8 @@ input_connector_mappings = {
 }
 
 
+# BUG: Cannot handle the case where the two tables each have one or more columns with the same name
+    # POSSIBLE FIX: When this error arises, ask the user to rename one of the conflicting columns
 def join(inputs: List[pw.Table],node: Node) -> pw.Table:
     left,right = inputs
     col1, col2 = node.on

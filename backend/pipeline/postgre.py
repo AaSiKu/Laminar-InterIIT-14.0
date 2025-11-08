@@ -1,8 +1,9 @@
 import os
 from sqlalchemy import create_engine
 
+# TODO: Each pipeline's docker container should have its own postgre db to store pipeline outputs, and it should be cleared everytime the pipeline changes
+# Do the above in the docker file
 construct_table_name = lambda node_id, node_index: f"{node_id}__{node_index}"
-
 
 connection_string= {
     "host": os.getenv("POSTGRE_HOST", "localhost"),
@@ -32,5 +33,8 @@ construct_postgre_url = lambda connection_string : (
 postgre_read_url = construct_postgre_url(connection_string_read)
 postgre_write_url = construct_postgre_url(connection_string_write)
 
+# TODO: Later we can work on connecting to the database only twice (one for read and one for write) instead of every tool and every node output connector connecting to the db everytime
 postgre_read_engine = create_engine(postgre_read_url)
 postgre_write_engine = create_engine(postgre_write_url)
+
+# TODO: Afterwards we can consider using a lighter sql db rather than postgre such as sqlite

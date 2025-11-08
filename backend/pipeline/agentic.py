@@ -25,6 +25,7 @@ class AgentOutputSchema(pw.Schema):
     caller: str
 
 
+# TODO: Implement observability to LangSmith because pathway does not show prints inside async transformers
 def build_agentic_graph(agents: List[Agent], pipeline_name: str, nodes: List[Node], node_outputs: List[pw.Table]) -> Dict[Literal["prompt", "trigger"], pw.AsyncTransformer]:
     agent_descriptions = '\n'.join([f"Agent with name {agent.name} described as: {agent.description}" for agent in agents])
     SUPERVISOR_PROMPT = (
@@ -91,6 +92,7 @@ def build_agentic_graph(agents: List[Agent], pipeline_name: str, nodes: List[Nod
         def __init__(self, *args, **kwargs):
             super().__init__(*args,**kwargs)
         
+        # TODO: Implement token by token inference streaming for role="user" which will be sent to the frontend for good UX 
         async def infer(self,role: str,content: str):
             answer = await supervisor_agent.ainvoke({
                 "messages": [

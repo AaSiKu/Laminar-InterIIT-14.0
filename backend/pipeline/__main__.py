@@ -17,7 +17,9 @@ from .postgre import connection_string_write
 import pathway as pw
 
 
-# Final agent answer schema
+# TODO: Fix setup tools deprecation warnings
+# TODO: Fix numpy v1 vs v2 conflicts warnings 
+# TODO: Fix beartype warnings
 
 
 pw.set_license_key(os.environ["PATHWAY_LICENSE_KEY"])
@@ -51,6 +53,7 @@ def read() -> Graph:
         dependencies = defaultdict[int,list](list)
         agents = [Agent(**agent) for agent in data["agents"]]
 
+        # TODO: Do not allow any outputs from the RAG node
         for (_from,_to) in data["edges"]:
             dependencies[_to].append(_from)
 
@@ -89,7 +92,9 @@ def build(graph : Graph):
         ## Persist snapshot to postgre
         primary_keys = [get_col(table,col) for col in table.schema.primary_key_columns()]
         pw.io.postgres.write(table, connection_string_write, f"{node.node_id}__{node_index}", output_table_type="snapshot", primary_key=primary_keys, init_mode="create_if_not_exists")
+        
 
+        # TODO: For the RAG node, expose it as a tool to our agentic graph
     return node_outputs
 
 
@@ -121,6 +126,7 @@ if __name__ == "__main__":
     )
     pw.io.postgres.write(all_answers, connection_string_write, f"all_answers", output_table_type="snapshot", primary_key=[all_answers.row_id], init_mode="create_if_not_exists")
 
+    # TODO: Implement logging (appending) to a file output and error handling which will be stored/sent to the frontend for all cases 
     pw.run()
     
 
