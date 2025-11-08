@@ -1,15 +1,31 @@
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import {
   Drawer,
   Box,
   Typography,
   Divider,
-  TextField,
   Button,
   Stack,
   Alert,
   Snackbar,
 } from "@mui/material";
+import { PropertyInput } from "./PropertyInput";
+
+const stringifyJsonProperties = (properties) =>
+  properties.map((prop) => {
+    if (prop.type === "json" && typeof prop.value === "object") {
+      return { ...prop, value: JSON.stringify(prop.value, null, 2) };
+    }
+    return prop;
+  });
+
+const parseJsonProperties = (properties) =>
+  properties.map((prop) => {
+    if (prop.type === "json") {
+      return { ...prop, value: JSON.parse(prop.value) };
+    }
+    return prop;
+  });
 
 export const PropertyBar = ({
   open,
@@ -18,11 +34,15 @@ export const PropertyBar = ({
   onUpdateProperties,
 }) => {
   const [properties, setProperties] = useState([]);
-  const [snackbarOpen, setSnackbarOpen] = useState(false);
+  const [snackbar, setSnackbar] = useState({
+    open: false,
+    message: "",
+    severity: "success",
+  });
 
   useEffect(() => {
-    if (selectedNode?.data?.properties?.length > 0) {
-      setProperties(selectedNode.data.properties);
+    if (selectedNode?.data?.properties) {
+      setProperties(stringifyJsonProperties(selectedNode.data.properties));
     } else {
       setProperties([]);
     }
@@ -36,41 +56,57 @@ export const PropertyBar = ({
 
   const handleSave = () => {
     if (selectedNode) {
-    onUpdateProperties(selectedNode.id, properties);
-      setSnackbarOpen(true);
+      try {
+        const updatedProperties = parseJsonProperties(properties);
+        onUpdateProperties(selectedNode.id, updatedProperties);
+        setSnackbar({
+          open: true,
+          message: "Properties saved successfully!",
+          severity: "success",
+        });
+        onClose();
+      } catch (error) {
+        setSnackbar({
+          open: true,
+          message: "Error parsing JSON. Please check the format.",
+          severity: "error",
+        });
+      }
     }
-    onClose();
   };
 
   const handleCancel = () => {
-    if (selectedNode?.data?.properties) {
-      setProperties(selectedNode.data.properties);
-    }
     onClose();
+  };
+
+  const handleCloseSnackbar = () => {
+    setSnackbar({ ...snackbar, open: false });
   };
 
   return (
     <>
-    <Drawer
-      anchor="right"
-      open={open}
-      onClose={onClose}
-      sx={{
-        "& .MuiDrawer-paper": {
-          width: 350,
-          p: 3,
-          bgcolor: "background.paper",
-        },
-      }}
-    >
-      <Typography variant="h6" gutterBottom>
-        Node Properties
-      </Typography>
-      <Divider sx={{ mb: 2 }} />
+      <Drawer
+        anchor="right"
+        open={open}
+        onClose={onClose}
+        sx={{
+          "& .MuiDrawer-paper": {
+            width: 350,
+            p: 3,
+            bgcolor: "background.paper",
+          },
+        }}
+      >
+        <Typography variant="h6" gutterBottom>
+          {selectedNode
+            ? `Properties for ${selectedNode.data.label}`
+            : "Node Properties"}
+        </Typography>
+        <Divider sx={{ mb: 2 }} />
 
-      {!selectedNode ? (
-        <Alert severity="info">Select a node to view its properties.</Alert>
-      ) : properties.length === 0 ? (
+        {!selectedNode ? (
+          <Alert severity="info">Select a node to view its properties.</Alert>
+        ) : properties.length === 0 ? (
           <Box
             sx={{
               mt: 4,
@@ -82,56 +118,50 @@ export const PropertyBar = ({
             }}
           >
             <Typography variant="body1" sx={{ mb: 1 }}>
-              ⚙ No properties found for this node
-            </Typography>
-            <Typography variant="body2">
-              You can search or add properties later.
+              No properties found for this node.
             </Typography>
           </Box>
-      ) : (
-        <Stack spacing={2}>
-          {properties.map((prop, index) => (
-            <TextField
-              key={index}
-              label={prop.label}
-              value={prop.value || ""}
-              onChange={(e) => handleChange(index, e.target.value)}
-              fullWidth
-              variant="outlined"
-              size="small"
-            />
-          ))}
+        ) : (
+          <Stack spacing={2} component="form">
+            {properties.map((prop, index) => (
+              <PropertyInput
+                key={index}
+                property={prop}
+                onChange={(e) => handleChange(index, e.target.value)}
+              />
+            ))}
 
-            <Stack direction="row" spacing={1} justifyContent="flex-end">
+            <Stack
+              direction="row"
+              spacing={1}
+              justifyContent="flex-end"
+              sx={{ mt: 2 }}
+            >
               <Button variant="outlined" color="inherit" onClick={handleCancel}>
                 Cancel
               </Button>
-          <Button variant="contained" color="primary" onClick={handleSave}>
+              <Button variant="contained" color="primary" onClick={handleSave}>
                 Save
-          </Button>
-        </Stack>
+              </Button>
+            </Stack>
           </Stack>
-      )}
-    </Drawer>
+        )}
+      </Drawer>
 
       <Snackbar
-        open={snackbarOpen}
-        autoHideDuration={3000}
-        onClose={() => setSnackbarOpen(false)}
-        anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
-        message="✔ Node properties saved successfully"
-        sx={{
-          bottom: 40,
-          "& .MuiSnackbarContent-root": {
-            backgroundColor: "#4caf50",
-            color: "white",
-            fontSize: "0.85rem",
-            padding: "6px 16px",
-            borderRadius: "8px",
-            minWidth: "unset",
-          },
-        }}
-      />
+        open={snackbar.open}
+        autoHideDuration={6000}
+        onClose={handleCloseSnackbar}
+        anchorOrigin={{ vertical: "top", horizontal: "center" }}
+      >
+        <Alert
+          onClose={handleCloseSnackbar}
+          severity={snackbar.severity}
+          sx={{ width: "100%" }}
+        >
+          {snackbar.message}
+        </Alert>
+      </Snackbar>
     </>
   );
 };
