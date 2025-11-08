@@ -1,4 +1,5 @@
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, memo, useEffect } from "react";
+import { useNavigate } from "react-router-dom"; // Import useNavigate
 import {
   ReactFlow,
   Background,
@@ -36,6 +37,7 @@ export function Dashboard({ dashboardSidebarOpen }) {
   const isMobile = useMediaQuery(theme.breakpoints.down("md"));
   const [selectedNode, setSelectedNode] = useState(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const navigate = useNavigate();
   const {
     currentEdges,
     currentNodes,
@@ -56,6 +58,7 @@ export function Dashboard({ dashboardSidebarOpen }) {
     setContainerId,
   } = useGlobalContext();
 
+  // TODO: Need to look into the refresh cycle
   useEffect(() => {
     if (currentPipelineId) {
       setLoading(true);
@@ -182,6 +185,14 @@ export function Dashboard({ dashboardSidebarOpen }) {
 
   const drawerWidth = 64 + (dashboardSidebarOpen && !isMobile ? 325 : 0);
 
+  const handleAnalyticsClick = () => {
+    if (currentPipelineId) {
+      navigate(`/analytics/${currentPipelineId}`);
+    } else {
+      setError("Please save the flow first to get an ID.");
+    }
+  };
+
   return (
     <>
       <Box
@@ -209,7 +220,7 @@ export function Dashboard({ dashboardSidebarOpen }) {
               justifyContent: "end",
             }}
           >
-            <Box sx={{ display: "flex", gap: 2, justifyContent: "end" }}>
+            <Box sx={{ display: "flex", gap: 2, justifyContent: "end", alignContent: "center" }}>
               {loading && <CircularProgress size={24} />}
               <Button
                 variant="outlined"
@@ -239,6 +250,13 @@ export function Dashboard({ dashboardSidebarOpen }) {
               >
                 Spin Down
               </Button>
+              <Button
+                variant="outlined"
+                onClick={handleAnalyticsClick} // Use navigate
+                disabled={!currentPipelineId}
+              >
+                Analytics
+              </Button>
               <Button variant="contained" onClick={() => setDrawerOpen(true)}>
                 {" "}
                 + Add Node
@@ -246,20 +264,23 @@ export function Dashboard({ dashboardSidebarOpen }) {
             </Box>
           </Toolbar>
         </AppBar>
-        <ReactFlow
-          nodes={currentNodes}
-          edges={currentEdges}
-          nodeTypes={nodeTypes}
-          onNodesChange={onNodesChange}
-          onEdgesChange={onEdgesChange}
-          onConnect={onConnect}
-          onNodeClick={onNodeClick}
-          onInit={setRfInstance}
-          fitView
-        >
-          <Controls position="top-right" />
-          <Background color="#aaa" gap={16} />
-        </ReactFlow>
+
+        <Box sx={{ height: "87vh", bgcolor: "white" }}>
+          <ReactFlow
+            nodes={currentNodes}
+            edges={currentEdges}
+            nodeTypes={nodeTypes}
+            onNodesChange={onNodesChange}
+            onEdgesChange={onEdgesChange}
+            onConnect={onConnect}
+            onNodeClick={onNodeClick}
+            onInit={setRfInstance}
+            fitView
+          >
+            <Controls position="top-right" />
+            <Background color="#aaa" gap={16} />
+          </ReactFlow>
+        </Box>
       </Box>
 
       <NodeDrawer
@@ -267,7 +288,6 @@ export function Dashboard({ dashboardSidebarOpen }) {
         onClose={() => setDrawerOpen(false)}
         onAddNode={handleAddNode}
       />
-
       <PropertyBar
         open={Boolean(selectedNode)}
         selectedNode={selectedNode}

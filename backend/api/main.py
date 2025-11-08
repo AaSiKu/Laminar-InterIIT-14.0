@@ -70,8 +70,10 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="Pipeline API", lifespan=lifespan)
 origins = [
+    # TODO: Add final domain, port here
     "http://localhost",
     "http://localhost:5173",
+    "http://localhost:8083"
 ]
 app.add_middleware(
     CORSMiddleware,
