@@ -1,5 +1,5 @@
 from typing import TypedDict, Callable, Any, List
-from lib.node import Node
+from lib.tables import JoinNode
 import pathway as pw
 from pathway.xpacks.llm import parsers, splitters, embedders
 from pathway.xpacks.llm.document_store import DocumentStore
@@ -328,7 +328,7 @@ input_connector_mappings = {
 
 # BUG: Cannot handle the case where the two tables each have one or more columns with the same name
     # POSSIBLE FIX: When this error arises, ask the user to rename one of the conflicting columns
-def join(inputs: List[pw.Table],node: Node) -> pw.Table:
+def join(inputs: List[pw.Table],node: JoinNode) -> pw.Table:
     left,right = inputs
     col1, col2 = node.on
     col1 = get_col(left,col1)
@@ -341,7 +341,7 @@ def join(inputs: List[pw.Table],node: Node) -> pw.Table:
     return joined.select(
         *[get_col(left,col) for col in left.without(col1).column_names()],
         *[get_col(right,col) for col in right.without(col1).column_names()],
-        *[[col1] if node.on[0] == node.on[1] else [col1,col2] ]
+        *([col1] if node.on[0] == node.on[1] else [col1,col2])
     )
 
 table_mappings: dict[str, MappingValues] = {
