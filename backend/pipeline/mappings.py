@@ -1,11 +1,7 @@
-<<<<<<< HEAD
-from typing import TypedDict, Callable, Any, Dict, List
+from typing import TypedDict, Callable, Any, List
 from lib.node import Node
-=======
-from typing import TypedDict, Callable, Any, Dict, Optional
->>>>>>> main
 import pathway as pw
-from pathway.xpacks.llm import parsers, splitters, embedders, llms
+from pathway.xpacks.llm import parsers, splitters, embedders
 from pathway.xpacks.llm.document_store import DocumentStore
 from pathway.stdlib.indexing import BruteForceKnnFactory, USearchKnnFactory, TantivyBM25Factory, HybridIndexFactory
 import os

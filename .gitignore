@@ -4,11 +4,7 @@ deploy/pids
 __pycache__/
 rag/uploads
 flowchart.json
-<<<<<<< HEAD
 *.log
 prompts.csv
-=======
-output.log
 .vscode
 venv
->>>>>>> main
