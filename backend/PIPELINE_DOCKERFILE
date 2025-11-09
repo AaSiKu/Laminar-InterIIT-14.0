@@ -18,6 +18,10 @@ COPY pipeline /app/pipeline
 RUN mv /app/pipeline/server.py /app/server.py
 RUN mv /app/pipeline/.env /app/.env
 
+# Check if prompts.csv already exists in /app/pipeline, if yes then move to /app if no then create it in /app
+RUN SRC="/app/pipeline/prompts.csv"; DEST_DIR="/app"; DEST="$DEST_DIR/$(basename "$SRC")"; \
+    if [ -f "$SRC" ]; then mv "$SRC" "$DEST"; else mkdir -p "$DEST_DIR" && touch "$DEST"; fi
+
 EXPOSE 8000
 # Default command to run FastAPI server
 CMD ["python3", "server.py"]
