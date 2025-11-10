@@ -158,11 +158,11 @@ function HumanInLoopPanel({ data }) {
 
 // --- Main Analytics Page Component ---
 
-export function AnalyticsPage() {
+export default function AnalyticsPage() {
   const [tab, setTab] = useState('logs');
   const [loading, setLoading] = useState(false);
   const [analyticsData, setAnalyticsData] = useState(null);
-  
+
   const { flowId } = useParams();
   const navigate = useNavigate(); 
 
@@ -182,7 +182,6 @@ export function AnalyticsPage() {
               { timestamp: '2025-11-07T12:00:03Z', level: 'info', message: 'Flow finished with status: FAILED' },
             ],
           };
-          
           await new Promise(resolve => setTimeout(resolve, 500)); 
           setAnalyticsData(mockData);
 

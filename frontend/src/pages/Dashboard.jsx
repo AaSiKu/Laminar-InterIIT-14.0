@@ -20,23 +20,26 @@ import {
   Snackbar,
   CircularProgress,
 } from "@mui/material";
-import { PropertyBar } from "./components/propertyBar";
-import { NodeDrawer } from "./components/NodeDrawer";
-import { nodeTypes, generateNode } from "./utils/dashboard.utils";
-import { useGlobalContext } from "./components/context";
+import { PropertyBar } from '../components/PropertyBar';
+import { NodeDrawer } from "../components/NodeDrawer";
+import {nodeTypes, generateNode} from "../utils/dashboard.utils"
+import { useGlobalContext } from "../context/GlobalContext";
 import {
   savePipelineAPI,
   toggleStatus as togglePipelineStatus,
   fetchAndSetPipeline,
   spinupPipeline,
   spindownPipeline,
-} from "./utils/pipelineHelperFunc";
+} from "../utils/pipelineUtils";
 
-export function Dashboard({ dashboardSidebarOpen }) {
+
+export default function Dashboard() {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("md"));
   const [selectedNode, setSelectedNode] = useState(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
+
+
   const navigate = useNavigate();
   const {
     currentEdges,
@@ -46,9 +49,10 @@ export function Dashboard({ dashboardSidebarOpen }) {
     setCurrentEdges,
     currentPipelineStatus,
     setCurrentPipelineStatus,
-    rfInstance,
     currentPipelineId,
+    rfInstance,
     setCurrentPipelineId,
+    dashboardSidebarOpen,
     loading,
     setLoading,
     error,
@@ -58,7 +62,7 @@ export function Dashboard({ dashboardSidebarOpen }) {
     setContainerId,
   } = useGlobalContext();
 
-  // TODO: Need to look into the refresh cycle
+
   useEffect(() => {
     if (currentPipelineId) {
       setLoading(true);
@@ -101,27 +105,6 @@ export function Dashboard({ dashboardSidebarOpen }) {
 
   const handleAddNode = (schema) => {
     setCurrentNodes((prev) => [...prev, generateNode(schema, currentNodes)]);
-  };
-
-  const onNodeDoubleClick = (event, node) => {
-    event.preventDefault();
-  };
-
-  const savePipeline = async (path) => {
-    if (!rfInstance) return;
-    setLoading(true);
-    setError(null);
-    try {
-      const flow = rfInstance.toObject();
-      const data = await savePipelineAPI(flow, currentPipelineId, path);
-      if (currentPipelineId === null) {
-        setCurrentPipelineId(data.id);
-      }
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
   };
 
   const handleToggleStatus = async () => {
@@ -198,6 +181,8 @@ export function Dashboard({ dashboardSidebarOpen }) {
       <Box
         sx={{
           transition: "margin-left 0.3s ease",
+          left: drawerWidth,
+          position: "absolute",
           width: `calc(100vw - ${drawerWidth}px)`,
           height: "100vh",
           bgcolor: "background.default",
@@ -224,7 +209,7 @@ export function Dashboard({ dashboardSidebarOpen }) {
               {loading && <CircularProgress size={24} />}
               <Button
                 variant="outlined"
-                onClick={() => savePipeline()}
+                onClick={() => savePipelineAPI(currentPipelineId,rfInstance,currentPipelineId,setCurrentPipelineId,setLoading,setError)}
                 disabled={loading}
               >
                 Save
@@ -287,6 +272,7 @@ export function Dashboard({ dashboardSidebarOpen }) {
         open={drawerOpen}
         onClose={() => setDrawerOpen(false)}
         onAddNode={handleAddNode}
+        setNodes={setCurrentNodes}
       />
       <PropertyBar
         open={Boolean(selectedNode)}
