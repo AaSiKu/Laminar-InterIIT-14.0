@@ -31,6 +31,7 @@ def get_node_class_map():
 
 node_map = get_node_class_map()
 
+# TODO: Make sure only input nodes are the source nodes for any graph
 def validate_nodes(node_data_list: List[Dict[str, Any]]) -> List[Node]:
     """
     Validate an array of node objects using dynamically loaded Pydantic models.

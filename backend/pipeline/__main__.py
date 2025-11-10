@@ -1,5 +1,5 @@
 import json
-from typing import TypedDict, List, Tuple, Dict,  Literal
+from typing import TypedDict, List, Tuple, Dict,  Literal, Optional
 from collections import defaultdict
 from toposort import toposort_flatten
 from lib.validate import validate_nodes
@@ -31,8 +31,8 @@ class Prompt(pw.Schema):
 class Flowchart(TypedDict):
     edges: List[Tuple[int,int]]
     nodes: List[Dict[str,Node]]
-    agents: List[Agent]
-    triggers: List[int]
+    agents: Optional[List[Agent]] = []
+    triggers: Optional[List[int]] = []
     name: str
 class Graph(Flowchart):
     parsing_order : list[int]
