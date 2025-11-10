@@ -10,7 +10,7 @@ import Dashboard from "./pages/Dashboard.jsx";
 import Sidebar from "./components/sidebar.jsx";
 import DashboardSidebar from "./components/DashboardSidebar.jsx";
 import DeveloperDashboard from "./pages/DeveloperDashboard.jsx";
-import { LeadershipDashboard } from "./leadershipPage.jsx";
+import { LeadershipDashboard } from "./pages/leadershipPage.jsx";
 const theme = createTheme({
   palette: {
     primary: { main: "#3b82f6" },
