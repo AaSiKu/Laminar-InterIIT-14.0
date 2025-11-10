@@ -11,6 +11,15 @@
     MONGO_URI=<MONGODB_CONNECTION_STRING>
     MONGO_DB=pipeline_db
     MONGO_COLLECTION=pipelines
+
+      PIPELINE_IMAGE_NAME=
+      # Port of the server inside the container
+      CONTAINER_PORT=8000/tcp
+
+      SECRET_KEY = "any key"
+      ALGORITHM = "HS256"
+      ACCESS_TOKEN_EXPIRE_MINUTES = 60  # 1 hour
+      REFRESH_TOKEN_EXPIRE_MINUTES=43200 #30 days
     ```
    - Note if you are running mongo db inside the host device of the docker container, set `MONGODB_URI=mongodb://host.docker.internal:27017`
 2. Build the image: `docker build -t pathway_pipeline -f PIPELINE_DOCKERFILE .`
