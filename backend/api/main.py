@@ -4,23 +4,26 @@ import subprocess
 from dotenv import load_dotenv
 from motor.motor_asyncio import AsyncIOMotorClient
 from bson.objectid import ObjectId
-from fastapi import FastAPI, Request, status, HTTPException
+from fastapi import FastAPI, Request, status, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware 
 from typing import Any, Dict, Union, Optional, Type
-import inspect
 from pydantic import BaseModel
 from contextlib import asynccontextmanager
+import inspect
 import docker
-from fastapi.middleware.cors import CORSMiddleware
 import logging
 import httpx
 import socket
+import json
 from backend.lib.validate import node_map
 from utils.logging import get_logger, configure_root
 from backend.api.dockerScript import (
     run_pipeline_container, stop_docker_container
 )
+from aiokafka import AIOKafkaConsumer
+
+
 
 configure_root()
 logger = get_logger(__name__)
@@ -335,3 +338,47 @@ async def retrieve(data: PipelineIdRequest):
         return {"message": "Pipeline data retrieved successfully", **result}
     except Exception as e:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
+    
+
+
+
+KAFKA_BOOTSTRAP_SERVER = os.getenv("KAFKA_BOOTSTRAP_SERVER", "localhost:9092")
+SASL_USERNAME = os.getenv("KAFKA_SASL_USERNAME", None)
+SASL_PASSWORD = os.getenv("KAFKA_SASL_PASSWORD", None)
+SASL_MECHANISM = os.getenv("KAFKA_SASL_MECHANISM", None)
+SECURITY_PROTOCOL = os.getenv("KAFKA_SECURITY_PROTOCOL",None)
+
+@app.websocket("/ws/alerts/{pipeline_id}")
+async def alerts_ws(websocket: WebSocket, pipeline_id: str):
+    await websocket.accept()
+
+    topic = f"alert_{pipeline_id}"
+
+    kwargs = {}
+    if SASL_USERNAME:
+        kwargs = {
+            "security_protocol": SECURITY_PROTOCOL,
+            "sasl_mechanisms": SASL_MECHANISM,
+            "sasl_plain_username": SASL_USERNAME,
+            "sasl_password": SASL_PASSWORD,
+        }
+    consumer = AIOKafkaConsumer(
+        topic,
+        bootstrap_servers=KAFKA_BOOTSTRAP_SERVER,
+        group_id=f"alerts-consumer-{pipeline_id}",
+    )
+
+    await consumer.start()
+    try:
+        async for msg in consumer:
+            try:
+                payload = json.loads(msg.value.decode())
+            except:
+                payload = {"raw": msg.value.decode()}
+
+            await websocket.send_json(payload)
+
+    except WebSocketDisconnect:
+        pass
+    finally:
+        await consumer.stop()

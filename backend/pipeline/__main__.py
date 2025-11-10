@@ -5,6 +5,7 @@ from toposort import toposort_flatten
 from lib.validate import validate_nodes
 from lib.node import Node
 from lib.agent import Agent
+from lib.alert import AlertNode
 
 import os
 from dotenv import load_dotenv
@@ -100,6 +101,11 @@ def build(graph : Graph):
         ## i.e if node 3 requires node 1 as the first input and node 2 as the second input , then in the edges array in flowchart file
         ## (1,3) will come first then (2,3)
         args = [node_outputs[input_node_ind] for input_node_ind in graph["dependencies"][node_index]]
+        if node.node_id == "alert":
+            input_node = nodes[graph["dependencies"][node_index][0]]
+            if not hasattr(input_node,"trigger_description"):
+                raise Exception("Every trigger node should have a description")
+            node.input_trigger_description = input_node.trigger_description
         table = mapping["node_fn"](args,node)
 
         if table is None:

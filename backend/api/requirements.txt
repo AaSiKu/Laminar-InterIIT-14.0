@@ -5,3 +5,4 @@ docker
 motor
 httpx
 pathway==0.26.4
+aiokafka

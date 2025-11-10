@@ -13,7 +13,11 @@ def get_node_class_map():
     of node_id -> class reference.
     """
     node_class_map = {}
-    modules = [io_nodes, tables, rag]
+    modules = [
+        io_nodes,
+        tables,
+        # rag
+    ]
 
     for module in modules:
         for name, cls in inspect.getmembers(module, inspect.isclass):

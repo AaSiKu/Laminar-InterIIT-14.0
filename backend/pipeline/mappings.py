@@ -1,9 +1,11 @@
-from typing import TypedDict, Callable, Any, List
+from typing import TypedDict, Callable, Any, List, Type
 from lib.tables import JoinNode
+from lib.alert import AlertResponse, AlertNode
 import pathway as pw
 # from pathway.xpacks.llm import parsers, splitters, embedders
 # from pathway.xpacks.llm.document_store import DocumentStore
 # from pathway.stdlib.indexing import BruteForceKnnFactory, TantivyBM25Factory, HybridIndexFactory
+import httpx
 import os
 
 # ---------------------------------------
@@ -17,6 +19,9 @@ _op_map = {
     ">=": "__ge__",
     "<=": "__le__",
 }
+
+agentic_url = os.getenv("AGENTIC_URL")
+
 
 # ---------------------------------------
 # MappingValues definition
@@ -495,13 +500,61 @@ table_mappings: dict[str, MappingValues] = {
 #     },
 # }
 
+class GenerateAlert(pw.AsyncTransformer,output_schema=AlertResponse):
+    alert_node: AlertNode
+    def __init__(self, alert_node: AlertNode,  *args,**kwargs):
+         self.alert_node = alert_node
+         super().__init__(*args,**kwargs)
+    async def invoke(self, **kwargs) -> str:
+            async with httpx.AsyncClient(timeout=30) as client:
+                resp = await client.post(
+                    f"{agentic_url.rstrip("/")}/alert",
+                    json=dict(
+                        alert_prompt=self.alert_node.alert_prompt,
+                        # This input_trigger_description field is set in __main__.py
+                        trigger_description=self.alert_node.input_trigger_description,
+                        trigger_data=kwargs,
+                    ),
+                )
+                resp.raise_for_status()
+                data = resp.json()
+                return data["alert"]
+            
+SASL_USERNAME = os.getenv("KAFKA_SASL_USERNAME", None)
+SASL_PASSWORD = os.getenv("KAFKA_SASL_PASSWORD", None)
+SASL_MECHANISM = os.getenv("KAFKA_SASL_MECHANISM", None)
+SECURITY_PROTOCOL = os.getenv("KAFKA_SECURITY_PROTOCOL", None) 
+
+def alert_node_fn(inputs: List[pw.Table],alert_node: AlertNode ):
+    trigger_table = inputs[0]
+    alerts = GenerateAlert(alert_node, input_table=trigger_table).successful
+
+    pipeline_id = os.getenv("PIPELINE_ID")
+    config = {
+        "bootstrap.servers": os.getenv("KAFKA_BOOTSTRAP_SERVER","localhost:9092"),
+        "client.id": os.getenv("KAFKA_CLIENT_ID",pipeline_id),
+        "linger.ms": 5,
+        "batch.num.messages": 10000,
+        "compression.type": "lz4", 
+    }
+    if SASL_USERNAME:
+        config = {
+            **config,
+            "security.protocol": SECURITY_PROTOCOL,
+            "sasl.mechanisms": SASL_MECHANISM,
+            "sasl.username": SASL_USERNAME,
+            "sasl.password": SASL_PASSWORD,
+        }
+    pw.io.kafka.write(alerts.select(*pw.this,pipeline_id=pipeline_id),config, topic_name=f"alert_{pipeline_id}", format="json")
+    return alerts
+
 # ---------------------------------------
 # Final unified mapping
-# RAG MAPPINGS
 # ---------------------------------------
 mappings: dict[str, MappingValues] = {
     **output_connector_mappings,
     **input_connector_mappings,
     **table_mappings,
+    "alert": alert_node_fn,
     # **rag_mappings
 }
