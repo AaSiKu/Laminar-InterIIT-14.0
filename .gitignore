@@ -8,3 +8,7 @@ flowchart.json
 prompts.csv
 .vscode
 venv
+
+langchain-docs/
+
+*venv/

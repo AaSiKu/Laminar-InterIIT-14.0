@@ -1,0 +1,7 @@
+fastapi
+uvicorn[standard]
+dotenv
+docker
+motor
+httpx
+pathway==0.26.4

@@ -20,7 +20,7 @@ db = None
 collection = None
 
 PROMPTS_FILE = "prompts.csv"
-
+FLOWCHART_FILE = os.getenv("FLOWCHART_FILE", "flowchart.json")
 
 def create_prompts_file():
     with open(PROMPTS_FILE, "w") as f:
@@ -87,7 +87,7 @@ async def trigger_pipeline(request: Request):
     """
     Webhook trigger endpoint.
     Reads the pipeline record with _id = PIPELINE_ID from MongoDB,
-    saves it as flowchart.json, and runs `python3 -m pipeline`.
+    saves it as FLOWCHART_FILE, and runs `python3 -m pipeline`.
     """
     pipeline_id = os.getenv("PIPELINE_ID")
     create_prompts_file()
@@ -99,8 +99,8 @@ async def trigger_pipeline(request: Request):
     if not record:
         raise HTTPException(status_code=404, detail=f"No pipeline found with id={pipeline_id}")
 
-    # Write flowchart.json
-    with open("flowchart.json", "w") as f:
+    # Write FLOWCHART_FILE
+    with open(FLOWCHART_FILE, "w") as f:
         json.dump(record["pipeline"], f, indent=2)
 
     # Run pipeline
@@ -119,7 +119,7 @@ def prompt(body: PromptIn):
     with open(file_path, "a", newline="") as f:
         writer = csv.writer(f)
         if f.tell() == 0:
-            writer.writerow(["prompts"])  # header only if file does not exist
+            writer.writerow(["prompt"])  # header only if file does not exist
         writer.writerow([body.prompt])
 
     return {"status": "ok", "saved": body.prompt}

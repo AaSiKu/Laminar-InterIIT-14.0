@@ -1,9 +1,9 @@
 from typing import TypedDict, Callable, Any, List
 from lib.tables import JoinNode
 import pathway as pw
-from pathway.xpacks.llm import parsers, splitters, embedders
-from pathway.xpacks.llm.document_store import DocumentStore
-from pathway.stdlib.indexing import BruteForceKnnFactory, USearchKnnFactory, TantivyBM25Factory, HybridIndexFactory
+# from pathway.xpacks.llm import parsers, splitters, embedders
+# from pathway.xpacks.llm.document_store import DocumentStore
+# from pathway.stdlib.indexing import BruteForceKnnFactory, TantivyBM25Factory, HybridIndexFactory
 import os
 
 # ---------------------------------------
@@ -416,84 +416,84 @@ table_mappings: dict[str, MappingValues] = {
 # ---------------------------------------
 # RAG MAPPINGS
 # ---------------------------------------
-def build_document_store(inputs, node):
-    """
-    Builds a DocumentStore by orchestrating the parsing, splitting,
-    embedding, and indexing pipeline based on the node's configuration.
-    """
-    documents = inputs[0]
+# def build_document_store(inputs, node):
+#     """
+#     Builds a DocumentStore by orchestrating the parsing, splitting,
+#     embedding, and indexing pipeline based on the node's configuration.
+#     """
+#     documents = inputs[0]
 
-    # 1. Configure Parser
-    if node.parser_type == "Unstructured":
-        parser = parsers.UnstructuredParser()
-    else:
-        # In a real scenario, you might have more parser types
-        raise ValueError(f"Unsupported parser type: {node.parser_type}")
+#     # 1. Configure Parser
+#     if node.parser_type == "Unstructured":
+#         parser = parsers.UnstructuredParser()
+#     else:
+#         # In a real scenario, you might have more parser types
+#         raise ValueError(f"Unsupported parser type: {node.parser_type}")
 
-    # 2. Configure Splitter
-    if node.splitter_type == "TokenCount":
-        splitter = splitters.TokenCountSplitter(
-            max_tokens=node.splitter_max_tokens,
-            min_tokens=node.splitter_min_tokens,
-        )
-    else:
-        raise ValueError(f"Unsupported splitter type: {node.splitter_type}")
+#     # 2. Configure Splitter
+#     if node.splitter_type == "TokenCount":
+#         splitter = splitters.TokenCountSplitter(
+#             max_tokens=node.splitter_max_tokens,
+#             min_tokens=node.splitter_min_tokens,
+#         )
+#     else:
+#         raise ValueError(f"Unsupported splitter type: {node.splitter_type}")
 
-    # 3. Configure Embedder
-    if node.embedder_type == "Gemini":
-        if not node.google_api_key:
-            raise ValueError("Google API key is required for Gemini embedder.")
-        embedder = embedders.GeminiEmbedder(
-            api_key=node.google_api_key,
-            model=node.embedder_model,
-        )
-    elif node.embedder_type == "OpenAI":
-        if not node.openai_api_key:
-            raise ValueError("OpenAI API key is required for OpenAI embedder.")
-        embedder = embedders.OpenAIEmbedder(
-            api_key=node.openai_api_key,
-            model=node.embedder_model,
-        )
-    elif node.embedder_type == "SentenceTransformer":
-        embedder = embedders.SentenceTransformerEmbedder(
-            model=node.embedder_model,
-        )
-    else:
-        raise ValueError(f"Unsupported embedder type: {node.embedder_type}")
+#     # 3. Configure Embedder
+#     if node.embedder_type == "Gemini":
+#         if not node.google_api_key:
+#             raise ValueError("Google API key is required for Gemini embedder.")
+#         embedder = embedders.GeminiEmbedder(
+#             api_key=node.google_api_key,
+#             model=node.embedder_model,
+#         )
+#     elif node.embedder_type == "OpenAI":
+#         if not node.openai_api_key:
+#             raise ValueError("OpenAI API key is required for OpenAI embedder.")
+#         embedder = embedders.OpenAIEmbedder(
+#             api_key=node.openai_api_key,
+#             model=node.embedder_model,
+#         )
+#     elif node.embedder_type == "SentenceTransformer":
+#         embedder = embedders.SentenceTransformerEmbedder(
+#             model=node.embedder_model,
+#         )
+#     else:
+#         raise ValueError(f"Unsupported embedder type: {node.embedder_type}")
 
-    # 4. Configure Retriever Factory (Index)
-    if node.retriever_type == "Vector":
-        retriever_factory = BruteForceKnnFactory(
-            embedder=embedder,
-            dimensions=node.vector_dimensions,
-        )
-    elif node.retriever_type == "Hybrid":
-        knn_index = BruteForceKnnFactory(
-            embedder=embedder,
-            dimensions=node.vector_dimensions,
-        )
-        bm25_index = TantivyBM25Factory(ram_budget=node.bm25_ram_budget)
-        retriever_factory = HybridIndexFactory(
-            retriever_factories=[knn_index, bm25_index]
-        )
-    else:
-        raise ValueError(f"Unsupported retriever type: {node.retriever_type}")
+#     # 4. Configure Retriever Factory (Index)
+#     if node.retriever_type == "Vector":
+#         retriever_factory = BruteForceKnnFactory(
+#             embedder=embedder,
+#             dimensions=node.vector_dimensions,
+#         )
+#     elif node.retriever_type == "Hybrid":
+#         knn_index = BruteForceKnnFactory(
+#             embedder=embedder,
+#             dimensions=node.vector_dimensions,
+#         )
+#         bm25_index = TantivyBM25Factory(ram_budget=node.bm25_ram_budget)
+#         retriever_factory = HybridIndexFactory(
+#             retriever_factories=[knn_index, bm25_index]
+#         )
+#     else:
+#         raise ValueError(f"Unsupported retriever type: {node.retriever_type}")
 
-    # 5. Create and return the DocumentStore
-    # This makes the DocumentStore object available to the pipeline runner.
-    return DocumentStore(
-        docs=documents,
-        parser=parser,
-        splitter=splitter,
-        retriever_factory=retriever_factory,
-    )
+#     # 5. Create and return the DocumentStore
+#     # This makes the DocumentStore object available to the pipeline runner.
+#     return DocumentStore(
+#         docs=documents,
+#         parser=parser,
+#         splitter=splitter,
+#         retriever_factory=retriever_factory,
+#     )
 
 
-rag_mappings: dict[str, MappingValues] = {
-    "rag_node": {
-        "node_fn": build_document_store,
-    },
-}
+# rag_mappings: dict[str, MappingValues] = {
+#     "rag_node": {
+#         "node_fn": build_document_store,
+#     },
+# }
 
 # ---------------------------------------
 # Final unified mapping
@@ -503,5 +503,5 @@ mappings: dict[str, MappingValues] = {
     **output_connector_mappings,
     **input_connector_mappings,
     **table_mappings,
-    **rag_mappings
+    # **rag_mappings
 }

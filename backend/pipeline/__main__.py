@@ -2,18 +2,17 @@ import json
 from typing import TypedDict, List, Tuple, Dict,  Literal
 from collections import defaultdict
 from toposort import toposort_flatten
-from langgraph.graph.state import CompiledStateGraph
 from lib.validate import validate_nodes
 from lib.node import Node
 from lib.agent import Agent
 
 import os
 from dotenv import load_dotenv
-load_dotenv(os.getenv("ENV_FILE", default=".env"))
+load_dotenv()
 
 from .agentic import build_agentic_graph
 from .mappings import mappings, get_col
-from .postgre import connection_string_write
+from postgres_util import connection_string
 import pathway as pw
 
 
@@ -41,7 +40,7 @@ class Graph(Flowchart):
     nodes: List[Node]
 
 
-flowchart_file = "flowchart.json"
+flowchart_file = os.getenv("FLOWCHART_FILE", "flowchart.json")
 
 def id2index(nodes: List[dict]) -> dict[str, int]:
     """
@@ -69,7 +68,7 @@ def read() -> Graph:
         # TODO: Do not allow any outputs from the RAG node
         # build an id index mapping for edges
         id2index_map = id2index(data["nodes"])
-        dependencies = defaultdict[int](list)
+        dependencies = defaultdict[int,list](list)
         for edge in data["edges"]:
             dependencies[id2index_map[edge["target"]]].append(id2index_map[edge["source"]])
 
@@ -97,8 +96,8 @@ def build(graph : Graph):
         node = nodes[node_index]
         mapping = mappings[node.node_id]
 
-        ## Note: VERY IMPORTANT, we are assuming that the edges array in the flowchart.json provides dependencies in the order they are to be used
-        ## i.e if node 3 requires node 1 as the first input and node 2 as the second input , then in the edges array in flowchart.json
+        ## Note: VERY IMPORTANT, we are assuming that the edges array in the flowchart file provides dependencies in the order they are to be used
+        ## i.e if node 3 requires node 1 as the first input and node 2 as the second input , then in the edges array in flowchart file
         ## (1,3) will come first then (2,3)
         args = [node_outputs[input_node_ind] for input_node_ind in graph["dependencies"][node_index]]
         table = mapping["node_fn"](args,node)
@@ -106,9 +105,15 @@ def build(graph : Graph):
         if table is None:
             continue
         node_outputs[node_index] = table
-        ## Persist snapshot to postgre
-        primary_keys = [get_col(table,col) for col in table.schema.primary_key_columns()]
-        pw.io.postgres.write(table, connection_string_write, f"{node.node_id}__{node_index}", output_table_type="snapshot", primary_key=primary_keys, init_mode="create_if_not_exists")
+        ## Persist snapshot to postgres
+        cols = table.schema.primary_key_columns() or []
+        primary_keys = [get_col(table, col) for col in cols]
+        if len(cols) == 0:
+            table = table.with_columns(
+                __row_id = pw.this.id
+            )
+            primary_keys= [table.__row_id]
+        pw.io.postgres.write(table, connection_string, f"{node.node_id}__{node_index}", output_table_type="snapshot", primary_key=primary_keys, init_mode="create_if_not_exists")
         
 
         # TODO: For the RAG node, expose it as a tool to our agentic graph
@@ -133,7 +138,7 @@ if __name__ == "__main__":
         trigger_name = f"{graph["nodes"][trigger].node_id}_{trigger}"
         answer_tables[trigger_name] = supervisor["trigger"](trigger_name,trigger_description, trigger_node.schema, input_table=trigger_node).successful
 
-
+    # TODO: Shift to a better input connector for prompts
     prompts = pw.io.csv.read("prompts.csv", schema=Prompt, mode="streaming")
     prompts_answers:pw.Table = supervisor["prompt"](input_table=prompts).successful
 
@@ -141,7 +146,7 @@ if __name__ == "__main__":
     all_answers = all_answers.with_columns(
         row_id = pw.this.id
     )
-    pw.io.postgres.write(all_answers, connection_string_write, f"all_answers", output_table_type="snapshot", primary_key=[all_answers.row_id], init_mode="create_if_not_exists")
+    pw.io.postgres.write(all_answers, connection_string, f"all_answers", output_table_type="snapshot", primary_key=[all_answers.row_id], init_mode="create_if_not_exists")
 
     # TODO: Implement logging (appending) to a file output and error handling which will be stored/sent to the frontend for all cases 
     pw.run()

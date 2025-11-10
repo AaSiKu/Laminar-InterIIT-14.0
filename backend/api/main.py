@@ -188,8 +188,9 @@ async def docker_spinup(request: PipelineIdRequest):
             {'_id': ObjectId(request.pipeline_id)},
             {
                 '$set':{
-                    'container_id': result['id'],
-                    'host_port': result['host_port'],
+                    'container_id': result['pipeline_container_id'],
+                    'pipeline_host_port': result['pipeline_host_port'],
+                    'agentic_host_port': result['agentic_host_port'],
                     'host_ip': host_ip,
                     'status': False, # the status is of pipeline, it will be toggled from the docker container
                 }
