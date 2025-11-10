@@ -106,9 +106,11 @@ def schema_index(request: Request):
     """
     io_node_ids = [node_id for node_id, cls in NODES.items() if cls.__module__ == 'backend.lib.io_nodes']
     table_ids = [node_id for node_id, cls in NODES.items() if cls.__module__ == 'backend.lib.tables']
+    alert_ids = [node_id for node_id, cls in NODES.items() if cls.__module__ == 'backend.lib.alert']
     return {
         "io_nodes": io_node_ids,
-        "table_nodes": table_ids
+        "table_nodes": table_ids,
+        "alert_nodes": alert_ids
     }
 
 def _remap_schema_types(schema: dict) -> dict:
@@ -194,6 +196,7 @@ async def docker_spinup(request: PipelineIdRequest):
                     'container_id': result['pipeline_container_id'],
                     'pipeline_host_port': result['pipeline_host_port'],
                     'agentic_host_port': result['agentic_host_port'],
+                    'db_host_port': result['db_host_port'],
                     'host_ip': host_ip,
                     'status': False, # the status is of pipeline, it will be toggled from the docker container
                 }

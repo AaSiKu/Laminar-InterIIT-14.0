@@ -3,7 +3,8 @@ from pydantic import ValidationError
 from typing import List, Dict, Any, Literal, get_args, get_origin
 from . import io_nodes
 from . import tables
-from . import rag
+# from . import rag
+from . import alert
 from .node import Node
 
 def get_node_class_map():
@@ -16,6 +17,7 @@ def get_node_class_map():
     modules = [
         io_nodes,
         tables,
+        alert
         # rag
     ]
 

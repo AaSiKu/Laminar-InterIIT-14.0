@@ -34,7 +34,7 @@ class Flowchart(TypedDict):
     nodes: List[Dict[str,Node]]
     agents: Optional[List[Agent]] = []
     triggers: Optional[List[int]] = []
-    name: str
+    name: Optional[str] = ""
 class Graph(Flowchart):
     parsing_order : list[int]
     dependencies: defaultdict[int, list[int]]
@@ -64,7 +64,7 @@ def read() -> Graph:
         # array of nodes, in this file nodes will be identified by their indexes in this array
         nodes = validate_nodes(data["nodes"])
 
-        agents = [Agent(**agent) for agent in data["agents"]]
+        agents = [Agent(**agent) for agent in data["agents"]] if hasattr(data,"agents") else []
 
         # TODO: Do not allow any outputs from the RAG node
         # build an id index mapping for edges
@@ -132,10 +132,10 @@ if __name__ == "__main__":
     graph = read()
     node_outputs : List[pw.Table] = build(graph)
     # Build agentic graph i.e register all user defined agents along with their tools to langggraph supervisor agent
-    supervisor = build_agentic_graph(graph["agents"], graph["name"], graph["nodes"], node_outputs)
+    supervisor = build_agentic_graph(graph["agents"], graph["name"] if hasattr(graph,"name") else "", graph["nodes"], node_outputs)
 
     answer_tables : Dict[str,pw.Table] = {}
-    for trigger in graph["triggers"]:
+    for trigger in (graph["triggers"] if hasattr(graph,"agents") else []):
         # TODO: Check if trigger node is not the RAG node. If it is the rag node, raise error or do not subscribe
         trigger_node = node_outputs[trigger]
         trigger_description = graph["nodes"][trigger].trigger_description
@@ -147,8 +147,10 @@ if __name__ == "__main__":
     # TODO: Shift to a better input connector for prompts
     prompts = pw.io.csv.read("prompts.csv", schema=Prompt, mode="streaming")
     prompts_answers:pw.Table = supervisor["prompt"](input_table=prompts).successful
-
-    all_answers = prompts_answers.concat_reindex(*answer_tables.values())
+    if len(answer_tables.values()) > 0:
+        all_answers = prompts_answers.concat_reindex(*answer_tables.values())
+    else:
+        all_answers = prompts_answers
     all_answers = all_answers.with_columns(
         row_id = pw.this.id
     )
