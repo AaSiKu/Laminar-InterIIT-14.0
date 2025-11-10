@@ -5,7 +5,7 @@ import { Dashboard } from './Dashboard.jsx';
 import Sidebar from './components/sidebar.jsx';
 import DashboardSidebar from './components/DashboardSidebar.jsx';
 import { AnalyticsPage } from './AnalyticsPage.jsx'; // Import the new page
-
+import { LeadershipDashboard } from './leadershipPage.jsx'; // Import the new page
 // --- Theme (as you provided) ---
 const theme = createTheme({
   palette: {
@@ -70,6 +70,8 @@ export default function App() {
           
           {/* Route for the analytics page */}
           <Route path="/analytics/:flowId" element={<AnalyticsPage />} />
+          {/* Route for the leadership page */}
+          <Route path="/leadership" element={<LeadershipDashboard />} />
         </Routes>
       </BrowserRouter>
     </ThemeProvider>

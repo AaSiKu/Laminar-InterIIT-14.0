@@ -20,7 +20,7 @@ import {
   Snackbar,
   CircularProgress,
 } from "@mui/material";
-import { PropertyBar } from "./components/propertyBar";
+import { PropertyBar } from "./components/PropertyBar";
 import { NodeDrawer } from "./components/NodeDrawer";
 import { nodeTypes, generateNode } from "./utils/dashboard.utils";
 import { useGlobalContext } from "./components/context";
