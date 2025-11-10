@@ -19,3 +19,7 @@ dotenv
 mcp
 docker
 motor
+python-jose 
+passlib[script]
+pymongo
+bcrypt==3.2.0
