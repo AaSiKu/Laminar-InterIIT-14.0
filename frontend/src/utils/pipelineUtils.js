@@ -10,7 +10,7 @@ const savePipelineAPI = async (path,rfInstance,currentPipelineId,setCurrentPipel
   try {
     const flow = rfInstance.toObject();
 
-    const response = await fetch("http://localhost:8000/save", {
+    const response = await fetch(`${import.meta.env.VITE_API_SERVER}/save`, {
       method: "POST",
       credentials: "include", 
       headers: {
