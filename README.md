@@ -50,7 +50,7 @@ From this SLA-driven base, the platform’s technical architecture flows into Pa
 
 ```bash
 git clone <repository-url>
-cd pathway-tasks
+cd <local-repo-location>
 ```
 
 ### 2. Environment Configuration
@@ -71,14 +71,7 @@ cp backend/agentic/.env.template backend/agentic/.env
 cp frontend/.env.template frontend/.env
 ```
 
-**Required Environment Variables:**
-
-- `PATHWAY_LICENSE_KEY`: Your Pathway license key
-- `MONGO_URI`: MongoDB connection string
-- `KAFKA_BOOTSTRAP_SERVER`: Kafka broker address (if using Kafka)
-- `GROQ_API_KEY`: API key for LLM services
-- `SECRET_KEY`: JWT secret for authentication
-- `OPENAI_API_KEY`: Optional, for OpenAI integrations
+Set the required Environment Variables
 
 ### 3. Start Kafka (Optional)
 

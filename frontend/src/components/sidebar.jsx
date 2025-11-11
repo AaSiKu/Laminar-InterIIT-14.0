@@ -52,7 +52,7 @@ const Sidebar = () => {
     },
     { icon: <WorkspacePremiumRounded />, label: 'Admin Dashboard', path: '/leadership' },
     { icon: <QueryStatsRounded />, label: 'Analytics', path: '/analytics' },
-    { icon: <GroupRounded />, label: 'Users', path: '/users' },
+    // { icon: <GroupRounded />, label: 'Users', path: '/users' },
     {
       icon: <LogoutRounded color="error" />,
       label: 'Logout',
