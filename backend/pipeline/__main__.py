@@ -96,7 +96,7 @@ def build(graph : Graph):
     for node_index in graph["parsing_order"]:
         node = nodes[node_index]
         mapping = mappings[node.node_id]
-
+        # TODO: only allow reduce nodes to be connected to group by nodes
         ## Note: VERY IMPORTANT, we are assuming that the edges array in the flowchart file provides dependencies in the order they are to be used
         ## i.e if node 3 requires node 1 as the first input and node 2 as the second input , then in the edges array in flowchart file
         ## (1,3) will come first then (2,3)
@@ -111,6 +111,8 @@ def build(graph : Graph):
         if table is None:
             continue
         node_outputs[node_index] = table
+        if isinstance(table,pw.GroupedTable):
+            continue
         ## Persist snapshot to postgres
         cols = table.schema.primary_key_columns() or []
         primary_keys = [get_col(table, col) for col in cols]
@@ -118,7 +120,7 @@ def build(graph : Graph):
             table = table.with_columns(
                 __row_id = pw.this.id
             )
-            primary_keys= [table.__row_id]
+            primary_keys= [table.__row_id]        
         pw.io.postgres.write(table, connection_string, f"{node.node_id}__{node_index}", output_table_type="snapshot", primary_key=primary_keys, init_mode="create_if_not_exists")
         
 
