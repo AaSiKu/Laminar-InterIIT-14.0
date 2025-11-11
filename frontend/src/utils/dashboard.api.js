@@ -50,7 +50,7 @@ export const fetchFileData = async (fileId) => {
         source: "1",
         sourceHandle: "out",
         target: "2",
-        targetHandle: "end",
+        targetHandle: "in_0",
         type: "smoothstep",
         animated: true,
       },
