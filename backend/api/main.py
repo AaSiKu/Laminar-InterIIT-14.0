@@ -267,10 +267,10 @@ async def run_pipeline_endpoint(request: PipelineIdRequest):
     Triggers a pipeline to run in its container.
     """
     pipeline = await workflow_collection.find_one({'_id': ObjectId(request.pipeline_id)})
-    if not pipeline or not pipeline.get('host_port'):
+    if not pipeline or not pipeline.get('pipeline_host_port'):
         raise HTTPException(status_code=404, detail="Pipeline not found or not running")
 
-    port = pipeline['host_port']
+    port = pipeline['pipeline_host_port']
     ip = pipeline['host_ip']
     url = f"http://{ip}:{port}/trigger"
     
@@ -292,10 +292,10 @@ async def stop_pipeline_endpoint(request: PipelineIdRequest):
     Stops a running pipeline in its container.
     """
     pipeline = await workflow_collection.find_one({'_id': ObjectId(request.pipeline_id)})
-    if not pipeline or not pipeline.get('host_port'):
+    if not pipeline or not pipeline.get('pipeline_host_port'):
         raise HTTPException(status_code=404, detail="Pipeline not found or not running")
 
-    port = pipeline['host_port']
+    port = pipeline['pipeline_host_port']
     ip = pipeline['host_ip']
     url = f"http://{ip}:{port}/stop"
     

@@ -11,7 +11,7 @@ export function useGlobalContext() {
 
 export const GlobalContextProvider = ({ children }) => {
   const [roll, setRoll] = useState(null);
-  const [currentPipelineId, setCurrentPipelineId] = useState(null);
+  const [currentPipelineId, setCurrentPipelineId] = useState("69138bfd2d5fe329d1dfe689");
   const [currentPipelineStatus, setCurrentPipelineStatus] = useState(true);
   const [currentNodes, setCurrentNodes] = useState([]);
   const [currentEdges, setCurrentEdges] = useState([]);
@@ -19,7 +19,7 @@ export const GlobalContextProvider = ({ children }) => {
   const { setViewport } = useReactFlow();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  const [containerId, setContainerId] = useState(null);
+  const [containerId, setContainerId] = useState('73b6fc3055a7f0e228ae2eff2dfa8e760d667cbe280af80cda189bf12faf69c2');
   const [dashboardSidebarOpen, setDashboardSidebarOpen] = useState(false);
   const {login, user, logout, isAuthenticated } = useContext(AuthContext);
   const [sidebarOpen, setSideBarOpen]= useState(false);

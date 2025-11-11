@@ -16,13 +16,20 @@ const stringifyJsonProperties = (properties) =>
     if (prop.type === "json" && typeof prop.value === "object") {
       return { ...prop, value: JSON.stringify(prop.value, null, 2) };
     }
+    else if(prop.type == "array"){
+      return {...prop, value: prop.value.join(',')}
+    }
     return prop;
   });
 
-const parseJsonProperties = (properties) =>
+const parseProperties = (properties) =>
   properties.map((prop) => {
     if (prop.type === "json") {
       return { ...prop, value: JSON.parse(prop.value) };
+    }
+    else if (prop.type === "array") {
+      console.log(prop.value.toString().split(","))
+      return {...prop, value: prop.value.toString().split(",")}
     }
     return prop;
   });
@@ -77,7 +84,7 @@ export const PropertyBar = ({
     }
 
     try {
-      const updatedProperties = parseJsonProperties(properties);
+      const updatedProperties = parseProperties(properties);
       onUpdateProperties(selectedNode.id, updatedProperties);
       setSnackbar({
         open: true,

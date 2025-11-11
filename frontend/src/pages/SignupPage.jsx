@@ -34,7 +34,7 @@ export default function SignupPage() {
     e.preventDefault();
     setError("");
     try {
-      const res = await fetch(`${API_SERVER}/auth/signup`, {
+      const res = await fetch(`${import.meta.env.VITE_API_SERVER}/auth/signup`, {
         method: "POST",
         mode: "cors",
         headers: { "Content-Type": "application/json" },
@@ -51,6 +51,7 @@ export default function SignupPage() {
         body: new URLSearchParams({ username: email, password }),
       });
       login(await loginRes.json());
+      navigate('/developer-dashboard')
     } catch (err) {
       setError(err.message);
     }
