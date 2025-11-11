@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useState } from "react";
 import { useReactFlow } from "@xyflow/react";
+import { AuthContext } from './AuthContext';
 
 const GlobalContext = createContext();
 
@@ -8,7 +9,6 @@ export function useGlobalContext() {
 }
 
 export const GlobalContextProvider = ({ children }) => {
-  const [user, setUser] = useState(null);
   const [roll, setRoll] = useState(null);
   const [currentPipelineId, setCurrentPipelineId] = useState(null);
   const [currentPipelineStatus, setCurrentPipelineStatus] = useState(true);
@@ -19,10 +19,15 @@ export const GlobalContextProvider = ({ children }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [containerId, setContainerId] = useState(null);
+  const [dashboardSidebarOpen, setDashboardSidebarOpen] = useState(false);
+  const {login, user, logout, isAuthenticated } = useContext(AuthContext);
+  const [sidebarOpen, setSideBarOpen]= useState(false);
+  const {fileStructure,setFileStructure}=useState({});
 
   const globalContextValue = {
     user,
     roll,
+    setRoll,
     currentPipelineId,
     setCurrentPipelineId,
     currentPipelineStatus,
@@ -40,6 +45,15 @@ export const GlobalContextProvider = ({ children }) => {
     setError,
     containerId,
     setContainerId,
+    dashboardSidebarOpen,
+    setDashboardSidebarOpen,
+    login,
+    isAuthenticated,
+    sidebarOpen,
+    setSideBarOpen,
+    fileStructure,
+    setFileStructure,
+    logout
   };
 
   return (

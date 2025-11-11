@@ -5,18 +5,21 @@ FROM python:3.12-slim
 WORKDIR /app
 
 # Copy project dependencies
-COPY pipeline/requirements.txt /app/requirements.txt
+COPY ./pipeline/requirements.txt /app/requirements.txt
 
 # Install Python dependencies (if file exists)
-RUN pip install --no-cache-dir -r requirements.txt || echo "No requirements.txt found"
+RUN pip install --no-cache-dir -r /app/requirements.txt
 
 # Copy source code
-COPY lib /app/lib
-COPY pipeline /app/pipeline
+COPY ./lib /app/lib
+COPY ./pipeline /app/pipeline
+COPY ./postgres_util.py /app/postgres_util.py
 
 # Move server.py to root of /app
 RUN mv /app/pipeline/server.py /app/server.py
+
 RUN mv /app/pipeline/.env /app/.env
+
 
 EXPOSE 8000
 # Default command to run FastAPI server

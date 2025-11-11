@@ -7,6 +7,8 @@ from contextlib import asynccontextmanager
 import uvicorn
 from dotenv import load_dotenv
 from bson import ObjectId
+from pydantic import BaseModel
+import csv
 
 load_dotenv()
 MONGO_URI = os.getenv("MONGO_URI")
@@ -16,6 +18,14 @@ MONGO_COLLECTION = os.getenv("MONGO_COLLECTION", "pipelines")
 mongo_client = None
 db = None
 collection = None
+
+PROMPTS_FILE = "prompts.csv"
+FLOWCHART_FILE = os.getenv("FLOWCHART_FILE", "flowchart.json")
+
+def create_prompts_file():
+    with open(PROMPTS_FILE, "w") as f:
+        f.write("")
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -77,9 +87,10 @@ async def trigger_pipeline(request: Request):
     """
     Webhook trigger endpoint.
     Reads the pipeline record with _id = PIPELINE_ID from MongoDB,
-    saves it as flowchart.json, and runs `python3 -m pipeline`.
+    saves it as FLOWCHART_FILE, and runs `python3 -m pipeline`.
     """
     pipeline_id = os.getenv("PIPELINE_ID")
+    create_prompts_file()
     if not pipeline_id:
         raise HTTPException(status_code=400, detail="PIPELINE_ID not set in environment")
 
@@ -88,14 +99,30 @@ async def trigger_pipeline(request: Request):
     if not record:
         raise HTTPException(status_code=404, detail=f"No pipeline found with id={pipeline_id}")
 
-    # Write flowchart.json
-    with open("flowchart.json", "w") as f:
+    # Write FLOWCHART_FILE
+    with open(FLOWCHART_FILE, "w") as f:
         json.dump(record["pipeline"], f, indent=2)
 
     # Run pipeline
     run_pipeline()
 
     return {"status": "started", "id": pipeline_id}
+
+class PromptIn(BaseModel):
+    prompt: str
+
+@app.post("/prompt")
+def prompt(body: PromptIn):
+    file_path = PROMPTS_FILE
+
+    # Append prompt to CSV (single column "prompts")
+    with open(file_path, "a", newline="") as f:
+        writer = csv.writer(f)
+        if f.tell() == 0:
+            writer.writerow(["prompt"])  # header only if file does not exist
+        writer.writerow([body.prompt])
+
+    return {"status": "ok", "saved": body.prompt}
 
 
 @app.post("/stop")
