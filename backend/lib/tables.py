@@ -33,24 +33,24 @@ class SortNode(TableNode):
 class WindowByNode(TemporalNode):
     n_inputs: Literal[1] = 1
     time_col: str
-    instance_col: Optional[int] = None
+    instance_col: Optional[str] = None
 
 class SlidingNode(WindowByNode):
     node_id: Literal["sliding"]
     origin: float | datetime | None
     hop: float | timedelta
-    duration: float | timedelta
+    duration: int | float | timedelta
 
 
 class TumblingNode(WindowByNode):
     node_id: Literal["tumbling"]
     origin: float | datetime | None
-    duration: float | timedelta
+    duration: int| float | timedelta
 
 
 class SessionNode(WindowByNode):
     node_id: Literal["session"]
-    max_gap: Optional[float | timedelta] = None
+    max_gap: Optional[int| float | timedelta] = None
 
 
 
@@ -117,8 +117,10 @@ class WindowJoinNode(TemporalJoinNode):
     window: Union[Session,Sliding,Tumbling]
 
 Reducer = Literal["any", "argmax", "argmin", "avg", "count", "count_distinct", "count_distinct_approximate", "earliest", "latest", "max", "min", "ndarray", "sorted_tuple", "stateful_many", "stateful_single", "sum", "tuple", "unique"]
-class Reduce(TableNode):
+class ReduceNode(TableNode):
     node_id: Literal["reduce"]
     # prev_col, reducer, new_col
     reducers: List[Tuple[str,Reducer,str]]
-    retain_columns: List[str]
+    retain_columns: Optional[List[str]]
+    retain_instance: Optional[bool] = False
+    n_inputs: Literal[1] = 1
