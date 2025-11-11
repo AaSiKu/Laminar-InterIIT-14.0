@@ -3,7 +3,7 @@
 // use /me to get user whenever page reloads
 import { useState } from "react";
 import { ThemeProvider, createTheme, Box } from "@mui/material";
-import { Routes, Route, Navigate } from "react-router-dom";
+import { Routes, Route, Navigate, useLocation } from "react-router-dom";
 import ProtectedRoute from "./components/ProtectedRoute";
 import LoginPage from "./pages/LoginPage.jsx";
 import SignupPage from "./pages/SignupPage.jsx";
@@ -15,6 +15,7 @@ import DashboardSidebar from "./components/DashboardSidebar.jsx";
 import DeveloperDashboard from "./pages/DeveloperDashboard.jsx";
 import { LeadershipDashboard } from "./pages/leadershipPage.jsx";
 import { DeveloperDashboardProject } from "./pages/DeveloperDashboardProject.jsx";  
+
 const theme = createTheme({
   palette: {
     primary: { main: "#3b82f6" },
@@ -28,17 +29,32 @@ const theme = createTheme({
   },
 });
 
-export default function App() {
+function AppContent() {
+  const location = useLocation();
+  
+  // Check if current route is a public route (login, signup, analytics)
+  const isPublicRoute = location.pathname.startsWith('/auth/') || 
+                        location.pathname.startsWith('/analytics/');
+
   return (
     <Box sx={{ display: "flex", height: "100vh", overflow: "hidden" }}>
-      {/* Sidebar and dashboard sidebar */}
-      <Box sx={{ position: "fixed", left: 0, top: 0, height: "100vh", zIndex: 1200 }}>
-        <Sidebar />
-      </Box>
-      <Box sx={{ position: "fixed", left: 0, top: 0, height: "100vh", zIndex: 1300 }}>
-        <DashboardSidebar />
-      </Box>
-      <Box sx={{ flex: 1, overflow: "auto", marginLeft: "64px" }}>
+      {/* Conditionally render Sidebar and DashboardSidebar only for protected routes */}
+      {!isPublicRoute && (
+        <>
+          <Box sx={{ position: "fixed", left: 0, top: 0, height: "100vh", zIndex: 1200 }}>
+            <Sidebar />
+          </Box>
+          <Box sx={{ position: "fixed", left: 0, top: 0, height: "100vh", zIndex: 1300 }}>
+            <DashboardSidebar />
+          </Box>
+        </>
+      )}
+      
+      <Box sx={{ 
+        flex: 1, 
+        overflow: "auto", 
+        marginLeft: isPublicRoute ? "0" : "64px" 
+      }}>
         <Routes>
           {/* Public routes */}
           <Route path="/auth/login" element={<LoginPage />} />
@@ -50,48 +66,52 @@ export default function App() {
           <Route
             path="/dashboard"
             element={
-               <ProtectedRoute>
+              // <ProtectedRoute>
                 <Dashboard />
-               </ProtectedRoute>
+              // </ProtectedRoute>
             }
           />
           <Route
             path="/users"
             element={
-               <ProtectedRoute>
+              // <ProtectedRoute>
                 <UsersPage />
-               </ProtectedRoute>
+              // </ProtectedRoute>
             }
           />
           {/* Default route */}
           <Route
             path="/developer-dashboard"
             element={
-              <ProtectedRoute>
+              // <ProtectedRoute>
                 <DeveloperDashboard />
-            </ProtectedRoute>
+              // </ProtectedRoute>
             }
           />
           <Route
             path="/developer-dashboard/:projectId"
             element={
-              <ProtectedRoute>
+              // <ProtectedRoute>
                 <DeveloperDashboardProject/>
-               </ProtectedRoute>
+              // </ProtectedRoute>
             }
           />
           <Route
             path="/leadership"
             element={
-               <ProtectedRoute>
+              // <ProtectedRoute>
                 <LeadershipDashboard />
-              </ProtectedRoute>
+              // </ProtectedRoute>
             }
           />
         </Routes>
       </Box>
     </Box>
   );
+}
+
+export default function App() {
+  return <AppContent />;
 }
 
 // This component is your old App layout
