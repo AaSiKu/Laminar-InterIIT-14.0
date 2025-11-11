@@ -1,4 +1,4 @@
-from typing import TypedDict, Callable, Any, List, Type, Literal, Union
+from typing import TypedDict, Callable, Any, List, Type, Literal, Union, Dict
 from lib.tables import JoinNode, AsofJoinNode, IntervalJoinNode, WindowJoinNode, AsofNowJoinNode
 from lib.alert import AlertNode
 import pathway as pw
@@ -26,6 +26,10 @@ agentic_url = os.getenv("AGENTIC_URL")
 
 # TODO: Handle datetime fields in table_schema for Input connectors
 
+def select_for_join(left: pw.Table, right: pw.Table, without1: List[str], without2: List[str], other_columns: List):
+    columns_1 = [get_col(left,col_name) for col_name in left.column_names() if col_name not in without1]
+    columns_2 = [get_col(right,col_name) for col_name in right.column_names() if col_name not in without2]
+    return columns_1 + columns_2 + other_columns
 
 # ---------------------------------------
 # MappingValues definition
@@ -337,7 +341,7 @@ input_connector_mappings = {
 
 # BUG: Cannot handle the case where the two tables each have one or more columns with the same name
     # POSSIBLE FIX: When this error arises, ask the user to rename one of the conflicting columns
-def _join(inputs: List[pw.Table],node: JoinNode) -> pw.Table:
+def _join(inputs: List[pw.Table],node: JoinNode) -> Dict[str,Any]:
     left,right = inputs
     expression = []
     for col1, col2 in node.on:
@@ -346,8 +350,8 @@ def _join(inputs: List[pw.Table],node: JoinNode) -> pw.Table:
         expression.append(col1==col2)
     how_map = { key: getattr(pw.JoinMode,key.upper()) for key in ["left","right","inner","outer"] }
     
-    without1 = [get_col(left,col1) for col1,_ in node.on]
-    without2 = [get_col(right,col2) for _,col2 in node.on]
+    without1 = [col1 for col1,_ in node.on]
+    without2 = [col2 for _,col2 in node.on]
 
     other_columns = []
 
@@ -357,13 +361,14 @@ def _join(inputs: List[pw.Table],node: JoinNode) -> pw.Table:
         else:
             other_columns.append(get_col(left,col1))
             other_columns.append(get_col(right,col2))
-    return {
-        how_map,
-        expression,
-        without1,
-        without2,
-        other_columns
+    return_val = {
+        'how_map': how_map,
+        "expression": expression,
+        "without1": without1,
+        "without2": without2,
+        "other_columns" : other_columns
     }
+    return return_val
     
 
 def asof_join(inputs: List[pw.Table],node: AsofJoinNode):
@@ -377,9 +382,14 @@ def asof_join(inputs: List[pw.Table],node: AsofJoinNode):
         how=params["how_map"][node.how],
         behaviour=node.behaviour
     ).select(
-        *left.without(params["without1"]),
-        *right.without(params["without2"]),
-        *params["other_columns"],
+        *select_for_join(
+            left,
+            right,
+            params["without1"] + [node.time_col1],
+            params["without2"] + [node.time_col2],
+            params["other_columns"]
+        ),
+        *([get_col(left,node.time_col1)] if node.time_col1 == node.time_col2 else [get_col(left,node.time_col1),get_col(right,node.time_col2)])
     )
 
 def interval_join(inputs: List[pw.Table],node: IntervalJoinNode):
@@ -393,15 +403,20 @@ def interval_join(inputs: List[pw.Table],node: IntervalJoinNode):
         *params["expression"],
         how=params["how_map"][node.how],
     ).select(
-        *left.without(params["without1"]),
-        *right.without(params["without2"]),
-        *params["other_columns"],
+       *select_for_join(
+            left,
+            right,
+            params["without1"] + [node.time_col1],
+            params["without2"] + [node.time_col2],
+            params["other_columns"]
+        ),
+        *([get_col(left,node.time_col1)] if node.time_col1 == node.time_col2 else [get_col(left,node.time_col1),get_col(right,node.time_col2)])
     )
 
 def window_join(inputs: List[pw.Table],node: WindowJoinNode):
     params = _join(inputs,node)
     left,right = inputs
-    kwargs = node.model_dump()
+    kwargs = node.model_dump()["window"]
     window_type = kwargs.pop("window_type")
     window = getattr(pw.temporal,window_type)(**kwargs)
     return left.window_join(
@@ -412,9 +427,14 @@ def window_join(inputs: List[pw.Table],node: WindowJoinNode):
         *params["expression"],
         how=params["how_map"][node.how],
     ).select(
-        *left.without(params["without1"]),
-        *right.without(params["without2"]),
-        *params["other_columns"],
+        *select_for_join(
+            left,
+            right,
+            params["without1"] + [node.time_col1],
+            params["without2"] + [node.time_col2],
+            params["other_columns"]
+        ),
+        *([get_col(left,node.time_col1)] if node.time_col1 == node.time_col2 else [get_col(left,node.time_col1),get_col(right,node.time_col2)])
     )
 
 def asof_now_join(inputs: List[pw.Table], node: AsofNowJoinNode):
@@ -427,9 +447,13 @@ def asof_now_join(inputs: List[pw.Table], node: AsofNowJoinNode):
         how=params["how_map"][node.how],
         id=join_id
     ).select(
-        *left.without(params["without1"]),
-        *right.without(params["without2"]),
-        *params["other_columns"],
+        *select_for_join(
+            left,
+            right,
+            params["without1"],
+            params["without2"],
+            params["other_columns"]
+        )
     )
 
 
@@ -441,9 +465,13 @@ def join(inputs: List[pw.Table], node: JoinNode):
         *params["expression"],
         how=params["how_map"][node.how],
     ).select(
-        *left.without(params["without1"]),
-        *right.without(params["without2"]),
-        *params["other_columns"],
+        *select_for_join(
+            left,
+            right,
+            params["without1"],
+            params["without2"],
+            params["other_columns"]
+        )
     )
 
 
@@ -520,11 +548,16 @@ table_mappings: dict[str, MappingValues] = {
         "node_fn": window_join,
     },
     "reduce": {
-        "node_fn": lambda inputs, node: inputs[0].reduce(**{
-            new_col: getattr(pw.reducers,reducer)(get_col(inputs[0],prev_col)) for prev_col,reducer,new_col in node.reducers
-        }, **{
-            col: get_this_col(inputs[0], col) for col in node.retain_columns
-        })
+        "node_fn": lambda inputs, node: inputs[0].reduce(
+            *([pw.this._pw_instance] if node.retain_instance else []),
+            **{
+                new_col: getattr(pw.reducers,reducer)(get_col(inputs[0],prev_col)) for prev_col,reducer,new_col in node.reducers
+            }, 
+            **{
+                col: get_this_col(col) for col in node.retain_columns
+            },
+
+        )
     }
 }
 
