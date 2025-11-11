@@ -50,42 +50,42 @@ export default function App() {
           <Route
             path="/dashboard"
             element={
-              // <ProtectedRoute>
+               <ProtectedRoute>
                 <Dashboard />
-              // </ProtectedRoute>
+               </ProtectedRoute>
             }
           />
           <Route
             path="/users"
             element={
-              // <ProtectedRoute>
+               <ProtectedRoute>
                 <UsersPage />
-              // </ProtectedRoute>
+               </ProtectedRoute>
             }
           />
           {/* Default route */}
           <Route
             path="/developer-dashboard"
             element={
-              // <ProtectedRoute>
+              <ProtectedRoute>
                 <DeveloperDashboard />
-            // </ProtectedRoute>
+            </ProtectedRoute>
             }
           />
           <Route
             path="/developer-dashboard/:projectId"
             element={
-              // <ProtectedRoute>
+              <ProtectedRoute>
                 <DeveloperDashboardProject/>
-              // </ProtectedRoute>
+               </ProtectedRoute>
             }
           />
           <Route
             path="/leadership"
             element={
-              // <ProtectedRoute>
+               <ProtectedRoute>
                 <LeadershipDashboard />
-              // </ProtectedRoute>
+              </ProtectedRoute>
             }
           />
         </Routes>
