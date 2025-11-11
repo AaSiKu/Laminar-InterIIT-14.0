@@ -4,7 +4,8 @@ deploy/pids
 __pycache__/
 rag/uploads
 flowchart.json
-output.log
+*.log
+prompts.csv
 .vscode
-
-venv/
+langchain-docs/
+*venv/
