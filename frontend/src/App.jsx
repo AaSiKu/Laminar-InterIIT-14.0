@@ -10,11 +10,12 @@ import SignupPage from "./pages/SignupPage.jsx";
 import UsersPage from "./pages/UsersPage.jsx";
 import AnalyticsPage from "./pages/AnalyticsPage.jsx";
 import Dashboard from "./pages/Dashboard.jsx";
-import Sidebar from "./components/sidebar.jsx";
+import Sidebar, { SIDEBAR_WIDTH } from "./components/sidebar.jsx";
 import DashboardSidebar from "./components/DashboardSidebar.jsx";
 import DeveloperDashboard from "./pages/DeveloperDashboard.jsx";
 import { LeadershipDashboard } from "./pages/leadershipPage.jsx";
-import { DeveloperDashboardProject } from "./pages/DeveloperDashboardProject.jsx";  
+import { DeveloperDashboardProject } from "./pages/DeveloperDashboardProject.jsx";
+import { useGlobalContext } from "./context/GlobalContext";
 const theme = createTheme({
   palette: {
     primary: { main: "#3b82f6" },
@@ -29,17 +30,28 @@ const theme = createTheme({
 });
 
 export default function App() {
+  const { sidebarOpen } = useGlobalContext();
+
   return (
-    <>
-      {/* Sidebar and dashboard sidebar */}
-      <Sidebar />
-      <DashboardSidebar />
-      <Routes>
-        {/* Public routes */}
-        <Route path="/auth/login" element={<LoginPage />} />
-        <Route path="/auth/signup" element={<SignupPage />} />
-        <Route path="/analytics/:flowId" element={<AnalyticsPage />} />
-        <Route path="/" element={<Navigate to="/dashboard" />} />
+    <ThemeProvider theme={theme}>
+      <Box sx={{ display: "flex", minHeight: "100vh", bgcolor: "background.default" }}>
+        <Sidebar />
+        <DashboardSidebar />
+
+        <Box
+          component="main"
+          sx={{
+            flexGrow: 1,
+            minHeight: "100vh",
+            bgcolor: "background.default",
+          }}
+        >
+          <Routes>
+            {/* Public routes */}
+            <Route path="/auth/login" element={<LoginPage />} />
+            <Route path="/auth/signup" element={<SignupPage />} />
+            <Route path="/analytics/:flowId" element={<AnalyticsPage />} />
+            <Route path="/" element={<Navigate to="/dashboard" />} />
 
         {/* Protected routes */}
         <Route
@@ -84,7 +96,9 @@ export default function App() {
           }
         />
       </Routes>
-    </>
+        </Box>
+      </Box>
+    </ThemeProvider>
   );
 }
 

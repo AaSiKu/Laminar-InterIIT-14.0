@@ -141,14 +141,24 @@ export const BaseNode = memo(
               if (prop.type === "str")
                 return (
                   <Typography
-                    key={idx}
+                    key={`${prop.label}-${idx}`}
                     variant="caption"
                     color="text.secondary"
                   >
                     {prop.label}: {prop.value}
                   </Typography>
                 );
-              else if (prop.type === "json") return <p>Json to be rendered</p>;
+              if (prop.type === "json")
+                return (
+                  <Typography
+                    key={`${prop.label}-${idx}`}
+                    variant="caption"
+                    color="text.secondary"
+                  >
+                    {prop.label}: JSON value
+                  </Typography>
+                );
+              return null;
             })}
           </Stack>
         )}

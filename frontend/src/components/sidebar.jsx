@@ -1,4 +1,4 @@
-import {useContext, useEffect } from 'react';
+import { useContext, useEffect } from 'react';
 import {
   Drawer,
   List,
@@ -6,21 +6,22 @@ import {
   ListItemButton,
   ListItemIcon,
   Tooltip,
-  Box,
   Divider,
 } from '@mui/material';
 import {
-  Home,
-  Dashboard as DashboardIcon,
-  People,
-  Settings,
-  BarChart,
-  Notifications,
-  PowerSettingsNew,
+  HomeRounded,
+  AccountTreeRounded,
+  GroupRounded,
+  QueryStatsRounded,
+  TerminalRounded,
+  WorkspacePremiumRounded,
+  LogoutRounded,
 } from '@mui/icons-material';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
 import { useGlobalContext } from '../context/GlobalContext';
+
+export const SIDEBAR_WIDTH = 64;
 
 const Sidebar = () => {
   const navigate = useNavigate();
@@ -42,29 +43,31 @@ const Sidebar = () => {
   }, [location.pathname, setSideBarOpen, isAuthenticated, navigate]);
 
   const menuItems = [
-    { icon: <Home />, label: 'Home', path: '/' },
-    { icon: <DashboardIcon />, label: 'Dashboard', path: '/dashboard', onClickExtra: () => setDashboardSidebarOpen(!dashboardSidebarOpen) },
-    { icon: <People />, label: 'Users', path: '/users' },
-    { icon: <BarChart />, label: 'Analytics', path: '/analytics' },
-    { icon: <Notifications />, label: 'Notifications', path: '/developer-dashboard' },
-    { icon: <Settings />, label: 'Settings', path: '/leadership' },
+    { icon: <TerminalRounded />, label: 'Developer Hub', path: '/developer-dashboard' },
     {
-      icon: <PowerSettingsNew color="error" />,
+      icon: <AccountTreeRounded />,
+      label: 'Pipelines',
+      path: '/dashboard',
+      onClickExtra: () => setDashboardSidebarOpen(!dashboardSidebarOpen),
+    },
+    { icon: <WorkspacePremiumRounded />, label: 'Admin Dashboard', path: '/leadership' },
+    { icon: <QueryStatsRounded />, label: 'Analytics', path: '/analytics' },
+    { icon: <GroupRounded />, label: 'Users', path: '/users' },
+    {
+      icon: <LogoutRounded color="error" />,
       label: 'Logout',
       onClick: logout,
     },
   ];
 
-  const collapsedWidth = 64;
-
   return sidebarOpen ? (
     <Drawer
       variant="permanent"
       sx={{
-        width: collapsedWidth,
+        width: SIDEBAR_WIDTH,
         flexShrink: 0,
         '& .MuiDrawer-paper': {
-          width: collapsedWidth,
+          width: SIDEBAR_WIDTH,
           boxSizing: 'border-box',
           overflowX: 'hidden',
           backgroundColor: '#fff',

@@ -49,33 +49,78 @@ export const generateNode = (schema, nodes) => {
   return node;
 };
 
-const addNodeType = (schema) => {
+export const addNodeType = (schema) => {
   const type = schema.properties.node_id.const;
 
   nodeTypes[type] = (props) => {
     const { id, data, selected } = props;
 
     const nInputs = schema.properties.n_inputs?.const || 0;
-    const categoryColor = hashColor(schema.properties.category.const=="io"? (schema.properties.n_inputs.const? "output":"input"):schema.properties.category.const);
+    const categoryColor = hashColor(
+      schema.properties.category.const == "io"
+        ? schema.properties.n_inputs.const
+          ? "output"
+          : "input"
+        : schema.properties.category.const
+    );
+
+    const statusStyles = {
+      complete: {
+        borderColor: "#22c55e",
+        bgColor: "#ecfdf5",
+        hoverBgColor: "#d1fae5",
+        color: "#15803d",
+      },
+      incomplete: {
+        borderColor: "#f97316",
+        bgColor: "#fff7ed",
+        hoverBgColor: "#fed7aa",
+        color: "#c2410c",
+      },
+      unvisited: {
+        borderColor: "#ef4444",
+        bgColor: "#fee2e2",
+        hoverBgColor: "#fecaca",
+        color: "#b91c1c",
+      },
+      error: {
+        borderColor: "#ef4444",
+        bgColor: "#fee2e2",
+        hoverBgColor: "#fecaca",
+        color: "#b91c1c",
+      },
+    };
+
+    const defaultStyles = {
+      bgColor: categoryColor + "20",
+      hoverBgColor: categoryColor + "35",
+      color: categoryColor,
+      borderColor: categoryColor,
+    };
+
+    const mergedStyles =
+      (data?.status && statusStyles[data.status]) || defaultStyles;
 
     return (
       <BaseNode
         id={id}
         data={data}
         selected={selected}
-        styles={{
-          bgColor: categoryColor + "20",   // translucent fill
-          hoverBgColor: categoryColor + "35",
-          color: categoryColor,            // text color
-          borderColor: categoryColor, 
-        }}
-        inputs={nInputs > 0 ? Array.from({ length: nInputs }).map((_, i) => ({
-          id: `in_${i}`,
-          color: "#9E9E9E",
-        })) : []}
-        outputs={((schema.properties.category?.const=="io") && (schema.properties.n_inputs?.const==1))?[]:[
-          { id: "out", color: "#4CAF50" }, // Green
-        ]}
+        styles={mergedStyles}
+        inputs={
+          nInputs > 0
+            ? Array.from({ length: nInputs }).map((_, i) => ({
+                id: `in_${i}`,
+                color: "#9E9E9E",
+              }))
+            : []
+        }
+        outputs={
+          schema.properties.category?.const == "io" &&
+          schema.properties.n_inputs?.const == 1
+            ? []
+            : [{ id: "out", color: "#4CAF50" }]
+        }
         properties={data.properties}
       />
     );
