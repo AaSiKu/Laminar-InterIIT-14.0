@@ -8,6 +8,7 @@ export default function SignupPage() {
   const [password, setPassword] = useState("");
   const [fullName, setFullName] = useState("");
   const [error, setError] = useState("");
+  const API_SERVER = import.meta.env.VITE_API_SERVER;
 
   if (isAuthenticated) return <Typography sx={{ mt: 10, textAlign: "center" }}>Already logged in</Typography>;
 
@@ -15,7 +16,7 @@ export default function SignupPage() {
     e.preventDefault();
     setError("");
     try {
-      const res = await fetch("http://localhost:8000/auth/signup", {
+      const res = await fetch(`${API_SERVER}/auth/signup`, {
         method: "POST",
         mode: "cors",
         headers: { "Content-Type": "application/json" },
@@ -26,7 +27,7 @@ export default function SignupPage() {
       if (!res.ok) throw new Error(data.detail || JSON.stringify(data));
 
       // Auto-login after signup
-      const loginRes = await fetch("http://localhost:8000/auth/login", {
+      const loginRes = await fetch(`${API_SERVER}/auth/login`, {
         method: "POST",
         headers: { "Content-Type": "application/x-www-form-urlencoded" },
         body: new URLSearchParams({ username: email, password }),
