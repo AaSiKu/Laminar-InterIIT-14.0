@@ -7,8 +7,5 @@ flowchart.json
 *.log
 prompts.csv
 .vscode
-venv
-
 langchain-docs/
-
 *venv/

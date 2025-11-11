@@ -1,18 +1,19 @@
 import logging
-import sys, os
-import subprocess
+import os
 from dotenv import load_dotenv
 from motor.motor_asyncio import AsyncIOMotorClient
 from bson.objectid import ObjectId
-from fastapi import FastAPI, Request, status, HTTPException, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, Request, status, HTTPException, WebSocket, WebSocketDisconnect, Depends
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware 
+from fastapi.security import OAuth2PasswordBearer
 from typing import Any, Dict, Union, Optional, Type
 from pydantic import BaseModel
 from contextlib import asynccontextmanager
 import inspect
 import docker
 import logging
+from jose import JWTError, jwt
 import httpx
 import socket
 import json
@@ -24,6 +25,8 @@ from backend.api.dockerScript import (
 from aiokafka import AIOKafkaConsumer
 
 
+from backend.auth.routes import router as auth_router
+from backend.auth.routes import get_current_user
 
 configure_root()
 logger = get_logger(__name__)
@@ -40,6 +43,7 @@ USER_COLLECTION = os.getenv("USER_COLLECTION", "users")
 mongo_client = None
 db = None
 workflow_collection = None
+user_collection = None
 docker_client = None
 NODES: Dict[str, BaseModel] = node_map
 
@@ -57,8 +61,17 @@ async def lifespan(app: FastAPI):
     user_collection = db[USER_COLLECTION]
     print(f"Connected to MongoDB at {MONGO_URI}, DB: {MONGO_DB}", flush=True)
 
+    app.state.user_collection = user_collection
+    app.state.secret_key = os.getenv("SECRET_KEY")
+    app.state.algorithm = os.getenv("ALGORITHM", "HS256")
+    app.state.access_token_expire_minutes = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", 60))
+    app.state.revoked_tokens = set()
+    app.state.refresh_token_expire_minutes = int(os.getenv("REFRESH_TOKEN_EXPIRE_MINUTES", 43200))  # default 30 days
+
+
+
     docker_client = docker.from_env()
-    print(f"Connected to docker demon")
+    print(f"Connected to docker daemon")
 
     yield
 
@@ -74,6 +87,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(title="Pipeline API", lifespan=lifespan)
 origins = [
     # TODO: Add final domain, port here
+    "http://localhost:4173",
     "http://localhost",
     "http://localhost:5173",
     "http://localhost:8083"
@@ -86,7 +100,11 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# ----- Helper functions ------- #
+
+# ---------------- AUTH HELPERS ---------------- #
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
+
+# ---------------- HELPER FUNCTIONS ---------------- #
 def get_base_pydantic_model(model_class: type) -> type:
     """
     Traverses the Method Resolution Order (MRO) of a class to find the first
@@ -239,6 +257,9 @@ async def docker_spindown(request: PipelineIdRequest):
     except Exception as exc:
         logger.error(f"Spindown failed for '{request.pipeline_id}': {exc}")
         return JSONResponse({"error": str(exc)}, status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    
+# Include the modular auth router
+app.include_router(auth_router, prefix="/auth", tags=["auth"])
 
 @app.post("/run")
 async def run_pipeline_endpoint(request: PipelineIdRequest):
@@ -290,56 +311,111 @@ async def stop_pipeline_endpoint(request: PipelineIdRequest):
         except httpx.RequestError as exc:
             raise HTTPException(status_code=500, detail=f"Failed to stop pipeline: {exc}")
 
+
 # ------- User Actions on Workflow --------- #
 
 class Graph(BaseModel):
-    pipeline_id: Optional[str]
+    pipeline_id: Optional[str] = None
     path: str
     pipeline: Any
 
 @app.post("/save")
-async def save(data: Graph):
+async def save_graph(
+    data: Graph,
+    current_user: dict = Depends(get_current_user)
+):
     """
-    Saves the workflow to pipline db
+    Saves a workflow graph to the pipeline database, linked to the current user.
     """
     try:
+        user_identifier = str(current_user["_id"])
+        print(f"Saving pipeline for user: {user_identifier}", flush=True)
+        print(f"Pipeline ID: {data.pipeline_id}", flush=True)
+        
+        # If pipeline_id exists, try to update
         if data.pipeline_id:
-            result = await workflow_collection.update_one(
-                {'_id': ObjectId(data.pipeline_id)},
-                {
-                    '$set':{
-                        'path': data.path,
-                        'pipeline': data.pipeline 
-                    }
-                }
-            )
-            return {"message": "successfully updated pipeline"}
-        else:
-            result = await  workflow_collection.insert_one({
-                # TODO: set the remaining fields
-                'user': 'TODO: later save from the auth token extraction',
-                'path': data.path,
-                'pipeline': data.pipeline,
-                'container_id': "",
-                'host_port': "",
-                'host_ip': "",
-                'status': False
+            try:
+                existing = await workflow_collection.find_one({
+                    '_id': ObjectId(data.pipeline_id),
+                    'user': user_identifier
                 })
-            return {"message": "Saved successfully", "id": str(result.inserted_id)}
+            except Exception as e:
+                print(f"Error finding pipeline: {e}", flush=True)
+                existing = None
+            
+            if existing:
+                # Pipeline exists - update it
+                result = await workflow_collection.update_one(
+                    {'_id': ObjectId(data.pipeline_id)},
+                    {
+                        '$set': {
+                            "path": data.path,
+                            "pipeline": data.pipeline,
+                        }
+                    }
+                )
+                
+                print(f"Updated pipeline: {data.pipeline_id}, matched: {result.matched_count}, modified: {result.modified_count}", flush=True)
+                
+                return {
+                    "message": "Updated successfully",
+                    "id": data.pipeline_id,
+                    "user": user_identifier
+                }
+        
+        # If we reach here, either no pipeline_id was provided or it didn't exist
+        # Create new pipeline
+        print(f"Creating new pipeline", flush=True)
+        doc = {
+            "user": user_identifier,
+            "path": data.path,
+            "pipeline": data.pipeline,
+            "container_id": "",
+            "host_port": "",
+            "host_ip": "",
+            "status": False
+        }
+        result = await workflow_collection.insert_one(doc)
+        
+        if not result.inserted_id:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Failed to insert pipeline"
+            )
+        
+        inserted_id = str(result.inserted_id)
+        print(f"Inserted new pipeline: {inserted_id}", flush=True)
+        
+        return {
+            "message": "Saved successfully",
+            "id": inserted_id,
+            "user": user_identifier
+        }
+
+    except HTTPException:
+        raise
     except Exception as e:
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
+        logger.error(f"Save error: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Database error: {str(e)}"
+        )
 
 
 @app.post("/retrieve")
 async def retrieve(data: PipelineIdRequest):
     """
-    Retrieve back the workflow json form mongo
+    Retrieve back the workflow json from mongo
     """
     try:
         result = await workflow_collection.find_one({'_id': ObjectId(data.pipeline_id)})
+        if not result:
+            raise HTTPException(status_code=404, detail="Pipeline not found")
+        
         result['_id'] = str(result['_id'])
         return {"message": "Pipeline data retrieved successfully", **result}
     except Exception as e:
+        logger.error(f"Retrieve error: {e}")
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
     
 

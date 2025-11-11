@@ -1,21 +1,46 @@
-async function savePipelineAPI(flow, currentPipelineId, path) {
-  const res = await fetch(`${import.meta.env.VITE_API_SERVER}/save`, {
-    method: "POST",
-    credentials: "include",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      pipeline_id: currentPipelineId,
-      path: path || "/",
-      pipeline: flow,
-    }),
-  });
-  if (!res.ok) {
-    throw new Error( `Unable to save file, statusCode: ${res.status}`);
+
+const savePipelineAPI = async (path,rfInstance,currentPipelineId,setCurrentPipelineId,setLoading,setError) => {
+
+  if (!rfInstance) return;
+
+  setLoading(true);
+  setError(null);
+
+  try {
+    const flow = rfInstance.toObject();
+
+    const response = await fetch("http://localhost:8000/save", {
+      method: "POST",
+      credentials: "include", 
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        pipeline_id: currentPipelineId,
+        path: path || "",
+        pipeline: flow,
+      }),
+    });
+
+    if (!response.ok) {
+      const errText = await response.text();
+      throw new Error(`Failed to save pipeline: ${errText || response.status}`);
+    }
+
+    const data = await response.json();
+
+    if (!currentPipelineId && data.id) {
+      setCurrentPipelineId(data.id);
+    }
+
+    console.log("Pipeline saved successfully:", data);
+  } catch (err) {
+    console.error("Save failed:", err);
+    setError(err.message);
+  } finally {
+    setLoading(false);
   }
-  return await res.json();
-}
+};
 
 async function fetchAndSetPipeline(id, setters) {
   const {
