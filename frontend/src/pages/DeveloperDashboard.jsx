@@ -429,16 +429,6 @@ const workflowBlueprint = {
               "label": "right_exactly_once",
               "value": null,
               "type": "null"
-            },
-            {
-              "label": "time_col1",
-              "value": "",
-              "type": "str"
-            },
-            {
-              "label": "time_col2",
-              "value": "",
-              "type": "str"
             }
           ]
         },
@@ -695,7 +685,7 @@ const workflowBlueprint = {
   "host_port": "",
   "host_ip": "",
   "status": false
-}
+}["pipeline"]
 
 const TabPanel = (props) => {
   const { children, value, index, ...other } = props;

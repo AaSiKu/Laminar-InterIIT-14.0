@@ -15,7 +15,7 @@ const JsonInput = ({ label, value, onChange }) => (
   />
 );
 
-const DefaultInput = ({ label, value, onChange }) => (
+const DefaultInput = ({ label, value, onChange, required = true}) => (
   <TextField
     label={label}
     value={value}
@@ -23,10 +23,11 @@ const DefaultInput = ({ label, value, onChange }) => (
     fullWidth
     variant="outlined"
     size="small"
+    required={required}
   />
 );
 
-export const PropertyInput = ({ property, onChange }) => {
+export const PropertyInput = ({ property, onChange, required=true }) => {
   switch (property.type) {
     case "json":
       return (
@@ -34,6 +35,7 @@ export const PropertyInput = ({ property, onChange }) => {
           label={property.label}
           value={property.value}
           onChange={onChange}
+          required={required}
         />
       );
     default:
@@ -42,6 +44,7 @@ export const PropertyInput = ({ property, onChange }) => {
           label={property.label}
           value={property.value}
           onChange={onChange}
+          required={required}
         />
       );
   }
