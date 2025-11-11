@@ -4,7 +4,84 @@ import TemplateSection from '../components/dashboard/TemplateSection';
 import WorkflowsTable from '../components/dashboard/WorkflowsTable';
 import NotificationsList from '../components/dashboard/NotificationsList';
 import { fetchTemplates, fetchWorkflows, fetchNotifications } from '../utils/developerDashboard.api';
+import { useNavigate } from "react-router-dom";
 
+
+const workflowBlueprint = 
+{
+  "name": "LinkedIn Profile Maker",
+  "nodes": [
+    {
+      "id": "1",
+      "type": "input",
+      "position": { "x": 250, "y": 50 },
+      "node_id": "http",
+      "category": "io",
+      "data": {
+        "ui": { "label": "Start Node", "iconUrl": "ABC" },
+        "properties": [
+          {
+            "label": "url",
+            "value": "http://localhost:8000/stream-users",
+            "type": "str"
+          },
+          {
+            "label": "method",
+            "value": "GET",
+            "type": "str"
+          },
+          { "label": "format", "value": "json", "type": "str" },
+          {
+            "label": "table_schema",
+            "value": {
+              "user_id": "str",
+              "email": "str",
+              "name": "str",
+              "job": "str"
+            },
+            "type": "json"
+          }
+        ]
+      }
+    },
+    {
+      "id": "2",
+      "type": "output",
+      "position": { "x": 250, "y": 500 },
+      "node_id": "jsonlines_write",
+      "category": "io",
+      "data": {
+        "ui": { "label": "End Node", "iconUrl": "ABC" },
+        "properties": [
+          { "label": "filename", "value": "output.log", "type": "str" }
+        ]
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e1-2",
+      "source": "1",
+      "sourceHandle": "out",
+      "target": "2",
+      "targetHandle": "in_0",
+      "type": "smoothstep",
+      "animated": true
+    }
+  ],
+  "agents" : [
+    {
+      "name": "LinkedIn Profile Agent",
+      "master_prompt" : "You are a linkedin profile agent that makes a professional LinkedIn Bio of a person with their name, email, job",
+      "description": "Makes a professional LinkedIn Bio of a person who just newly created their account given their name, email, job. Only call this once and be happy with the results",
+      "tools" : []
+    }
+  ],
+  "triggers": [
+    0
+  ]
+
+}
 
 const TabPanel = (props) => {
   const { children, value, index, ...other } = props;
@@ -26,6 +103,7 @@ const TabPanel = (props) => {
 };
 
 const DeveloperDashboard = () => {
+  const navigate = useNavigate();
   const [templates, setTemplates] = useState([]);
   const [workflows, setWorkflows] = useState([]);
   const [notifications, setNotifications] = useState([]);
@@ -51,6 +129,21 @@ const DeveloperDashboard = () => {
   const handleTabChange = (event, newValue) => {
     setCurrentTab(newValue);
   };
+
+  const handleSelectTemplate = useCallback(
+    (templateId) => {
+      if (!templateId) return;
+      const randomSuffix =
+        typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
+          ? crypto.randomUUID()
+          : Math.random().toString(36).slice(2, 10);
+      const projectId = `${templateId}-${randomSuffix}`;
+      navigate(`/developer-dashboard/${projectId}`, {
+        state: { templateId, workflowBlueprint },
+      });
+    },
+    [navigate, workflowBlueprint]
+  );
 
   return (
     <Box sx={{ 

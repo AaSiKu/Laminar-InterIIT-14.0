@@ -52,7 +52,7 @@ export const generateNode = (schema, nodes) => {
   return node;
 };
 
-const addNodeType = (schema) => {
+export const addNodeType = (schema) => {
   const type = schema.properties.node_id.const;
 
   nodeTypes[type] = (props) => {
@@ -66,7 +66,43 @@ const addNodeType = (schema) => {
           : "input"
         : schema.properties.category.const
     );
-    console.log(type)
+
+    const statusStyles = {
+      complete: {
+        borderColor: "#22c55e",
+        bgColor: "#ecfdf5",
+        hoverBgColor: "#d1fae5",
+        color: "#15803d",
+      },
+      incomplete: {
+        borderColor: "#f97316",
+        bgColor: "#fff7ed",
+        hoverBgColor: "#fed7aa",
+        color: "#c2410c",
+      },
+      unvisited: {
+        borderColor: "#ef4444",
+        bgColor: "#fee2e2",
+        hoverBgColor: "#fecaca",
+        color: "#b91c1c",
+      },
+      error: {
+        borderColor: "#ef4444",
+        bgColor: "#fee2e2",
+        hoverBgColor: "#fecaca",
+        color: "#b91c1c",
+      },
+    };
+
+    const defaultStyles = {
+      bgColor: categoryColor + "20",
+      hoverBgColor: categoryColor + "35",
+      color: categoryColor,
+      borderColor: categoryColor,
+    };
+
+    const mergedStyles =
+      (data?.status && statusStyles[data.status]) || defaultStyles;
 
     return (
       <BaseNode

@@ -222,7 +222,7 @@ export default function AnalyticsPage() {
             Flow Analytics {flowId && `(ID: ${flowId.slice(0, 8)}...)`}
           </Typography>
           <IconButton
-            edge="end"
+            edge="in_0"
             color="inherit"
             onClick={handleClose}
             aria-label="close"
