@@ -1,14 +1,8 @@
-import { InNode } from "../components/NodeTypes/InNode";
-import { OutNode } from "../components/NodeTypes/OutNode";
-import { ProcessXNode } from "../components/NodeTypes/ProcessXNode";
-import { DecisionNode } from "../components/NodeTypes/DecisionNode";
-export const nodeTypes = {
-  in: InNode,
-  out: OutNode,
-  processX: ProcessXNode,
-  decision: DecisionNode,
-  output: OutNode,
-};
+import { BaseNode } from "../components/BaseNode";
+
+// TODO: As the nodeTypes is a in memory, it is lost when i leave the page for some time,
+// hence the ui resets to simple rectangle box
+export const nodeTypes = {};
 
 export const generateNode = (schema, nodes) => {
   const props = schema.properties;
@@ -41,13 +35,119 @@ export const generateNode = (schema, nodes) => {
     properties,
   };
 
+  const type = schema.properties.node_id.const;
+
+  if (!nodeTypes[type]) addNodeType(schema);
+
+  // TODO: Random position to better method
   const node = {
     id: `n${nodes.length + 1}`,
-    type: schema.properties.n_inputs.const ? "out" : "in",
+    type: type,
     position: { x: Math.random() * 300, y: Math.random() * 300 },
     node_id: schema.properties.node_id.const,
     category: schema.properties.category.const,
     data,
   };
+
   return node;
+};
+
+export const addNodeType = (schema) => {
+  const type = schema.properties.node_id.const;
+
+  nodeTypes[type] = (props) => {
+    const { id, data, selected } = props;
+
+    const nInputs = schema.properties.n_inputs?.const || 0;
+    const categoryColor = hashColor(
+      schema.properties.category.const == "io"
+        ? schema.properties.n_inputs.const
+          ? "output"
+          : "input"
+        : schema.properties.category.const
+    );
+
+    const statusStyles = {
+      complete: {
+        borderColor: "#22c55e",
+        bgColor: "#ecfdf5",
+        hoverBgColor: "#d1fae5",
+        color: "#15803d",
+      },
+      incomplete: {
+        borderColor: "#f97316",
+        bgColor: "#fff7ed",
+        hoverBgColor: "#fed7aa",
+        color: "#c2410c",
+      },
+      unvisited: {
+        borderColor: "#ef4444",
+        bgColor: "#fee2e2",
+        hoverBgColor: "#fecaca",
+        color: "#b91c1c",
+      },
+      error: {
+        borderColor: "#ef4444",
+        bgColor: "#fee2e2",
+        hoverBgColor: "#fecaca",
+        color: "#b91c1c",
+      },
+    };
+
+    const defaultStyles = {
+      bgColor: categoryColor + "20",
+      hoverBgColor: categoryColor + "35",
+      color: categoryColor,
+      borderColor: categoryColor,
+    };
+
+    const mergedStyles =
+      (data?.status && statusStyles[data.status]) || defaultStyles;
+
+    return (
+      <BaseNode
+        id={id}
+        data={data}
+        selected={selected}
+        styles={{
+          bgColor: categoryColor + "20", // translucent fill
+          hoverBgColor: categoryColor + "35",
+          color: categoryColor, // text color
+          borderColor: categoryColor,
+        }}
+        inputs={
+          nInputs > 0
+            ? Array.from({ length: nInputs }).map((_, i) => ({
+                id: `in_${i}`,
+                color: "#9E9E9E",
+              }))
+            : []
+        }
+        outputs={
+          ["io", "action"].includes(schema.properties.category?.const) &&
+          schema.properties.n_inputs?.const == 1
+            ? []
+            : [
+                { id: "out", color: "#4CAF50" }, // Green
+              ]
+        }
+        properties={data.properties}
+      />
+    );
+  };
+};
+
+const hashColor = (str) => {
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) {
+    hash = str.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  return `#${((hash >> 24) & 0xff).toString(16).padStart(2, "0")}${(
+    (hash >> 16) &
+    0xff
+  )
+    .toString(16)
+    .padStart(2, "0")}${((hash >> 8) & 0xff)
+    .toString(16)
+    .padStart(2, "0")}`.slice(0, 7);
 };

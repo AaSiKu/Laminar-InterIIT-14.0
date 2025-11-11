@@ -1,20 +1,21 @@
-import { useState} from "react";
+//TODO: Add a loading state to the app
+//TODO: Add the use notification hook to the app and add to the notification in developer dashboard 
+// use /me to get user whenever page reloads
+import { useState } from "react";
 import { ThemeProvider, createTheme, Box } from "@mui/material";
-import {
-  Routes,
-  Route,
-  Navigate,
-} from "react-router-dom";
+import { Routes, Route, Navigate, useLocation } from "react-router-dom";
 import ProtectedRoute from "./components/ProtectedRoute";
 import LoginPage from "./pages/LoginPage.jsx";
 import SignupPage from "./pages/SignupPage.jsx";
 import UsersPage from "./pages/UsersPage.jsx";
 import AnalyticsPage from "./pages/AnalyticsPage.jsx";
 import Dashboard from "./pages/Dashboard.jsx";
-import Sidebar from "./components/sidebar.jsx";
+import Sidebar, { SIDEBAR_WIDTH } from "./components/sidebar.jsx";
 import DashboardSidebar from "./components/DashboardSidebar.jsx";
 import DeveloperDashboard from "./pages/DeveloperDashboard.jsx";
-
+import { LeadershipDashboard } from "./pages/leadershipPage.jsx";
+import { DeveloperDashboardProject } from "./pages/DeveloperDashboardProject.jsx";  
+import { useGlobalContext } from "./context/GlobalContext";
 const theme = createTheme({
   palette: {
     primary: { main: "#3b82f6" },
@@ -28,87 +29,89 @@ const theme = createTheme({
   },
 });
 
-// --- FileStructure (as you provided) ---
-const fileStructure = [
-  {
-    name: "src",
-    type: "folder",
-    id: "123",
-    children: [
-      {
-        name: "components",
-        type: "folder",
-        id: "1234",
-        children: [
-          { name: "Header.jsx", type: "file", id: "124" },
-          { name: "Footer.jsx", type: "file", id: "234" },
-        ],
-      },
-      {
-        name: "pages",
-        type: "folder",
-        id: "2345",
-        children: [
-          { name: "Home.jsx", type: "file", id: "3458" },
-          { name: "About.jsx", type: "file", id: "3456" },
-        ],
-      },
-      { name: "App.jsx", type: "file", id: "4567548" },
-    ],
-  },
-  {
-    name: "public",
-    type: "folder",
-    id: "35786",
-    children: [{ name: "index.html", type: "file", id: "6345" }],
-  },
-  { name: "package.json", type: "file" },
-  { name: "README.md", type: "file" },
-];
+function AppContent() {
+  const location = useLocation();
+  
+  // Check if current route is a public route (login, signup, analytics)
+  const isPublicRoute = location.pathname.startsWith('/auth/') || 
+                        location.pathname.startsWith('/analytics/');
+
+  return (
+    <Box sx={{ display: "flex", height: "100vh", overflow: "hidden" }}>
+      {/* Conditionally render Sidebar and DashboardSidebar only for protected routes */}
+      {!isPublicRoute && (
+        <>
+          <Box sx={{ position: "fixed", left: 0, top: 0, height: "100vh", zIndex: 1200 }}>
+            <Sidebar />
+          </Box>
+          <Box sx={{ position: "fixed", left: 0, top: 0, height: "100vh", zIndex: 1300 }}>
+            <DashboardSidebar />
+          </Box>
+        </>
+      )}
+      
+      <Box sx={{ 
+        flex: 1, 
+        overflow: "auto", 
+        marginLeft: isPublicRoute ? "0" : "64px" 
+      }}>
+        <Routes>
+          {/* Public routes */}
+          <Route path="/auth/login" element={<LoginPage />} />
+          <Route path="/auth/signup" element={<SignupPage />} />
+          <Route path="/analytics/:flowId" element={<AnalyticsPage />} />
+          <Route path="/" element={<Navigate to="/dashboard" />} />
+
+          {/* Protected routes */}
+          <Route
+            path="/dashboard"
+            element={
+              <ProtectedRoute>
+                <Dashboard />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/users"
+            element={
+              <ProtectedRoute>
+                <UsersPage />
+              </ProtectedRoute>
+            }
+          />
+          {/* Default route */}
+          <Route
+            path="/developer-dashboard"
+            element={
+              <ProtectedRoute>
+                <DeveloperDashboard />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/developer-dashboard/:projectId"
+            element={
+              <ProtectedRoute>
+                <DeveloperDashboardProject/>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/leadership"
+            element={
+              <ProtectedRoute>
+                <LeadershipDashboard />
+              </ProtectedRoute>
+            }
+          />
+        </Routes>
+      </Box>
+    </Box>
+  );
+}
 
 export default function App() {
-  return (
-    <>
-      {/* Sidebar and dashboard sidebar */}
-      <Sidebar />
-      <DashboardSidebar />
-      <Routes>
-        {/* Public routes */}
-        <Route path="/auth/login" element={<LoginPage />} />
-        <Route path="/auth/signup" element={<SignupPage />} />
-        <Route path="/analytics/:flowId" element={<AnalyticsPage />} />
-        <Route path="/" element={<Navigate to="/dashboard" />} />
-
-        {/* Protected routes */}
-        <Route
-          path="/dashboard"
-          element={
-            <ProtectedRoute>
-              <Dashboard />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/users"
-          element={
-            <ProtectedRoute>
-              <UsersPage />
-            </ProtectedRoute>
-          }
-        />
-
-        {/* Default route */}
-        <Route
-          path="/developer-dashboard"
-          element={
-            <ProtectedRoute>
-              <DeveloperDashboard />
-            </ProtectedRoute>
-          }
-        />
-      </Routes>
-    </>
-  );
+  return <AppContent />;
 }
 
 // This component is your old App layout

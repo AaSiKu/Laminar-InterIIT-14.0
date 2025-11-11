@@ -3,23 +3,28 @@ import os
 from dotenv import load_dotenv
 from motor.motor_asyncio import AsyncIOMotorClient
 from bson.objectid import ObjectId
-from fastapi import FastAPI, Request, status, HTTPException, Depends
+from fastapi import FastAPI, Request, status, HTTPException, WebSocket, WebSocketDisconnect, Depends
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware 
 from fastapi.security import OAuth2PasswordBearer
 from typing import Any, Dict, Union, Optional, Type
-import inspect
 from pydantic import BaseModel
 from contextlib import asynccontextmanager
+import inspect
 import docker
+import logging
 from jose import JWTError, jwt
 import httpx
 import socket
+import json
 from backend.lib.validate import node_map
 from utils.logging import get_logger, configure_root
 from backend.api.dockerScript import (
     run_pipeline_container, stop_docker_container
 )
+from aiokafka import AIOKafkaConsumer
+
+
 from backend.auth.routes import router as auth_router
 from backend.auth.routes import get_current_user
 
@@ -119,9 +124,11 @@ def schema_index(request: Request):
     """
     io_node_ids = [node_id for node_id, cls in NODES.items() if cls.__module__ == 'backend.lib.io_nodes']
     table_ids = [node_id for node_id, cls in NODES.items() if cls.__module__ == 'backend.lib.tables']
+    alert_ids = [node_id for node_id, cls in NODES.items() if cls.__module__ == 'backend.lib.alert']
     return {
         "io_nodes": io_node_ids,
-        "table_nodes": table_ids
+        "table_nodes": table_ids,
+        "alert_nodes": alert_ids
     }
 
 def _remap_schema_types(schema: dict) -> dict:
@@ -204,8 +211,10 @@ async def docker_spinup(request: PipelineIdRequest):
             {'_id': ObjectId(request.pipeline_id)},
             {
                 '$set':{
-                    'container_id': result['id'],
-                    'host_port': result['host_port'],
+                    'container_id': result['pipeline_container_id'],
+                    'pipeline_host_port': result['pipeline_host_port'],
+                    'agentic_host_port': result['agentic_host_port'],
+                    'db_host_port': result['db_host_port'],
                     'host_ip': host_ip,
                     'status': False, # the status is of pipeline, it will be toggled from the docker container
                 }
@@ -252,7 +261,6 @@ async def docker_spindown(request: PipelineIdRequest):
 # Include the modular auth router
 app.include_router(auth_router, prefix="/auth", tags=["auth"])
 
-
 @app.post("/run")
 async def run_pipeline_endpoint(request: PipelineIdRequest):
     """
@@ -303,55 +311,6 @@ async def stop_pipeline_endpoint(request: PipelineIdRequest):
         except httpx.RequestError as exc:
             raise HTTPException(status_code=500, detail=f"Failed to stop pipeline: {exc}")
 
-@app.post("/run")
-async def run_pipeline_endpoint(request: PipelineIdRequest):
-    """
-    Triggers a pipeline to run in its container.
-    """
-    pipeline = await workflow_collection.find_one({'_id': ObjectId(request.pipeline_id)})
-    if not pipeline or not pipeline.get('host_port'):
-        raise HTTPException(status_code=404, detail="Pipeline not found or not running")
-
-    port = pipeline['host_port']
-    ip = pipeline['host_ip']
-    url = f"http://{ip}:{port}/trigger"
-    
-    async with httpx.AsyncClient() as client:
-        try:
-            response = await client.post(url)
-            response.raise_for_status()
-            await workflow_collection.update_one(
-                {'_id': ObjectId(request.pipeline_id)},
-                {'$set': {'status': True}}
-            )
-            return response.json()
-        except httpx.RequestError as exc:
-            raise HTTPException(status_code=500, detail=f"Failed to trigger pipeline: {exc}")
-
-@app.post("/stop")
-async def stop_pipeline_endpoint(request: PipelineIdRequest):
-    """
-    Stops a running pipeline in its container.
-    """
-    pipeline = await workflow_collection.find_one({'_id': ObjectId(request.pipeline_id)})
-    if not pipeline or not pipeline.get('host_port'):
-        raise HTTPException(status_code=404, detail="Pipeline not found or not running")
-
-    port = pipeline['host_port']
-    ip = pipeline['host_ip']
-    url = f"http://{ip}:{port}/stop"
-    
-    async with httpx.AsyncClient() as client:
-        try:
-            response = await client.post(url)
-            response.raise_for_status()
-            await workflow_collection.update_one(
-                {'_id': ObjectId(request.pipeline_id)},
-                {'$set': {'status': False}}
-            )
-            return response.json()
-        except httpx.RequestError as exc:
-            raise HTTPException(status_code=500, detail=f"Failed to stop pipeline: {exc}")
 
 # ------- User Actions on Workflow --------- #
 
@@ -458,3 +417,46 @@ async def retrieve(data: PipelineIdRequest):
     except Exception as e:
         logger.error(f"Retrieve error: {e}")
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
+
+
+
+KAFKA_BOOTSTRAP_SERVER = os.getenv("KAFKA_BOOTSTRAP_SERVER", "localhost:9092")
+SASL_USERNAME = os.getenv("KAFKA_SASL_USERNAME", None)
+SASL_PASSWORD = os.getenv("KAFKA_SASL_PASSWORD", None)
+SASL_MECHANISM = os.getenv("KAFKA_SASL_MECHANISM", None)
+SECURITY_PROTOCOL = os.getenv("KAFKA_SECURITY_PROTOCOL",None)
+
+@app.websocket("/ws/alerts/{pipeline_id}")
+async def alerts_ws(websocket: WebSocket, pipeline_id: str):
+    await websocket.accept()
+
+    topic = f"alert_{pipeline_id}"
+
+    kwargs = {}
+    if SASL_USERNAME:
+        kwargs = {
+            "security_protocol": SECURITY_PROTOCOL,
+            "sasl_mechanisms": SASL_MECHANISM,
+            "sasl_plain_username": SASL_USERNAME,
+            "sasl_password": SASL_PASSWORD,
+        }
+    consumer = AIOKafkaConsumer(
+        topic,
+        bootstrap_servers=KAFKA_BOOTSTRAP_SERVER,
+        group_id=f"alerts-consumer-{pipeline_id}",
+    )
+
+    await consumer.start()
+    try:
+        async for msg in consumer:
+            try:
+                payload = json.loads(msg.value.decode())
+            except:
+                payload = {"raw": msg.value.decode()}
+
+            await websocket.send_json(payload)
+
+    except WebSocketDisconnect:
+        pass
+    finally:
+        await consumer.stop()

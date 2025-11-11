@@ -30,7 +30,7 @@ import {
   fetchAndSetPipeline,
   spinupPipeline,
   spindownPipeline,
-} from "../utils/pipelineHelperFunc";
+} from "../utils/pipelineUtils";
 
 
 export default function Dashboard() {

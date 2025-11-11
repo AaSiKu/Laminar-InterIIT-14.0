@@ -162,7 +162,7 @@ export default function AnalyticsPage() {
   const [tab, setTab] = useState('logs');
   const [loading, setLoading] = useState(false);
   const [analyticsData, setAnalyticsData] = useState(null);
-  
+
   const { flowId } = useParams();
   const navigate = useNavigate(); 
 
@@ -182,7 +182,6 @@ export default function AnalyticsPage() {
               { timestamp: '2025-11-07T12:00:03Z', level: 'info', message: 'Flow finished with status: FAILED' },
             ],
           };
-          
           await new Promise(resolve => setTimeout(resolve, 500)); 
           setAnalyticsData(mockData);
 
@@ -223,7 +222,7 @@ export default function AnalyticsPage() {
             Flow Analytics {flowId && `(ID: ${flowId.slice(0, 8)}...)`}
           </Typography>
           <IconButton
-            edge="end"
+            edge="in_0"
             color="inherit"
             onClick={handleClose}
             aria-label="close"
