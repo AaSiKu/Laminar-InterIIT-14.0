@@ -107,7 +107,7 @@ def build(graph : Graph):
                 raise Exception("Every trigger node should have a description")
             node.input_trigger_description = input_node.trigger_description
         table = mapping["node_fn"](args,node)
-
+        print(f"{node_index}\n{table.schema}")
         if table is None:
             continue
         node_outputs[node_index] = table

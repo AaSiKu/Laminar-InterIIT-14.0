@@ -95,7 +95,7 @@ class AsofJoinNode(TemporalJoinNode):
     behaviour: Optional[CommonBehaviour] = None
 
 class IntervalJoinNode(TemporalJoinNode):
-    node_id: Literal["interval"]
+    node_id: Literal["interval_join"]
     lower_bound: Union[timedelta,int]
     upper_bound: Union[timedelta,int]
 
