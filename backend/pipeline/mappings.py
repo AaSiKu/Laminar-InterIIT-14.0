@@ -1,4 +1,4 @@
-from typing import TypedDict, Callable, Any, List, Type, Literal, Union
+from typing import TypedDict, Callable, Any, List, Type, Literal, Union, Optional, Tuple
 from lib.tables import JoinNode, AsofJoinNode, IntervalJoinNode, WindowJoinNode, AsofNowJoinNode
 from lib.alert import AlertNode
 import pathway as pw
@@ -24,7 +24,6 @@ _op_map = {
 
 agentic_url = os.getenv("AGENTIC_URL")
 
-# TODO: Handle datetime fields in table_schema for Input connectors
 
 
 # ---------------------------------------
@@ -38,6 +37,40 @@ class MappingValues(TypedDict):
 # ---------------------------------------
 get_col = lambda table, col_name: getattr(table, col_name)
 get_this_col = lambda col_name: getattr(pw.this, col_name)
+
+def apply_datetime_conversions(table: pw.Table, datetime_columns: Optional[List[Tuple[str, str]]]) -> pw.Table:
+    """
+    Apply datetime conversions to specified columns in a table.
+    
+    Args:
+        table: The input table
+        datetime_columns: List of tuples (column_name, format_string) for datetime conversion
+    
+    Returns:
+        Table with datetime columns converted
+    """
+    if not datetime_columns:
+        return table
+    
+    conversions = {}
+    for col_name, fmt in datetime_columns:
+        if not hasattr(table, col_name):
+            raise ValueError(f"Column '{col_name}' not found in table")
+        
+        col = get_col(table,col_name)
+        
+        # Handle Unix timestamp formats
+        if fmt == "unix_seconds":
+            conversions[col_name] = col.dt.from_timestamp(unit="s")
+        elif fmt == "unix_milliseconds":
+            conversions[col_name] = col.dt.from_timestamp(unit="ms")
+        elif fmt == "unix_microseconds":
+            conversions[col_name] = col.dt.from_timestamp(unit="us")
+        else:
+            # Handle strptime format strings
+            conversions[col_name] = col.dt.strptime(fmt=fmt)
+    
+    return table.with_columns(**conversions)
 
 # ---------------------------------------
 # OUTPUT CONNECTORS

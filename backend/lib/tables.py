@@ -1,4 +1,4 @@
-from typing import Any, Optional, List, Union, Tuple, Literal, TypedDict
+from typing import Any, Optional, List, Union, Tuple, Literal, TypedDict, ClassVar
 from pydantic import Field
 from datetime import datetime, timedelta
 import pathway as pw
@@ -40,17 +40,20 @@ class SlidingNode(WindowByNode):
     origin: float | datetime | None
     hop: float | timedelta
     duration: float | timedelta
+    is_groupby: ClassVar[bool] = True
 
 
 class TumblingNode(WindowByNode):
     node_id: Literal["tumbling"]
     origin: float | datetime | None
     duration: float | timedelta
+    is_groupby: ClassVar[bool] = True
 
 
 class SessionNode(WindowByNode):
     node_id: Literal["session"]
     max_gap: Optional[float | timedelta] = None
+    is_groupby: ClassVar[bool] = True
 
 
 
@@ -117,7 +120,7 @@ class WindowJoinNode(TemporalJoinNode):
     window: Union[Session,Sliding,Tumbling]
 
 Reducer = Literal["any", "argmax", "argmin", "avg", "count", "count_distinct", "count_distinct_approximate", "earliest", "latest", "max", "min", "ndarray", "sorted_tuple", "stateful_many", "stateful_single", "sum", "tuple", "unique"]
-class Reduce(TableNode):
+class ReduceNode(TableNode):
     node_id: Literal["reduce"]
     # prev_col, reducer, new_col
     reducers: List[Tuple[str,Reducer,str]]
