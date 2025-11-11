@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useState } from "react";
 import { useReactFlow } from "@xyflow/react";
 import { AuthContext } from './AuthContext';
+import { useLocation } from "react-router-dom";
 
 const GlobalContext = createContext();
 
@@ -55,6 +56,14 @@ export const GlobalContextProvider = ({ children }) => {
     setFileStructure,
     logout
   };
+
+const location = useLocation();
+
+useEffect(() => {
+  if (location.pathname !== "/dashboard") {
+    setDashboardSidebarOpen(false);
+  }
+}, [location.pathname]);
 
   return (
     <GlobalContext.Provider value={globalContextValue}>
