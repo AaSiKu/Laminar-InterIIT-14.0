@@ -1,3 +1,6 @@
+//TODO: Add a loading state to the app
+//TODO: Add the use notification hook to the app and add to the notification in developer dashboard 
+// use /me to get user whenever page reloads
 import { useState } from "react";
 import { ThemeProvider, createTheme, Box } from "@mui/material";
 import { Routes, Route, Navigate } from "react-router-dom";
@@ -11,6 +14,7 @@ import Sidebar from "./components/sidebar.jsx";
 import DashboardSidebar from "./components/DashboardSidebar.jsx";
 import DeveloperDashboard from "./pages/DeveloperDashboard.jsx";
 import { LeadershipDashboard } from "./pages/leadershipPage.jsx";
+import { DeveloperDashboardProject } from "./pages/DeveloperDashboardProject.jsx";  
 const theme = createTheme({
   palette: {
     primary: { main: "#3b82f6" },
@@ -23,44 +27,6 @@ const theme = createTheme({
     fontWeightMedium: 600,
   },
 });
-
-// --- FileStructure (as you provided) ---
-const fileStructure = [
-  {
-    name: "src",
-    type: "folder",
-    id: "123",
-    children: [
-      {
-        name: "components",
-        type: "folder",
-        id: "1234",
-        children: [
-          { name: "Header.jsx", type: "file", id: "124" },
-          { name: "Footer.jsx", type: "file", id: "234" },
-        ],
-      },
-      {
-        name: "pages",
-        type: "folder",
-        id: "2345",
-        children: [
-          { name: "Home.jsx", type: "file", id: "3458" },
-          { name: "About.jsx", type: "file", id: "3456" },
-        ],
-      },
-      { name: "App.jsx", type: "file", id: "4567548" },
-    ],
-  },
-  {
-    name: "public",
-    type: "folder",
-    id: "35786",
-    children: [{ name: "index.html", type: "file", id: "6345" }],
-  },
-  { name: "package.json", type: "file" },
-  { name: "README.md", type: "file" },
-];
 
 export default function App() {
   return (
@@ -92,22 +58,29 @@ export default function App() {
             </ProtectedRoute>
           }
         />
-
         {/* Default route */}
         <Route
           path="/developer-dashboard"
           element={
-            // <ProtectedRoute>
+            <ProtectedRoute>
               <DeveloperDashboard />
-            // {/* </ProtectedRoute> */}
+          </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/developer-dashboard/:projectId"
+          element={
+            <ProtectedRoute>
+              <DeveloperDashboardProject/>
+            </ProtectedRoute>
           }
         />
         <Route
           path="/leadership"
           element={
-            // <ProtectedRoute>
+            <ProtectedRoute>
               <LeadershipDashboard />
-            // </ProtectedRoute>
+            </ProtectedRoute>
           }
         />
       </Routes>
