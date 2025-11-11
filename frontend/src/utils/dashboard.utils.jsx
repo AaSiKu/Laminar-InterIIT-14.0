@@ -1,6 +1,8 @@
 import { BaseNode } from "../components/BaseNode";
-export const nodeTypes = {
-};
+
+// TODO: As the nodeTypes is a in memory, it is lost when i leave the page for some time,
+// hence the ui resets to simple rectangle box
+export const nodeTypes = {};
 
 export const generateNode = (schema, nodes) => {
   const props = schema.properties;
@@ -33,10 +35,11 @@ export const generateNode = (schema, nodes) => {
     properties,
   };
 
-  const type=schema.properties.node_id.const;
+  const type = schema.properties.node_id.const;
 
   if (!nodeTypes[type]) addNodeType(schema);
 
+  // TODO: Random position to better method
   const node = {
     id: `n${nodes.length + 1}`,
     type: type,
@@ -106,7 +109,12 @@ export const addNodeType = (schema) => {
         id={id}
         data={data}
         selected={selected}
-        styles={mergedStyles}
+        styles={{
+          bgColor: categoryColor + "20", // translucent fill
+          hoverBgColor: categoryColor + "35",
+          color: categoryColor, // text color
+          borderColor: categoryColor,
+        }}
         inputs={
           nInputs > 0
             ? Array.from({ length: nInputs }).map((_, i) => ({
@@ -116,10 +124,12 @@ export const addNodeType = (schema) => {
             : []
         }
         outputs={
-          schema.properties.category?.const == "io" &&
+          ["io", "action"].includes(schema.properties.category?.const) &&
           schema.properties.n_inputs?.const == 1
             ? []
-            : [{ id: "out", color: "#4CAF50" }]
+            : [
+                { id: "out", color: "#4CAF50" }, // Green
+              ]
         }
         properties={data.properties}
       />
@@ -127,15 +137,17 @@ export const addNodeType = (schema) => {
   };
 };
 
-
 const hashColor = (str) => {
   let hash = 0;
   for (let i = 0; i < str.length; i++) {
     hash = str.charCodeAt(i) + ((hash << 5) - hash);
   }
-  return `#${((hash >> 24) & 0xFF).toString(16).padStart(2, "0")}${((hash >> 16) & 0xFF)
+  return `#${((hash >> 24) & 0xff).toString(16).padStart(2, "0")}${(
+    (hash >> 16) &
+    0xff
+  )
     .toString(16)
-    .padStart(2, "0")}${((hash >> 8) & 0xFF)
+    .padStart(2, "0")}${((hash >> 8) & 0xff)
     .toString(16)
     .padStart(2, "0")}`.slice(0, 7);
 };

@@ -28,6 +28,9 @@ set -e
 mkdir -p $PID_DIR
 mkdir -p $LOG_DIR
 
+kill -9 $(lsof -t -i :8081)
+kill -9 $(lsof -t -i :8083)
+
 ## 1. Check for Python 3
 echo "Checking for Python 3..."
 if ! command -v python3 &> /dev/null; then

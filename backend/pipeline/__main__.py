@@ -1,10 +1,11 @@
 import json
-from typing import TypedDict, List, Tuple, Dict,  Literal
+from typing import TypedDict, List, Tuple, Dict,  Literal, Optional
 from collections import defaultdict
 from toposort import toposort_flatten
 from lib.validate import validate_nodes
 from lib.node import Node
 from lib.agent import Agent
+from lib.alert import AlertNode
 
 import os
 from dotenv import load_dotenv
@@ -31,9 +32,9 @@ class Prompt(pw.Schema):
 class Flowchart(TypedDict):
     edges: List[Tuple[int,int]]
     nodes: List[Dict[str,Node]]
-    agents: List[Agent]
-    triggers: List[int]
-    name: str
+    agents: Optional[List[Agent]] = []
+    triggers: Optional[List[int]] = []
+    name: Optional[str] = ""
 class Graph(Flowchart):
     parsing_order : list[int]
     dependencies: defaultdict[int, list[int]]
@@ -63,7 +64,7 @@ def read() -> Graph:
         # array of nodes, in this file nodes will be identified by their indexes in this array
         nodes = validate_nodes(data["nodes"])
 
-        agents = [Agent(**agent) for agent in data["agents"]]
+        agents = [Agent(**agent) for agent in data["agents"]] if hasattr(data,"agents") else []
 
         # TODO: Do not allow any outputs from the RAG node
         # build an id index mapping for edges
@@ -95,16 +96,23 @@ def build(graph : Graph):
     for node_index in graph["parsing_order"]:
         node = nodes[node_index]
         mapping = mappings[node.node_id]
-
+        # TODO: only allow reduce nodes to be connected to group by nodes
         ## Note: VERY IMPORTANT, we are assuming that the edges array in the flowchart file provides dependencies in the order they are to be used
         ## i.e if node 3 requires node 1 as the first input and node 2 as the second input , then in the edges array in flowchart file
         ## (1,3) will come first then (2,3)
         args = [node_outputs[input_node_ind] for input_node_ind in graph["dependencies"][node_index]]
+        if node.node_id == "alert":
+            input_node = nodes[graph["dependencies"][node_index][0]]
+            if not hasattr(input_node,"trigger_description"):
+                raise Exception("Every trigger node should have a description")
+            node.input_trigger_description = input_node.trigger_description
         table = mapping["node_fn"](args,node)
 
         if table is None:
             continue
         node_outputs[node_index] = table
+        if isinstance(table,pw.GroupedTable):
+            continue
         ## Persist snapshot to postgres
         cols = table.schema.primary_key_columns() or []
         primary_keys = [get_col(table, col) for col in cols]
@@ -112,7 +120,7 @@ def build(graph : Graph):
             table = table.with_columns(
                 __row_id = pw.this.id
             )
-            primary_keys= [table.__row_id]
+            primary_keys= [table.__row_id]        
         pw.io.postgres.write(table, connection_string, f"{node.node_id}__{node_index}", output_table_type="snapshot", primary_key=primary_keys, init_mode="create_if_not_exists")
         
 
@@ -126,10 +134,10 @@ if __name__ == "__main__":
     graph = read()
     node_outputs : List[pw.Table] = build(graph)
     # Build agentic graph i.e register all user defined agents along with their tools to langggraph supervisor agent
-    supervisor = build_agentic_graph(graph["agents"], graph["name"], graph["nodes"], node_outputs)
+    supervisor = build_agentic_graph(graph["agents"], graph["name"] if hasattr(graph,"name") else "", graph["nodes"], node_outputs)
 
     answer_tables : Dict[str,pw.Table] = {}
-    for trigger in graph["triggers"]:
+    for trigger in (graph["triggers"] if hasattr(graph,"agents") else []):
         # TODO: Check if trigger node is not the RAG node. If it is the rag node, raise error or do not subscribe
         trigger_node = node_outputs[trigger]
         trigger_description = graph["nodes"][trigger].trigger_description
@@ -141,8 +149,10 @@ if __name__ == "__main__":
     # TODO: Shift to a better input connector for prompts
     prompts = pw.io.csv.read("prompts.csv", schema=Prompt, mode="streaming")
     prompts_answers:pw.Table = supervisor["prompt"](input_table=prompts).successful
-
-    all_answers = prompts_answers.concat_reindex(*answer_tables.values())
+    if len(answer_tables.values()) > 0:
+        all_answers = prompts_answers.concat_reindex(*answer_tables.values())
+    else:
+        all_answers = prompts_answers
     all_answers = all_answers.with_columns(
         row_id = pw.this.id
     )
