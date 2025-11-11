@@ -1,21 +1,33 @@
-import React, { useState, useContext } from "react";
-import { Box, TextField, Button, Typography, Alert, Paper } from "@mui/material";
+import React, { useState, useContext, useEffect } from "react";
+import {
+  Box,
+  TextField,
+  Button,
+  Typography,
+  Alert,
+  Paper,
+} from "@mui/material";
 // Assuming useGlobalContext provides the same shape as AuthContext
-import { useGlobalContext } from "../context/GlobalContext"; 
-import EmailIcon from '@mui/icons-material/Email';
-import LockIcon from '@mui/icons-material/Lock';
-import LoginIcon from '@mui/icons-material/Login'; // Icon for the login header
+import { useGlobalContext } from "../context/GlobalContext";
+import EmailIcon from "@mui/icons-material/Email";
+import LockIcon from "@mui/icons-material/Lock";
+import LoginIcon from "@mui/icons-material/Login"; // Icon for the login header
+import { useNavigate } from "react-router-dom";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const navigate = useNavigate();
   // Using useGlobalContext as per your provided snippet
-  const { login, isAuthenticated } = useGlobalContext(); 
+  const { login, isAuthenticated } = useGlobalContext();
 
-  if (isAuthenticated) {
-    return <Typography sx={{ mt: 10, textAlign: "center" }}>Already logged in</Typography>;
-  }
+  useEffect(() => {
+    if (isAuthenticated) {
+      navigate("/developer-dashboard");
+      // return <Typography sx={{ mt: 10, textAlign: "center" }}>Already logged in</Typography>;
+    }
+  }, []);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -51,55 +63,62 @@ export default function LoginPage() {
         p: 2,
       }}
     >
-      <Paper 
+      <Paper
         elevation={0}
-        sx={{ 
-          p: 5, 
-          maxWidth: 480, 
-          width: "100%", 
-          borderRadius: '24px',
-          background: 'rgba(255, 255, 255, 0.95)',
-          backdropFilter: 'blur(10px)',
-          border: '1px solid rgba(255, 255, 255, 0.3)',
-          boxShadow: '0 8px 32px 0 rgba(31, 38, 135, 0.2)',
-          position: 'relative',
+        sx={{
+          p: 5,
+          maxWidth: 480,
+          width: "100%",
+          borderRadius: "24px",
+          background: "rgba(255, 255, 255, 0.95)",
+          backdropFilter: "blur(10px)",
+          border: "1px solid rgba(255, 255, 255, 0.3)",
+          boxShadow: "0 8px 32px 0 rgba(31, 38, 135, 0.2)",
+          position: "relative",
           zIndex: 1,
         }}
       >
         {/* Header with Icon */}
-        <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', mb: 4 }}>
+        <Box
+          sx={{
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            mb: 4,
+          }}
+        >
           <Box
             sx={{
               width: 64,
               height: 64,
-              borderRadius: '16px',
-              background: 'linear-gradient(135deg, #3b82f6, #2563eb)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
+              borderRadius: "16px",
+              background: "linear-gradient(135deg, #3b82f6, #2563eb)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
               mb: 2,
-              boxShadow: '0 8px 20px rgba(59, 130, 246, 0.4)',
+              boxShadow: "0 8px 20px rgba(59, 130, 246, 0.4)",
             }}
           >
-            <LoginIcon sx={{ fontSize: 32, color: 'white' }} />
+            <LoginIcon sx={{ fontSize: 32, color: "white" }} />
           </Box>
-          <Typography 
-            component="h1" 
-            variant="h4" 
-            sx={{ 
-              fontWeight: 700, 
+          <Typography
+            component="h1"
+            variant="h4"
+            sx={{
+              fontWeight: 700,
               textAlign: "center",
-              color: 'text.primary',
-              letterSpacing: '-0.5px',
+              color: "text.primary",
+              letterSpacing: "-0.5px",
             }}
           >
             Sign In
           </Typography>
-          <Typography 
-            variant="body2" 
-            sx={{ 
+          <Typography
+            variant="body2"
+            sx={{
               textAlign: "center",
-              color: 'text.secondary',
+              color: "text.secondary",
               mt: 1,
             }}
           >
@@ -108,14 +127,14 @@ export default function LoginPage() {
         </Box>
 
         {error && (
-          <Alert 
-            severity="error" 
-            sx={{ 
+          <Alert
+            severity="error"
+            sx={{
               mb: 3,
-              borderRadius: '12px',
-              '& .MuiAlert-icon': {
-                fontSize: '24px',
-              }
+              borderRadius: "12px",
+              "& .MuiAlert-icon": {
+                fontSize: "24px",
+              },
             }}
           >
             {error}
@@ -125,7 +144,10 @@ export default function LoginPage() {
         <Box component="form" onSubmit={handleSubmit}>
           {/* Email Field */}
           <Box sx={{ mb: 2.5 }}>
-            <Typography variant="body2" sx={{ mb: 1, fontWeight: 600, color: 'text.secondary' }}>
+            <Typography
+              variant="body2"
+              sx={{ mb: 1, fontWeight: 600, color: "text.secondary" }}
+            >
               Email Address
             </Typography>
             <TextField
@@ -137,21 +159,23 @@ export default function LoginPage() {
               onChange={(e) => setEmail(e.target.value)}
               InputProps={{
                 startAdornment: (
-                  <EmailIcon sx={{ mr: 1, color: 'text.secondary', fontSize: 20 }} />
+                  <EmailIcon
+                    sx={{ mr: 1, color: "text.secondary", fontSize: 20 }}
+                  />
                 ),
               }}
               sx={{
-                '& .MuiOutlinedInput-root': {
-                  borderRadius: '12px',
-                  background: 'rgba(248, 250, 252, 0.8)',
-                  transition: 'all 0.3s ease',
-                  '&:hover': {
-                    background: 'rgba(255, 255, 255, 1)',
-                    boxShadow: '0 4px 12px rgba(59, 130, 246, 0.08)',
+                "& .MuiOutlinedInput-root": {
+                  borderRadius: "12px",
+                  background: "rgba(248, 250, 252, 0.8)",
+                  transition: "all 0.3s ease",
+                  "&:hover": {
+                    background: "rgba(255, 255, 255, 1)",
+                    boxShadow: "0 4px 12px rgba(59, 130, 246, 0.08)",
                   },
-                  '&.Mui-focused': {
-                    background: 'rgba(255, 255, 255, 1)',
-                    boxShadow: '0 4px 12px rgba(59, 130, 246, 0.15)',
+                  "&.Mui-focused": {
+                    background: "rgba(255, 255, 255, 1)",
+                    boxShadow: "0 4px 12px rgba(59, 130, 246, 0.15)",
                   },
                 },
               }}
@@ -160,7 +184,10 @@ export default function LoginPage() {
 
           {/* Password Field */}
           <Box sx={{ mb: 4 }}>
-            <Typography variant="body2" sx={{ mb: 1, fontWeight: 600, color: 'text.secondary' }}>
+            <Typography
+              variant="body2"
+              sx={{ mb: 1, fontWeight: 600, color: "text.secondary" }}
+            >
               Password
             </Typography>
             <TextField
@@ -172,21 +199,23 @@ export default function LoginPage() {
               onChange={(e) => setPassword(e.target.value)}
               InputProps={{
                 startAdornment: (
-                  <LockIcon sx={{ mr: 1, color: 'text.secondary', fontSize: 20 }} />
+                  <LockIcon
+                    sx={{ mr: 1, color: "text.secondary", fontSize: 20 }}
+                  />
                 ),
               }}
               sx={{
-                '& .MuiOutlinedInput-root': {
-                  borderRadius: '12px',
-                  background: 'rgba(248, 250, 252, 0.8)',
-                  transition: 'all 0.3s ease',
-                  '&:hover': {
-                    background: 'rgba(255, 255, 255, 1)',
-                    boxShadow: '0 4px 12px rgba(59, 130, 246, 0.08)',
+                "& .MuiOutlinedInput-root": {
+                  borderRadius: "12px",
+                  background: "rgba(248, 250, 252, 0.8)",
+                  transition: "all 0.3s ease",
+                  "&:hover": {
+                    background: "rgba(255, 255, 255, 1)",
+                    boxShadow: "0 4px 12px rgba(59, 130, 246, 0.08)",
                   },
-                  '&.Mui-focused': {
-                    background: 'rgba(255, 255, 255, 1)',
-                    boxShadow: '0 4px 12px rgba(59, 130, 246, 0.15)',
+                  "&.Mui-focused": {
+                    background: "rgba(255, 255, 255, 1)",
+                    boxShadow: "0 4px 12px rgba(59, 130, 246, 0.15)",
                   },
                 },
               }}
@@ -194,40 +223,41 @@ export default function LoginPage() {
           </Box>
 
           {/* Submit Button */}
-          <Button 
-            type="submit" 
-            fullWidth 
+          <Button
+            type="submit"
+            fullWidth
             variant="contained"
-            sx={{ 
-              py: 1.8, 
-              fontWeight: 700, 
+            sx={{
+              py: 1.8,
+              fontWeight: 700,
               fontSize: 16,
-              borderRadius: '12px',
-              textTransform: 'none',
-              background: 'linear-gradient(135deg, #3b82f6, #2563eb)',
-              boxShadow: '0 8px 20px rgba(59, 130, 246, 0.35)',
-              transition: 'all 0.3s ease',
-              position: 'relative',
-              overflow: 'hidden',
-              '&::before': {
+              borderRadius: "12px",
+              textTransform: "none",
+              background: "linear-gradient(135deg, #3b82f6, #2563eb)",
+              boxShadow: "0 8px 20px rgba(59, 130, 246, 0.35)",
+              transition: "all 0.3s ease",
+              position: "relative",
+              overflow: "hidden",
+              "&::before": {
                 content: '""',
-                position: 'absolute',
+                position: "absolute",
                 top: 0,
-                left: '-100%',
-                width: '100%',
-                height: '100%',
-                background: 'linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent)',
-                transition: 'left 0.5s ease',
+                left: "-100%",
+                width: "100%",
+                height: "100%",
+                background:
+                  "linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent)",
+                transition: "left 0.5s ease",
               },
-              '&:hover': {
-                transform: 'translateY(-2px)',
-                boxShadow: '0 12px 30px rgba(59, 130, 246, 0.5)',
-                '&::before': {
-                  left: '100%',
+              "&:hover": {
+                transform: "translateY(-2px)",
+                boxShadow: "0 12px 30px rgba(59, 130, 246, 0.5)",
+                "&::before": {
+                  left: "100%",
                 },
               },
-              '&:active': {
-                transform: 'translateY(0px)',
+              "&:active": {
+                transform: "translateY(0px)",
               },
             }}
           >
@@ -236,19 +266,25 @@ export default function LoginPage() {
         </Box>
 
         {/* Sign Up Link */}
-        <Box sx={{ mt: 4, pt: 3, borderTop: '1px solid rgba(0, 0, 0, 0.06)' }}>
-          <Typography sx={{ textAlign: "center", color: 'text.secondary', fontSize: '0.95rem' }}>
-            Don't have an account?{' '}
-            <a 
-              href="/auth/signup" 
-              style={{ 
-                color: '#3b82f6', 
-                textDecoration: 'none', 
+        <Box sx={{ mt: 4, pt: 3, borderTop: "1px solid rgba(0, 0, 0, 0.06)" }}>
+          <Typography
+            sx={{
+              textAlign: "center",
+              color: "text.secondary",
+              fontSize: "0.95rem",
+            }}
+          >
+            Don't have an account?{" "}
+            <a
+              href="/auth/signup"
+              style={{
+                color: "#3b82f6",
+                textDecoration: "none",
                 fontWeight: 600,
-                transition: 'all 0.2s ease',
+                transition: "all 0.2s ease",
               }}
-              onMouseEnter={(e) => e.target.style.color = '#2563eb'}
-              onMouseLeave={(e) => e.target.style.color = '#3b82f6'}
+              onMouseEnter={(e) => (e.target.style.color = "#2563eb")}
+              onMouseLeave={(e) => (e.target.style.color = "#3b82f6")}
             >
               Sign Up
             </a>

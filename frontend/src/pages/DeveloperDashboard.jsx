@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Container, Box, Typography, Tabs, Tab, AppBar, Badge, Paper } from '@mui/material';
 import TemplateSection from '../components/dashboard/TemplateSection';
 import WorkflowsTable from '../components/dashboard/WorkflowsTable';
