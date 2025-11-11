@@ -1,13 +1,5 @@
-import { InNode } from "../components/NodeTypes/InNode";
-import { OutNode } from "../components/NodeTypes/OutNode";
-import { ProcessXNode } from "../components/NodeTypes/ProcessXNode";
-import { DecisionNode } from "../components/NodeTypes/DecisionNode";
+import { BaseNode } from "../components/BaseNode";
 export const nodeTypes = {
-  in: InNode,
-  out: OutNode,
-  processX: ProcessXNode,
-  decision: DecisionNode,
-  output: OutNode,
 };
 
 export const generateNode = (schema, nodes) => {
@@ -41,13 +33,64 @@ export const generateNode = (schema, nodes) => {
     properties,
   };
 
+  const type=schema.properties.node_id.const;
+
+  if (!nodeTypes[type]) addNodeType(schema);
+
   const node = {
     id: `n${nodes.length + 1}`,
-    type: schema.properties.n_inputs.const ? "out" : "in",
+    type: type,
     position: { x: Math.random() * 300, y: Math.random() * 300 },
     node_id: schema.properties.node_id.const,
     category: schema.properties.category.const,
     data,
   };
+
   return node;
+};
+
+const addNodeType = (schema) => {
+  const type = schema.properties.node_id.const;
+
+  nodeTypes[type] = (props) => {
+    const { id, data, selected } = props;
+
+    const nInputs = schema.properties.n_inputs?.const || 0;
+    const categoryColor = hashColor(schema.properties.category.const=="io"? (schema.properties.n_inputs.const? "output":"input"):schema.properties.category.const);
+
+    return (
+      <BaseNode
+        id={id}
+        data={data}
+        selected={selected}
+        styles={{
+          bgColor: categoryColor + "20",   // translucent fill
+          hoverBgColor: categoryColor + "35",
+          color: categoryColor,            // text color
+          borderColor: categoryColor, 
+        }}
+        inputs={nInputs > 0 ? Array.from({ length: nInputs }).map((_, i) => ({
+          id: `in_${i}`,
+          color: "#9E9E9E",
+        })) : []}
+        outputs={((schema.properties.category?.const=="io") && (schema.properties.n_inputs?.const==1))?[]:[
+          { id: "out", color: "#4CAF50" }, // Green
+        ]}
+        properties={data.properties}
+      />
+    );
+  };
+};
+
+
+const hashColor = (str) => {
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) {
+    hash = str.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  return `#${((hash >> 24) & 0xFF).toString(16).padStart(2, "0")}${((hash >> 16) & 0xFF)
+    .toString(16)
+    .padStart(2, "0")}${((hash >> 8) & 0xFF)
+    .toString(16)
+    .padStart(2, "0")}`.slice(0, 7);
 };

@@ -1,4 +1,4 @@
-import React from 'react';
+import {useContext, useEffect } from 'react';
 import {
   Drawer,
   List,
@@ -7,7 +7,7 @@ import {
   ListItemIcon,
   Tooltip,
   Box,
-  Divider
+  Divider,
 } from '@mui/material';
 import {
   Home,
@@ -16,25 +16,48 @@ import {
   Settings,
   BarChart,
   Notifications,
+  PowerSettingsNew,
 } from '@mui/icons-material';
+import { useNavigate, useLocation } from 'react-router-dom';
+import { AuthContext } from '../context/AuthContext';
+import { useGlobalContext } from '../context/GlobalContext';
 
-const Sidebar = ({ setDashboardSidebarOpen, dashboardSidebarOpen }) => {
+const Sidebar = () => {
+  const navigate = useNavigate();
+  const { logout, isAuthenticated } = useContext(AuthContext);
+  const location = useLocation();
+  const { setDashboardSidebarOpen, dashboardSidebarOpen, sidebarOpen, setSideBarOpen } = useGlobalContext();
+
+   useEffect(() => {
+    if (location.pathname === '/auth/login' || location.pathname === '/auth/signup') {
+      setSideBarOpen(false);
+
+      // If already logged in, redirect to home
+      if (isAuthenticated) {
+        navigate('/');
+      }
+    } else {
+      setSideBarOpen(true);
+    }
+  }, [location.pathname, setSideBarOpen, isAuthenticated, navigate]);
+
   const menuItems = [
-    { icon: <Home />, label: 'Home' },
-    { 
-      icon: <DashboardIcon />, 
-      label: 'Dashboard', 
-      onClick: () => setDashboardSidebarOpen(!dashboardSidebarOpen)
+    { icon: <Home />, label: 'Home', path: '/' },
+    { icon: <DashboardIcon />, label: 'Dashboard', path: '/dashboard', onClickExtra: () => setDashboardSidebarOpen(!dashboardSidebarOpen) },
+    { icon: <People />, label: 'Users', path: '/users' },
+    { icon: <BarChart />, label: 'Analytics', path: '/analytics' },
+    { icon: <Notifications />, label: 'Notifications', path: '/developer-dashboard' },
+    { icon: <Settings />, label: 'Settings', path: '/leadership' },
+    {
+      icon: <PowerSettingsNew color="error" />,
+      label: 'Logout',
+      onClick: logout,
     },
-    { icon: <People />, label: 'Users' },
-    { icon: <BarChart />, label: 'Analytics' },
-    { icon: <Notifications />, label: 'Notifications' },
-    { icon: <Settings />, label: 'Settings' },
   ];
 
   const collapsedWidth = 64;
 
-  return (
+  return sidebarOpen ? (
     <Drawer
       variant="permanent"
       sx={{
@@ -44,23 +67,12 @@ const Sidebar = ({ setDashboardSidebarOpen, dashboardSidebarOpen }) => {
           width: collapsedWidth,
           boxSizing: 'border-box',
           overflowX: 'hidden',
-          backgroundColor: '#ffffffff',
+          backgroundColor: '#fff',
           borderRight: '1px solid #e0e0e0',
-          zIndex:2000,
+          zIndex: 2000,
         },
       }}
     >
-      <Box
-        sx={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          padding: '16px 8px',
-          height:"12vh",
-          minHeight: 64,
-        }}
-      />
-      
       <Divider />
       
       <List>
@@ -72,20 +84,24 @@ const Sidebar = ({ setDashboardSidebarOpen, dashboardSidebarOpen }) => {
                   minHeight: 48,
                   justifyContent: 'center',
                   px: 2.5,
-                  '&:hover': {
-                    backgroundColor: '#e3f2fd',
-                  },
+                  '&:hover': { backgroundColor: '#e3f2fd' },
                 }}
-                onClick={item.onClick}
+                onClick={() => {
+                  if (!isAuthenticated && item.path !== '/') {
+                    navigate('/auth/login');
+                    return;
+                  }
+
+                  if (item.onClickExtra) item.onClickExtra();
+                  if (item.onClick) {
+                    item.onClick();
+                    return;
+                  }
+
+                  if (item.path) navigate(item.path);
+                }}
               >
-                <ListItemIcon
-                  sx={{
-                    minWidth: 0,
-                    mr: 'auto',
-                    justifyContent: 'center',
-                    color: '#1976d2',
-                  }}
-                >
+                <ListItemIcon sx={{ minWidth: 0, mr: 'auto', justifyContent: 'center', color: '#1976d2' }}>
                   {item.icon}
                 </ListItemIcon>
               </ListItemButton>
@@ -94,7 +110,7 @@ const Sidebar = ({ setDashboardSidebarOpen, dashboardSidebarOpen }) => {
         ))}
       </List>
     </Drawer>
-  );
+  ) : null;
 };
 
 export default Sidebar;
