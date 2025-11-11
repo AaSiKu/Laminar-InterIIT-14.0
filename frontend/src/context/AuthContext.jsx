@@ -19,6 +19,7 @@ export const AuthProvider = ({ children }) => {
     Cookies.set("access_token", data.access_token, { expires: 1, sameSite: "Lax" }); // expires in 1 day
     Cookies.set("refresh_token", data.refresh_token, { expires: 7, sameSite: "Lax" }); // refresh token lasts longer
     setUser({ token: data.access_token });
+    navigate("/dashboard");
   };
 
   // Logout → Remove cookies
