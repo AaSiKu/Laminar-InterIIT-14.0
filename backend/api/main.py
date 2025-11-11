@@ -417,7 +417,6 @@ async def retrieve(data: PipelineIdRequest):
     except Exception as e:
         logger.error(f"Retrieve error: {e}")
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
-    
 
 
 
