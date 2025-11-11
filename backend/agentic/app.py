@@ -1,10 +1,11 @@
-from typing import List, TypedDict, Union, Dict,Any
+from typing import List, TypedDict, Union, Dict,Any, Literal
 import json
 from fastapi import FastAPI, HTTPException
 from contextlib import asynccontextmanager
 from dotenv import load_dotenv
 from pydantic import BaseModel
 from lib.agent import Agent
+from lib.alert import AlertResponse
 from langchain.agents import create_agent
 from langchain_groq import ChatGroq
 from langchain_core.tools import tool
@@ -22,7 +23,6 @@ model = ChatGroq(
     max_retries=2,
     api_key=os.environ["GROQ_API_KEY"]
 )
-
 
 
 
@@ -137,3 +137,47 @@ async def infer(prompt: Prompt):
     )
     answer = answer["messages"][-1].content
     return {"status": "ok", "answer": answer}
+
+
+
+alert_agent = create_agent(
+    model=model,
+    tools=[],
+    response_format=AlertResponse
+)
+
+class AlertRequest(BaseModel):
+    alert_prompt: str
+    trigger_description: str
+    trigger_data: Dict
+
+@app.post("/generate-alert")
+async def generate_alert(alert_request: AlertRequest):
+    full_prompt = (
+        "You are an alert generator. Produce a concise alert message."
+        f"Alert Purpose: {alert_request.alert_prompt}"
+        "Trigger Description:"
+        f"{alert_request.trigger_description}"
+
+        "Trigger Data (JSON):"
+        f"{json.dumps(alert_request.trigger_data, indent=2)}"
+
+        "Decide the alert type:"
+        "- Use \"warning\" for undesirable but non-critical conditions."
+        "- Use \"error\" for failed operations or critical issues."
+        "- Use \"info\" for neutral notifications."
+
+        "Return only a valid alert matching the schema."
+    )
+    answer = await alert_agent.ainvoke(
+        {
+            "messages": [
+                {
+                    "role": "user",
+                    "content": full_prompt
+                }
+            ]
+        }
+    )
+    alert : AlertResponse = answer["structured_response"]
+    return {"status": "ok", "alert": alert}

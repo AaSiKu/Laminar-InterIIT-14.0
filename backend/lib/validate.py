@@ -3,7 +3,8 @@ from pydantic import ValidationError
 from typing import List, Dict, Any, Literal, get_args, get_origin
 from . import io_nodes
 from . import tables
-from . import rag
+# from . import rag
+from . import alert
 from .node import Node
 
 def get_node_class_map():
@@ -13,7 +14,12 @@ def get_node_class_map():
     of node_id -> class reference.
     """
     node_class_map = {}
-    modules = [io_nodes, tables, rag]
+    modules = [
+        io_nodes,
+        tables,
+        alert
+        # rag
+    ]
 
     for module in modules:
         for name, cls in inspect.getmembers(module, inspect.isclass):
@@ -31,6 +37,7 @@ def get_node_class_map():
 
 node_map = get_node_class_map()
 
+# TODO: Make sure only input nodes are the source nodes for any graph
 def validate_nodes(node_data_list: List[Dict[str, Any]]) -> List[Node]:
     """
     Validate an array of node objects using dynamically loaded Pydantic models.
