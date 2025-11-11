@@ -90,7 +90,7 @@ export function AnalyticsDialog({ open, onClose, flowId }) {
             Flow Analytics {flowId && `(ID: ${flowId.slice(0, 8)}...)`}
           </Typography>
           <IconButton
-            edge="end"
+            edge="in_o"
             color="inherit"
             onClick={onClose}
             aria-label="close"
