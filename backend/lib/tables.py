@@ -34,27 +34,7 @@ class WindowByNode(TemporalNode):
     n_inputs: Literal[1] = 1
     time_col: str
     instance_col: Optional[int] = None
-
-class SlidingNode(WindowByNode):
-    node_id: Literal["sliding"]
-    origin: float | datetime | None
-    hop: float | timedelta
-    duration: float | timedelta
     is_groupby: ClassVar[bool] = True
-
-
-class TumblingNode(WindowByNode):
-    node_id: Literal["tumbling"]
-    origin: float | datetime | None
-    duration: float | timedelta
-    is_groupby: ClassVar[bool] = True
-
-
-class SessionNode(WindowByNode):
-    node_id: Literal["session"]
-    max_gap: Optional[float | timedelta] = None
-    is_groupby: ClassVar[bool] = True
-
 
 
 class JoinNode(TableNode):
@@ -103,6 +83,13 @@ class Tumbling(TypedDict):
     window_type: Literal["tumbling"]
 
 
+class WindowByNode(TemporalNode):
+    node_id: Literal["window_by"]
+    n_inputs: Literal[1] = 1
+    time_col: str
+    instance_col: Optional[str] = None
+    window: Union[Session,Sliding,Tumbling]
+    behaviour: Optional[CommonBehaviour] = None
 
 class AsofJoinNode(TemporalJoinNode):
     node_id: Literal["asof_join"]
@@ -124,4 +111,6 @@ class ReduceNode(TableNode):
     node_id: Literal["reduce"]
     # prev_col, reducer, new_col
     reducers: List[Tuple[str,Reducer,str]]
-    retain_columns: List[str]
+    retain_columns: Optional[List[str]]
+    retain_instance: Optional[bool] = False
+    n_inputs: Literal[1] = 1

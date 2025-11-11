@@ -4,6 +4,10 @@ from faker import Faker
 from fastapi import FastAPI, Request
 from fastapi.responses import StreamingResponse, HTMLResponse
 import uvicorn
+from datetime import datetime, timedelta
+import random
+import time
+
 # Initialize FastAPI app and Faker
 app = FastAPI()
 fake = Faker()
@@ -115,6 +119,66 @@ async def get_client_page():
     </html>
     """
     return HTMLResponse(content=html_content)
+
+async def sensor_data_generator():
+    """
+    Generate time series sensor data (temperature readings).
+    """
+    sensor_ids = ["sensor_1", "sensor_2", "sensor_3"]
+    
+    while True:
+        sensor_data = {
+            "sensor_id": random.choice(sensor_ids),
+            "timestamp": int(time.time()),
+            "temperature": round(random.uniform(20.0, 35.0), 2),
+            "location": random.choice(["room_a", "room_b", "room_c"])
+        }
+        
+        yield f"{json.dumps(sensor_data)} \n"
+        await asyncio.sleep(2)
+
+
+async def event_data_generator():
+    """
+    Generate time series event data (user activities).
+    """
+    event_types = ["click", "view", "purchase", "logout"]
+    user_ids = ["user_1", "user_2", "user_3", "user_4"]
+    
+    while True:
+        event_data = {
+            "user_id": random.choice(user_ids),
+            "timestamp": int(time.time()),
+            "event_type": random.choice(event_types),
+            "value": round(random.uniform(1.0, 100.0), 2)
+        }
+        
+        yield f"{json.dumps(event_data)} \n"
+        await asyncio.sleep(3)
+
+
+@app.get("/stream-sensors")
+async def stream_sensors(request: Request):
+    """
+    Endpoint that streams sensor data.
+    """
+    frontend = request.query_params.get("frontend")
+    return StreamingResponse(
+        return_frontend_generator(sensor_data_generator) if frontend=="true" else sensor_data_generator(), 
+        media_type="text/event-stream"
+    )
+
+
+@app.get("/stream-events")
+async def stream_events(request: Request):
+    """
+    Endpoint that streams event data.
+    """
+    frontend = request.query_params.get("frontend")
+    return StreamingResponse(
+        return_frontend_generator(event_data_generator) if frontend=="true" else event_data_generator(), 
+        media_type="text/event-stream"
+    )
 
 if __name__ == "__main__":
     uvicorn.run("stream:app", host="0.0.0.0", port=5050, reload=True)
