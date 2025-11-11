@@ -30,27 +30,8 @@ class SortNode(TableNode):
     col: str  # which column to sort
     n_inputs : Literal[1] = 1
 
-class WindowByNode(TemporalNode):
-    n_inputs: Literal[1] = 1
-    time_col: str
-    instance_col: Optional[str] = None
-
-class SlidingNode(WindowByNode):
-    node_id: Literal["sliding"]
-    origin: float | datetime | None
-    hop: float | timedelta
-    duration: int | float | timedelta
 
 
-class TumblingNode(WindowByNode):
-    node_id: Literal["tumbling"]
-    origin: float | datetime | None
-    duration: int| float | timedelta
-
-
-class SessionNode(WindowByNode):
-    node_id: Literal["session"]
-    max_gap: Optional[int| float | timedelta] = None
 
 
 
@@ -100,6 +81,13 @@ class Tumbling(TypedDict):
     window_type: Literal["tumbling"]
 
 
+class WindowByNode(TemporalNode):
+    node_id: Literal["window_by"]
+    n_inputs: Literal[1] = 1
+    time_col: str
+    instance_col: Optional[str] = None
+    window: Union[Session,Sliding,Tumbling]
+    behaviour: Optional[CommonBehaviour] = None
 
 class AsofJoinNode(TemporalJoinNode):
     node_id: Literal["asof_join"]
@@ -107,7 +95,7 @@ class AsofJoinNode(TemporalJoinNode):
     behaviour: Optional[CommonBehaviour] = None
 
 class IntervalJoinNode(TemporalJoinNode):
-    node_id: Literal["interval"]
+    node_id: Literal["interval_join"]
     lower_bound: Union[timedelta,int]
     upper_bound: Union[timedelta,int]
 
