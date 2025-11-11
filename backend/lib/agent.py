@@ -1,5 +1,5 @@
 from pydantic import BaseModel
-from typing import List, Literal, get_args, get_origin, Union
+from typing import List, Literal, get_args, get_origin, Union, Optional
 from . import tools
 import inspect
 from pydantic import field_validator
@@ -34,7 +34,7 @@ class Agent(BaseModel):
     master_prompt: str
     name: str
     description: str
-    tools : List[Union[int,str]]
+    tools : Optional[List[Union[int,str]]] = []
 
     @field_validator("tools")
     def check_tools(cls, tools):

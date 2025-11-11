@@ -46,10 +46,10 @@ def run_pipeline_container(client: docker.DockerClient, pipeline_id: str):
     logger.info(f"Created network: {network_name}")
 
     # Generate RW dynamic credentials
-    read_user = f"read_{rand_str(6)}"
-    read_pass = rand_str(24)
-    write_user = f"write_{rand_str(6)}"
-    write_pass = rand_str(24)
+    read_user = f"read_{rand_str(6)}".lower()
+    read_pass = rand_str(24).lower()
+    write_user = f"write_{rand_str(6)}".lower()
+    write_pass = rand_str(24).lower()
 
     # Start Postgres container first
     db_container_name = f"db_{pipeline_id}"
@@ -68,6 +68,7 @@ def run_pipeline_container(client: docker.DockerClient, pipeline_id: str):
 
         },
         network=network_name,
+        ports={"5432/tcp": None},   # dynamic host port
     )
 
     logger.info(f"Started DB container: {db_container_name}")
@@ -112,9 +113,10 @@ def run_pipeline_container(client: docker.DockerClient, pipeline_id: str):
     try:
         pipeline_container.reload()
         agentic_container.reload()
-
+        db_container.reload()
         assigned_pipeline_port = pipeline_container.ports[PIPELINE_CONTAINER_PORT][0]['HostPort']
         assigned_agentic_port = agentic_container.ports[AGENTIC_CONTAINER_PORT][0]['HostPort']
+        assigned_database_port = db_container.ports["5432/tcp"][0]['HostPort']
     except Exception as e:
         logger.error(e)
         pipeline_container.stop()
@@ -136,6 +138,7 @@ def run_pipeline_container(client: docker.DockerClient, pipeline_id: str):
         "network": network_name,
         "pipeline_host_port": assigned_pipeline_port,
         "agentic_host_port": assigned_agentic_port,
+        "db_host_port": assigned_database_port,
     }
 
 

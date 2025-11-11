@@ -8,7 +8,7 @@ This project includes a comprehensive setup script to get your local development
 -   Python 3.x
 -   `npm` (Node Package Manager) (Node v22.11.0 and npm v10.8.0)
 -   Docker
-
+-   Setup kafka by `docker compose -f backend/kafka-docker-compose.yaml -d`
 **env**
 1. **Get the required keys**
    The applications have 4 env files for different services
@@ -30,7 +30,9 @@ This project includes a comprehensive setup script to get your local development
 1.  **Make the script executable:**
     If you're on macOS or Linux, you'll need to give the setup script execution permissions. If you are on Windows, please use WSL or a Git Bash terminal.
     ```bash
-    chmod +x deploy/localSetup.sh
+    chmod +x deploy/local_setup.sh
+    chmod +x deploy/local_stop.sh
+    chmod +x deploy/clean_up.sh
     ```
 
 2.  **Run the setup script:**
@@ -54,5 +56,8 @@ All logs for the running services can be found in the `deploy/logs/` directory.
 To stop all background services at once, simply run the provided stop script:
 
 ```bash
-./scripts/stop.sh
+./scripts/local_stop.sh
 ```
+
+Also run 
+`./scripts/clean_up.sh <PIPELINE_ID>` to cleanly remove the docker containers and network associated with the pipeline id
