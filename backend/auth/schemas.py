@@ -3,9 +3,9 @@ from typing import Optional, List
 
 class FileStructure(BaseModel):
     name: str
-    type: str  
+    type: str
     id: str
-    children: Optional[List['FileStructure']] = None  
+    children: Optional[List['FileStructure']] = None
 
 class UserCreate(BaseModel):
     email: EmailStr

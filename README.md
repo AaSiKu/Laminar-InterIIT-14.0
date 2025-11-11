@@ -6,7 +6,7 @@ This project includes a comprehensive setup script to get your local development
 
 **Prerequisites:**
 -   Python 3.x
--   `npm` (Node Package Manager)
+-   `npm` (Node Package Manager) (Node v22.11.0 and npm v10.8.0)
 -   Docker
 
 **env**
@@ -15,11 +15,16 @@ This project includes a comprehensive setup script to get your local development
    ```
    /backend/api
    /backend/pipeline
-   /rag
+   /backend/agentic
    /frontend
    ```
    Each folder have its respective template, please ensure set up the env variables correctly.
 
+### Build docker images for dynamic spin up
+1. **Navigate to backend/**
+    `cd backend/`
+2. **Build images**
+   `docker compose build`
 **Instructions:**
 
 1.  **Make the script executable:**
@@ -30,25 +35,24 @@ This project includes a comprehensive setup script to get your local development
 
 2.  **Run the setup script:**
     ```bash
-    ./deploy/localSetup.sh
+    ./scripts/local_setup.sh
     ```
 
 **What the script does:**
--   Creates and activates a Python virtual environment in `venv/`.
--   Installs all required Python packages from `requirements.txt`.
+-   Creates and activates a Python virtual environment in `backend/api_venv/`.
+-   Installs all required Python packages from `backend/api/requirements.txt` into the above venv.
 -   Installs all required Node.js packages for the frontend.
 -   Starts three background services:
     -   **API Server** on port `8081`.
-    -   **RAG Server** on port `8082`.
-    -   **Frontend Dev Server** on port `5173`.
+    -   **Frontend Dev Server** on port `8083`.
 -   Saves the Process IDs (PIDs) of all services to the `deploy/pids/` directory.
 
-All logs for the running services can be found in the `logs/` directory.
+All logs for the running services can be found in the `deploy/logs/` directory.
 
 #### Stopping the Services
 
 To stop all background services at once, simply run the provided stop script:
 
 ```bash
-./deploy/stop.sh
+./scripts/stop.sh
 ```

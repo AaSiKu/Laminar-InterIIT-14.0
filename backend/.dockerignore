@@ -7,7 +7,6 @@ __pycache__/
 # Virtual environments
 venv/
 .venv/
-.env
 
 # System files
 .DS_Store
@@ -16,11 +15,23 @@ venv/
 .vscode/
 .idea/
 
-# Docker-specific
-Dockerfile
-.dockerignore
 
+.env.template
 # Build artifacts
 dist/
 build/
 *.log
+
+# ignore everything by default
+**
+
+# allow only pipeline and lib folders + required files
+!pipeline/
+!agentic/
+!postgres/
+!lib/
+!postgres_util.py
+
+
+
+

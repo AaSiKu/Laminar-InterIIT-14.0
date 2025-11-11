@@ -1,10 +1,6 @@
-import { useState} from "react";
+import { useState } from "react";
 import { ThemeProvider, createTheme, Box } from "@mui/material";
-import {
-  Routes,
-  Route,
-  Navigate,
-} from "react-router-dom";
+import { Routes, Route, Navigate } from "react-router-dom";
 import ProtectedRoute from "./components/ProtectedRoute";
 import LoginPage from "./pages/LoginPage.jsx";
 import SignupPage from "./pages/SignupPage.jsx";
@@ -14,7 +10,7 @@ import Dashboard from "./pages/Dashboard.jsx";
 import Sidebar from "./components/sidebar.jsx";
 import DashboardSidebar from "./components/DashboardSidebar.jsx";
 import DeveloperDashboard from "./pages/DeveloperDashboard.jsx";
-
+import { LeadershipDashboard } from "./pages/leadershipPage.jsx";
 const theme = createTheme({
   palette: {
     primary: { main: "#3b82f6" },
@@ -101,9 +97,17 @@ export default function App() {
         <Route
           path="/developer-dashboard"
           element={
-            <ProtectedRoute>
+            // <ProtectedRoute>
               <DeveloperDashboard />
-            </ProtectedRoute>
+            // {/* </ProtectedRoute> */}
+          }
+        />
+        <Route
+          path="/leadership"
+          element={
+            // <ProtectedRoute>
+              <LeadershipDashboard />
+            // </ProtectedRoute>
           }
         />
       </Routes>
