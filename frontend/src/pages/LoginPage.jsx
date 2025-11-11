@@ -35,7 +35,7 @@ export default function LoginPage() {
     setError("");
     setIsLoading(true);
     try {
-      const res = await fetch("http://localhost:8000/auth/login", {
+      const res = await fetch("http://localhost:8081/auth/login", {
         method: "POST",
         mode: "cors",
         credentials: "include",

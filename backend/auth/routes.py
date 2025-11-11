@@ -10,7 +10,7 @@ router = APIRouter()
 
 # ------------------ SIGNUP ------------------ #
 @router.post("/signup", response_model=UserOut)
-async def signup(request: Request, data: UserCreate):
+async def signup(request: Request,response: Response, data: UserCreate):
     user_collection = request.app.state.user_collection
 
     # Validate email & password
@@ -29,6 +29,37 @@ async def signup(request: Request, data: UserCreate):
 
     data.email = email_normalized
     user = await crud.create_user(user_collection, data)
+
+    access_token_expires = timedelta(minutes=request.app.state.access_token_expire_minutes)
+    refresh_token_expires = timedelta(minutes=request.app.state.refresh_token_expire_minutes)
+
+    access_token = utils.create_access_token(
+        data={"sub": user["email"], "user_id": str(user["_id"])},
+        expires_delta=access_token_expires
+    )
+    refresh_token = utils.create_access_token(
+        data={"sub": user["email"], "type": "refresh"},
+        expires_delta=refresh_token_expires
+    )
+
+    response.set_cookie(
+        key="access_token",
+        value=access_token,
+        httponly=True,
+        secure=False,  # True in production
+        samesite="Lax",  # or "None" if frontend & backend are on different domains
+        max_age=int(access_token_expires.total_seconds()),
+    path="/",
+    )
+    response.set_cookie(
+        key="refresh_token",
+        value=refresh_token,
+        httponly=True,
+        secure=False,
+        samesite="Lax",
+        max_age=int(refresh_token_expires.total_seconds()),
+    path="/",
+    )
 
     return UserOut(id=str(user["_id"]), email=user["email"], full_name=user.get("full_name"))
 
@@ -74,7 +105,7 @@ async def login(request: Request, response: Response, form_data: utils.OAuth2Pas
     path="/",
     )
 
-    return {"message": "Login successful"}
+    return {"message": "Login successful", "access_token": access_token, "refresh_token": refresh_token}
 
 
 # ------------------ LOGOUT ------------------ #

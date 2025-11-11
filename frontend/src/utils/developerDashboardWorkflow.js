@@ -52,6 +52,7 @@ const buildSchemaFromNode = (node, inboundEdgeCount) => {
 };
 
 const hydrateNodes = (blueprint, generateNode) => {
+
   const inboundCount = blueprint.edges.reduce((acc, edge) => {
     acc[edge.target] = (acc[edge.target] || 0) + 1;
     return acc;

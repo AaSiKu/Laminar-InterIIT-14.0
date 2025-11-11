@@ -12,7 +12,7 @@
         "properties": [
           {
             "label": "url",
-            "value": "http://localhost:8000/stream-users",
+            "value": "http://localhost:8081/stream-users",
             "type": "str"
           },
           {

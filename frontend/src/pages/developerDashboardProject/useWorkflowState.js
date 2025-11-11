@@ -113,14 +113,14 @@ const useWorkflowState = ({ blueprint, navigate }) => {
       return `${prop.value ?? ""}`.trim() === "";
     });
 
-    if (hasEmpty) {
-      setSnackbar({
-        open: true,
-        severity: "error",
-        message: "Please complete all required properties before saving.",
-      });
-      return;
-    }
+    // if (hasEmpty) {
+    //   setSnackbar({
+    //     open: true,
+    //     severity: "error",
+    //     message: "Please complete all required properties before saving.",
+    //   });
+    //   return;
+    // }
 
     let parsedProperties;
     try {
