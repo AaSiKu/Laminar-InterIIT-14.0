@@ -1,5 +1,5 @@
 from typing import TypedDict, Callable, Any, List, Type, Literal, Union, Dict
-from lib.tables import JoinNode, AsofJoinNode, IntervalJoinNode, WindowJoinNode, AsofNowJoinNode
+from lib.tables import JoinNode, AsofJoinNode, IntervalJoinNode, WindowJoinNode, AsofNowJoinNode, WindowByNode
 from lib.alert import AlertNode
 import pathway as pw
 # from pathway.xpacks.llm import parsers, splitters, embedders
@@ -380,7 +380,7 @@ def asof_join(inputs: List[pw.Table],node: AsofJoinNode):
         get_col(right,node.time_col2),
         *params["expression"],
         how=params["how_map"][node.how],
-        behaviour=node.behaviour
+        # behaviour=node.behaviour
     ).select(
         *select_for_join(
             left,
@@ -474,6 +474,19 @@ def join(inputs: List[pw.Table], node: JoinNode):
         )
     )
 
+def window_by(inputs: List[pw.Table], node: WindowByNode):
+    kwargs = node.model_dump()["window"]
+    window_type = kwargs.pop("window_type")
+    window = getattr(pw.temporal,window_type)(**kwargs)
+    instance = get_this_col(node.instance_col) if node.instance_col is not None else None
+    print(dict(kwargs=kwargs,window_type=window_type,window=window,instance=instance))
+    return inputs[0].windowby(
+        get_this_col(node.time_col),
+        window=window,
+        instance=instance
+        # TODO: fix by wrapping node.behaviour with CommonBehaviour
+        # behaviour=node.behaviour,
+    )
 
 table_mappings: dict[str, MappingValues] = {
     "filter": {
@@ -486,49 +499,8 @@ table_mappings: dict[str, MappingValues] = {
         "node_fn": lambda inputs, node: inputs[0].sort(key=get_this_col(node.col)),
     },
 
-    "sliding": {
-        "node_fn": lambda inputs, node: inputs[0].windowby(
-            get_this_col(node.time_col),
-            window=pw.temporal.sliding(
-                hop=node.hop,
-                duration=node.duration,
-                origin=getattr(node, "origin", None),
-            ),
-            instance=(
-                get_this_col(node.instance_col)
-                if node.instance_col is not None
-                else None
-            ),
-        ),
-    },
-
-    "tumbling": {
-        "node_fn": lambda inputs, node: inputs[0].windowby(
-            get_this_col(node.time_col),
-            window=pw.temporal.tumbling(
-                duration=node.duration,
-                origin=getattr(node, "origin", None),
-            ),
-            instance=(
-                get_this_col(node.instance_col)
-                if node.instance_col is not None
-                else None
-            ),
-        ),
-    },
-
-    "session": {
-        "node_fn": lambda inputs, node: inputs[0].windowby(
-            get_this_col(node.time_col),
-            window=pw.temporal.session(
-                max_gap=getattr(node, "max_gap", None),
-            ),
-            instance=(
-                get_this_col(node.instance_col)
-                if node.instance_col is not None
-                else None
-            ),
-        ),
+    "window_by": {
+        "node_fn": window_by
     },
 
     "concat": {
@@ -551,7 +523,7 @@ table_mappings: dict[str, MappingValues] = {
         "node_fn": lambda inputs, node: inputs[0].reduce(
             *([pw.this._pw_instance] if node.retain_instance else []),
             **{
-                new_col: getattr(pw.reducers,reducer)(get_col(inputs[0],prev_col)) for prev_col,reducer,new_col in node.reducers
+                new_col: getattr(pw.reducers,reducer)(get_this_col(prev_col)) for prev_col,reducer,new_col in node.reducers
             }, 
             **{
                 col: get_this_col(col) for col in node.retain_columns
