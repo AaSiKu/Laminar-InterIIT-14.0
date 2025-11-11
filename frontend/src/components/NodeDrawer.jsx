@@ -1,3 +1,6 @@
+//TODO: Make the node accept only one input per handle 
+
+
 import React, { useState, useEffect } from "react";
 import {
   Drawer,
