@@ -1,6 +1,6 @@
 from typing import List, Dict, Any
 import pathway as pw
-from lib.tables import JoinNode, ConcatNode
+from lib.tables import JoinNode, FilterNode
 from .helpers import MappingValues, get_col, get_this_col, select_for_join
 
 # Operator mapping for filter node
@@ -80,11 +80,25 @@ def join(inputs: List[pw.Table], node: JoinNode):
         )
     )
 
+def filter(inputs: List[pw.Table], node: FilterNode):
+    args = True
+    for filter in node.filters:
+        col_name, op, value = filter
+        col = get_this_col(col_name)
+        if op in _op_map:
+            args &= getattr(col, _op_map.get(op))(value)
+        elif op == "contains":
+            args &= col.str.find(value) != -1
+        else:
+            args &= getattr(col.str, op)(value)
+
+    return inputs[0].filter(
+        args
+    )
+
 transform_mappings: dict[str, MappingValues] = {
     "filter": {
-        "node_fn": lambda inputs, node: inputs[0].filter(
-            getattr(get_this_col(node.col), _op_map.get(node.op))(node.value)
-        ),
+        "node_fn": filter
     },
     "sort": {
         "node_fn": lambda inputs, node: inputs[0].sort(key=get_this_col(node.col)),

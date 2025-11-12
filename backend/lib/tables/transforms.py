@@ -1,10 +1,9 @@
-from typing import Literal
+from typing import Literal, List, Tuple
 from .base import TableNode
 
+ops = Literal["==", "<", "<=", ">=", ">", "!=", "startswith", "endswith", "find"]
 class FilterNode(TableNode):
     node_id: Literal["filter"]
-    # TODO: Handle filters on multiple columns and allow filtering based on string types
-    col: str
-    op: Literal["==", "<", "<=", ">=", ">", "!="]
-    value: float
+    # col, operation, value
+    filters: List[Tuple[str, ops, int | float | str]]
     n_inputs: Literal[1] = 1
