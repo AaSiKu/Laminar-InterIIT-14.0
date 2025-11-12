@@ -10,12 +10,12 @@ import SignupPage from "./pages/SignupPage.jsx";
 import UsersPage from "./pages/UsersPage.jsx";
 import AnalyticsPage from "./pages/AnalyticsPage.jsx";
 import Dashboard from "./pages/Dashboard.jsx";
-import Sidebar from "./components/sidebar.jsx";
+import Sidebar, { SIDEBAR_WIDTH } from "./components/sidebar.jsx";
 import DashboardSidebar from "./components/DashboardSidebar.jsx";
 import DeveloperDashboard from "./pages/DeveloperDashboard.jsx";
 import { LeadershipDashboard } from "./pages/leadershipPage.jsx";
 import { DeveloperDashboardProject } from "./pages/DeveloperDashboardProject.jsx";  
-
+import { useGlobalContext } from "./context/GlobalContext";
 const theme = createTheme({
   palette: {
     primary: { main: "#3b82f6" },
@@ -71,14 +71,14 @@ function AppContent() {
               </ProtectedRoute>
             }
           />
-          <Route
+          {/* <Route
             path="/users"
             element={
               <ProtectedRoute>
                 <UsersPage />
               </ProtectedRoute>
             }
-          />
+          /> */}
           {/* Default route */}
           <Route
             path="/developer-dashboard"
