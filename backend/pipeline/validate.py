@@ -90,7 +90,7 @@ def validate_graph_topology(
     """
     Validate graph topology rules and return topological sort order and dependencies:
     1. Only input nodes (with table_schema) can be source nodes (no incoming edges)
-    2. Reduce nodes can only be connected to group by nodes
+    2. Reduce nodes can only be connected after group by nodes and nothing else can be connected to a group by node
     3. Each node must have the correct number of inputs based on n_inputs
     4. Alert nodes must have input nodes with trigger_description
     
@@ -158,10 +158,10 @@ def validate_graph_topology(
     # Rule 2: Check that reduce nodes are only connected to group by nodes
     for source_idx, target_indices in source_to_targets.items():
         source_node = nodes[source_idx]
-        if isinstance(source_node, ReduceNode):
+        if is_groupby_node(source_node):
             for target_idx in target_indices:
                 target_node = nodes[target_idx]
-                if not is_groupby_node(target_node):
+                if not isinstance(target_node, ReduceNode):
                     raise ValueError(
                         f"Reduce node at index {source_idx} (node_id: '{source_node.node_id}') "
                         f"can only be connected to group by nodes, but is connected to "
