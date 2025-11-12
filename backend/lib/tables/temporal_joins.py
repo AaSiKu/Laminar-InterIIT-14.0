@@ -4,6 +4,7 @@ from .joins import _Join
 from .windows import CommonBehaviour, Session, Sliding, Tumbling
 
 class TemporalJoinNode(_Join):
+    category: Literal["temporal"]
     time_col1: str
     time_col2: str
     left_exactly_once: Optional[None] = None

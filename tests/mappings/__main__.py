@@ -136,21 +136,24 @@ def get_pydantic_input(model: type[BaseModel]) -> Dict[str, Any]:
             raise
 
 
-def create_test_dataframe(num_rows: int) -> pd.DataFrame:
+def create_test_dataframe(num_rows: int, table_index: int = 0) -> pd.DataFrame:
     """Create a test pandas DataFrame with various column types."""
     import time
     base_timestamp = int(time.time()) - (num_rows * 3600)
     
+    # Add table index suffix to column names
+    suffix = f"_{table_index}" if table_index > 0 else ""
+    
     df = pd.DataFrame({
-        'name': [f'User_{i}' for i in range(1, num_rows + 1)],
-        'score': [95.5 + (i % 20) * 0.5 for i in range(num_rows)],
-        'active': [i % 2 == 0 for i in range(num_rows)],
-        'created_at': pd.to_datetime([f'2024-01-{(i % 28) + 1:02d}' for i in range(num_rows)]),
-        'timestamp_int': [base_timestamp + (i * 3600) for i in range(num_rows)],
-        'timestamp_float': [float(base_timestamp) + (i * 3600.5) for i in range(num_rows)],
-        'datetime_string': [f'2024-01-{(i % 28) + 1:02d} {(i % 24):02d}:{(i % 60):02d}:00' for i in range(num_rows)],
-        'tags': [['python', 'ai'] if i % 3 == 0 else ['data'] if i % 3 == 1 else ['ml', 'analytics'] for i in range(num_rows)],
-        'metadata': [{'key': f'value{i}', 'index': i} for i in range(num_rows)],
+        f'name{suffix}': [f'User_{i}' for i in range(1, num_rows + 1)],
+        f'score{suffix}': [95.5 + (i % 20) * 0.5 for i in range(num_rows)],
+        f'active{suffix}': [i % 2 == 0 for i in range(num_rows)],
+        f'created_at{suffix}': pd.to_datetime([f'2024-01-{(i % 28) + 1:02d}' for i in range(num_rows)]),
+        f'timestamp_int{suffix}': [base_timestamp + (i * 3600) for i in range(num_rows)],
+        f'timestamp_float{suffix}': [float(base_timestamp) + (i * 3600.5) for i in range(num_rows)],
+        f'datetime_string{suffix}': [f'2024-01-{(i % 28) + 1:02d} {(i % 24):02d}:{(i % 60):02d}:00' for i in range(num_rows)],
+        f'tags{suffix}': [['python', 'ai'] if i % 3 == 0 else ['data'] if i % 3 == 1 else ['ml', 'analytics'] for i in range(num_rows)],
+        f'metadata{suffix}': [{'key': f'value{i}', 'index': i} for i in range(num_rows)],
     })
     
     return df
@@ -237,18 +240,31 @@ def test_mapping(node_id: str):
     node_class = node_map[node_id]
     typer.echo(f"Found node class: {node_class.__name__}\n")
     
-    # Ask for number of rows
-    num_rows = typer.prompt("How many rows to generate?", type=int, default=10)
+    # Detect number of input tables from node class
+    num_tables = getattr(node_class.model_fields.get('n_inputs'), 'default', 1)
+    if num_tables is None:
+        num_tables = 1
     
-    if num_rows <= 0:
-        typer.echo("Number of rows must be positive", err=True)
-        raise typer.Exit(code=1)
+    typer.echo(f"Node expects {num_tables} input table(s)\n")
     
-    # Create test DataFrame
-    typer.echo(f"Creating test DataFrame with {num_rows} rows...")
-    df = create_test_dataframe(num_rows)
+    # Create multiple test DataFrames
+    dataframes = []
+    input_tables = []
     
-    typer.echo(f"\nTest DataFrame:\n{df.head().to_string()}\n")
+    for i in range(num_tables):
+        if num_tables > 1:
+            typer.echo(f"\n--- Table {i + 1} of {num_tables} ---")
+        num_rows = typer.prompt(f"How many rows for table {i + 1}?" if num_tables > 1 else "How many rows to generate?", type=int, default=10)
+        
+        if num_rows <= 0:
+            typer.echo("Number of rows must be positive", err=True)
+            raise typer.Exit(code=1)
+        
+        typer.echo(f"Creating test DataFrame {i + 1} with {num_rows} rows...")
+        df = create_test_dataframe(num_rows, table_index=i)
+        dataframes.append(df)
+        
+        typer.echo(f"\nTest DataFrame {i + 1}:\n{df.head().to_string()}\n")
     
     # Collect node parameters
     try:
@@ -285,10 +301,12 @@ def test_mapping(node_id: str):
         
         typer.echo("\nConfiguration complete!")
         
-        # Create Pathway table
-        typer.echo("\nConverting to Pathway table...")
-        input_table = pw.debug.table_from_pandas(df)
-        typer.echo(f"Input table schema: {input_table.schema}")
+        # Create Pathway tables
+        typer.echo("\nConverting to Pathway tables...")
+        for i, df in enumerate(dataframes):
+            pw_table = pw.debug.table_from_pandas(df)
+            input_tables.append(pw_table)
+            typer.echo(f"Table {i + 1} schema: {pw_table.schema}")
         
         # Instantiate the node
         typer.echo(f"\nCreating {node_class.__name__} instance...")
@@ -298,7 +316,7 @@ def test_mapping(node_id: str):
         # Run the mapping
         typer.echo("\nRunning mapping transformation...")
         
-        output_table = mappings[node_id]["node_fn"]([input_table],node_instance)
+        output_table = mappings[node_id]["node_fn"](input_tables, node_instance)
         
         typer.echo(f"Output table schema: {output_table.schema}")
         
@@ -307,8 +325,9 @@ def test_mapping(node_id: str):
         result_df = pw.debug.table_to_pandas(output_table)
         
         typer.echo(f"\nMapping completed successfully!")
-        typer.echo(f"Input rows: {len(df)}, Output rows: {len(result_df)}")
-        typer.echo(f"\nOutput DataFrame:\n{result_df.to_string()}")
+        total_input_rows = sum(len(df) for df in dataframes)
+        typer.echo(f"Total input rows: {total_input_rows}, Output rows: {len(result_df)}")
+        typer.echo(f"\nOutput DataFrame:\n{result_df.head()}")
         
         # Ask to save results
         save_results = typer.confirm("Save results to CSV?", default=False)
