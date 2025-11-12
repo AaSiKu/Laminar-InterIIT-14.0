@@ -3,8 +3,6 @@ services:
     build:
       context: .
       dockerfile: pipeline/Dockerfile
-      cache_from:
-        - pipeline-pipeline:latest
     ports:
       - "8000:8000"
     depends_on:

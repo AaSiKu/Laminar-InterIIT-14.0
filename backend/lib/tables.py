@@ -15,6 +15,7 @@ class TableNode(Node):
 class TemporalNode(TableNode):
     category: Literal["temporal"]
 
+Reducer = Literal["any", "argmax", "argmin", "avg", "count", "count_distinct", "count_distinct_approximate", "earliest", "latest", "max", "min", "ndarray", "sorted_tuple", "stateful_many", "stateful_single", "sum", "tuple", "unique"]
 
 class FilterNode(TableNode):
     node_id: Literal["filter"]
@@ -34,18 +35,18 @@ class WindowByNode(TemporalNode):
     n_inputs: Literal[1] = 1
     time_col: str
     instance_col: Optional[int] = None
-    is_groupby: ClassVar[bool] = True
 
 
-class JoinNode(TableNode):
-    node_id: Literal["join"]
+class _Join(TableNode):
     n_inputs: Literal[2] = 2
     on: List[Union[Tuple[str, str], Any]] = Field(default_factory=list)
     how: Literal["left","right","inner", "outer"]
     left_exactly_once : Optional[bool] = False
     right_exactly_once : Optional[bool] = False
 
-class AsofNowJoinNode(JoinNode):
+class JoinNode(_Join):
+    node_id: Literal["join"]
+class AsofNowJoinNode(_Join):
     node_id: Literal['asof_now_join']
     join_id : Optional[Literal["self","other"]]
 
@@ -53,7 +54,7 @@ class ConcatNode(TableNode):
     node_id: Literal["concat"]
     n_inputs: Literal[2] = 2
 
-class TemporalJoinNode(JoinNode):
+class TemporalJoinNode(_Join):
     time_col1: str
     time_col2: str
     left_exactly_once: Optional[None]= None
@@ -90,6 +91,7 @@ class WindowByNode(TemporalNode):
     instance_col: Optional[str] = None
     window: Union[Session,Sliding,Tumbling]
     behaviour: Optional[CommonBehaviour] = None
+    reducers: List[Tuple[str,Reducer,str]]
 
 class AsofJoinNode(TemporalJoinNode):
     node_id: Literal["asof_join"]
@@ -105,12 +107,3 @@ class IntervalJoinNode(TemporalJoinNode):
 class WindowJoinNode(TemporalJoinNode):
     node_id: Literal["window_join"]
     window: Union[Session,Sliding,Tumbling]
-
-Reducer = Literal["any", "argmax", "argmin", "avg", "count", "count_distinct", "count_distinct_approximate", "earliest", "latest", "max", "min", "ndarray", "sorted_tuple", "stateful_many", "stateful_single", "sum", "tuple", "unique"]
-class ReduceNode(TableNode):
-    node_id: Literal["reduce"]
-    # prev_col, reducer, new_col
-    reducers: List[Tuple[str,Reducer,str]]
-    retain_columns: Optional[List[str]]
-    retain_instance: Optional[bool] = False
-    n_inputs: Literal[1] = 1

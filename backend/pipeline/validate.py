@@ -3,7 +3,6 @@ from collections import defaultdict
 from pydantic import ValidationError
 from toposort import toposort_flatten
 from lib.node import Node
-from lib.tables import ReduceNode
 from lib.utils import get_node_class_map
 
 
@@ -69,17 +68,6 @@ def is_input_node(node: Node) -> bool:
     return hasattr(node, 'table_schema')
 
 
-def is_groupby_node(node: Node) -> bool:
-    """
-    Check if a node is a group by node by checking the is_groupby class attribute.
-    
-    Args:
-        node: A validated node instance (Pydantic model)
-    
-    Returns:
-        bool: True if the node class has is_groupby attribute set to True, False otherwise
-    """
-    return getattr(node.__class__, 'is_groupby', False) is True
 
 
 def validate_graph_topology(
@@ -90,9 +78,8 @@ def validate_graph_topology(
     """
     Validate graph topology rules and return topological sort order and dependencies:
     1. Only input nodes (with table_schema) can be source nodes (no incoming edges)
-    2. Reduce nodes can only be connected after group by nodes and nothing else can be connected to a group by node
-    3. Each node must have the correct number of inputs based on n_inputs
-    4. Alert nodes must have input nodes with trigger_description
+    2. Each node must have the correct number of inputs based on n_inputs
+    3. Alert nodes must have input nodes with trigger_description
     
     Args:
         nodes: List of validated node instances
@@ -130,7 +117,7 @@ def validate_graph_topology(
             source_to_targets[source_idx] = []
         source_to_targets[source_idx].append(target_idx)
     
-    # Validate that each node has the correct number of inputs
+    # Rule 2: Validate that each node has the correct number of inputs
     for node_idx, dep_list in dependencies.items():
         node = nodes[node_idx]
         if len(dep_list) != node.n_inputs:
@@ -155,19 +142,7 @@ def validate_graph_topology(
                     f"Only nodes with 'table_schema' property can be source nodes."
                 )
     
-    # Rule 2: Check that reduce nodes are only connected to group by nodes
-    for source_idx, target_indices in source_to_targets.items():
-        source_node = nodes[source_idx]
-        if is_groupby_node(source_node):
-            for target_idx in target_indices:
-                target_node = nodes[target_idx]
-                if not isinstance(target_node, ReduceNode):
-                    raise ValueError(
-                        f"Reduce node at index {source_idx} (node_id: '{source_node.node_id}') "
-                        f"can only be connected to group by nodes, but is connected to "
-                        f"node at index {target_idx} (node_id: '{target_node.node_id}')"
-                    )
-    
+ 
     # Rule 3: Validate alert nodes have input nodes with trigger_description
     for node_idx, node in enumerate(nodes):
         if node.node_id == "alert":

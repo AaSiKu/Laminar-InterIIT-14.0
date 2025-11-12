@@ -45,7 +45,7 @@ def persist_table_to_postgres(table: pw.Table, node: Node, node_index: int) -> N
         node: The node that produced the table
         node_index: Index of the node in the graph
     """
-    if table is None or isinstance(table, pw.GroupedTable):
+    if table is None:
         return
     
     # Get primary key columns

@@ -413,7 +413,7 @@ def asof_join(inputs: List[pw.Table],node: AsofJoinNode):
         get_col(right,node.time_col2),
         *params["expression"],
         how=params["how_map"][node.how],
-        # behaviour=node.behaviour
+        # behaviour=pw.temporal.common_behavior(**node.behaviour) if node.behaviour is not None else None
     ).select(
         *select_for_join(
             left,
@@ -512,13 +512,23 @@ def window_by(inputs: List[pw.Table], node: WindowByNode):
     window_type = kwargs.pop("window_type")
     window = getattr(pw.temporal,window_type)(**kwargs)
     instance = get_this_col(node.instance_col) if node.instance_col is not None else None
-    print(dict(kwargs=kwargs,window_type=window_type,window=window,instance=instance))
+
+    reduce_kwargs = {}
+    if instance is not None:
+        reduce_kwargs[node.instance_col] = pw.this._pw_instance
     return inputs[0].windowby(
         get_this_col(node.time_col),
         window=window,
         instance=instance
-        # TODO: fix by wrapping node.behaviour with CommonBehaviour
-        # behaviour=node.behaviour,
+        # behaviour=pw.temporal.common_behavior(**node.behaviour) if node.behaviour is not None else None
+    ).reduce(
+        pw.this._pw_window_start,
+        pw.this._pw_window_end,
+        **{
+            new_col: getattr(pw.reducers,reducer)(get_this_col(prev_col)) for prev_col,reducer,new_col in node.reducers
+        },
+        **reduce_kwargs
+        
     )
 
 table_mappings: dict[str, MappingValues] = {
@@ -552,18 +562,6 @@ table_mappings: dict[str, MappingValues] = {
     "window_join": {
         "node_fn": window_join,
     },
-    "reduce": {
-        "node_fn": lambda inputs, node: inputs[0].reduce(
-            *([pw.this._pw_instance] if node.retain_instance else []),
-            **{
-                new_col: getattr(pw.reducers,reducer)(get_this_col(prev_col)) for prev_col,reducer,new_col in node.reducers
-            }, 
-            **{
-                col: get_this_col(col) for col in node.retain_columns
-            },
-
-        )
-    }
 }
 
 

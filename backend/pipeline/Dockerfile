@@ -22,5 +22,5 @@ RUN mv /app/pipeline/.env /app/.env
 
 
 EXPOSE 8000
-# Default command to run FastAPI server
-CMD ["python3", "server.py"]
+# Create log file and run both tail and server
+CMD ["sh", "-c", "touch pipeline.log && tail -f pipeline.log & python3 server.py"]

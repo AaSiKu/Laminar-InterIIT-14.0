@@ -32,6 +32,11 @@ build/
 !lib/
 !postgres_util.py
 
+pipeline/Dockerfile
+postgres/Dockerfile
+agentic/Dockerfile
+
+docker-compose.yaml
 
 
 
