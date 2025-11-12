@@ -1,7 +1,7 @@
 from typing import List, Dict, Any
 import pathway as pw
 from lib.tables import JoinNode, FilterNode
-from lib.tables.transforms import GroupByNode
+from lib.tables.transforms import GroupByNode, SelectNode, RenameNode, WithoutNode
 from .helpers import MappingValues, get_col, get_this_col, select_for_join
 
 # Operator mapping for filter node
@@ -126,5 +126,14 @@ transform_mappings: dict[str, MappingValues] = {
     },
     "group_by": {
         "node_fn": group_by,
+    },
+    "select": {
+        "node_fn": lambda inputs, node: inputs[0].select(*[get_this_col(col) for col in node.columns]),
+    },
+    "rename": {
+        "node_fn": lambda inputs, node: inputs[0].rename_by_dict({old: new for old, new in node.mapping}),
+    },
+    "without": {
+        "node_fn": lambda inputs, node: inputs[0].without(*[get_this_col(col) for col in node.columns]),
     },
 }
