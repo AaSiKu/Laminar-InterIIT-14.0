@@ -159,67 +159,6 @@ def create_test_dataframe(num_rows: int, table_index: int = 0) -> pd.DataFrame:
     return df
 
 
-@app.command()
-def create_table(node_id: str):
-    """
-    Create a Pathway table from pandas with dynamic schema based on node_id.
-    
-    Args:
-        node_id: The ID of the node to create a table for
-    """
-    typer.echo(f"Creating table for node: {node_id}")
-    
-    # Get node schema from node_map
-    if node_id not in node_map:
-        typer.echo(f"Error: Node ID '{node_id}' not found in node_map", err=True)
-        typer.echo(f"Available nodes: {', '.join(node_map.keys())}")
-        raise typer.Exit(code=1)
-    
-    node_class = node_map[node_id]
-    typer.echo(f"Found node class: {node_class.__name__}\n")
-    
-    # Ask for number of rows
-    num_rows = typer.prompt("How many rows to generate?", type=int, default=100)
-    
-    if num_rows <= 0:
-        typer.echo("Number of rows must be positive", err=True)
-        raise typer.Exit(code=1)
-    
-    # Create DataFrame
-    typer.echo(f"Creating pandas DataFrame with {num_rows} rows of sample data...")
-    df = create_test_dataframe(num_rows)
-    
-    typer.echo("\nSample DataFrame created:")
-    typer.echo(f"Shape: {df.shape}")
-    typer.echo(f"\nFirst 5 rows:\n{df.head().to_string()}")
-    typer.echo(f"\nLast 5 rows:\n{df.tail().to_string()}")
-    typer.echo(f"\nColumn types:\n{df.dtypes}")
-    
-    # Now collect actual node parameters
-    typer.echo(f"\n\nNow, let's configure the actual {node_class.__name__} parameters:\n")
-    
-    try:
-        node_data = get_pydantic_input(node_class)
-        typer.echo("\nConfiguration complete!")
-        
-        # Create Pathway table from pandas
-        typer.echo("\nConverting pandas DataFrame to Pathway table...")
-        pw_table = pw.debug.table_from_pandas(df)
-        
-        typer.echo("Pathway table created successfully!")
-        typer.echo(f"Table schema: {pw_table.schema}")
-        
-        # Create node instance
-        node_instance = node_class(**node_data)
-        typer.echo(f"Node instance created: {node_instance}")
-        
-    except KeyboardInterrupt:
-        typer.echo("\n\nOperation cancelled by user")
-        raise typer.Exit(code=0)
-    except Exception as e:
-        typer.echo(f"\nError: {e}", err=True)
-        raise typer.Exit(code=1)
-
 
 @app.command()
 def test_mapping(node_id: str):

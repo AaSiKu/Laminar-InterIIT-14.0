@@ -3,7 +3,7 @@ from .base import TableNode
 
 class FilterNode(TableNode):
     node_id: Literal["filter"]
-    # TODO: Handle filters on multiple columns and allow filtering based on string and datetime types
+    # TODO: Handle filters on multiple columns and allow filtering based on string types
     col: str
     op: Literal["==", "<", "<=", ">=", ">", "!="]
     value: float
