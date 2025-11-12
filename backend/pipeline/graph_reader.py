@@ -2,7 +2,7 @@ import json
 from typing import Dict, List
 from collections import defaultdict
 from .validate import validate_nodes, validate_graph_topology
-from lib.agent import Agent
+from lib.agents import Agent
 from .types import Graph, Flowchart
 
 

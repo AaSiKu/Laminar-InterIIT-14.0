@@ -1,7 +1,7 @@
 from typing import TypedDict, List, Tuple, Dict, Optional
 from collections import defaultdict
 from lib.node import Node
-from lib.agent import Agent
+from lib.agents import Agent
 
 
 class Flowchart(TypedDict):

@@ -1,6 +1,6 @@
 from typing import Literal, Optional, List
 from pydantic import Field, BaseModel
-from .node import Node
+from ..node import Node
 
 class RAGNode(Node):
     """

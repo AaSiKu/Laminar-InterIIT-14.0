@@ -3,9 +3,7 @@ from typing import Dict, Literal, get_args, get_origin
 from pydantic import BaseModel
 from . import io_nodes
 from . import tables
-# from . import rag
-from . import alert
-
+from . import agents
 
 def get_node_class_map():
     """
@@ -17,15 +15,15 @@ def get_node_class_map():
     modules = [
         io_nodes,
         tables,
-        alert
-        # rag
+        agents
     ]
 
     for module in modules:
         for name, cls in inspect.getmembers(module, inspect.isclass):
-            if cls.__module__ != module.__name__:
+            # Check if class is defined in this module or its submodules
+            if not cls.__module__.startswith(module.__name__):
                 continue
-            if not issubclass(cls,BaseModel):
+            if not issubclass(cls, BaseModel):
                 continue
             if 'node_id' in cls.model_fields:
                 node_id_type = cls.model_fields['node_id'].annotation
