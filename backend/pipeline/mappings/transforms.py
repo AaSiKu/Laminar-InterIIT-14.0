@@ -1,6 +1,7 @@
 from typing import List, Dict, Any
 import pathway as pw
 from lib.tables import JoinNode, FilterNode
+from lib.tables.transforms import GroupByNode
 from .helpers import MappingValues, get_col, get_this_col, select_for_join
 
 # Operator mapping for filter node
@@ -96,6 +97,17 @@ def filter(inputs: List[pw.Table], node: FilterNode):
         args
     )
 
+def group_by(inputs: List[pw.Table], node: GroupByNode):
+    table = inputs[0]
+    
+    # Build the groupby columns
+    group_cols = [get_col(table, col) for col in node.columns]
+    
+    reducers = {
+            new_col: getattr(pw.reducers, reducer)(get_this_col(prev_col)) for prev_col, reducer, new_col in node.reducers
+    }
+    return table.groupby(*group_cols).reduce(*group_cols, **reducers)
+
 transform_mappings: dict[str, MappingValues] = {
     "filter": {
         "node_fn": filter
@@ -111,5 +123,8 @@ transform_mappings: dict[str, MappingValues] = {
     },
     "asof_now_join": {
         "node_fn": asof_now_join,
+    },
+    "group_by": {
+        "node_fn": group_by,
     },
 }
