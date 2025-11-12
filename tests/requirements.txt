@@ -1,0 +1,6 @@
+typer
+pydantic
+pathway
+fastapi
+faker
+uvicorn
