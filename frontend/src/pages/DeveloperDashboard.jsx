@@ -32,12 +32,12 @@ const workflowBlueprint = {
           "properties": [
             {
               "label": "tool_description",
-              "value": "",
+              "value": "HTTP connector for failure event stream",
               "type": "str"
             },
             {
               "label": "trigger_description",
-              "value": "",
+              "value": "Receives failure events from monitored services",
               "type": "str"
             },
             {
@@ -66,7 +66,7 @@ const workflowBlueprint = {
             },
             {
               "label": "headers",
-              "value": null,
+              "value": "{}",
               "type": "str"
             },
             {
@@ -105,12 +105,12 @@ const workflowBlueprint = {
           "properties": [
             {
               "label": "tool_description",
-              "value": "",
+              "value": "HTTP connector for recovery event stream",
               "type": "str"
             },
             {
               "label": "trigger_description",
-              "value": "",
+              "value": "Receives recovery events from monitored services",
               "type": "str"
             },
             {
@@ -139,7 +139,7 @@ const workflowBlueprint = {
             },
             {
               "label": "headers",
-              "value": null,
+              "value": "{}",
               "type": "str"
             },
             {
@@ -178,12 +178,12 @@ const workflowBlueprint = {
           "properties": [
             {
               "label": "tool_description",
-              "value": "",
+              "value": "HTTP connector for request event stream",
               "type": "str"
             },
             {
               "label": "trigger_description",
-              "value": "",
+              "value": "Receives request events with status codes",
               "type": "str"
             },
             {
@@ -212,7 +212,7 @@ const workflowBlueprint = {
             },
             {
               "label": "headers",
-              "value": null,
+              "value": "{}",
               "type": "str"
             },
             {
@@ -251,12 +251,12 @@ const workflowBlueprint = {
           "properties": [
             {
               "label": "tool_description",
-              "value": "",
+              "value": "Filters requests to only include successful responses",
               "type": "str"
             },
             {
               "label": "trigger_description",
-              "value": "",
+              "value": "Triggered when request data is received",
               "type": "str"
             },
             {
@@ -300,12 +300,12 @@ const workflowBlueprint = {
           "properties": [
             {
               "label": "tool_description",
-              "value": "",
+              "value": "Creates tumbling time windows for aggregation",
               "type": "str"
             },
             {
               "label": "trigger_description",
-              "value": "",
+              "value": "Triggered on each window boundary",
               "type": "str"
             },
             {
@@ -353,12 +353,12 @@ const workflowBlueprint = {
           "properties": [
             {
               "label": "tool_description",
-              "value": "",
+              "value": "Calculates request throughput per service",
               "type": "str"
             },
             {
               "label": "trigger_description",
-              "value": "",
+              "value": "Triggered when window data is available",
               "type": "str"
             },
             {
@@ -402,12 +402,12 @@ const workflowBlueprint = {
           "properties": [
             {
               "label": "tool_description",
-              "value": "",
+              "value": "Joins failure and recovery events",
               "type": "str"
             },
             {
               "label": "trigger_description",
-              "value": "",
+              "value": "Triggered when matching events are found",
               "type": "str"
             },
             {
@@ -422,12 +422,12 @@ const workflowBlueprint = {
             },
             {
               "label": "left_exactly_once",
-              "value": null,
+              "value": false,
               "type": "null"
             },
             {
               "label": "right_exactly_once",
-              "value": null,
+              "value": false,
               "type": "null"
             }
           ]
@@ -455,12 +455,12 @@ const workflowBlueprint = {
           "properties": [
             {
               "label": "tool_description",
-              "value": "",
+              "value": "Joins throughput metrics with recovery events within time window",
               "type": "str"
             },
             {
               "label": "trigger_description",
-              "value": "",
+              "value": "Triggered when events fall within the time interval",
               "type": "str"
             },
             {
@@ -475,12 +475,12 @@ const workflowBlueprint = {
             },
             {
               "label": "left_exactly_once",
-              "value": null,
+              "value": false,
               "type": "null"
             },
             {
               "label": "right_exactly_once",
-              "value": null,
+              "value": false,
               "type": "null"
             },
             {
@@ -529,12 +529,12 @@ const workflowBlueprint = {
           "properties": [
             {
               "label": "tool_description",
-              "value": "",
+              "value": "Filters for services with low throughput",
               "type": "str"
             },
             {
               "label": "trigger_description",
-              "value": "",
+              "value": "Triggered when throughput data is calculated",
               "type": "str"
             },
             {
@@ -578,12 +578,12 @@ const workflowBlueprint = {
           "properties": [
             {
               "label": "tool_description",
-              "value": "",
+              "value": "Sends performance degradation alerts",
               "type": "str"
             },
             {
               "label": "trigger_description",
-              "value": "",
+              "value": "Triggered when low throughput is detected",
               "type": "str"
             },
             {

@@ -134,7 +134,7 @@ export default function Dashboard() {
     } catch (err) {
       setError(err.message);
     } finally {
-      console.log(currentPipelineId, c)
+      console.log(currentPipelineId)
       setLoading(false);
     }
   };
