@@ -7,81 +7,685 @@ import { fetchTemplates, fetchWorkflows, fetchNotifications } from '../utils/dev
 import { useNavigate } from "react-router-dom";
 
 
-const workflowBlueprint = 
-{
-  "name": "LinkedIn Profile Maker",
-  "nodes": [
-    {
-      "id": "1",
-      "type": "input",
-      "position": { "x": 250, "y": 50 },
-      "node_id": "http",
-      "category": "io",
-      "data": {
-        "ui": { "label": "Start Node", "iconUrl": "ABC" },
-        "properties": [
-          {
-            "label": "url",
-            "value": "http://localhost:8000/stream-users",
-            "type": "str"
+const workflowBlueprint = {
+  "_id": {
+    "$oid": "69138bfd2d5fe329d1dfe689"
+  },
+  "user": "69134e214669069cdfbb9bc0",
+  "path": "69138bfd2d5fe329d1dfe689",
+  "pipeline": {
+    "nodes": [
+      {
+        "id": "n1",
+        "type": "http",
+        "position": {
+          "x": -319.98551463446233,
+          "y": 15.070012941316946
+        },
+        "node_id": "http",
+        "category": "io",
+        "data": {
+          "ui": {
+            "label": "Failure Stream",
+            "iconUrl": ""
           },
-          {
-            "label": "method",
-            "value": "GET",
-            "type": "str"
-          },
-          { "label": "format", "value": "json", "type": "str" },
-          {
-            "label": "table_schema",
-            "value": {
-              "user_id": "str",
-              "email": "str",
-              "name": "str",
-              "job": "str"
+          "properties": [
+            {
+              "label": "tool_description",
+              "value": "HTTP connector for failure event stream",
+              "type": "str"
             },
-            "type": "json"
-          }
-        ]
+            {
+              "label": "trigger_description",
+              "value": "Receives failure events from monitored services",
+              "type": "str"
+            },
+            {
+              "label": "name",
+              "value": "failure event stream",
+              "type": "str"
+            },
+            {
+              "label": "table_schema",
+              "value": {
+                "service": "str",
+                "failure_timestamp": "int",
+                "reference_id": "str"
+              },
+              "type": "json"
+            },
+            {
+              "label": "url",
+              "value": "http://host.docker.internal:5050/failures",
+              "type": "str"
+            },
+            {
+              "label": "method",
+              "value": "GET",
+              "type": "str"
+            },
+            {
+              "label": "headers",
+              "value": "{}",
+              "type": "str"
+            },
+            {
+              "label": "allow_redirects",
+              "value": true,
+              "type": "bool"
+            },
+            {
+              "label": "format",
+              "value": "json",
+              "type": "str"
+            }
+          ]
+        },
+        "measured": {
+          "width": 200,
+          "height": 261
+        },
+        "selected": false,
+        "dragging": false
+      },
+      {
+        "id": "n2",
+        "type": "http",
+        "position": {
+          "x": -134.9555879581573,
+          "y": 264.6312083636773
+        },
+        "node_id": "http",
+        "category": "io",
+        "data": {
+          "ui": {
+            "label": "Recovery Stream",
+            "iconUrl": ""
+          },
+          "properties": [
+            {
+              "label": "tool_description",
+              "value": "HTTP connector for recovery event stream",
+              "type": "str"
+            },
+            {
+              "label": "trigger_description",
+              "value": "Receives recovery events from monitored services",
+              "type": "str"
+            },
+            {
+              "label": "name",
+              "value": "recovery event stream",
+              "type": "str"
+            },
+            {
+              "label": "table_schema",
+              "value": {
+                "service": "str",
+                "recovery_timestamp": "int",
+                "reference_id": "str"
+              },
+              "type": "json"
+            },
+            {
+              "label": "url",
+              "value": "http://host.docker.internal:5050/recoveries",
+              "type": "str"
+            },
+            {
+              "label": "method",
+              "value": "GET",
+              "type": "str"
+            },
+            {
+              "label": "headers",
+              "value": "{}",
+              "type": "str"
+            },
+            {
+              "label": "allow_redirects",
+              "value": true,
+              "type": "bool"
+            },
+            {
+              "label": "format",
+              "value": "json",
+              "type": "str"
+            }
+          ]
+        },
+        "measured": {
+          "width": 200,
+          "height": 261
+        },
+        "selected": false,
+        "dragging": false
+      },
+      {
+        "id": "n3",
+        "type": "http",
+        "position": {
+          "x": -187.18535247977496,
+          "y": -288.88932959623105
+        },
+        "node_id": "http",
+        "category": "io",
+        "data": {
+          "ui": {
+            "label": "Request Stream",
+            "iconUrl": ""
+          },
+          "properties": [
+            {
+              "label": "tool_description",
+              "value": "HTTP connector for request event stream",
+              "type": "str"
+            },
+            {
+              "label": "trigger_description",
+              "value": "Receives request events with status codes",
+              "type": "str"
+            },
+            {
+              "label": "name",
+              "value": "request stream",
+              "type": "str"
+            },
+            {
+              "label": "table_schema",
+              "value": {
+                "timestamp": "int",
+                "service": "str",
+                "status_code": "int"
+              },
+              "type": "json"
+            },
+            {
+              "label": "url",
+              "value": "http://host.docker.internal:5050/requests",
+              "type": "str"
+            },
+            {
+              "label": "method",
+              "value": "GET",
+              "type": "str"
+            },
+            {
+              "label": "headers",
+              "value": "{}",
+              "type": "str"
+            },
+            {
+              "label": "allow_redirects",
+              "value": true,
+              "type": "bool"
+            },
+            {
+              "label": "format",
+              "value": "json",
+              "type": "str"
+            }
+          ]
+        },
+        "measured": {
+          "width": 200,
+          "height": 261
+        },
+        "selected": false,
+        "dragging": false
+      },
+      {
+        "id": "n4",
+        "type": "filter",
+        "position": {
+          "x": 205.86746644826792,
+          "y": -260.6125670483149
+        },
+        "node_id": "filter",
+        "category": "table",
+        "data": {
+          "ui": {
+            "label": "Filter Success Requests",
+            "iconUrl": ""
+          },
+          "properties": [
+            {
+              "label": "tool_description",
+              "value": "Filters requests to only include successful responses",
+              "type": "str"
+            },
+            {
+              "label": "trigger_description",
+              "value": "Triggered when request data is received",
+              "type": "str"
+            },
+            {
+              "label": "col",
+              "value": "status_code",
+              "type": "str"
+            },
+            {
+              "label": "op",
+              "value": "==",
+              "type": "str"
+            },
+            {
+              "label": "value",
+              "value": 200,
+              "type": "float"
+            }
+          ]
+        },
+        "measured": {
+          "width": 200,
+          "height": 162
+        },
+        "selected": false,
+        "dragging": false
+      },
+      {
+        "id": "n5",
+        "type": "window_by",
+        "position": {
+          "x": 531.168182614147,
+          "y": -150.4664008633855
+        },
+        "node_id": "window_by",
+        "category": "temporal",
+        "data": {
+          "ui": {
+            "label": "Tumbling Window",
+            "iconUrl": ""
+          },
+          "properties": [
+            {
+              "label": "tool_description",
+              "value": "Creates tumbling time windows for aggregation",
+              "type": "str"
+            },
+            {
+              "label": "trigger_description",
+              "value": "Triggered on each window boundary",
+              "type": "str"
+            },
+            {
+              "label": "time_col",
+              "value": "timestamp",
+              "type": "str"
+            },
+            {
+              "label": "instance_col",
+              "value": "service",
+              "type": "str"
+            },
+            {
+              "label": "window",
+              "value": {
+                "duration": 5,
+                "origin": null,
+                "window_type": "tumbling"
+              },
+              "type": "json"
+            }
+          ]
+        },
+        "measured": {
+          "width": 200,
+          "height": 209
+        },
+        "selected": false,
+        "dragging": false
+      },
+      {
+        "id": "n6",
+        "type": "reduce",
+        "position": {
+          "x": 827.5881084709903,
+          "y": -39.61549105882836
+        },
+        "node_id": "reduce",
+        "category": "table",
+        "data": {
+          "ui": {
+            "label": "Calculate Throughput",
+            "iconUrl": ""
+          },
+          "properties": [
+            {
+              "label": "tool_description",
+              "value": "Calculates request throughput per service",
+              "type": "str"
+            },
+            {
+              "label": "trigger_description",
+              "value": "Triggered when window data is available",
+              "type": "str"
+            },
+            {
+              "label": "reducers",
+              "value": [["status_code", "count", "throughput"]],
+              "type": "array"
+            },
+            {
+              "label": "retain_columns",
+              "value": ["_pw_window_start", "_pw_window_end"],
+              "type": "array"
+            },
+            {
+              "label": "retain_instance",
+              "value": true,
+              "type": "bool"
+            }
+          ]
+        },
+        "measured": {
+          "width": 200,
+          "height": 114
+        },
+        "selected": false,
+        "dragging": false
+      },
+      {
+        "id": "n11",
+        "type": "join",
+        "position": {
+          "x": 211.50644623427192,
+          "y": 167.11720074960337
+        },
+        "node_id": "join",
+        "category": "table",
+        "data": {
+          "ui": {
+            "label": "Join Failure-Recovery",
+            "iconUrl": ""
+          },
+          "properties": [
+            {
+              "label": "tool_description",
+              "value": "Joins failure and recovery events",
+              "type": "str"
+            },
+            {
+              "label": "trigger_description",
+              "value": "Triggered when matching events are found",
+              "type": "str"
+            },
+            {
+              "label": "on",
+              "value": [["reference_id", "reference_id"], ["service", "service"]],
+              "type": "array"
+            },
+            {
+              "label": "how",
+              "value": "inner",
+              "type": "str"
+            },
+            {
+              "label": "left_exactly_once",
+              "value": false,
+              "type": "null"
+            },
+            {
+              "label": "right_exactly_once",
+              "value": false,
+              "type": "null"
+            }
+          ]
+        },
+        "measured": {
+          "width": 225,
+          "height": 186
+        },
+        "selected": false
+      },
+      {
+        "id": "n8_copy_1762890964662",
+        "type": "interval_join",
+        "position": {
+          "x": 907.459349384836,
+          "y": 100.86941031344686
+        },
+        "node_id": "interval_join",
+        "category": "table",
+        "data": {
+          "ui": {
+            "label": "Interval Join Metrics",
+            "iconUrl": ""
+          },
+          "properties": [
+            {
+              "label": "tool_description",
+              "value": "Joins throughput metrics with recovery events within time window",
+              "type": "str"
+            },
+            {
+              "label": "trigger_description",
+              "value": "Triggered when events fall within the time interval",
+              "type": "str"
+            },
+            {
+              "label": "on",
+              "value": [[ "_pw_instance","service"]],
+              "type": "array"
+            },
+            {
+              "label": "how",
+              "value": "inner",
+              "type": "str"
+            },
+            {
+              "label": "left_exactly_once",
+              "value": false,
+              "type": "null"
+            },
+            {
+              "label": "right_exactly_once",
+              "value": false,
+              "type": "null"
+            },
+            {
+              "label": "time_col1",
+              "value": "_pw_window_end",
+              "type": "str"
+            },
+            {
+              "label": "time_col2",
+              "value": "recovery_timestamp",
+              "type": "str"
+            },
+            {
+              "label": "lower_bound",
+              "value": "-30",
+              "type": "str"
+            },
+            {
+              "label": "upper_bound",
+              "value": "30",
+              "type": "str"
+            }
+          ]
+        },
+        "measured": {
+          "width": 211,
+          "height": 233
+        },
+        "selected": false,
+        "dragging": false
+      },
+      {
+        "id": "n9_copy_1762891096270",
+        "type": "filter",
+        "position": {
+          "x": 1242.5580681406927,
+          "y": 108.87252642654414
+        },
+        "node_id": "filter",
+        "category": "table",
+        "data": {
+          "ui": {
+            "label": "Filter Low Throughput",
+            "iconUrl": ""
+          },
+          "properties": [
+            {
+              "label": "tool_description",
+              "value": "Filters for services with low throughput",
+              "type": "str"
+            },
+            {
+              "label": "trigger_description",
+              "value": "Triggered when throughput data is calculated",
+              "type": "str"
+            },
+            {
+              "label": "col",
+              "value": "throughput",
+              "type": "str"
+            },
+            {
+              "label": "op",
+              "value": "<",
+              "type": "str"
+            },
+            {
+              "label": "value",
+              "value": 0.3,
+              "type": "float"
+            }
+          ]
+        },
+        "measured": {
+          "width": 200,
+          "height": 162
+        },
+        "selected": false,
+        "dragging": false
+      },
+      {
+        "id": "n9_copy_1762891124543_copy_1762891296305",
+        "type": "alert",
+        "position": {
+          "x": 1257.4552314924208,
+          "y": 444.1712227925845
+        },
+        "node_id": "alert",
+        "category": "action",
+        "data": {
+          "ui": {
+            "label": "Performance Alert",
+            "iconUrl": ""
+          },
+          "properties": [
+            {
+              "label": "tool_description",
+              "value": "Sends performance degradation alerts",
+              "type": "str"
+            },
+            {
+              "label": "trigger_description",
+              "value": "Triggered when low throughput is detected",
+              "type": "str"
+            },
+            {
+              "label": "alert_prompt",
+              "value": "Performance degradation detected: Low throughput and high recovery time",
+              "type": "str"
+            }
+          ]
+        },
+        "measured": {
+          "width": 305,
+          "height": 138
+        },
+        "selected": false,
+        "dragging": false
       }
-    },
-    {
-      "id": "2",
-      "type": "output",
-      "position": { "x": 250, "y": 500 },
-      "node_id": "jsonlines_write",
-      "category": "io",
-      "data": {
-        "ui": { "label": "End Node", "iconUrl": "ABC" },
-        "properties": [
-          { "label": "filename", "value": "output.log", "type": "str" }
-        ]
+    ],
+    "edges": [
+      {
+        "source": "n3",
+        "sourceHandle": "out",
+        "target": "n4",
+        "targetHandle": "in_0",
+        "animated": true,
+        "id": "xy-edge__n3out-n4in_0"
+      },
+      {
+        "source": "n4",
+        "sourceHandle": "out",
+        "target": "n5",
+        "targetHandle": "in_0",
+        "animated": true,
+        "id": "xy-edge__n4out-n5in_0"
+      },
+      {
+        "source": "n5",
+        "sourceHandle": "out",
+        "target": "n6",
+        "targetHandle": "in_0",
+        "animated": true,
+        "id": "xy-edge__n5out-n6in_0"
+      },
+      {
+        "source": "n1",
+        "sourceHandle": "out",
+        "target": "n11",
+        "targetHandle": "in_0",
+        "animated": true,
+        "id": "xy-edge__n1out-n11in_0"
+      },
+      {
+        "source": "n2",
+        "sourceHandle": "out",
+        "target": "n11",
+        "targetHandle": "in_1",
+        "animated": true,
+        "id": "xy-edge__n2out-n11in_1"
+      },
+      {
+        "source": "n6",
+        "sourceHandle": "out",
+        "target": "n8_copy_1762890964662",
+        "targetHandle": "in_0",
+        "animated": true,
+        "id": "xy-edge__n6out-n8_copy_1762890964662in_0"
+      },
+      {
+        "source": "n11",
+        "sourceHandle": "out",
+        "target": "n8_copy_1762890964662",
+        "targetHandle": "in_1",
+        "animated": true,
+        "id": "xy-edge__n11out-n8_copy_1762890964662in_1"
+      },
+      {
+        "source": "n8_copy_1762890964662",
+        "sourceHandle": "out",
+        "target": "n9_copy_1762891096270",
+        "targetHandle": "in_0",
+        "animated": true,
+        "id": "xy-edge__n8_copy_1762890964662out-n9_copy_1762891096270in_0"
+      },
+      {
+        "source": "n9_copy_1762891096270",
+        "sourceHandle": "out",
+        "target": "n9_copy_1762891124543_copy_1762891296305",
+        "targetHandle": "in_0",
+        "animated": true,
+        "id": "xy-edge__n9_copy_1762891096270out-n9_copy_1762891124543_copy_1762891296305in_0"
       }
+    ],
+    "viewport": {
+      "x": 594.2671447891538,
+      "y": 258.0648393826819,
+      "zoom": 0.7522193405499145
     }
-  ],
-  "edges": [
-    {
-      "id": "e1-2",
-      "source": "1",
-      "sourceHandle": "out",
-      "target": "2",
-      "targetHandle": "in_0",
-      "type": "smoothstep",
-      "animated": true
-    }
-  ],
-  "agents" : [
-    {
-      "name": "LinkedIn Profile Agent",
-      "master_prompt" : "You are a linkedin profile agent that makes a professional LinkedIn Bio of a person with their name, email, job",
-      "description": "Makes a professional LinkedIn Bio of a person who just newly created their account given their name, email, job. Only call this once and be happy with the results",
-      "tools" : []
-    }
-  ],
-  "triggers": [
-    0
-  ]
-
-}
+  },
+  "container_id": "",
+  "host_port": "",
+  "host_ip": "",
+  "status": false
+}["pipeline"]
 
 const TabPanel = (props) => {
   const { children, value, index, ...other } = props;
@@ -126,12 +730,12 @@ const DeveloperDashboard = () => {
     loadData();
   }, []);
 
-  const handleTabChange = (event, newValue) => {
+  const handleTabChange = useCallback((event, newValue) => {
+    event.stopPropagation?.();
     setCurrentTab(newValue);
-  };
+  }, []);
 
-  const handleSelectTemplate = useCallback(
-    (templateId) => {
+  const handleSelectTemplate = (templateId) => {
       if (!templateId) return;
       const randomSuffix =
         typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
@@ -141,9 +745,7 @@ const DeveloperDashboard = () => {
       navigate(`/developer-dashboard/${projectId}`, {
         state: { templateId, workflowBlueprint },
       });
-    },
-    [navigate, workflowBlueprint]
-  );
+  }
 
   return (
     <Box sx={{ 
@@ -236,7 +838,7 @@ const DeveloperDashboard = () => {
             },
           }}
         >
-          <TemplateSection templates={templates} />
+          <TemplateSection templates={templates} onSelectTemplate={handleSelectTemplate} />
         </Box>
 
         {/* Workflows and Notifications Section */}
@@ -253,6 +855,7 @@ const DeveloperDashboard = () => {
               boxShadow: '0 8px 32px 0 rgba(59, 130, 246, 0.12)',
             }
           }}
+          onClick={() => handleSelectTemplate("46785295")}
         >
           <AppBar 
             position="static" 

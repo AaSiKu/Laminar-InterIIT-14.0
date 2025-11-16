@@ -18,6 +18,7 @@ export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
   // Using useGlobalContext as per your provided snippet
   const { login, isAuthenticated } = useGlobalContext();
@@ -32,6 +33,7 @@ export default function LoginPage() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
+    setIsLoading(true);
     try {
       const res = await fetch(`${import.meta.env.VITE_API_SERVER}/auth/login`, {
         method: "POST",
@@ -47,6 +49,9 @@ export default function LoginPage() {
       navigate("/developer-dashboard");
     } catch (err) {
       setError(err.message);
+    }
+    finally{
+      setIsLoading(false);
     }
   };
 
@@ -262,7 +267,7 @@ export default function LoginPage() {
               },
             }}
           >
-            Sign In
+            {isLoading ? "Signing In..." : "Sign In"}
           </Button>
         </Box>
 
