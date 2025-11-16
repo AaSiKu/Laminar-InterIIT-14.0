@@ -1,6 +1,8 @@
 # Use a lightweight Python base image
 FROM python:3.12-slim
 
+RUN pip install uv
+
 # Set working directory inside container
 WORKDIR /app
 
@@ -8,7 +10,7 @@ WORKDIR /app
 COPY ./pipeline/requirements.txt /app/requirements.txt
 
 # Install Python dependencies (if file exists)
-RUN pip install --no-cache-dir -r /app/requirements.txt
+RUN uv pip install -r requirements.txt --system
 
 # Copy source code
 COPY ./lib /app/lib
