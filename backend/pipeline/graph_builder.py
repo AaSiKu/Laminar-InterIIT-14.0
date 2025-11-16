@@ -1,7 +1,8 @@
-from typing import List, Dict
+from typing import List, Dict, Union
 import pathway as pw
 from lib.node import Node
-from .mappings import mappings, get_col
+from .mappings import mappings
+from .mappings.helpers import get_col
 from postgres_util import connection_string
 
 
@@ -85,7 +86,7 @@ def build_computational_graph(
     Returns:
         List of table outputs for each node
     """
-    node_outputs: List[pw.Table] = [None] * len(nodes)
+    node_outputs: List[Union[pw.Table]] = [None] * len(nodes)
     
     for node_index in parsing_order:
         node = nodes[node_index]
