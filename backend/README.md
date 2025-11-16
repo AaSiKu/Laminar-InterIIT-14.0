@@ -299,7 +299,7 @@ The validation system uses Pydantic models to ensure pipeline configurations are
 ### Example Usage
 
 ```python
-from backend.lib.validate import validate_nodes
+from backend.lib.utils import validate_nodes
 
 nodes_data = [
     {
