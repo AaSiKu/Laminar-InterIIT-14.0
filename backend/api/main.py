@@ -17,9 +17,9 @@ from jose import JWTError, jwt
 import httpx
 import socket
 import json
-from backend.lib.validate import node_map
+from backend.lib.utils import node_map
 from utils.logging import get_logger, configure_root
-from backend.api.dockerScript import (
+from .dockerScript import (
     run_pipeline_container, stop_docker_container
 )
 from aiokafka import AIOKafkaConsumer
@@ -37,7 +37,6 @@ MONGO_URI = os.getenv("MONGO_URI")
 MONGO_DB = os.getenv("MONGO_DB", "db")
 WORKFLOW_COLLECTION = os.getenv("MONGO_COLLECTION", "pipelines")
 USER_COLLECTION = os.getenv("USER_COLLECTION", "users")
-
 
 # Global variables
 mongo_client = None
@@ -122,13 +121,13 @@ def schema_index(request: Request):
     """
     Returns category wise list of all available node types.
     """
-    io_node_ids = [node_id for node_id, cls in NODES.items() if cls.__module__ == 'backend.lib.io_nodes']
-    table_ids = [node_id for node_id, cls in NODES.items() if cls.__module__ == 'backend.lib.tables']
-    alert_ids = [node_id for node_id, cls in NODES.items() if cls.__module__ == 'backend.lib.alert']
+    io_node_ids = [node_id for node_id, cls in NODES.items() if cls.__module__.startswith('backend.lib.io_nodes')]
+    table_ids = [node_id for node_id, cls in NODES.items() if cls.__module__.startswith('backend.lib.tables')]
+    agent_ids = [node_id for node_id, cls in NODES.items() if cls.__module__.startswith('backend.lib.agents')]
     return {
         "io_nodes": io_node_ids,
         "table_nodes": table_ids,
-        "alert_nodes": alert_ids
+        "agent_nodes": agent_ids,
     }
 
 def _remap_schema_types(schema: dict) -> dict:
