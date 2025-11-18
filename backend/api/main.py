@@ -25,6 +25,7 @@ from .dockerScript import (
 from aiokafka import AIOKafkaConsumer
 
 
+
 from backend.auth.routes import router as auth_router
 from backend.auth.routes import get_current_user
 
@@ -428,7 +429,7 @@ SECURITY_PROTOCOL = os.getenv("KAFKA_SECURITY_PROTOCOL",None)
 @app.websocket("/ws/alerts/{pipeline_id}")
 async def alerts_ws(websocket: WebSocket, pipeline_id: str):
     await websocket.accept()
-
+    print(pipeline_id)
     topic = f"alert_{pipeline_id}"
 
     kwargs = {}
@@ -442,7 +443,6 @@ async def alerts_ws(websocket: WebSocket, pipeline_id: str):
     consumer = AIOKafkaConsumer(
         topic,
         bootstrap_servers=KAFKA_BOOTSTRAP_SERVER,
-        group_id=f"alerts-consumer-{pipeline_id}",
     )
 
     await consumer.start()

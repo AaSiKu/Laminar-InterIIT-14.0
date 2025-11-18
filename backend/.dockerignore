@@ -22,20 +22,8 @@ dist/
 build/
 *.log
 
-# ignore everything by default
-**
-
-# allow only pipeline and lib folders + required files
-!pipeline/
-!agentic/
-!postgres/
-!lib/
-!postgres_util.py
-
-pipeline/Dockerfile
-postgres/Dockerfile
-agentic/Dockerfile
-
+# Docker related files
+Dockerfile
 docker-compose.yaml
 
 

@@ -1,8 +1,6 @@
 services:
   pipeline:
-    build:
-      context: .
-      dockerfile: pipeline/Dockerfile
+    build: ./pipeline
     ports:
       - "8000:8000"
     depends_on:
@@ -16,11 +14,13 @@ services:
       PIPELINE_ID: ${_PIPELINE_ID}
       FLOWCHART_FILE: "flowchart.json"
       AGENTIC_URL: http://agentic:5333
-
+    volumes:
+      - ./pipeline:/app/pipeline:ro
+      - ./lib:/app/lib:ro
+      - ./postgres_util.py:/app/postgres_util.py:ro
+      - ./pipeline/.env:/app/.env:ro
   agentic:
-    build:
-      context: .
-      dockerfile: agentic/Dockerfile
+    build: ./agentic
     depends_on:
       - pipeline
     environment:
@@ -31,6 +31,11 @@ services:
       POSTGRES_USER: ${_POSTGRES_READ_USER}
     ports:
       - "5333:5333"
+    volumes:
+      - ./agentic:/app/agentic:ro
+      - ./lib:/app/lib:ro
+      - ./postgres_util.py:/app/postgres_util.py:ro
+      - ./agentic/.env:/app/.env:ro
   postgres:
     build: ./postgres
     environment:

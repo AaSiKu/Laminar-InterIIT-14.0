@@ -7,27 +7,18 @@ RUN pip install uv
 WORKDIR /app
 
 # Copy project dependencies
-COPY ./pipeline/constraints.txt /app/constraints.txt
-COPY ./pipeline/requirements_freeze.txt /app/requirements_freeze.txt
+COPY constraints.txt .
+COPY requirements_freeze.txt .
 
 RUN uv pip install -r requirements_freeze.txt --constraint constraints.txt --system
 
-COPY ./pipeline/requirements.txt /app/requirements.txt
+COPY requirements.txt .
 
-# Install Python dependencies (if file exists)
 RUN uv pip install -r requirements.txt --system
 
-# Copy source code
-COPY ./lib /app/lib
-COPY ./pipeline /app/pipeline
-COPY ./postgres_util.py /app/postgres_util.py
-
-# Move server.py to root of /app
-RUN mv /app/pipeline/server.py /app/server.py
-
-RUN mv /app/pipeline/.env /app/.env
 
 
 EXPOSE 8000
 # Create log file and run both tail and server
-CMD ["sh", "-c", "touch pipeline.log && tail -f pipeline.log & python3 server.py"]
+
+CMD ["uvicorn", "pipeline.server:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
