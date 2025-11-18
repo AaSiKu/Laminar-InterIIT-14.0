@@ -1,0 +1,1 @@
+pathway[xpack-llm,xpack-llm-docs]==0.26.4

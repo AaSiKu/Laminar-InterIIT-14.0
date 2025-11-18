@@ -7,6 +7,11 @@ RUN pip install uv
 WORKDIR /app
 
 # Copy project dependencies
+COPY ./pipeline/constraints.txt /app/constraints.txt
+COPY ./pipeline/requirements_freeze.txt /app/requirements_freeze.txt
+
+RUN uv pip install -r requirements_freeze.txt --constraint constraints.txt --system
+
 COPY ./pipeline/requirements.txt /app/requirements.txt
 
 # Install Python dependencies (if file exists)
