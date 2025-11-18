@@ -84,7 +84,9 @@ def join(inputs: List[pw.Table], node: JoinNode):
 def filter(inputs: List[pw.Table], node: FilterNode):
     args = True
     for filter in node.filters:
-        col_name, op, value = filter
+        col_name = filter["col"]
+        op = filter["op"]
+        value = filter["value"]
         col = get_this_col(col_name)
         if op in _op_map:
             args &= getattr(col, _op_map.get(op))(value)
@@ -102,9 +104,9 @@ def group_by(inputs: List[pw.Table], node: GroupByNode):
     
     # Build the groupby columns
     group_cols = [get_col(table, col) for col in node.columns]
-    
+    _reducers = [(red["col"], red["reducer"], red["new_col"]) for red in node.reducers]
     reducers = {
-            new_col: getattr(pw.reducers, reducer)(get_this_col(prev_col)) for prev_col, reducer, new_col in node.reducers
+            new_col: getattr(pw.reducers, reducer)(get_this_col(prev_col)) for prev_col, reducer, new_col in _reducers
     }
     return table.groupby(*group_cols).reduce(*group_cols, **reducers)
 

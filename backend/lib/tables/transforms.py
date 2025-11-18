@@ -1,18 +1,25 @@
-from typing import Literal, List, Tuple
-from .base import TableNode, Reducer
+from typing import Literal, List, Tuple, TypedDict
+from .base import TableNode, ReducerDict
 
 ops = Literal["==", "<", "<=", ">=", ">", "!=", "startswith", "endswith", "find"]
+
+
+class Filter(TypedDict):
+    col: str
+    op: ops
+    value: int | float | str
+
 class FilterNode(TableNode):
     node_id: Literal["filter"]
     # col, operation, value
-    filters: List[Tuple[str, ops, int | float | str]]
+    filters: List[Filter]
     n_inputs: Literal[1] = 1
 
 class GroupByNode(TableNode):
     node_id: Literal["group_by"]
     columns: List[str]
     # prev_col, reducer, new_col
-    reducers: List[Tuple[str, Reducer, str]]
+    reducers: List[ReducerDict]
     n_inputs: Literal[1] = 1
 
 class SelectNode(TableNode):

@@ -1,4 +1,10 @@
 {
+  "_id": {
+    "$oid": "691c96f31782e00f1f655dec"
+  },
+  "user": "691c86dbc3697d27bf30227b",
+  "path": "691c96f31782e00f1f655dec",
+  "pipeline": {
     "nodes": [
       {
         "id": "n1",
@@ -245,19 +251,15 @@
               "type": "str"
             },
             {
-              "label": "col",
-              "value": "status_code",
-              "type": "str"
-            },
-            {
-              "label": "op",
-              "value": "==",
-              "type": "str"
-            },
-            {
-              "label": "value",
-              "value": 200,
-              "type": "float"
+              "label": "filters",
+              "value": [
+                {
+                  "col": "status_code",
+                  "op": "==",
+                  "value": 200
+                }
+              ],
+              "type": "json"
             }
           ]
         },
@@ -305,8 +307,12 @@
             },
             {
               "label": "reducers",
-              "value": [["status_code", "avg", "throughput"]],
-              "type": "array"
+              "value": [{
+                "col": "status_code",
+                "reducer": "avg",
+                "new_col": "throughput"
+              }],
+              "type": "json"
             },
             {
               "label": "window",
@@ -388,7 +394,7 @@
           "y": 100.86941031344686
         },
         "node_id": "interval_join",
-        "category": "table",
+        "category": "temporal",
         "data": {
           "ui": {
             "label": "Interval Join Metrics",
@@ -480,19 +486,15 @@
               "type": "str"
             },
             {
-              "label": "col",
-              "value": "throughput",
-              "type": "str"
-            },
-            {
-              "label": "op",
-              "value": "<",
-              "type": "str"
-            },
-            {
-              "label": "value",
-              "value": 300,
-              "type": "float"
+              "label": "filters",
+              "value": [
+                {
+                  "col": "throughput",
+                  "op": "<",
+                  "value": 300
+                }
+              ],
+              "type": "json"
             }
           ]
         },
@@ -614,14 +616,10 @@
       "x": 594.2671447891538,
       "y": 258.0648393826819,
       "zoom": 0.7522193405499145
-    },
-    "agents" : [
-      {
-        "name": "LinkedIn Profile Agent",
-        "master_prompt" : "You are a linkedin profile agent that makes a professional LinkedIn Bio of a person with their name, email, job",
-        "description": "Makes a professional LinkedIn Bio of a person who just newly created their account given their name, email, job. Only call this once and be happy with the results",
-        "tools" : []
-      }
-    ],
-    "triggers": []
+    }
+  },
+  "container_id": "",
+  "host_port": "",
+  "host_ip": "",
+  "status": false
 }

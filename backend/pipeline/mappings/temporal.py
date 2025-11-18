@@ -78,6 +78,8 @@ def window_by(inputs: List[pw.Table], node: WindowByNode):
     reduce_kwargs = {}
     if instance is not None:
         reduce_kwargs[node.instance_col] = pw.this._pw_instance
+    _reducers = [(red["col"], red["reducer"], red["new_col"]) for red in node.reducers]
+    
     return inputs[0].windowby(
         get_this_col(node.time_col),
         window=window,
@@ -86,7 +88,7 @@ def window_by(inputs: List[pw.Table], node: WindowByNode):
         pw.this._pw_window_start,
         pw.this._pw_window_end,
         **{
-            new_col: getattr(pw.reducers, reducer)(get_this_col(prev_col)) for prev_col, reducer, new_col in node.reducers
+            new_col: getattr(pw.reducers, reducer)(get_this_col(prev_col)) for prev_col, reducer, new_col in _reducers
         },
         **reduce_kwargs
     )

@@ -1,4 +1,4 @@
-from typing import Union, Literal
+from typing import Union, Literal, TypedDict
 from datetime import datetime, timedelta
 from ..node import Node
 
@@ -12,3 +12,8 @@ class TableNode(Node):
 
 class TemporalNode(TableNode):
     category: Literal["temporal"]
+
+class ReducerDict(TypedDict):
+    col: str
+    reducer: Reducer
+    new_col : str

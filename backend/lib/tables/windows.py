@@ -1,5 +1,5 @@
 from typing import List, Tuple, Optional, Literal, TypedDict, Union
-from .base import TemporalNode, Reducer, TimedeltaType, DateTimeType
+from .base import TemporalNode, ReducerDict, TimedeltaType, DateTimeType
 
 class CommonBehaviour(TypedDict):
     delay: Optional[TimedeltaType]
@@ -28,4 +28,4 @@ class WindowByNode(TemporalNode):
     instance_col: Optional[str] = None
     window: Union[Session, Sliding, Tumbling]
     behaviour: Optional[CommonBehaviour] = None
-    reducers: List[Tuple[str, Reducer, str]]
+    reducers: List[ReducerDict]
