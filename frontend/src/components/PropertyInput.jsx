@@ -27,6 +27,7 @@ const DefaultInput = ({ label, value, onChange, required = true}) => (
   />
 );
 
+// TODO: Update the pipeline object data to have more extensive properties (as defined in pydantic) and render custom renderers for the array and object types
 export const PropertyInput = ({ property, onChange, required=true }) => {
   switch (property.type) {
     case "json":
