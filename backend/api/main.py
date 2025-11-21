@@ -34,6 +34,9 @@ logger = get_logger(__name__)
 
 load_dotenv()
 
+# Import connectors to initialize Twilio connection on startup
+from backend.api import connectors  # noqa: F401
+
 MONGO_URI = os.getenv("MONGO_URI")
 MONGO_DB = os.getenv("MONGO_DB", "db")
 WORKFLOW_COLLECTION = os.getenv("MONGO_COLLECTION", "pipelines")
@@ -260,6 +263,50 @@ async def docker_spindown(request: PipelineIdRequest):
     
 # Include the modular auth router
 app.include_router(auth_router, prefix="/auth", tags=["auth"])
+
+# ------- Connector Routes ------- #
+from backend.api.connectors import send_whatsapp_message, check_whatsapp_status
+
+class WhatsAppRequest(BaseModel):
+    number: str
+    message: str
+
+@app.post("/connectors/whatsapp/send")
+def whatsapp_send_route(request: WhatsAppRequest):
+    """
+    Send WhatsApp message via Twilio (free tier compatible)
+    
+    Example:
+        POST /connectors/whatsapp/send
+        {
+            "number": "1234567890",
+            "message": "Hello from API!"
+        }
+    """
+    return send_whatsapp_message(request.number, request.message)
+
+@app.get("/connectors/test")
+async def test_connectors():
+    """
+    Test endpoint to verify WhatsApp connector is configured
+    """
+    return {
+        "whatsapp": {
+            "configured": bool(os.getenv("WHATSAPP_SID") and os.getenv("WHATSAPP_AUTH")),
+            "from_number": os.getenv("WHATSAPP_FROM", "Not set"),
+            "note": "To send messages on free tier: 1) Get join code from Twilio Console → Messaging → Try it out, 2) Recipient sends 'join <code>' to +1 415 523 8886 on WhatsApp"
+        }
+    }
+
+@app.get("/connectors/whatsapp/status/{message_sid}")
+def whatsapp_status_route(message_sid: str):
+    """
+    Check the delivery status of a WhatsApp message
+    
+    Example:
+        GET /connectors/whatsapp/status/SM80be931f8172ae9b0dbb99d50b5c91db
+    """
+    return check_whatsapp_status(message_sid)
 
 @app.post("/run")
 async def run_pipeline_endpoint(request: PipelineIdRequest):
