@@ -18,6 +18,11 @@ POSTGRES_PASSWORD = os.getenv("POSTGRES_PASSWORD", "admin123")
 PIPELINE_CONTAINER_PORT = os.getenv("PIPELINE_CONTAINER_PORT", "8000/tcp")
 AGENTIC_CONTAINER_PORT = os.getenv("AGENTIC_CONTAINER_PORT", "5333/tcp")
 
+dev = os.getenv("ENVIRONMENT", "prod") == "dev"
+
+project_root = os.path.join(os.getcwd(),"backend")
+
+
 def rand_str(n=12):
     alphabet = string.ascii_letters + string.digits
     return ''.join(secrets.choice(alphabet) for _ in range(n))
@@ -68,7 +73,7 @@ def run_pipeline_container(client: docker.DockerClient, pipeline_id: str):
 
         },
         network=network_name,
-        ports={"5432/tcp": None},   # dynamic host port
+        ports={"5432/tcp": 5432 if dev else None},   # dynamic host port
     )
 
     logger.info(f"Started DB container: {db_container_name}")
@@ -88,7 +93,25 @@ def run_pipeline_container(client: docker.DockerClient, pipeline_id: str):
             "POSTGRES_PASSWORD": read_pass,
         },
         network=network_name,
-        ports={AGENTIC_CONTAINER_PORT: None},   # dynamic host port
+        ports={AGENTIC_CONTAINER_PORT: AGENTIC_CONTAINER_PORT if dev else None},   # dynamic host port
+        volumes=({
+            os.path.join(project_root, "agentic"): {
+                "bind": "/app/agentic", 
+                "mode": "ro"
+            },
+            os.path.join(project_root, "lib"): {
+                "bind": "/app/lib",
+                "mode": "ro"
+            },
+            os.path.join(project_root, "postgres_util.py"): {
+                "bind": "/app/postgres_util.py",
+                "mode": "ro"
+            },
+            os.path.join(project_root, "agentic/.env"): {
+                "bind": "/app/.env",
+                "mode": "ro"
+            }
+        } if dev else {})
     )
 
     logger.info(f"Started Agentic container: {agentic_container_name}")
@@ -107,7 +130,25 @@ def run_pipeline_container(client: docker.DockerClient, pipeline_id: str):
             "POSTGRES_PASSWORD": write_pass,
         },
         network=network_name,
-        ports={PIPELINE_CONTAINER_PORT: None},   # dynamic host port
+        ports={PIPELINE_CONTAINER_PORT: PIPELINE_CONTAINER_PORT if dev else None},   # dynamic host port
+        volumes=({  
+            os.path.join(project_root, "pipeline"): {
+                "bind": "/app/pipeline",
+                "mode": "ro"
+            },
+            os.path.join(project_root, "lib"): {
+                "bind": "/app/lib",
+                "mode": "ro"
+            },
+            os.path.join(project_root, "postgres_util.py"): {
+                "bind": "/app/postgres_util.py",
+                "mode": "ro"
+            },
+            os.path.join(project_root, "pipeline/.env"): {
+                "bind": "/app/.env",
+                "mode": "ro"
+            }
+        } if dev else {})
     )
 
     try:

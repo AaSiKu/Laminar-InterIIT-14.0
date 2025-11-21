@@ -15,9 +15,9 @@ export const fetchTemplates = async () => {
 
   return [
     { id: 'custom', name: 'Custom Workflow' },
-    { id: 'sales', name: 'Sales Quote' },
-    { id: 'proposal', name: 'Project Proposal' },
-    { id: 'invoice', name: 'Invoice Processing' },
+    { id: 'sales', name: 'MDTR & Throughput' },
+    { id: 'proposal', name: 'Latency Check' },
+    { id: 'invoice', name: 'Crash Reports' },
   ];
 };
 
@@ -32,7 +32,7 @@ export const fetchWorkflows = async () => {
   // return data;
 
   return [
-    { id: 'wf1', name: 'Main Architecture Flow', owner: 'Himanshu Sharma', lastModified: 'Oct 31, 2025' },
+    { id: 'wf1', name: 'Main Architecture Flow', owner: 'Team 54', lastModified: 'Oct 31, 2025' },
     { id: 'wf2', name: 'Client Onboarding Workflow', owner: 'Jane Doe', lastModified: 'Oct 28, 2025' },
   ];
 };

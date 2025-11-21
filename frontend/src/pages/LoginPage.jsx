@@ -35,7 +35,7 @@ export default function LoginPage() {
     setError("");
     setIsLoading(true);
     try {
-      const res = await fetch("http://localhost:8000/auth/login", {
+      const res = await fetch(`${import.meta.env.VITE_API_SERVER}/auth/login`, {
         method: "POST",
         mode: "cors",
         credentials: "include",
@@ -46,6 +46,7 @@ export default function LoginPage() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.detail || JSON.stringify(data));
       login(data);
+      navigate("/developer-dashboard");
     } catch (err) {
       setError(err.message);
     }

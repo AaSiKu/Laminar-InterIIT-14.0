@@ -4,8 +4,7 @@ from fastapi import FastAPI, HTTPException
 from contextlib import asynccontextmanager
 from dotenv import load_dotenv
 from pydantic import BaseModel
-from lib.agent import Agent
-from lib.alert import AlertResponse
+from lib.agents import Agent, AlertResponse
 from langchain.agents import create_agent
 from langchain_groq import ChatGroq
 from langchain_core.tools import tool

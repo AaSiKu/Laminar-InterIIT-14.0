@@ -63,6 +63,7 @@ const PropertyEditor = ({
               key={`${prop.label}-${index}`}
               property={prop}
               onChange={(event) => onPropertyChange(index, event.target.value)}
+              required={false}
             />
           ))}
         </Stack>

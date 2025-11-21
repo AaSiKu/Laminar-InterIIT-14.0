@@ -9,10 +9,10 @@ import { useNavigate } from "react-router-dom";
 
 const workflowBlueprint = {
   "_id": {
-    "$oid": "69138bfd2d5fe329d1dfe689"
+    "$oid": "691c96f31782e00f1f655dec"
   },
-  "user": "69134e214669069cdfbb9bc0",
-  "path": "69138bfd2d5fe329d1dfe689",
+  "user": "691c86dbc3697d27bf30227b",
+  "path": "691c96f31782e00f1f655dec",
   "pipeline": {
     "nodes": [
       {
@@ -260,19 +260,15 @@ const workflowBlueprint = {
               "type": "str"
             },
             {
-              "label": "col",
-              "value": "status_code",
-              "type": "str"
-            },
-            {
-              "label": "op",
-              "value": "==",
-              "type": "str"
-            },
-            {
-              "label": "value",
-              "value": 200,
-              "type": "float"
+              "label": "filters",
+              "value": [
+                {
+                  "col": "status_code",
+                  "op": "==",
+                  "value": 200
+                }
+              ],
+              "type": "json"
             }
           ]
         },
@@ -319,6 +315,15 @@ const workflowBlueprint = {
               "type": "str"
             },
             {
+              "label": "reducers",
+              "value": [{
+                "col": "status_code",
+                "reducer": "avg",
+                "new_col": "throughput"
+              }],
+              "type": "json"
+            },
+            {
               "label": "window",
               "value": {
                 "duration": 5,
@@ -336,55 +341,7 @@ const workflowBlueprint = {
         "selected": false,
         "dragging": false
       },
-      {
-        "id": "n6",
-        "type": "reduce",
-        "position": {
-          "x": 827.5881084709903,
-          "y": -39.61549105882836
-        },
-        "node_id": "reduce",
-        "category": "table",
-        "data": {
-          "ui": {
-            "label": "Calculate Throughput",
-            "iconUrl": ""
-          },
-          "properties": [
-            {
-              "label": "tool_description",
-              "value": "",
-              "type": "str"
-            },
-            {
-              "label": "trigger_description",
-              "value": "",
-              "type": "str"
-            },
-            {
-              "label": "reducers",
-              "value": [["status_code", "count", "throughput"]],
-              "type": "array"
-            },
-            {
-              "label": "retain_columns",
-              "value": ["_pw_window_start", "_pw_window_end"],
-              "type": "array"
-            },
-            {
-              "label": "retain_instance",
-              "value": true,
-              "type": "bool"
-            }
-          ]
-        },
-        "measured": {
-          "width": 200,
-          "height": 114
-        },
-        "selected": false,
-        "dragging": false
-      },
+      
       {
         "id": "n11",
         "type": "join",
@@ -429,16 +386,6 @@ const workflowBlueprint = {
               "label": "right_exactly_once",
               "value": null,
               "type": "null"
-            },
-            {
-              "label": "time_col1",
-              "value": "",
-              "type": "str"
-            },
-            {
-              "label": "time_col2",
-              "value": "",
-              "type": "str"
             }
           ]
         },
@@ -456,7 +403,7 @@ const workflowBlueprint = {
           "y": 100.86941031344686
         },
         "node_id": "interval_join",
-        "category": "table",
+        "category": "temporal",
         "data": {
           "ui": {
             "label": "Interval Join Metrics",
@@ -475,7 +422,7 @@ const workflowBlueprint = {
             },
             {
               "label": "on",
-              "value": [[ "_pw_instance","service"]],
+              "value": [[ "service","service"]],
               "type": "array"
             },
             {
@@ -548,19 +495,15 @@ const workflowBlueprint = {
               "type": "str"
             },
             {
-              "label": "col",
-              "value": "throughput",
-              "type": "str"
-            },
-            {
-              "label": "op",
-              "value": "<",
-              "type": "str"
-            },
-            {
-              "label": "value",
-              "value": 0.3,
-              "type": "float"
+              "label": "filters",
+              "value": [
+                {
+                  "col": "throughput",
+                  "op": "<",
+                  "value": 300
+                }
+              ],
+              "type": "json"
             }
           ]
         },
@@ -628,14 +571,7 @@ const workflowBlueprint = {
         "animated": true,
         "id": "xy-edge__n4out-n5in_0"
       },
-      {
-        "source": "n5",
-        "sourceHandle": "out",
-        "target": "n6",
-        "targetHandle": "in_0",
-        "animated": true,
-        "id": "xy-edge__n5out-n6in_0"
-      },
+      
       {
         "source": "n1",
         "sourceHandle": "out",
@@ -653,7 +589,7 @@ const workflowBlueprint = {
         "id": "xy-edge__n2out-n11in_1"
       },
       {
-        "source": "n6",
+        "source": "n5",
         "sourceHandle": "out",
         "target": "n8_copy_1762890964662",
         "targetHandle": "in_0",
@@ -695,7 +631,7 @@ const workflowBlueprint = {
   "host_port": "",
   "host_ip": "",
   "status": false
-}
+}["pipeline"]
 
 const TabPanel = (props) => {
   const { children, value, index, ...other } = props;

@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useState, useEffect } from "react";
+import { useParams, useNavigate } from "react-router-dom";
 import {
   Box,
   Typography,
@@ -13,9 +13,9 @@ import {
   Paper,
   Grid,
   Button, // <-- Import Button
-} from '@mui/material';
-import CloseIcon from '@mui/icons-material/Close';
-import { DataGrid } from '@mui/x-data-grid';
+} from "@mui/material";
+import CloseIcon from "@mui/icons-material/Close";
+import { DataGrid } from "@mui/x-data-grid";
 
 // --- Stub Components (Now more professional) ---
 
@@ -26,22 +26,22 @@ function LogsPanel({ data }) {
       <Typography variant="h5" gutterBottom>
         Execution Logs
       </Typography>
-      
+
       {/* This Box is the black container. It's a <div>. */}
-      <Box 
-        sx={{ 
-          bgcolor: 'grey.900', 
-          color: 'grey.100', 
+      <Box
+        sx={{
+          bgcolor: "grey.900",
+          color: "grey.100",
           p: 2, // Apply padding to this container
-          borderRadius: 1, 
-          overflowX: 'auto', // The container itself will scroll
-          maxHeight: '50vh',
+          borderRadius: 1,
+          overflowX: "auto", // The container itself will scroll
+          maxHeight: "50vh",
         }}
       >
         {/* The <pre> tag just holds the text and respects whitespace */}
-        <pre 
-          style={{ 
-            fontFamily: 'monospace',
+        <pre
+          style={{
+            fontFamily: "monospace",
             margin: 0, // Reset default <pre> margin
           }}
         >
@@ -61,13 +61,35 @@ function ChartsPanel({ data }) {
       </Typography>
       <Grid container spacing={2}>
         <Grid item xs={12} md={6}>
-          <Paper sx={{ p: 2, height: 300, display: 'flex', alignItems: 'center', justifyContent: 'center', bgcolor: 'grey.100' }}>
-            <Typography variant="body1">Chart: Execution Time (Placeholder)</Typography>
+          <Paper
+            sx={{
+              p: 2,
+              height: 300,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              bgcolor: "grey.100",
+            }}
+          >
+            <Typography variant="body1">
+              Chart: Execution Time (Placeholder)
+            </Typography>
           </Paper>
         </Grid>
         <Grid item xs={12} md={6}>
-          <Paper sx={{ p: 2, height: 300, display: 'flex', alignItems: 'center', justifyContent: 'center', bgcolor: 'grey.100' }}>
-            <Typography variant="body1">Chart: Success Rate (Placeholder)</Typography>
+          <Paper
+            sx={{
+              p: 2,
+              height: 300,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              bgcolor: "grey.100",
+            }}
+          >
+            <Typography variant="body1">
+              Chart: Success Rate (Placeholder)
+            </Typography>
           </Paper>
         </Grid>
       </Grid>
@@ -79,20 +101,35 @@ function ChartsPanel({ data }) {
 function HistoryPanel({ data }) {
   // (This component is unchanged)
   const columns = [
-    { field: 'id', headerName: 'Run ID', width: 150 },
-    { field: 'status', headerName: 'Status', width: 120 },
-    { field: 'timestamp', headerName: 'Timestamp', width: 200 },
-    { field: 'triggeredBy', headerName: 'Triggered By', width: 150 },
+    { field: "id", headerName: "Run ID", width: 150 },
+    { field: "status", headerName: "Status", width: 120 },
+    { field: "timestamp", headerName: "Timestamp", width: 200 },
+    { field: "triggeredBy", headerName: "Triggered By", width: 150 },
   ];
 
   const rows = [
-    { id: 'run_a1b2', status: 'Success', timestamp: '2025-11-06T14:30:00Z', triggeredBy: 'admin@user.com' },
-    { id: 'run_c3d4', status: 'Failed', timestamp: '2025-11-06T12:15:00Z', triggeredBy: 'api' },
-    { id: 'run_e5f6', status: 'Success', timestamp: '2025-11-05T18:00:00Z', triggeredBy: 'admin@user.com' },
+    {
+      id: "run_a1b2",
+      status: "Success",
+      timestamp: "2025-11-06T14:30:00Z",
+      triggeredBy: "admin@user.com",
+    },
+    {
+      id: "run_c3d4",
+      status: "Failed",
+      timestamp: "2025-11-06T12:15:00Z",
+      triggeredBy: "api",
+    },
+    {
+      id: "run_e5f6",
+      status: "Success",
+      timestamp: "2025-11-05T18:00:00Z",
+      triggeredBy: "admin@user.com",
+    },
   ];
 
   return (
-    <Paper sx={{ p: 3, mt: 2, height: 600, width: '100%' }}>
+    <Paper sx={{ p: 3, mt: 2, height: 600, width: "100%" }}>
       <Typography variant="h5" gutterBottom>
         Run History
       </Typography>
@@ -109,7 +146,6 @@ function HistoryPanel({ data }) {
 
 // 4. Human in the Loop (HITL) Panel -- NOW WORKING
 function HumanInLoopPanel({ data }) {
-  
   const handleApprove = (reportId) => {
     console.log(`Approving report ${reportId}...`);
     // Add your API call here
@@ -130,26 +166,34 @@ function HumanInLoopPanel({ data }) {
       <Box>
         <Paper variant="outlined" sx={{ p: 2, mb: 2 }}>
           <Typography variant="h6">Approve Expense Report #451</Typography>
-          <Typography variant="body2" sx={{ mb: 2 }}>Assigned to: you</Typography>
-          <Button 
-            variant="contained" 
+          <Typography variant="body2" sx={{ mb: 2 }}>
+            Assigned to: you
+          </Typography>
+          <Button
+            variant="contained"
             sx={{ mr: 1 }}
             onClick={() => handleApprove(451)}
           >
             Approve
           </Button>
-          <Button 
-            variant="outlined" 
+          <Button
+            variant="outlined"
             color="error"
             onClick={() => handleReject(451)}
           >
             Reject
           </Button>
         </Paper>
-         <Paper variant="outlined" sx={{ p: 2 }}>
-          <Typography variant="h6">Verify User Registration: 'test@user.com'</Typography>
-          <Typography variant="body2" sx={{ mb: 2 }}>Assigned to: review_team</Typography>
-          <Button variant="contained" disabled>Claim Task</Button>
+        <Paper variant="outlined" sx={{ p: 2 }}>
+          <Typography variant="h6">
+            Verify User Registration: 'test@user.com'
+          </Typography>
+          <Typography variant="body2" sx={{ mb: 2 }}>
+            Assigned to: review_team
+          </Typography>
+          <Button variant="contained" disabled>
+            Claim Task
+          </Button>
         </Paper>
       </Box>
     </Paper>
@@ -159,12 +203,12 @@ function HumanInLoopPanel({ data }) {
 // --- Main Analytics Page Component ---
 
 export default function AnalyticsPage() {
-  const [tab, setTab] = useState('logs');
+  const [tab, setTab] = useState("logs");
   const [loading, setLoading] = useState(false);
   const [analyticsData, setAnalyticsData] = useState(null);
 
   const { flowId } = useParams();
-  const navigate = useNavigate(); 
+  const navigate = useNavigate();
 
   useEffect(() => {
     if (flowId) {
@@ -175,19 +219,38 @@ export default function AnalyticsPage() {
           const mockData = {
             id: flowId,
             logs: [
-              { timestamp: '2025-11-07T12:00:00Z', level: 'info', message: 'Flow started' },
-              { timestamp: '2025-11-07T12:00:01Z', level: 'warn', message: 'Node "email" timeout, retrying...' },
-              { timestamp: '2025-11-07T12:00:02Z', level: 'info', message: 'Node "email" success' },
-              { timestamp: '2025-11-07T12:00:03Z', level: 'error', message: 'Node "database" failed: Connection refused' },
-              { timestamp: '2025-11-07T12:00:03Z', level: 'info', message: 'Flow finished with status: FAILED' },
+              {
+                timestamp: "2025-11-12T12:00:00Z",
+                level: "info",
+                message: "Flow started",
+              },
+              {
+                timestamp: "2025-11-12T12:00:01Z",
+                level: "info",
+                message: "Fetching data...",
+              },
+              {
+                timestamp: "2025-11-12T12:00:02Z",
+                level: "info",
+                message: "Data fetched successfully",
+              },
+              {
+                timestamp: "2025-11-12T12:00:03Z",
+                level: "info",
+                message: "Processing completed",
+              },
+              {
+                timestamp: "2025-11-12T12:00:03Z",
+                level: "info",
+                message: "Flow finished with status: SUCCESS",
+              },
             ],
           };
-          await new Promise(resolve => setTimeout(resolve, 500)); 
+          await new Promise((resolve) => setTimeout(resolve, 500));
           setAnalyticsData(mockData);
-
         } catch (error) {
           console.error("Failed to fetch analytics:", error);
-          setAnalyticsData(null); 
+          setAnalyticsData(null);
         } finally {
           setLoading(false);
         }
@@ -195,30 +258,38 @@ export default function AnalyticsPage() {
 
       fetchAnalytics();
     }
-  }, [flowId]); 
+  }, [flowId]);
 
   const handleTabChange = (event, newValue) => {
     setTab(newValue);
   };
 
   const handleClose = () => {
-    navigate('/'); // Go back to the dashboard
+    navigate("/"); // Go back to the dashboard
   };
 
   return (
     <Box sx={{ height: "100vh", display: "flex", flexDirection: "column" }}>
-      <AppBar 
-        position="static" 
-        color="inherit" 
+      <AppBar
+        position="static"
+        color="inherit"
         elevation={1}
-        sx={{ 
-          borderBottom: 1, 
-          borderColor: "divider", 
+        sx={{
+          borderBottom: 1,
+          borderColor: "divider",
           bgcolor: "background.paper",
         }}
       >
-        <Toolbar sx={{ display: "flex", height:"12vh", justifyContent: "space-between" }}>
-          <Typography variant="h6" color="text.primary" sx={{ px: 3 }}> {/* Added padding */}
+        <Toolbar
+          sx={{
+            display: "flex",
+            height: "12vh",
+            justifyContent: "space-between",
+          }}
+        >
+          <Typography variant="h6" color="text.primary" sx={{ px: 3 }}>
+            {" "}
+            {/* Added padding */}
             Flow Analytics {flowId && `(ID: ${flowId.slice(0, 8)}...)`}
           </Typography>
           <IconButton
@@ -234,7 +305,14 @@ export default function AnalyticsPage() {
       </AppBar>
 
       {/* --- TABS BAR FIX --- */}
-      <Box sx={{ borderBottom: 1, borderColor: 'divider', bgcolor: "background.paper", px: 3 }}>
+      <Box
+        sx={{
+          borderBottom: 1,
+          borderColor: "divider",
+          bgcolor: "background.paper",
+          px: 3,
+        }}
+      >
         {/* Removed <Container> and added px: 3 to the Box */}
         <Tabs value={tab} onChange={handleTabChange}>
           <Tab label="Logs" value="logs" />
@@ -245,10 +323,10 @@ export default function AnalyticsPage() {
       </Box>
 
       {/* --- MAIN CONTENT AREA FIX --- */}
-      <Box 
-        sx={{ 
-          flexGrow: 1, 
-          overflow: 'auto', 
+      <Box
+        sx={{
+          flexGrow: 1,
+          overflow: "auto",
           bgcolor: "background.default", // Light grey background
           py: 2, // Add vertical padding
           px: 3, // Add horizontal padding
@@ -256,24 +334,32 @@ export default function AnalyticsPage() {
       >
         {/* Removed <Container> and added px: 3 to the Box */}
         {loading && (
-          <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%', mt: 5 }}>
+          <Box
+            sx={{
+              display: "flex",
+              justifyContent: "center",
+              alignItems: "center",
+              height: "100%",
+              mt: 5,
+            }}
+          >
             <CircularProgress />
           </Box>
         )}
-        
+
         {!loading && analyticsData && (
           <>
-            {tab === 'logs' && <LogsPanel data={analyticsData} />}
-            {tab === 'charts' && <ChartsPanel data={analyticsData} />}
-            {tab === 'history' && <HistoryPanel data={analyticsData} />}
-            {tab === 'hitl' && <HumanInLoopPanel data={analyticsData} />}
+            {tab === "logs" && <LogsPanel data={analyticsData} />}
+            {tab === "charts" && <ChartsPanel data={analyticsData} />}
+            {tab === "history" && <HistoryPanel data={analyticsData} />}
+            {tab === "hitl" && <HumanInLoopPanel data={analyticsData} />}
           </>
         )}
-        
+
         {!loading && !analyticsData && (
-           <Paper sx={{p: 3, mt: 2}}>
-              <Typography>No analytics data available for this flow.</Typography>
-           </Paper>
+          <Paper sx={{ p: 3, mt: 2 }}>
+            <Typography>No analytics data available for this flow.</Typography>
+          </Paper>
         )}
       </Box>
     </Box>

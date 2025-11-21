@@ -1,5 +1,5 @@
 from typing import List, Dict, Literal, Type
-from lib.agent import Agent
+from lib.agents import Agent
 from lib.node import Node
 from postgres_util import construct_table_name
 import pathway as pw

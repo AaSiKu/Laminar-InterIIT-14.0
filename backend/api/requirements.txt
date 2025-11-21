@@ -155,3 +155,5 @@ widgetsnbextension==4.0.15
 xyzservices==2025.10.0
 yarl==1.22.0
 zipp==3.23.0
+lz4
+cramjam

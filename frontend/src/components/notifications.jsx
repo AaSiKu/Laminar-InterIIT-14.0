@@ -158,11 +158,11 @@ export const NotificationProvider = ({ children }) => {
         console.log('   URL:', WS_URL);
         console.log('   ReadyState:', ws.readyState);
         setIsConnected(true);
-        toast.success('Notifications connected', {
-          position: 'top-right',
-          autoClose: 2000,
-          hideProgressBar: true,
-        });
+        // toast.success('Notifications connected', {
+        //   position: 'top-right',
+        //   autoClose: 2000,
+        //   hideProgressBar: true,
+        // });
       };
 
       ws.onclose = (event) => {
