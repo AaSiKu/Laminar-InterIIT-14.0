@@ -3,23 +3,29 @@ import os
 from dotenv import load_dotenv
 from motor.motor_asyncio import AsyncIOMotorClient
 from bson.objectid import ObjectId
-from fastapi import FastAPI, Request, status, HTTPException, Depends
+from fastapi import FastAPI, Request, status, HTTPException, WebSocket, WebSocketDisconnect, Depends
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware 
 from fastapi.security import OAuth2PasswordBearer
 from typing import Any, Dict, Union, Optional, Type
-import inspect
 from pydantic import BaseModel
 from contextlib import asynccontextmanager
+import inspect
 import docker
+import logging
 from jose import JWTError, jwt
 import httpx
 import socket
-from backend.lib.validate import node_map
+import json
+from backend.lib.utils import node_map
 from utils.logging import get_logger, configure_root
-from backend.api.dockerScript import (
+from .dockerScript import (
     run_pipeline_container, stop_docker_container
 )
+from aiokafka import AIOKafkaConsumer
+
+
+
 from backend.auth.routes import router as auth_router
 from backend.auth.routes import get_current_user
 
@@ -32,7 +38,6 @@ MONGO_URI = os.getenv("MONGO_URI")
 MONGO_DB = os.getenv("MONGO_DB", "db")
 WORKFLOW_COLLECTION = os.getenv("MONGO_COLLECTION", "pipelines")
 USER_COLLECTION = os.getenv("USER_COLLECTION", "users")
-
 
 # Global variables
 mongo_client = None
@@ -117,11 +122,13 @@ def schema_index(request: Request):
     """
     Returns category wise list of all available node types.
     """
-    io_node_ids = [node_id for node_id, cls in NODES.items() if cls.__module__ == 'backend.lib.io_nodes']
-    table_ids = [node_id for node_id, cls in NODES.items() if cls.__module__ == 'backend.lib.tables']
+    io_node_ids = [node_id for node_id, cls in NODES.items() if cls.__module__.startswith('backend.lib.io_nodes')]
+    table_ids = [node_id for node_id, cls in NODES.items() if cls.__module__.startswith('backend.lib.tables')]
+    agent_ids = [node_id for node_id, cls in NODES.items() if cls.__module__.startswith('backend.lib.agents')]
     return {
         "io_nodes": io_node_ids,
-        "table_nodes": table_ids
+        "table_nodes": table_ids,
+        "agent_nodes": agent_ids,
     }
 
 def _remap_schema_types(schema: dict) -> dict:
@@ -207,6 +214,7 @@ async def docker_spinup(request: PipelineIdRequest):
                     'container_id': result['pipeline_container_id'],
                     'pipeline_host_port': result['pipeline_host_port'],
                     'agentic_host_port': result['agentic_host_port'],
+                    'db_host_port': result['db_host_port'],
                     'host_ip': host_ip,
                     'status': False, # the status is of pipeline, it will be toggled from the docker container
                 }
@@ -259,10 +267,10 @@ async def run_pipeline_endpoint(request: PipelineIdRequest):
     Triggers a pipeline to run in its container.
     """
     pipeline = await workflow_collection.find_one({'_id': ObjectId(request.pipeline_id)})
-    if not pipeline or not pipeline.get('host_port'):
+    if not pipeline or not pipeline.get('pipeline_host_port'):
         raise HTTPException(status_code=404, detail="Pipeline not found or not running")
 
-    port = pipeline['host_port']
+    port = pipeline['pipeline_host_port']
     ip = pipeline['host_ip']
     url = f"http://{ip}:{port}/trigger"
     
@@ -284,10 +292,10 @@ async def stop_pipeline_endpoint(request: PipelineIdRequest):
     Stops a running pipeline in its container.
     """
     pipeline = await workflow_collection.find_one({'_id': ObjectId(request.pipeline_id)})
-    if not pipeline or not pipeline.get('host_port'):
+    if not pipeline or not pipeline.get('pipeline_host_port'):
         raise HTTPException(status_code=404, detail="Pipeline not found or not running")
 
-    port = pipeline['host_port']
+    port = pipeline['pipeline_host_port']
     ip = pipeline['host_ip']
     url = f"http://{ip}:{port}/stop"
     
@@ -409,3 +417,45 @@ async def retrieve(data: PipelineIdRequest):
     except Exception as e:
         logger.error(f"Retrieve error: {e}")
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
+
+
+
+KAFKA_BOOTSTRAP_SERVER = os.getenv("KAFKA_BOOTSTRAP_SERVER", "localhost:9092")
+SASL_USERNAME = os.getenv("KAFKA_SASL_USERNAME", None)
+SASL_PASSWORD = os.getenv("KAFKA_SASL_PASSWORD", None)
+SASL_MECHANISM = os.getenv("KAFKA_SASL_MECHANISM", None)
+SECURITY_PROTOCOL = os.getenv("KAFKA_SECURITY_PROTOCOL",None)
+
+@app.websocket("/ws/alerts/{pipeline_id}")
+async def alerts_ws(websocket: WebSocket, pipeline_id: str):
+    await websocket.accept()
+    print(pipeline_id)
+    topic = f"alert_{pipeline_id}"
+
+    kwargs = {}
+    if SASL_USERNAME:
+        kwargs = {
+            "security_protocol": SECURITY_PROTOCOL,
+            "sasl_mechanisms": SASL_MECHANISM,
+            "sasl_plain_username": SASL_USERNAME,
+            "sasl_password": SASL_PASSWORD,
+        }
+    consumer = AIOKafkaConsumer(
+        topic,
+        bootstrap_servers=KAFKA_BOOTSTRAP_SERVER,
+    )
+
+    await consumer.start()
+    try:
+        async for msg in consumer:
+            try:
+                payload = json.loads(msg.value.decode())
+            except:
+                payload = {"raw": msg.value.decode()}
+
+            await websocket.send_json(payload)
+
+    except WebSocketDisconnect:
+        pass
+    finally:
+        await consumer.stop()

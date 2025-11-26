@@ -1,0 +1,109 @@
+from typing import List
+import pathway as pw
+from lib.tables import AsofJoinNode, IntervalJoinNode, WindowJoinNode, WindowByNode
+from .helpers import MappingValues, get_col, get_this_col, select_for_join
+from .transforms import _join
+
+def asof_join(inputs: List[pw.Table], node: AsofJoinNode):
+    params = _join(inputs, node)
+    left, right = inputs
+    return left.asof_join(
+        right,
+        get_col(left, node.time_col1),
+        get_col(right, node.time_col2),
+        *params["expression"],
+        how=params["how_map"][node.how],
+    ).select(
+        *select_for_join(
+            left,
+            right,
+            params["without1"] + [node.time_col1],
+            params["without2"] + [node.time_col2],
+            params["other_columns"]
+        ),
+        *([get_col(left, node.time_col1)] if node.time_col1 == node.time_col2 else [get_col(left, node.time_col1), get_col(right, node.time_col2)])
+    )
+
+def interval_join(inputs: List[pw.Table], node: IntervalJoinNode):
+    params = _join(inputs, node)
+    left, right = inputs
+    return left.interval_join(
+        right,
+        get_col(left, node.time_col1),
+        get_col(right, node.time_col2),
+        pw.temporal.interval(node.lower_bound, node.upper_bound),
+        *params["expression"],
+        how=params["how_map"][node.how],
+    ).select(
+        *select_for_join(
+            left,
+            right,
+            params["without1"] + [node.time_col1],
+            params["without2"] + [node.time_col2],
+            params["other_columns"]
+        ),
+        *([get_col(left, node.time_col1)] if node.time_col1 == node.time_col2 else [get_col(left, node.time_col1), get_col(right, node.time_col2)])
+    )
+
+def window_join(inputs: List[pw.Table], node: WindowJoinNode):
+    params = _join(inputs, node)
+    left, right = inputs
+    kwargs = node.model_dump()["window"]
+    window_type = kwargs.pop("window_type")
+    window = getattr(pw.temporal, window_type)(**kwargs)
+    return left.window_join(
+        right,
+        get_col(left, node.time_col1),
+        get_col(right, node.time_col2),
+        window,
+        *params["expression"],
+        how=params["how_map"][node.how],
+    ).select(
+        *select_for_join(
+            left,
+            right,
+            params["without1"] + [node.time_col1],
+            params["without2"] + [node.time_col2],
+            params["other_columns"]
+        ),
+        *([get_col(left, node.time_col1)] if node.time_col1 == node.time_col2 else [get_col(left, node.time_col1), get_col(right, node.time_col2)])
+    )
+
+def window_by(inputs: List[pw.Table], node: WindowByNode):
+    kwargs = node.model_dump()["window"]
+    window_type = kwargs.pop("window_type")
+    window = getattr(pw.temporal, window_type)(**kwargs)
+    instance = get_this_col(node.instance_col) if node.instance_col is not None else None
+
+    reduce_kwargs = {}
+    if instance is not None:
+        reduce_kwargs[node.instance_col] = pw.this._pw_instance
+    _reducers = [(red["col"], red["reducer"], red["new_col"]) for red in node.reducers]
+    
+    return inputs[0].windowby(
+        get_this_col(node.time_col),
+        window=window,
+        instance=instance
+    ).reduce(
+        pw.this._pw_window_start,
+        pw.this._pw_window_end,
+        **{
+            new_col: getattr(pw.reducers, reducer)(get_this_col(prev_col)) for prev_col, reducer, new_col in _reducers
+        },
+        **reduce_kwargs
+    )
+
+temporal_mappings: dict[str, MappingValues] = {
+    "window_by": {
+        "node_fn": window_by
+    },
+    "asof_join": {
+        "node_fn": asof_join,
+    },
+    "interval_join": {
+        "node_fn": interval_join,
+    },
+    "window_join": {
+        "node_fn": window_join,
+    },
+}

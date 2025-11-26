@@ -1,6 +1,7 @@
 import React, { useContext } from "react";
 import { Navigate } from "react-router-dom";
 import { AuthContext } from "../context/AuthContext";
+import { NotificationProvider, NotificationToastContainer } from "./notifications";
 
 const ProtectedRoute = ({ children }) => {
   const { isAuthenticated } = useContext(AuthContext);
@@ -9,7 +10,11 @@ const ProtectedRoute = ({ children }) => {
     return <Navigate to="/auth/login" replace />;
   }
 
-  return children;
+  return <>
+  <NotificationProvider>
+    <NotificationToastContainer /> 
+    {children}
+  </NotificationProvider></>;
 };
 
 export default ProtectedRoute;

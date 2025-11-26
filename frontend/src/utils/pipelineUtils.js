@@ -1,4 +1,5 @@
-
+import { addNodeType } from "./dashboard.utils.jsx";
+import { fetchNodeSchema } from "./dashboard.api";
 const savePipelineAPI = async (path,rfInstance,currentPipelineId,setCurrentPipelineId,setLoading,setError) => {
 
   if (!rfInstance) return;
@@ -9,7 +10,7 @@ const savePipelineAPI = async (path,rfInstance,currentPipelineId,setCurrentPipel
   try {
     const flow = rfInstance.toObject();
 
-    const response = await fetch("http://localhost:8000/save", {
+    const response = await fetch(`${import.meta.env.VITE_API_SERVER}/save`, {
       method: "POST",
       credentials: "include", 
       headers: {
@@ -66,6 +67,7 @@ async function fetchAndSetPipeline(id, setters) {
   }
   const result = await res.json();
   const pipeline = result["pipeline"];
+  await add_to_node_types(pipeline?.nodes || []);
   if (pipeline) {
     setCurrentEdges(pipeline["edges"] || []);
     setCurrentNodes(pipeline["nodes"] || []);
@@ -113,6 +115,23 @@ async function spindownPipeline(id) {
     throw new Error(`Unable to spin down pipeline, status: ${res.status}`);
   }
   return await res.json();
+}
+
+async function add_to_node_types(nodes = []) {
+  if (!Array.isArray(nodes) || !nodes.length) return;
+
+  const uniqueNodeIds = Array.from(
+    new Set(nodes.map((node) => node?.node_id).filter(Boolean))
+  );
+
+  await Promise.all(
+    uniqueNodeIds.map(async (nodeId) => {
+      const schema = await fetchNodeSchema(nodeId);
+      if (schema?.properties?.node_id?.const) {
+        addNodeType(schema);
+      }
+    })
+  );
 }
 
 export {
