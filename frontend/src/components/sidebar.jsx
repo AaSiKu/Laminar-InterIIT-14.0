@@ -32,8 +32,6 @@ const Sidebar = () => {
    useEffect(() => {
     if (location.pathname === '/auth/login' || location.pathname === '/auth/signup') {
       setSideBarOpen(false);
-
-      // If already logged in, redirect to home
       if (isAuthenticated) {
         navigate('/');
       }
@@ -52,7 +50,6 @@ const Sidebar = () => {
     },
     { icon: <WorkspacePremiumRounded />, label: 'Admin Dashboard', path: '/leadership' },
     { icon: <QueryStatsRounded />, label: 'Analytics', path: '/analytics' },
-    // { icon: <GroupRounded />, label: 'Users', path: '/users' },
     {
       icon: <LogoutRounded color="error" />,
       label: 'Logout',
