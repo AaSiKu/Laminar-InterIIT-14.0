@@ -1,4 +1,4 @@
-from typing import List, TypedDict, Union, Dict,Any, Literal
+from typing import List, Union, Dict,Any, Literal, Optional
 import json
 from fastapi import FastAPI, HTTPException
 from contextlib import asynccontextmanager
@@ -7,7 +7,7 @@ from pydantic import BaseModel
 from lib.agents import Agent, AlertResponse
 from langchain.agents import create_agent
 from langchain_groq import ChatGroq
-from langchain_core.tools import tool
+from langchain_core.tools import tool, BaseTool
 from langgraph.graph.state import CompiledStateGraph
 from langchain_community.utilities.sql_database import SQLDatabase
 from langchain_community.tools import QuerySQLDataBaseTool
@@ -15,6 +15,7 @@ import os
 load_dotenv()
 
 from postgres_util import postgre_engine
+
 
 model = ChatGroq(
     model="llama-3.1-8b-instant",
@@ -27,6 +28,7 @@ model = ChatGroq(
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+
     global supervisor
     supervisor = None
 
@@ -44,9 +46,9 @@ app = FastAPI(title="Agentic API", lifespan=lifespan)
 def root() -> dict[str, str]:
     return {"status": "ok", "message": "Agentic API is running"}
 
-class TablePayload(TypedDict):
+class TablePayload(BaseModel):
     table_name: str
-    schema: Dict[str,Any]
+    table_schema: Dict[str,Any]
     description: str
 
 class AgentPayload(Agent):
@@ -58,7 +60,7 @@ class InferModel(BaseModel):
 @app.post("/build")
 async def build(request: InferModel):
     agents = request.agents
-
+    print(request)
     agent_descriptions = '\n'.join([f"Agent with name {agent.name} described as: {agent.description}" for agent in agents])
     SUPERVISOR_PROMPT = (
         f"You are a supervisor agent that manages the {request.pipeline_name} pipeline\n"
@@ -81,19 +83,38 @@ async def build(request: InferModel):
 
         tools = []
         if len(tool_tables) > 0:
-            db_agent = SQLDatabase(postgre_engine, include_tables=[table.table_name for table in tool_tables])
+            # Lazy SQL tool - connects only on first call
+            def create_lazy_sql_tool(tables: List[TablePayload]):
+                _db_instance: Optional[SQLDatabase] = None
+                _sql_tool: Optional[QuerySQLDataBaseTool] = None
+                db_description = (
+                            "The following is the list of tables you can access through this tool (in the format TABLE_NAME\n TABLE_SCHEMA:\n"
+                            f"{'\n'.join([
+                                f"{i+1}. {table.table_name}\n{json.dumps(table.table_schema)}" for i,table in enumerate(tables)
+                            ])}\n"
+                            "Input to this tool is a detailed and correct SQL query, output is a result from the database.\n"
+                            "Only use this tool for read requests and when you absolutely need some data from the table."
+                            "If the query is not correct, an error message will be returned.\n"
+                            "If an error is returned, rewrite the query, check the query, and try again.\n"
+                )
+                def lazy_init():
+                    nonlocal _db_instance, _sql_tool
+                    if _sql_tool is None:
+                        _db_instance = SQLDatabase(
+                            postgre_engine, 
+                            include_tables=[table.table_name for table in tables]
+                        )
+                        
+                        _sql_tool = QuerySQLDataBaseTool(db=_db_instance)
+                    return _sql_tool
+                
+                @tool("query_database", description=db_description)
+                def query_db(query: str) -> str:
+                    sql_tool = lazy_init()
+                    return sql_tool.invoke(query)
+                return query_db
             
-            db_description = (
-                "The following is the list of tables you can access through this tool (in the format TABLE_NAME\n TABLE_SCHEMA:\n"
-                f"{'\n'.join([
-                    f"{i+1}. {table.table_name}\n{json.dumps(table.schema)}" for i,table in enumerate(tool_tables)
-                ])}\n"
-                "Input to this tool is a detailed and correct SQL query, output is a result from the database.\n"
-                "Only use this tool for read requests and when you absolutely need some data from the table."
-                "If the query is not correct, an error message will be returned.\n"
-                "If an error is returned, rewrite the query, check the query, and try again.\n"
-            )
-            tools.append(QuerySQLDataBaseTool(description=db_description, db=db_agent))
+            tools.append(create_lazy_sql_tool(tool_tables))
 
         langchain_agent = create_agent(model=model,system_prompt=agent.master_prompt, tools=tools)
 

@@ -43,8 +43,8 @@ def build_agentic_graph(
                     if not hasattr(node, "tool_description") or not node.tool_description:
                         raise ValueError(f"Node at index {t} must have tool_description.")
                     tool_tables.append({
-                        "table_name": construct_table_name(node, t),
-                        "schema": out_tbl.schema.columns_to_json_serializable_dict(),
+                        "table_name": construct_table_name(node.node_id, t),
+                        "table_schema": out_tbl.schema.columns_to_json_serializable_dict(),
                         "description": node.tool_description,
                     })
 
@@ -68,7 +68,7 @@ def build_agentic_graph(
         async def infer(self, role: str, content: str) -> str:
             async with httpx.AsyncClient(timeout=30) as client:
                 resp = await client.post(
-                    f"{agentic_url.rstrip("/")}/infer",
+                    f"{agentic_url.rstrip('/')}/infer",
                     json={"role": role, "content": content},
                 )
                 resp.raise_for_status()

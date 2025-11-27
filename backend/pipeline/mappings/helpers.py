@@ -1,4 +1,5 @@
-from typing import TypedDict, Callable, Any, List, Optional, Tuple
+from typing import Callable, Any, List, Optional, Tuple
+from typing_extensions import TypedDict
 import pathway as pw
 
 class MappingValues(TypedDict):
