@@ -9,3 +9,4 @@ prompts.csv
 .vscode
 langchain-docs/
 *venv/
+.DS_Store

@@ -16,13 +16,20 @@ const stringifyJsonProperties = (properties) =>
     if (prop.type === "json" && typeof prop.value === "object") {
       return { ...prop, value: JSON.stringify(prop.value, null, 2) };
     }
+    else if(prop.type == "array"){
+      return {...prop, value: prop.value.join(',')}
+    }
     return prop;
   });
 
-const parseJsonProperties = (properties) =>
+const parseProperties = (properties) =>
   properties.map((prop) => {
     if (prop.type === "json") {
       return { ...prop, value: JSON.parse(prop.value) };
+    }
+    else if (prop.type === "array") {
+      console.log(prop.value.toString().split(","))
+      return {...prop, value: prop.value.toString().split(",")}
     }
     return prop;
   });
@@ -32,6 +39,9 @@ export const PropertyBar = ({
   selectedNode,
   onClose,
   onUpdateProperties,
+  anchor = "right",
+  drawerWidth = 350,
+  variant = "temporary",
 }) => {
   const [properties, setProperties] = useState([]);
   const [snackbar, setSnackbar] = useState({
@@ -55,23 +65,39 @@ export const PropertyBar = ({
   };
 
   const handleSave = () => {
-    if (selectedNode) {
-      try {
-        const updatedProperties = parseJsonProperties(properties);
-        onUpdateProperties(selectedNode.id, updatedProperties);
-        setSnackbar({
-          open: true,
-          message: "Properties saved successfully!",
-          severity: "success",
-        });
-        onClose();
-      } catch (error) {
-        setSnackbar({
-          open: true,
-          message: "Error parsing JSON. Please check the format.",
-          severity: "error",
-        });
+    if (!selectedNode) return;
+
+    const hasEmptyRequired = properties.some((prop) => {
+      if (prop.type === "json") {
+        return !prop.value || !prop.value.toString().trim();
       }
+      return `${prop.value ?? ""}`.trim() === "";
+    });
+
+    if (hasEmptyRequired) {
+      setSnackbar({
+        open: true,
+        message: "Please complete all required properties before saving.",
+        severity: "error",
+      });
+      return;
+    }
+
+    try {
+      const updatedProperties = parseProperties(properties);
+      onUpdateProperties(selectedNode.id, updatedProperties);
+      setSnackbar({
+        open: true,
+        message: "Properties saved successfully!",
+        severity: "success",
+      });
+      onClose();
+    } catch (error) {
+      setSnackbar({
+        open: true,
+        message: "Error parsing JSON. Please check the format.",
+        severity: "error",
+      });
     }
   };
 
@@ -86,20 +112,29 @@ export const PropertyBar = ({
   return (
     <>
       <Drawer
-        anchor="right"
+        anchor={anchor}
         open={open}
         onClose={onClose}
+        variant={variant}
         sx={{
           "& .MuiDrawer-paper": {
-            width: 350,
+            width: drawerWidth,
             p: 3,
             bgcolor: "background.paper",
+            boxSizing: "border-box",
+            display: "flex",
+            flexDirection: "column",
+            gap: 2,
           },
         }}
       >
         <Typography variant="h6" gutterBottom>
           {selectedNode
-            ? `Properties for ${selectedNode.data.label}`
+            ? `Properties for ${
+                selectedNode.data.label ||
+                selectedNode.data.ui?.label ||
+                selectedNode.id
+              }`
             : "Node Properties"}
         </Typography>
         <Divider sx={{ mb: 2 }} />
@@ -122,7 +157,11 @@ export const PropertyBar = ({
             </Typography>
           </Box>
         ) : (
-          <Stack spacing={2} component="form">
+          <Stack
+            spacing={2}
+            component="form"
+            sx={{ flexGrow: 1, overflowY: "auto", pr: 1 }}
+          >
             {properties.map((prop, index) => (
               <PropertyInput
                 key={index}

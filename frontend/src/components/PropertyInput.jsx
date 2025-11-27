@@ -15,7 +15,7 @@ const JsonInput = ({ label, value, onChange }) => (
   />
 );
 
-const DefaultInput = ({ label, value, onChange }) => (
+const DefaultInput = ({ label, value, onChange, required = true}) => (
   <TextField
     label={label}
     value={value}
@@ -23,10 +23,12 @@ const DefaultInput = ({ label, value, onChange }) => (
     fullWidth
     variant="outlined"
     size="small"
+    required={required}
   />
 );
 
-export const PropertyInput = ({ property, onChange }) => {
+// TODO: Update the pipeline object data to have more extensive properties (as defined in pydantic) and render custom renderers for the array and object types
+export const PropertyInput = ({ property, onChange, required=true }) => {
   switch (property.type) {
     case "json":
       return (
@@ -34,6 +36,7 @@ export const PropertyInput = ({ property, onChange }) => {
           label={property.label}
           value={property.value}
           onChange={onChange}
+          required={required}
         />
       );
     default:
@@ -42,6 +45,7 @@ export const PropertyInput = ({ property, onChange }) => {
           label={property.label}
           value={property.value}
           onChange={onChange}
+          required={required}
         />
       );
   }

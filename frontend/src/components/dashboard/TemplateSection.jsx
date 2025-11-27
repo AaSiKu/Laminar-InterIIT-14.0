@@ -3,7 +3,7 @@ import { Box, Typography, Card, CardContent, CardActionArea } from '@mui/materia
 import AddIcon from '@mui/icons-material/Add';
 import AccountTreeIcon from '@mui/icons-material/AccountTree';
 
-const TemplateSection = ({ templates }) => {
+const TemplateSection = ({ templates, onSelectTemplate }) => {
   return (
     <Box sx={{ mt: 4 }}>
       <Typography variant="h5" gutterBottom>
@@ -26,7 +26,10 @@ const TemplateSection = ({ templates }) => {
       >
         {/* Custom Workflow Card */}
         <Card variant="outlined" sx={{ minWidth: 220, height: 160 }}>
-          <CardActionArea sx={{ height: '100%' }}>
+          <CardActionArea
+            sx={{ height: '100%' }}
+            onClick={() => onSelectTemplate?.('custom')}
+          >
             <Box
               sx={{
                 display: 'flex',
@@ -47,7 +50,10 @@ const TemplateSection = ({ templates }) => {
         {/* Predefined Template Cards */}
         {templates.slice(1).map((template) => (
           <Card key={template.id} variant="outlined" sx={{ minWidth: 220, height: 160 }}>
-            <CardActionArea sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+            <CardActionArea
+              sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}
+              onClick={() => onSelectTemplate?.(template.id)}
+            >
               <Box
                 sx={{
                   height: '70%',

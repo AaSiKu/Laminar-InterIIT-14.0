@@ -1,11 +1,11 @@
-from .node import Node
+from ..node import Node
 from typing import Literal
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class AlertResponse(BaseModel):
-    type: Literal["warning","error","info"]
-    message: str
+    type: Literal["warning","error","info"] = Field(description="Alert type")
+    message: str = Field(description="Alert message")
 
 class AlertNode(Node):
     node_id : Literal["alert"]

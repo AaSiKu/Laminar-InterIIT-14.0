@@ -1,5 +1,5 @@
 from pydantic import Field, field_validator
-from typing import Optional, Dict, Any, List, Literal
+from typing import Optional, Dict, Any, List, Literal, Tuple
 import pathway as pw
 from .node import Node
 import json
@@ -12,6 +12,12 @@ class IONode(Node):
 class InputNode(IONode):
     n_inputs : Literal[0] = 0
     table_schema: Any
+    datetime_columns: Optional[List[Tuple[str, str]]] = Field(
+        default=None,
+        description="List of tuples (column_name, format_string) to convert string columns to datetime. "
+                    "Format strings follow strptime conventions (e.g., '%Y-%m-%d %H:%M:%S'). "
+                    "Use 'unix_seconds', 'unix_milliseconds', or 'unix_microseconds' for Unix timestamps."
+    )
 
     @field_validator("table_schema", mode="before")
     @classmethod

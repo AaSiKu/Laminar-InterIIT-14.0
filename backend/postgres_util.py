@@ -1,7 +1,6 @@
 import os
 from sqlalchemy import create_engine
 
-# TODO: Each pipeline's docker container should have its own postgres db to store pipeline outputs, and it should be cleared everytime the pipeline changes
 # Do the above in the docker file
 construct_table_name = lambda node_id, node_index: f"{node_id}__{node_index}"
 
