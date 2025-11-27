@@ -49,7 +49,7 @@ async def signup(request: Request,response: Response, data: UserCreate):
         secure=False,  # True in production
         samesite="Lax",  # or "None" if frontend & backend are on different domains
         max_age=int(access_token_expires.total_seconds()),
-    path="/",
+        path="/",
     )
     response.set_cookie(
         key="refresh_token",
@@ -58,7 +58,7 @@ async def signup(request: Request,response: Response, data: UserCreate):
         secure=False,
         samesite="Lax",
         max_age=int(refresh_token_expires.total_seconds()),
-    path="/",
+        path="/",
     )
 
     return UserOut(id=str(user["_id"]), email=user["email"], full_name=user.get("full_name"))
@@ -93,7 +93,7 @@ async def login(request: Request, response: Response, form_data: utils.OAuth2Pas
         secure=False,  # True in production
         samesite="Lax",  # or "None" if frontend & backend are on different domains
         max_age=int(access_token_expires.total_seconds()),
-    path="/",
+        path="/",
     )
     response.set_cookie(
         key="refresh_token",
@@ -102,7 +102,7 @@ async def login(request: Request, response: Response, form_data: utils.OAuth2Pas
         secure=False,
         samesite="Lax",
         max_age=int(refresh_token_expires.total_seconds()),
-    path="/",
+        path="/",
     )
 
     return {"message": "Login successful", "access_token": access_token, "refresh_token": refresh_token}
@@ -186,6 +186,7 @@ async def refresh_token(request: Request, response: Response):
             secure=False,
             samesite="Lax",
             max_age=int(timedelta(minutes=request.app.state.access_token_expire_minutes).total_seconds()),
+            path="/",
         )
 
         return {"message": "Token refreshed successfully"}
