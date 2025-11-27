@@ -11,12 +11,6 @@ async def create_user(user_collection, data):
     "full_name": data.full_name or "",
     "is_active": True,
     "created_at": datetime.utcnow(),
-    "fileStructure": {
-        "name": "root",
-        "type": "folder",
-        "id": "root",
-        "children": []
-    }
 }
     result = await user_collection.insert_one(user_doc)
     user_doc["_id"] = result.inserted_id

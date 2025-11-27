@@ -1,5 +1,7 @@
+from ast import Str
 import logging
 import os
+from re import S
 from dotenv import load_dotenv
 from motor.motor_asyncio import AsyncIOMotorClient
 from bson.objectid import ObjectId
@@ -7,7 +9,8 @@ from fastapi import FastAPI, Request, status, HTTPException, WebSocket, WebSocke
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware 
 from fastapi.security import OAuth2PasswordBearer
-from typing import Any, Dict, Union, Optional, Type
+from typing import Any, Dict, Union, Optional, Type, List
+from datetime import datetime
 from pydantic import BaseModel
 from contextlib import asynccontextmanager
 import inspect
@@ -26,8 +29,8 @@ from aiokafka import AIOKafkaConsumer
 
 
 from backend.auth.routes import router as auth_router
-from backend.auth.routes import get_current_user
-
+from backend.api.pipelines.routes import router as pipelines_router
+# Include the modular auth router
 configure_root()
 logger = get_logger(__name__)
 
@@ -35,10 +38,12 @@ load_dotenv()
 
 # Import connectors to initialize Twilio connection on startup
 from backend.api import connectors  # noqa: F401
+from backend.api import pipelines  # noqa: F401
 
 MONGO_URI = os.getenv("MONGO_URI")
 MONGO_DB = os.getenv("MONGO_DB", "db")
 WORKFLOW_COLLECTION = os.getenv("MONGO_COLLECTION", "pipelines")
+VERSION_COLLECTION = os.getenv("VERSION_COLLECTION", "versions")
 USER_COLLECTION = os.getenv("USER_COLLECTION", "users")
 
 # Global variables
@@ -51,7 +56,7 @@ NODES: Dict[str, BaseModel] = node_map
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    global mongo_client, db, workflow_collection, user_collection, docker_client
+    global mongo_client, db, workflow_collection, user_collection, docker_client, version_collection
 
     # ---- STARTUP ----
     if not MONGO_URI:
@@ -60,10 +65,12 @@ async def lifespan(app: FastAPI):
     mongo_client = AsyncIOMotorClient(MONGO_URI)
     db = mongo_client[MONGO_DB]
     workflow_collection = db[WORKFLOW_COLLECTION]
+    version_collection = db[VERSION_COLLECTION]
     user_collection = db[USER_COLLECTION]
     print(f"Connected to MongoDB at {MONGO_URI}, DB: {MONGO_DB}", flush=True)
 
     app.state.user_collection = user_collection
+    app.state.version_collection = version_collection
     app.state.secret_key = os.getenv("SECRET_KEY")
     app.state.algorithm = os.getenv("ALGORITHM", "HS256")
     app.state.access_token_expire_minutes = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", 60))
@@ -102,6 +109,8 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+app.include_router(auth_router, prefix="/auth", tags=["auth"])
+app.include_router(pipelines_router, prefix="/pipelines", tags=["pipelines"])
 
 # ---------------- AUTH HELPERS ---------------- #
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
