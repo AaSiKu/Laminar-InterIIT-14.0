@@ -9,9 +9,7 @@ import {
   Divider,
 } from '@mui/material';
 import {
-  HomeRounded,
   AccountTreeRounded,
-  GroupRounded,
   QueryStatsRounded,
   TerminalRounded,
   WorkspacePremiumRounded,

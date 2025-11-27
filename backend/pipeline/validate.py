@@ -38,6 +38,7 @@ def validate_nodes(node_data_list: List[Dict[str, Any]]) -> List[Node]:
         if "data" not in node_data or "properties" not in node_data["data"] or len(node_data["data"]["properties"]) == 0:
             raise ValueError(f"Error parsing 'properties': {node_data}")
 
+        # FIXME: Handel table scheme transformation
         parsed_node_data = {}
         parsed_node_data["node_id"] = node_id
         parsed_node_data["category"] = node_data["category"]
