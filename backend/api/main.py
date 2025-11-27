@@ -25,7 +25,6 @@ from .dockerScript import (
 from aiokafka import AIOKafkaConsumer
 
 
-
 from backend.auth.routes import router as auth_router
 from backend.auth.routes import get_current_user
 
