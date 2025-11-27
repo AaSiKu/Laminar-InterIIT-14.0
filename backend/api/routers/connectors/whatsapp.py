@@ -5,10 +5,13 @@ Simple functions to send messages via WhatsApp (Twilio)
 import os
 from twilio.rest import Client
 from dotenv import load_dotenv
+from fastapi import APIRouter
+from pydantic import BaseModel
+import logging
 
 load_dotenv()
-import logging
 logging.getLogger("twilio").setLevel(logging.WARNING)
+router = APIRouter()
 
 # Twilio WhatsApp credentials (free tier)
 WHATSAPP_SID = os.getenv("WHATSAPP_SID")
@@ -174,3 +177,31 @@ def check_whatsapp_status(message_sid: str) -> dict:
 
 
 
+
+class WhatsAppRequest(BaseModel):
+    number: str
+    message: str
+
+@router.post("/send")
+def whatsapp_send_route(request: WhatsAppRequest):
+    """
+    Send WhatsApp message via Twilio (free tier compatible)
+    
+    Example:
+        POST /connectors/whatsapp/send
+        {
+            "number": "1234567890",
+            "message": "Hello from API!"
+        }
+    """
+    return send_whatsapp_message(request.number, request.message)
+
+@router.get("/status/{message_sid}")
+def whatsapp_status_route(message_sid: str):
+    """
+    Check the delivery status of a WhatsApp message
+    
+    Example:
+        GET /connectors/whatsapp/status/SM80be931f8172ae9b0dbb99d50b5c91db
+    """
+    return check_whatsapp_status(message_sid)

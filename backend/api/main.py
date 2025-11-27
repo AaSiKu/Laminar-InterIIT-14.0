@@ -1,7 +1,5 @@
-from ast import Str
 import logging
 import os
-from re import S
 from dotenv import load_dotenv
 from motor.motor_asyncio import AsyncIOMotorClient
 from bson.objectid import ObjectId
@@ -28,17 +26,15 @@ from .dockerScript import (
 from aiokafka import AIOKafkaConsumer
 
 
-from backend.auth.routes import router as auth_router
-from backend.api.pipelines.routes import router as pipelines_router
+
+from backend.auth.routes import router as auth_router, get_current_user
+from backend.api.routers.pipelines.routes import router as pipelines_router
+from backend.api.routers.connectors.whatsapp import router as whatsapp_router
 # Include the modular auth router
 configure_root()
 logger = get_logger(__name__)
 
 load_dotenv()
-
-# Import connectors to initialize Twilio connection on startup
-from backend.api import connectors  # noqa: F401
-from backend.api import pipelines  # noqa: F401
 
 MONGO_URI = os.getenv("MONGO_URI")
 MONGO_DB = os.getenv("MONGO_DB", "db")
@@ -111,6 +107,7 @@ app.add_middleware(
 
 app.include_router(auth_router, prefix="/auth", tags=["auth"])
 app.include_router(pipelines_router, prefix="/pipelines", tags=["pipelines"])
+app.include_router(whatsapp_router, prefix="/connectors/whatsapp", tags=["whatsapp"])
 
 # ---------------- AUTH HELPERS ---------------- #
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
@@ -268,53 +265,6 @@ async def docker_spindown(request: PipelineIdRequest):
     except Exception as exc:
         logger.error(f"Spindown failed for '{request.pipeline_id}': {exc}")
         return JSONResponse({"error": str(exc)}, status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)
-    
-# Include the modular auth router
-app.include_router(auth_router, prefix="/auth", tags=["auth"])
-
-# ------- Connector Routes ------- #
-from backend.api.connectors import send_whatsapp_message, check_whatsapp_status
-
-class WhatsAppRequest(BaseModel):
-    number: str
-    message: str
-
-@app.post("/connectors/whatsapp/send")
-def whatsapp_send_route(request: WhatsAppRequest):
-    """
-    Send WhatsApp message via Twilio (free tier compatible)
-    
-    Example:
-        POST /connectors/whatsapp/send
-        {
-            "number": "1234567890",
-            "message": "Hello from API!"
-        }
-    """
-    return send_whatsapp_message(request.number, request.message)
-
-@app.get("/connectors/test")
-async def test_connectors():
-    """
-    Test endpoint to verify WhatsApp connector is configured
-    """
-    return {
-        "whatsapp": {
-            "configured": bool(os.getenv("WHATSAPP_SID") and os.getenv("WHATSAPP_AUTH")),
-            "from_number": os.getenv("WHATSAPP_FROM", "Not set"),
-            "note": "To send messages on free tier: 1) Get join code from Twilio Console → Messaging → Try it out, 2) Recipient sends 'join <code>' to +1 415 523 8886 on WhatsApp"
-        }
-    }
-
-@app.get("/connectors/whatsapp/status/{message_sid}")
-def whatsapp_status_route(message_sid: str):
-    """
-    Check the delivery status of a WhatsApp message
-    
-    Example:
-        GET /connectors/whatsapp/status/SM80be931f8172ae9b0dbb99d50b5c91db
-    """
-    return check_whatsapp_status(message_sid)
 
 @app.post("/run")
 async def run_pipeline_endpoint(request: PipelineIdRequest):
@@ -368,112 +318,6 @@ async def stop_pipeline_endpoint(request: PipelineIdRequest):
 
 
 # ------- User Actions on Workflow --------- #
-
-class Graph(BaseModel):
-    pipeline_id: Optional[str] = None
-    path: str
-    pipeline: Any
-
-@app.post("/save")
-async def save_graph(
-    data: Graph,
-    current_user: dict = Depends(get_current_user)
-):
-    """
-    Saves a workflow graph to the pipeline database, linked to the current user.
-    """
-    try:
-        user_identifier = str(current_user["_id"])
-        print(f"Saving pipeline for user: {user_identifier}", flush=True)
-        print(f"Pipeline ID: {data.pipeline_id}", flush=True)
-        
-        # If pipeline_id exists, try to update
-        if data.pipeline_id:
-            try:
-                existing = await workflow_collection.find_one({
-                    '_id': ObjectId(data.pipeline_id),
-                    'user': user_identifier
-                })
-            except Exception as e:
-                print(f"Error finding pipeline: {e}", flush=True)
-                existing = None
-            
-            if existing:
-                # Pipeline exists - update it
-                result = await workflow_collection.update_one(
-                    {'_id': ObjectId(data.pipeline_id)},
-                    {
-                        '$set': {
-                            "path": data.path,
-                            "pipeline": data.pipeline,
-                        }
-                    }
-                )
-                
-                print(f"Updated pipeline: {data.pipeline_id}, matched: {result.matched_count}, modified: {result.modified_count}", flush=True)
-                
-                return {
-                    "message": "Updated successfully",
-                    "id": data.pipeline_id,
-                    "user": user_identifier
-                }
-        
-        # If we reach here, either no pipeline_id was provided or it didn't exist
-        # Create new pipeline
-        print(f"Creating new pipeline", flush=True)
-        doc = {
-            "user": user_identifier,
-            "path": data.path,
-            "pipeline": data.pipeline,
-            "container_id": "",
-            "host_port": "",
-            "host_ip": "",
-            "status": False
-        }
-        result = await workflow_collection.insert_one(doc)
-        
-        if not result.inserted_id:
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="Failed to insert pipeline"
-            )
-        
-        inserted_id = str(result.inserted_id)
-        print(f"Inserted new pipeline: {inserted_id}", flush=True)
-        
-        return {
-            "message": "Saved successfully",
-            "id": inserted_id,
-            "user": user_identifier
-        }
-
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Save error: {e}", exc_info=True)
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Database error: {str(e)}"
-        )
-
-
-@app.post("/retrieve")
-async def retrieve(data: PipelineIdRequest):
-    """
-    Retrieve back the workflow json from mongo
-    """
-    try:
-        result = await workflow_collection.find_one({'_id': ObjectId(data.pipeline_id)})
-        if not result:
-            raise HTTPException(status_code=404, detail="Pipeline not found")
-        
-        result['_id'] = str(result['_id'])
-        return {"message": "Pipeline data retrieved successfully", **result}
-    except Exception as e:
-        logger.error(f"Retrieve error: {e}")
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
-
-
 
 KAFKA_BOOTSTRAP_SERVER = os.getenv("KAFKA_BOOTSTRAP_SERVER", "localhost:9092")
 SASL_USERNAME = os.getenv("KAFKA_SASL_USERNAME", None)
