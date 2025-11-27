@@ -115,8 +115,8 @@ export const addNodeType = (schema) => {
     };
 
     const defaultStyles = {
-      bgColor: categoryColor + "20",
-      hoverBgColor: categoryColor + "35",
+      bgColor: categoryColor,
+      hoverBgColor: categoryColor,
       color: categoryColor,
       borderColor: categoryColor,
     };
@@ -130,9 +130,9 @@ export const addNodeType = (schema) => {
         data={data}
         selected={selected}
         styles={{
-          bgColor: categoryColor + "20", // translucent fill
-          hoverBgColor: categoryColor + "35",
-          color: categoryColor, // text color
+          bgColor: categoryColor, // solid color
+          hoverBgColor: categoryColor,
+          color: categoryColor,
           borderColor: categoryColor,
         }}
         inputs={
@@ -158,16 +158,25 @@ export const addNodeType = (schema) => {
 };
 
 const hashColor = (str) => {
-  let hash = 0;
-  for (let i = 0; i < str.length; i++) {
-    hash = str.charCodeAt(i) + ((hash << 5) - hash);
-  }
-  return `#${((hash >> 24) & 0xff).toString(16).padStart(2, "0")}${(
-    (hash >> 16) &
-    0xff
-  )
-    .toString(16)
-    .padStart(2, "0")}${((hash >> 8) & 0xff)
-    .toString(16)
-    .padStart(2, "0")}`.slice(0, 7);
+  // Category-based color mapping with darker shades
+  const categoryColors = {
+    // Input nodes (darker blue)
+    "input": "#64B5F6",  // Medium blue
+    // Output nodes (darker pink/red)
+    "output": "#E57373",  // Medium red/pink
+    // Table/transformation nodes (darker teal)
+    "table": "#4DB6AC",  // Medium teal
+    // Windowing nodes (darker orange)
+    "temporal": "#FFA726",  // Medium orange
+    // Logic/control flow (darker purple)
+    "logic": "#BA68C8",  // Medium purple
+    // Agent nodes (darker purple)
+    "agent": "#9575CD",  // Medium purple
+    // Action nodes (darker amber)
+    "action": "#FFCA28",  // Medium amber
+    // Default fallback
+    "default": "#90A4AE",  // Medium grey
+  };
+
+  return categoryColors[str] || categoryColors["default"];
 };

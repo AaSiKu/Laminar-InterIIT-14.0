@@ -33,6 +33,7 @@ function AppContent() {
           <Route path="/signup" element={<SignupPage />} />
           <Route path="/" element={<Navigate to="/overview" />} />
 
+<<<<<<< HEAD
           {/* Protected routes */}
           <Route
             path="/workflow"
@@ -70,6 +71,43 @@ function AppContent() {
           <Route path="*" element={<NotFoundPage />} />
         </Routes>
       </Box>
+=======
+        {/* Protected routes */}
+        <Route
+          path="/dashboard"
+          element={
+            // <ProtectedRoute>
+              <Dashboard />
+            // </ProtectedRoute>
+          }
+        />
+        {/* Default route */}
+        <Route
+          path="/developer-dashboard"
+          element={
+            // <ProtectedRoute>
+              <OverviewPage />
+            // </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/developer-dashboard/:projectId"
+          element={
+            // <ProtectedRoute>
+              <DeveloperDashboardProject />
+            // </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/leadership"
+          element={
+            // <ProtectedRoute>
+              <AdminPage />
+            // </ProtectedRoute>
+          }
+        />
+      </Routes>
+>>>>>>> 59f0174 (basenode frontend)
     </>
   );
 }

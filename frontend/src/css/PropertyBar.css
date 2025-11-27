@@ -1,0 +1,93 @@
+/* Property Bar Sidebar Styles */
+
+.property-bar-drawer .MuiDrawer-paper {
+  width: 500px;
+  padding: 24px;
+  background-color: #fafafa;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  border-left: 1px solid #e0e0e0;
+}
+
+/* Property Bar Header */
+.property-bar-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.property-bar-title {
+  font-weight: 600 !important;
+  font-size: 1.25rem !important;
+  color: rgba(0, 0, 0, 0.87);
+}
+
+.property-bar-close-btn {
+  color: rgba(0, 0, 0, 0.6) !important;
+}
+
+/* Form Styles */
+.property-bar-form {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.property-bar-form .MuiTextField-root {
+  background-color: #fff;
+  border-radius: 8px;
+}
+
+.property-bar-form .MuiInputLabel-root {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: rgba(0, 0, 0, 0.7);
+}
+
+.property-bar-form .MuiOutlinedInput-root {
+  border-radius: 8px;
+}
+
+.property-bar-form .MuiOutlinedInput-root:hover .MuiOutlinedInput-notchedOutline {
+  border-color: #1976d2;
+}
+
+/* Submit Button */
+.property-bar-submit-btn {
+  margin-top: 16px !important;
+  background-color: #1976d2 !important;
+  color: #fff !important;
+  padding: 10px 24px !important;
+  border-radius: 8px !important;
+  font-weight: 600 !important;
+  text-transform: none !important;
+}
+
+.property-bar-submit-btn:hover {
+  background-color: #1565c0 !important;
+}
+
+/* Property Section */
+.property-section {
+  background-color: #fff;
+  border-radius: 8px;
+  padding: 16px;
+  border: 1px solid #e0e0e0;
+}
+
+.property-section-title {
+  font-size: 0.875rem !important;
+  font-weight: 600 !important;
+  color: rgba(0, 0, 0, 0.87);
+  margin-bottom: 12px !important;
+}
+
+/* Alert Styles */
+.property-bar-alert {
+  border-radius: 8px;
+  font-size: 0.875rem;
+}
+

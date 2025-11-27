@@ -13,6 +13,7 @@ import {
 import { PropertyInput } from "./PropertyInput";
 import Form from "@rjsf/mui";
 import validator from "@rjsf/validator-ajv8";
+import "../css/PropertyBar.css";
 
 const stringifyJsonProperties = (properties) =>
   properties.map((prop) => {
@@ -116,32 +117,29 @@ export const PropertyBar = ({
         open={open}
         onClose={onClose}
         variant={variant}
+        className="property-bar-drawer"
         sx={{
           "& .MuiDrawer-paper": {
             width: drawerWidth,
-            p: 3,
-            bgcolor: "background.paper",
-            boxSizing: "border-box",
-            display: "flex",
-            flexDirection: "column",
-            gap: 2,
           },
         }}
       >
         {!selectedNode ? (
-          <Alert severity="info">Select a node to view its properties.</Alert>
+          <Alert severity="info" className="property-bar-alert">
+            Select a node to view its properties.
+          </Alert>
         ) : (
-          <>
+          <div className="property-bar-form">
             <Form
               schema={selectedNode?.schema}
               validator={validator}
-              initialFormData={selectedNode?.data?.properties}
+              formData={selectedNode?.data?.properties}
               onSubmit={handleSave}
               templates={{
                 DescriptionFieldTemplate: MarkdownDescriptionField,
               }}
             />
-          </>
+          </div>
         )}
       </Drawer>
 

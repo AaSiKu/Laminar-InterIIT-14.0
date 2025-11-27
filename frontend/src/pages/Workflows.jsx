@@ -31,6 +31,7 @@ import {
   spinupPipeline,
   spindownPipeline,
 } from "../utils/pipelineUtils";
+import { fetchNodeSchema } from "../utils/dashboard.api";
 
 export default function WorkflowPage() {
   const [selectedNode, setSelectedNode] = useState(null);
@@ -161,6 +162,45 @@ export default function WorkflowPage() {
     setSelectedNode(null);
   };
 
+  const onDragOver = useCallback((event) => {
+    event.preventDefault();
+    event.dataTransfer.dropEffect = 'move';
+  }, []);
+
+  const onDrop = useCallback(
+    async (event) => {
+      event.preventDefault();
+
+      const nodeName = event.dataTransfer.getData('application/reactflow');
+      
+      if (!nodeName || !rfInstance) {
+        return;
+      }
+
+      try {
+        // Get the position where the node was dropped
+        const position = rfInstance.screenToFlowPosition({
+          x: event.clientX,
+          y: event.clientY,
+        });
+
+        // Fetch the schema for the node
+        const schema = await fetchNodeSchema(nodeName);
+        
+        // Generate the node with the drop position
+        const newNode = generateNode(schema, currentNodes);
+        newNode.position = position;
+
+        // Add the node to the canvas
+        setCurrentNodes((prev) => [...prev, newNode]);
+      } catch (err) {
+        console.error('Failed to add node:', err);
+        setError('Failed to add node. Please try again.');
+      }
+    },
+    [rfInstance, currentNodes, setCurrentNodes, setError]
+  );
+
   const drawerWidth = 64 + (dashboardSidebarOpen ? 325 : 0);
 
   return (
@@ -256,6 +296,8 @@ export default function WorkflowPage() {
             onConnect={onConnect}
             onNodeClick={onNodeClick}
             onInit={setRfInstance}
+            onDrop={onDrop}
+            onDragOver={onDragOver}
             fitView
           >
             <Controls position="top-right" />

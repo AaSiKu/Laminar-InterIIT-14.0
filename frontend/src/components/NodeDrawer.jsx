@@ -33,10 +33,11 @@ const getColorFromName = (name) => {
   return `hsl(${hue}, 65%, 55%)`; // medium-saturation color
 };
 
-export const NodeDrawer = ({ open, onClose, onAddNode }) => {
+export const NodeDrawer = ({ open, onClose, onAddNode, onDragStart: onDragStartProp }) => {
   const [openSections, setOpenSections] = useState({});
   const [nodeCategories, setNodeCategories] = useState({});
   const [loading, setLoading] = useState(true);
+  const [isDragging, setIsDragging] = useState(false);
 
   // Fetch all node categories dynamically from backend
   useEffect(() => {
@@ -67,6 +68,12 @@ export const NodeDrawer = ({ open, onClose, onAddNode }) => {
   };
 
   const handleAddNode = async (nodeName) => {
+    // Don't add node if it was a drag operation
+    if (isDragging) {
+      setIsDragging(false);
+      return;
+    }
+    
     try {
       const schema = await fetchNodeSchema(nodeName);
       onAddNode(schema);
@@ -74,6 +81,27 @@ export const NodeDrawer = ({ open, onClose, onAddNode }) => {
     } catch (err) {
       console.error("Failed to add node:", err);
     }
+  };
+
+  const onDragStart = (event, nodeName) => {
+    setIsDragging(true);
+    event.dataTransfer.setData('application/reactflow', nodeName);
+    event.dataTransfer.effectAllowed = 'move';
+    
+    // Close the drawer immediately when drag starts
+    onClose();
+    
+    // Notify parent component if needed
+    if (onDragStartProp) {
+      onDragStartProp(nodeName);
+    }
+  };
+
+  const onDragEnd = () => {
+    // Reset dragging state after a short delay to allow onClick to check it
+    setTimeout(() => {
+      setIsDragging(false);
+    }, 100);
   };
 
   const renderCategory = (key, nodes = []) => (
@@ -134,6 +162,9 @@ export const NodeDrawer = ({ open, onClose, onAddNode }) => {
                 key={i}
                 elevation={2}
                 onClick={() => handleAddNode(nodeName)}
+                draggable
+                onDragStart={(event) => onDragStart(event, nodeName)}
+                onDragEnd={onDragEnd}
                 sx={{
                   height: 110,
                   width: "100%",
@@ -141,12 +172,15 @@ export const NodeDrawer = ({ open, onClose, onAddNode }) => {
                   flexDirection: "column",
                   justifyContent: "center",
                   alignItems: "center",
-                  cursor: "pointer",
+                  cursor: "grab",
                   borderRadius: 2,
                   transition: "0.2s ease",
                   "&:hover": {
                     transform: "translateY(-3px)",
                     bgcolor: "action.hover",
+                  },
+                  "&:active": {
+                    cursor: "grabbing",
                   },
                 }}
               >
@@ -158,6 +192,7 @@ export const NodeDrawer = ({ open, onClose, onAddNode }) => {
                     mb: 1,
                     fontSize: 16,
                     textTransform: "uppercase",
+                    pointerEvents: "none",
                   }}
                 >
                   {nodeName[0]}
@@ -169,6 +204,7 @@ export const NodeDrawer = ({ open, onClose, onAddNode }) => {
                     wordBreak: "break-word",
                     fontSize: "0.8rem",
                     width: "100%",
+                    pointerEvents: "none",
                   }}
                 >
                   {nodeName}

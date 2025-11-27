@@ -4,13 +4,12 @@ import {
   Paper,
   Typography,
   Stack,
-  Menu,
-  MenuItem,
-  ListItemIcon,
-  ListItemText,
-  Divider,
+  IconButton,
+  Tooltip,
+  Box,
 } from "@mui/material";
-import { ContentCopy, ContentCut, Delete, FileCopy } from "@mui/icons-material";
+import { ContentCopy, ContentCut, Delete, FileCopy, Extension } from "@mui/icons-material";
+import "../css/BaseNode.css";
 
 export const BaseNode = memo(
   ({
@@ -24,6 +23,36 @@ export const BaseNode = memo(
     contextMenu = [],
   }) => {
     const { setNodes, getNode } = useReactFlow();
+
+    // Convert properties to array and get top 3
+    const getDisplayProperties = () => {
+      // If properties is already an array, use it
+      if (Array.isArray(properties)) {
+        return properties.slice(0, 3);
+      }
+      
+      // If properties is an object (from data.properties), convert to array
+      if (properties && typeof properties === 'object') {
+        const propsArray = Object.entries(properties)
+          .filter(([key, value]) => 
+            key !== 'node_id' && 
+            key !== 'category' && 
+            key !== 'n_inputs' &&
+            value !== null &&
+            value !== undefined
+          )
+          .map(([key, value]) => ({
+            label: key,
+            value: typeof value === 'object' ? JSON.stringify(value) : String(value),
+            type: typeof value === 'object' ? 'json' : 'string'
+          }));
+        return propsArray.slice(0, 3);
+      }
+      
+      return [];
+    };
+
+    const displayProps = getDisplayProperties();
 
     // Default actions
     const handleCopy = useCallback(() => {
@@ -59,106 +88,99 @@ export const BaseNode = memo(
       }
     }, [id, getNode, setNodes]);
 
-    // Combine default + custom context menu options
-    const menuOptions = [
+    // Hover state for floating actions
+    const [isHovered, setIsHovered] = useState(false);
+
+    // Action buttons configuration
+    const actionButtons = [
       {
         label: "Copy",
-        icon: <ContentCopy fontSize="small" />,
+        icon: <ContentCopy />,
         onClick: handleCopy,
       },
       {
         label: "Cut",
-        icon: <ContentCut fontSize="small" />,
+        icon: <ContentCut />,
         onClick: handleCut,
       },
       {
         label: "Duplicate",
-        icon: <FileCopy fontSize="small" />,
+        icon: <FileCopy />,
         onClick: handleDuplicate,
       },
       {
         label: "Delete",
-        icon: <Delete fontSize="small" />,
+        icon: <Delete />,
         onClick: handleDelete,
       },
-      { divider: true },
-      ...contextMenu,
     ];
 
-    // Context menu anchor
-    const [anchorEl, setAnchorEl] = useState(null);
-    const handleContextMenu = (event) => {
-      event.preventDefault();
-      setAnchorEl(event.currentTarget);
-    };
-    const handleCloseMenu = () => setAnchorEl(null);
-
     return (
-      <Paper
-        onContextMenu={handleContextMenu}
-        elevation={selected ? 8 : 2}
-        sx={{
-          boxShadow: "none",
-          minWidth: styles.minWidth || 200,
-          minHeight: styles.minHeight || 100,
-          borderRadius: styles.borderRadius || 2,
-          p: 2,
-          position: "relative",
-          borderColor: selected
-            ? "primary.main"
-            : styles.borderColor || "divider",
-          bgcolor: styles.bgColor || "background.paper",
-          color: styles.color || "text.primary",
-          transition: "all 0.2s ease",
-          "&:hover": {
-            bgcolor: styles.hoverBgColor || styles.bgColor || "action.hover",
-            transform: "scale(1.02)",
-            boxShadow: 4,
-          },
-          // Remove any background bleed
-          overflow: "visible",
-        }}
+      <div
+        className="base-node-wrapper"
+        onMouseEnter={() => setIsHovered(true)}
+        onMouseLeave={() => setIsHovered(false)}
       >
-        {/* Node title */}
-        <Typography
-          variant="subtitle1"
+        {/* Extended Action Bar */}
+        {isHovered && (
+          <div className="base-node-action-bar">
+            {actionButtons.map((action, idx) => (
+              <Tooltip key={idx} title={action.label} arrow placement="top">
+                <IconButton
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    action.onClick();
+                  }}
+                  className="base-node-action-btn"
+                >
+                  {action.icon}
+                </IconButton>
+              </Tooltip>
+            ))}
+          </div>
+        )}
+
+        <Paper
+          elevation={0}
+          className={`base-node-paper ${selected ? 'selected' : ''}`}
           sx={{
-            fontWeight: 600,
-            textAlign: "center",
-            mb: properties.length > 0 ? 1 : 0,
+            minWidth: styles.minWidth || 200,
+            minHeight: styles.minHeight || 100,
+            border: selected ? `2px solid ${styles.borderColor || "#1976d2"}` : `1px solid #e0e0e0`,
           }}
         >
-          {data?.ui?.label || "Node"}
-        </Typography>
+        {/* Node Header (Colored) - Icon Only */}
+        <div className="base-node-header" style={{
+          backgroundColor: styles.bgColor || "#e0e0e0"
+        }}>
+          <div className="base-node-indicator-dot">
+            <Extension sx={{ fontSize: 16, color: 'rgba(255, 255, 255, 0.9)' }} />
+          </div>
+        </div>
 
-        {/* Properties */}
-        {properties.length > 0 && (
-          <Stack spacing={0.5}>
-            {properties.map((prop, idx) => {
-              if (prop.type === "string")
-                return (
-                  <Typography
-                    key={`${prop.label}-${idx}`}
-                    variant="caption"
-                    color="text.secondary"
-                  >
-                    {prop.label}: {prop.value}
+        {/* Node Body (White) - Title + Properties */}
+        <div className="base-node-body">
+          {/* Node Title */}
+          <Typography variant="subtitle2" className="base-node-title">
+            {data?.ui?.label || "Node"}
+          </Typography>
+          
+          {/* Properties */}
+          {displayProps.length > 0 && (
+            <div className="base-node-properties">
+              {displayProps.map((prop, idx) => (
+                <div key={`${prop.label}-${idx}`} className="base-node-property-row">
+                  <Typography variant="caption" className="base-node-property-label">
+                    {prop.label}
                   </Typography>
-                );
-              if (prop.type === "json")
-                return (
-                  <Typography
-                    key={`${prop.label}-${idx}`}
-                    variant="caption"
-                    color="text.secondary"
-                  >
-                    {prop.label}: JSON value
-                  </Typography>
-                );
-              return null;
-            })}
-          </Stack>
-        )}
+                  <div className="base-node-property-value">
+                    {prop.type === "json" ? "JSON" : prop.value}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
 
         {/* INPUT HANDLES */}
         {inputs.map((input, i) => (
@@ -168,14 +190,14 @@ export const BaseNode = memo(
             position={input.position || Position.Left}
             id={input.id || `in-${i}`}
             style={{
-              background: input.color || "#10b981",
+              background: "#fff",
               top: input.top || `${((i + 1) / (inputs.length + 1)) * 100}%`,
-              left: "-6px",
-              width: 12,
-              height: 12,
+              left: "-5px",
+              width: 10,
+              height: 10,
               borderRadius: "50%",
-              border: "2px solid white",
-              boxShadow: "0 0 0 1px rgba(0,0,0,0.1)",
+              border: "2px solid #9e9e9e",
+              boxShadow: "none",
             }}
           />
         ))}
@@ -188,37 +210,19 @@ export const BaseNode = memo(
             position={output.position || Position.Right}
             id={output.id || `out-${i}`}
             style={{
-              background: output.color || "#3b82f6",
+              background: "#fff",
               top: output.top || `${((i + 1) / (outputs.length + 1)) * 100}%`,
-              right: "-6px",
-              width: 12,
-              height: 12,
+              right: "-5px",
+              width: 10,
+              height: 10,
               borderRadius: "50%",
-              border: "2px solid white",
-              boxShadow: "0 0 0 1px rgba(0,0,0,0.1)",
+              border: "2px solid #9e9e9e",
+              boxShadow: "none",
             }}
           />
         ))}
-
-        {/* Context Menu */}
-        <Menu
-          anchorEl={anchorEl}
-          open={Boolean(anchorEl)}
-          onClose={handleCloseMenu}
-          onClick={handleCloseMenu}
-        >
-          {menuOptions.map((opt, idx) =>
-            opt.divider ? (
-              <Divider key={idx} />
-            ) : (
-              <MenuItem key={idx} onClick={opt.onClick}>
-                {opt.icon && <ListItemIcon>{opt.icon}</ListItemIcon>}
-                <ListItemText>{opt.label}</ListItemText>
-              </MenuItem>
-            )
-          )}
-        </Menu>
       </Paper>
+      </div>
     );
   }
 );
