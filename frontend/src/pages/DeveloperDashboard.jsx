@@ -1,10 +1,19 @@
-import { useState, useEffect, useCallback } from "react";
-import { Container, Box, Typography, Tabs, Tab, AppBar, Badge, Paper } from '@mui/material';
-import TemplateSection from '../components/dashboard/TemplateSection';
-import WorkflowsTable from '../components/dashboard/WorkflowsTable';
-import NotificationsList from '../components/dashboard/NotificationsList';
-import { fetchTemplates, fetchWorkflows, fetchNotifications } from '../utils/developerDashboard.api';
+import { useState, useEffect } from "react";
+import { Box, Typography, Drawer, IconButton, Badge, useMediaQuery, useTheme } from '@mui/material';
+import OverviewSection from '../components/dashboard/OverviewSection';
+import KPICard from '../components/dashboard/KPICard';
+import RecentWorkflowCard from '../components/dashboard/RecentWorkflowCard';
+import HighlightsPanel from '../components/dashboard/HighlightsPanel';
+import { fetchWorkflows, fetchNotifications, fetchOverviewData, fetchKPIData } from '../utils/developerDashboard.api';
 import { useNavigate } from "react-router-dom";
+import TimelineIcon from '@mui/icons-material/Timeline';
+import AccessTimeIcon from '@mui/icons-material/AccessTime';
+import ErrorOutlineIcon from '@mui/icons-material/ErrorOutline';
+import SpeedIcon from '@mui/icons-material/Speed';
+import MoreHorizIcon from '@mui/icons-material/MoreHoriz';
+import NotificationsIcon from '@mui/icons-material/Notifications';
+import CloseIcon from '@mui/icons-material/Close';
+import '../css/DeveloperDashboard.css';
 
 
 const workflowBlueprint = {
@@ -633,52 +642,43 @@ const workflowBlueprint = {
   "status": false
 }["pipeline"]
 
-const TabPanel = (props) => {
-  const { children, value, index, ...other } = props;
-  return (
-    <div
-      role="tabpanel"
-      hidden={value !== index}
-      id={`tabpanel-${index}`}
-      aria-labelledby={`tab-${index}`}
-      {...other}
-    >
-      {value === index && (
-        <Box sx={{ p: 3 }}>
-          {children}
-        </Box>
-      )}
-    </div>
-  );
+const getIconComponent = (iconType) => {
+  const iconMap = {
+    'timeline': TimelineIcon,
+    'access-time': AccessTimeIcon,
+    'error-outline': ErrorOutlineIcon,
+    'speed': SpeedIcon,
+  };
+  return iconMap[iconType] || TimelineIcon;
 };
 
 const DeveloperDashboard = () => {
   const navigate = useNavigate();
-  const [templates, setTemplates] = useState([]);
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('lg'));
+  
   const [workflows, setWorkflows] = useState([]);
   const [notifications, setNotifications] = useState([]);
-  const [notificationCount, setNotificationCount] = useState(0);
-  const [currentTab, setCurrentTab] = useState(0);
+  const [overviewData, setOverviewData] = useState(null);
+  const [kpiData, setKpiData] = useState([]);
+  const [highlightsOpen, setHighlightsOpen] = useState(false);
 
   useEffect(() => {
     const loadData = async () => {
-      const templateData = await fetchTemplates();
-      setTemplates(templateData);
-
       const workflowData = await fetchWorkflows();
       setWorkflows(workflowData);
 
-      const { items, count } = await fetchNotifications();
+      const { items } = await fetchNotifications();
       setNotifications(items);
-      setNotificationCount(count);
+
+      const overview = await fetchOverviewData();
+      setOverviewData(overview);
+
+      const kpis = await fetchKPIData();
+      setKpiData(kpis);
     };
 
     loadData();
-  }, []);
-
-  const handleTabChange = useCallback((event, newValue) => {
-    event.stopPropagation?.();
-    setCurrentTab(newValue);
   }, []);
 
   const handleSelectTemplate = (templateId) => {
@@ -694,179 +694,125 @@ const DeveloperDashboard = () => {
   }
 
   return (
-    <Box sx={{ 
-      minHeight: '100vh',
-      background: '#ffffff',
-      bgcolor: 'background.default',
-      overflowX: 'hidden',
-    }}>
-      <Box sx={{ maxWidth: '1400px', margin: '0 auto', py: 5, px: 4, overflowX: 'hidden' }}>
-        
-        {/* Header Title */}
-        <Typography 
-          variant="h3" 
-          fontWeight="700" 
-          sx={{ 
-            mb: 5,
-            color: 'text.primary',
-            letterSpacing: '-0.5px',
-          }}
-        >
-          Developer Dashboard
+    <div className="developer-dashboard-container">
+      {/* Main Content Area */}
+      <div className="developer-dashboard-main">
+        {/* Top Bar */}
+        <div className="developer-dashboard-topbar">
+          <div className="developer-dashboard-topbar-left">
+            <input
+              type="text"
+              placeholder="Search"
+              className="developer-dashboard-search-input"
+            />
+          </div>
+          <div className="developer-dashboard-topbar-right">
+            {/* Notifications button for mobile */}
+            {isMobile && (
+              <IconButton 
+                onClick={() => setHighlightsOpen(true)}
+                className="developer-dashboard-notification-btn"
+                aria-label="Open notifications"
+              >
+                <Badge badgeContent={notifications.length} color="error">
+                  <NotificationsIcon className="developer-dashboard-notification-icon" />
+                </Badge>
+              </IconButton>
+            )}
+            <div className="developer-dashboard-user-avatar">
+              U
+            </div>
+          </div>
+        </div>
+
+        {/* Dashboard Content */}
+        <div className="developer-dashboard-content-wrapper">
+          {/* Left Content */}
+          <div className="developer-dashboard-left-content">
+            {/* Section 1 & 2: Overview and KPIs Row */}
+            <div className="developer-dashboard-overview-kpi-row">
+              {/* Section 1: Overview Section */}
+              <div className="developer-dashboard-overview-wrapper">
+                {overviewData && <OverviewSection data={overviewData} />}
+              </div>
+
+              {/* Vertical Divider - Hidden on mobile */}
+              <div className="developer-dashboard-vertical-divider" />
+
+              {/* Section 2: KPI Cards Grid - Fixed 2x2 Layout */}
+              <div className="developer-dashboard-kpi-grid">
+                {kpiData.map((kpi) => {
+                  const IconComponent = getIconComponent(kpi.iconType);
+                  return (
+                    <div 
+                      key={kpi.id}
+                      className="developer-dashboard-kpi-item"
+                    >
+                      <KPICard
+                        title={kpi.title}
+                        value={kpi.value}
+                        subtitle={kpi.subtitle}
+                        icon={IconComponent}
+                        iconColor={kpi.iconColor}
+                      />
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Horizontal Divider */}
+            <div className="developer-dashboard-horizontal-divider" />
+
+            {/* Section 3: Recent Workflows Section */}
+            <div className="developer-dashboard-workflows-section">
+              <div className="developer-dashboard-workflows-header">
+                <Typography variant="h6" className="developer-dashboard-workflows-title">
+                  Recent Workflows
         </Typography>
+                <div className="developer-dashboard-more-btn">
+                  <MoreHorizIcon className="developer-dashboard-more-icon" />
+                </div>
+              </div>
+              <div className="developer-dashboard-workflows-list">
+                {workflows.map((workflow) => (
+                  <RecentWorkflowCard
+                    key={workflow.id}
+                    workflow={workflow}
+                    onClick={() => handleSelectTemplate(workflow.id)}
+                  />
+                ))}
+              </div>
+            </div>
+          </div>
 
-        {/* Template Section with Enhanced Styling */}
-        <Box 
-          sx={{ 
-            mb: 5,
-            overflowX: 'hidden',
-            width: '100%',
-            '& h4, & h5, & .MuiTypography-h4, & .MuiTypography-h5': {
-              color: 'text.primary',
-              fontWeight: '700 !important',
-              mb: 4,
-              fontSize: '1.75rem',
-            },
-            '& .template-grid': {
-              display: 'grid',
-              gridTemplateColumns: 'repeat(4, 1fr)',
-              gap: 3,
-              width: '100%',
-            },
-            '& button, & .MuiButton-root, & .MuiCard-root': {
-              borderRadius: '24px',
-              background: 'linear-gradient(145deg, #f8f9fa, #e9ecef)',
-              boxShadow: '6px 6px 16px rgba(0, 0, 0, 0.08), -6px -6px 16px rgba(255, 255, 255, 0.95), inset 0 0 0 1px rgba(0, 0, 0, 0.03)',
-              transition: 'all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275)',
-              border: '1px solid rgba(0, 0, 0, 0.04)',
-              position: 'relative',
-              overflow: 'hidden',
-              minHeight: '160px',
-              width: '100%',
-              '&::before': {
-                content: '""',
-                position: 'absolute',
-                top: '-50%',
-                left: '-50%',
-                width: '200%',
-                height: '200%',
-                background: 'linear-gradient(45deg, transparent, rgba(255, 255, 255, 0.5), transparent)',
-                transform: 'rotate(45deg)',
-                transition: 'all 0.6s ease',
-                animation: 'shine 3s ease-in-out infinite',
-              },
-              '&:hover': {
-                transform: 'translateY(-10px)',
-                boxShadow: '10px 10px 24px rgba(0, 0, 0, 0.12), -10px -10px 24px rgba(255, 255, 255, 1), inset 0 0 0 1px rgba(0, 0, 0, 0.05), 0 0 30px rgba(0, 0, 0, 0.08)',
-                background: 'linear-gradient(145deg, #ffffff, #f0f2f5)',
-                border: '1px solid rgba(0, 0, 0, 0.06)',
-                '&::before': {
-                  animation: 'shine 1.5s ease-in-out infinite',
-                },
-              },
-              '&:active': {
-                transform: 'translateY(-5px)',
-                boxShadow: '4px 4px 12px rgba(0, 0, 0, 0.1), -4px -4px 12px rgba(255, 255, 255, 0.95), inset 2px 2px 6px rgba(0, 0, 0, 0.08)',
-              },
-            },
-            '@keyframes shine': {
-              '0%': {
-                left: '-50%',
-                opacity: 0,
-              },
-              '50%': {
-                opacity: 1,
-              },
-              '100%': {
-                left: '150%',
-                opacity: 0,
-              },
-            },
-          }}
-        >
-          <TemplateSection templates={templates} onSelectTemplate={handleSelectTemplate} />
-        </Box>
+          {/* Section 4: Right Highlights Panel - Desktop Only */}
+          {!isMobile && (
+            <div className="developer-dashboard-highlights-panel">
+              <HighlightsPanel notifications={notifications} />
+            </div>
+          )}
+        </div>
+      </div>
 
-        {/* Workflows and Notifications Section */}
-        <Paper 
-          sx={{ 
-            borderRadius: '20px',
-            background: 'rgba(255, 255, 255, 0.95)',
-            backdropFilter: 'blur(10px)',
-            border: '1px solid rgba(59, 130, 246, 0.08)',
-            boxShadow: '0 4px 20px 0 rgba(59, 130, 246, 0.08)',
-            overflow: 'hidden',
-            transition: 'all 0.3s ease',
-            '&:hover': {
-              boxShadow: '0 8px 32px 0 rgba(59, 130, 246, 0.12)',
-            }
-          }}
-          onClick={() => handleSelectTemplate("46785295")}
-        >
-          <AppBar 
-            position="static" 
-            elevation={0}
-            sx={{
-              background: 'transparent',
-              borderBottom: '1px solid rgba(59, 130, 246, 0.08)',
-            }}
-          >
-            <Tabs
-              value={currentTab}
-              onChange={handleTabChange}
-              variant="fullWidth"
-              sx={{
-                '& .MuiTab-root': {
-                  fontWeight: 600,
-                  fontSize: '0.95rem',
-                  textTransform: 'none',
-                  letterSpacing: '0.3px',
-                  py: 2.5,
-                  transition: 'all 0.3s ease',
-                  color: 'text.secondary',
-                  '&:hover': {
-                    color: '#3b82f6',
-                    background: 'rgba(59, 130, 246, 0.03)',
-                  },
-                  '&.Mui-selected': {
-                    color: '#3b82f6',
-                  },
-                },
-                '& .MuiTabs-indicator': {
-                  height: 3,
-                  borderRadius: '3px 3px 0 0',
-                  background: 'linear-gradient(90deg, #3b82f6, #3b82f6cc)',
-                },
-              }}
-            >
-              <Tab label="Workflows" />
-              <Tab 
-                label={
-                  <Badge 
-                    badgeContent={notificationCount} 
-                    color="error"
-                    sx={{
-                      '& .MuiBadge-badge': {
-                        fontWeight: 700,
-                        fontSize: '0.7rem',
-                      }
-                    }}
-                  >
-                    Notifications
-                  </Badge>
-                } 
-              />
-            </Tabs>
-          </AppBar>
-          <TabPanel value={currentTab} index={0}>
-            <WorkflowsTable workflows={workflows} />
-          </TabPanel>
-          <TabPanel value={currentTab} index={1}>
-            <NotificationsList notifications={notifications} />
-          </TabPanel>
-        </Paper>
-      </Box>
-    </Box>
+      {/* Mobile Highlights Drawer */}
+      <Drawer
+        anchor="right"
+        open={highlightsOpen}
+        onClose={() => setHighlightsOpen(false)}
+        className="developer-dashboard-drawer"
+      >
+        <div className="developer-dashboard-drawer-header">
+          <Typography variant="h6" className="developer-dashboard-drawer-title">
+            Highlights
+          </Typography>
+          <IconButton onClick={() => setHighlightsOpen(false)}>
+            <CloseIcon />
+          </IconButton>
+        </div>
+        <HighlightsPanel notifications={notifications} />
+      </Drawer>
+    </div>
   );
 };
 

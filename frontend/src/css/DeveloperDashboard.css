@@ -1,0 +1,316 @@
+/* Developer Dashboard Styles */
+
+/* Main Container */
+.developer-dashboard-container {
+  min-height: 100vh;
+  background-color: #fafafa;
+  display: flex;
+}
+
+/* Main Content Area */
+.developer-dashboard-main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+/* Top Bar */
+.developer-dashboard-topbar {
+  background-color: #fff;
+  border-bottom: 1px solid #e5e7eb;
+  padding: 16px 32px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+@media (max-width: 900px) {
+  .developer-dashboard-topbar {
+    padding: 16px;
+  }
+}
+
+.developer-dashboard-topbar-left {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.developer-dashboard-search-input {
+  padding: 8px 16px;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  font-size: 0.875rem;
+  width: 300px;
+}
+
+.developer-dashboard-search-input:focus {
+  outline: none;
+  border-color: #3b82f6;
+}
+
+@media (max-width: 900px) {
+  .developer-dashboard-search-input {
+    width: 250px;
+  }
+}
+
+@media (max-width: 600px) {
+  .developer-dashboard-search-input {
+    width: 150px;
+  }
+}
+
+.developer-dashboard-topbar-right {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.developer-dashboard-notification-btn {
+  background-color: #3b82f6 !important;
+  color: #fff !important;
+  width: 44px;
+  height: 44px;
+  box-shadow: 0 2px 8px rgba(59, 130, 246, 0.3);
+  transition: all 0.3s ease;
+  position: relative;
+}
+
+.developer-dashboard-notification-btn::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  border-radius: 50%;
+  background-color: #3b82f6;
+  opacity: 0.5;
+  animation: pulse-notification 2s infinite;
+}
+
+@keyframes pulse-notification {
+  0% {
+    transform: scale(1);
+    opacity: 0.5;
+  }
+  50% {
+    transform: scale(1.1);
+    opacity: 0;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 0;
+  }
+}
+
+.developer-dashboard-notification-btn:hover {
+  background-color: #2563eb !important;
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
+  transform: scale(1.05);
+}
+
+.developer-dashboard-notification-btn:hover::before {
+  animation: none;
+}
+
+.developer-dashboard-notification-btn .MuiBadge-badge {
+  background-color: #ef4444;
+  color: #fff;
+  font-weight: 700;
+  font-size: 0.75rem;
+  min-width: 20px;
+  height: 20px;
+  border: 2px solid #fff;
+  z-index: 1;
+}
+
+.developer-dashboard-notification-icon {
+  color: #fff;
+}
+
+.developer-dashboard-workflows-title {
+  font-weight: 700;
+}
+
+.developer-dashboard-user-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background-color: #3b82f6;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+/* Dashboard Content Area */
+.developer-dashboard-content-wrapper {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+}
+
+/* Left Content */
+.developer-dashboard-left-content {
+  flex: 1;
+  padding: 32px;
+  overflow-y: auto;
+}
+
+@media (max-width: 900px) {
+  .developer-dashboard-left-content {
+    padding: 16px;
+  }
+}
+
+/* Section 1 & 2: Overview and KPIs Row */
+.developer-dashboard-overview-kpi-row {
+  display: flex;
+  flex-direction: row;
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+@media (max-width: 1200px) {
+  .developer-dashboard-overview-kpi-row {
+    flex-direction: column;
+  }
+}
+
+/* Section 1: Overview Section */
+.developer-dashboard-overview-wrapper {
+  flex: 0 0 540px;
+  min-width: 540px;
+  max-width: 540px;
+}
+
+@media (max-width: 1200px) {
+  .developer-dashboard-overview-wrapper {
+    flex: 1 1 100%;
+    min-width: auto;
+    max-width: 100%;
+  }
+}
+
+/* Vertical Divider */
+.developer-dashboard-vertical-divider {
+  width: 1px;
+  background-color: #e5e7eb;
+  flex-shrink: 0;
+}
+
+@media (max-width: 1200px) {
+  .developer-dashboard-vertical-divider {
+    display: none;
+  }
+}
+
+/* Section 2: KPI Cards Grid */
+.developer-dashboard-kpi-grid {
+  flex: 1;
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  grid-template-rows: repeat(2, 1fr);
+  gap: 16px;
+  min-width: 0;
+}
+
+@media (min-width: 1200px) {
+  .developer-dashboard-kpi-grid {
+    aspect-ratio: 2 / 2;
+  }
+}
+
+.developer-dashboard-kpi-item {
+  min-height: 150px;
+}
+
+@media (min-width: 900px) {
+  .developer-dashboard-kpi-item {
+    aspect-ratio: 1 / 1;
+    min-height: 180px;
+  }
+}
+
+/* Horizontal Divider */
+.developer-dashboard-horizontal-divider {
+  height: 1px;
+  background-color: #e5e7eb;
+  margin-bottom: 24px;
+}
+
+/* Section 3: Recent Workflows */
+.developer-dashboard-workflows-section {
+  /* No specific styles needed, container only */
+}
+
+.developer-dashboard-workflows-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+}
+
+.developer-dashboard-more-btn {
+  width: 30px;
+  height: 30px;
+  border-radius: 6px;
+  border: 1px solid #e5e7eb;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.developer-dashboard-more-btn:hover {
+  background-color: #f9fafb;
+}
+
+.developer-dashboard-more-icon {
+  font-size: 18px;
+  color: rgba(0, 0, 0, 0.6);
+}
+
+.developer-dashboard-workflows-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* Section 4: Right Highlights Panel */
+.developer-dashboard-highlights-panel {
+  width: 540px;
+  min-width: 540px;
+  background-color: #fff;
+  flex-shrink: 0;
+}
+
+/* Mobile Highlights Drawer */
+.developer-dashboard-drawer-header {
+  padding: 16px;
+  border-bottom: 1px solid #e5e7eb;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+/* Drawer Paper Styles */
+.developer-dashboard-drawer .MuiDrawer-paper {
+  width: 100%;
+}
+
+@media (min-width: 600px) {
+  .developer-dashboard-drawer .MuiDrawer-paper {
+    width: 400px;
+  }
+}
+
+.developer-dashboard-drawer-title {
+  font-weight: 700;
+}
+
