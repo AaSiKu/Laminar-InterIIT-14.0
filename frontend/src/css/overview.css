@@ -1,43 +1,48 @@
 /* Developer Dashboard Styles */
 
 /* Main Container */
-.developer-dashboard-container {
-  min-height: 100vh;
+.overview-container {
+  height: 100vh;
   background-color: #fafafa;
   display: flex;
+  overflow: hidden; /* Prevent scrolling at the top level */
 }
 
 /* Main Content Area */
-.developer-dashboard-main {
+.overview-main {
   flex: 1;
   display: flex;
   flex-direction: column;
   min-width: 0;
+  overflow-y: auto; /* Allow vertical scrolling for the main content */
 }
 
 /* Top Bar */
-.developer-dashboard-topbar {
+.overview-topbar {
   background-color: #fff;
   border-bottom: 1px solid #e5e7eb;
   padding: 16px 32px;
   display: flex;
   align-items: center;
   justify-content: space-between;
+  position: sticky;
+  top: 0;
+  z-index: 10;
 }
 
 @media (max-width: 900px) {
-  .developer-dashboard-topbar {
+  .overview-topbar {
     padding: 16px;
   }
 }
 
-.developer-dashboard-topbar-left {
+.overview-topbar-left {
   display: flex;
   align-items: center;
   gap: 16px;
 }
 
-.developer-dashboard-search-input {
+.overview-search-input {
   padding: 8px 16px;
   border: 1px solid #e5e7eb;
   border-radius: 8px;
@@ -45,30 +50,30 @@
   width: 300px;
 }
 
-.developer-dashboard-search-input:focus {
+.overview-search-input:focus {
   outline: none;
   border-color: #3b82f6;
 }
 
 @media (max-width: 900px) {
-  .developer-dashboard-search-input {
+  .overview-search-input {
     width: 250px;
   }
 }
 
 @media (max-width: 600px) {
-  .developer-dashboard-search-input {
+  .overview-search-input {
     width: 150px;
   }
 }
 
-.developer-dashboard-topbar-right {
+.overview-topbar-right {
   display: flex;
   align-items: center;
   gap: 16px;
 }
 
-.developer-dashboard-notification-btn {
+.overview-notification-btn {
   background-color: #3b82f6 !important;
   color: #fff !important;
   width: 44px;
@@ -78,7 +83,7 @@
   position: relative;
 }
 
-.developer-dashboard-notification-btn::before {
+.overview-notification-btn::before {
   content: '';
   position: absolute;
   top: 0;
@@ -106,17 +111,17 @@
   }
 }
 
-.developer-dashboard-notification-btn:hover {
+.overview-notification-btn:hover {
   background-color: #2563eb !important;
   box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
   transform: scale(1.05);
 }
 
-.developer-dashboard-notification-btn:hover::before {
+.overview-notification-btn:hover::before {
   animation: none;
 }
 
-.developer-dashboard-notification-btn .MuiBadge-badge {
+.overview-notification-btn .MuiBadge-badge {
   background-color: #ef4444;
   color: #fff;
   font-weight: 700;
@@ -127,15 +132,15 @@
   z-index: 1;
 }
 
-.developer-dashboard-notification-icon {
+.overview-notification-icon {
   color: #fff;
 }
 
-.developer-dashboard-workflows-title {
+.overview-workflows-title {
   font-weight: 700;
 }
 
-.developer-dashboard-user-avatar {
+.overview-user-avatar {
   width: 40px;
   height: 40px;
   border-radius: 50%;
@@ -149,27 +154,27 @@
 }
 
 /* Dashboard Content Area */
-.developer-dashboard-content-wrapper {
+.overview-content-wrapper {
   display: flex;
   flex: 1;
   min-height: 0;
 }
 
 /* Left Content */
-.developer-dashboard-left-content {
+.overview-left-content {
   flex: 1;
   padding: 32px;
   overflow-y: auto;
 }
 
 @media (max-width: 900px) {
-  .developer-dashboard-left-content {
+  .overview-left-content {
     padding: 16px;
   }
 }
 
 /* Section 1 & 2: Overview and KPIs Row */
-.developer-dashboard-overview-kpi-row {
+.overview-overview-kpi-row {
   display: flex;
   flex-direction: row;
   gap: 16px;
@@ -177,20 +182,20 @@
 }
 
 @media (max-width: 1200px) {
-  .developer-dashboard-overview-kpi-row {
+  .overview-overview-kpi-row {
     flex-direction: column;
   }
 }
 
 /* Section 1: Overview Section */
-.developer-dashboard-overview-wrapper {
+.overview-overview-wrapper {
   flex: 0 0 540px;
   min-width: 540px;
   max-width: 540px;
 }
 
 @media (max-width: 1200px) {
-  .developer-dashboard-overview-wrapper {
+  .overview-overview-wrapper {
     flex: 1 1 100%;
     min-width: auto;
     max-width: 100%;
@@ -198,20 +203,20 @@
 }
 
 /* Vertical Divider */
-.developer-dashboard-vertical-divider {
+.overview-vertical-divider {
   width: 1px;
   background-color: #e5e7eb;
   flex-shrink: 0;
 }
 
 @media (max-width: 1200px) {
-  .developer-dashboard-vertical-divider {
+  .overview-vertical-divider {
     display: none;
   }
 }
 
 /* Section 2: KPI Cards Grid */
-.developer-dashboard-kpi-grid {
+.overview-kpi-grid {
   flex: 1;
   display: grid;
   grid-template-columns: repeat(2, 1fr);
@@ -221,42 +226,38 @@
 }
 
 @media (min-width: 1200px) {
-  .developer-dashboard-kpi-grid {
+  .overview-kpi-grid {
     aspect-ratio: 2 / 2;
   }
 }
 
-.developer-dashboard-kpi-item {
+.overview-kpi-item {
   min-height: 150px;
 }
 
 @media (min-width: 900px) {
-  .developer-dashboard-kpi-item {
+  .overview-kpi-item {
     aspect-ratio: 1 / 1;
     min-height: 180px;
   }
 }
 
 /* Horizontal Divider */
-.developer-dashboard-horizontal-divider {
+.overview-horizontal-divider {
   height: 1px;
   background-color: #e5e7eb;
   margin-bottom: 24px;
 }
 
-/* Section 3: Recent Workflows */
-.developer-dashboard-workflows-section {
-  /* No specific styles needed, container only */
-}
 
-.developer-dashboard-workflows-header {
+.overview-workflows-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
   margin-bottom: 24px;
 }
 
-.developer-dashboard-more-btn {
+.overview-more-btn {
   width: 30px;
   height: 30px;
   border-radius: 6px;
@@ -267,31 +268,33 @@
   cursor: pointer;
 }
 
-.developer-dashboard-more-btn:hover {
+.overview-more-btn:hover {
   background-color: #f9fafb;
 }
 
-.developer-dashboard-more-icon {
+.overview-more-icon {
   font-size: 18px;
   color: rgba(0, 0, 0, 0.6);
 }
 
-.developer-dashboard-workflows-list {
+.overview-workflows-list {
   display: flex;
   flex-direction: column;
   gap: 16px;
 }
 
 /* Section 4: Right Highlights Panel */
-.developer-dashboard-highlights-panel {
+.overview-highlights-panel {
   width: 540px;
   min-width: 540px;
   background-color: #fff;
   flex-shrink: 0;
+  overflow-y: auto; /* Allow vertical scrolling for the highlights panel */
+  border-left: 1px solid #e5e7eb;
 }
 
 /* Mobile Highlights Drawer */
-.developer-dashboard-drawer-header {
+.overview-drawer-header {
   padding: 16px;
   border-bottom: 1px solid #e5e7eb;
   display: flex;
@@ -300,17 +303,17 @@
 }
 
 /* Drawer Paper Styles */
-.developer-dashboard-drawer .MuiDrawer-paper {
+.overview-drawer .MuiDrawer-paper {
   width: 100%;
 }
 
 @media (min-width: 600px) {
-  .developer-dashboard-drawer .MuiDrawer-paper {
+  .overview-drawer .MuiDrawer-paper {
     width: 400px;
   }
 }
 
-.developer-dashboard-drawer-title {
+.overview-drawer-title {
   font-weight: 700;
 }
 

@@ -9,9 +9,7 @@ import {
   Divider,
 } from '@mui/material';
 import {
-  HomeRounded,
   AccountTreeRounded,
-  GroupRounded,
   QueryStatsRounded,
   TerminalRounded,
   WorkspacePremiumRounded,
@@ -45,10 +43,10 @@ const Sidebar = () => {
     {
       icon: <AccountTreeRounded />,
       label: 'Pipelines',
-      path: '/dashboard',
+      path: '/workflow',
       onClickExtra: () => setDashboardSidebarOpen(!dashboardSidebarOpen),
     },
-    { icon: <WorkspacePremiumRounded />, label: 'Admin Dashboard', path: '/leadership' },
+    { icon: <WorkspacePremiumRounded />, label: 'Admin Dashboard', path: '/admin' },
     { icon: <QueryStatsRounded />, label: 'Analytics', path: '/analytics' },
     {
       icon: <LogoutRounded color="error" />,

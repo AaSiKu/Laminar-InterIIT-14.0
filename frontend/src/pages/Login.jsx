@@ -21,7 +21,7 @@ export default function LoginPage() {
   const { login, isAuthenticated } = useGlobalContext();
 
  if (isAuthenticated) {
-    return <Navigate to="/developer-dashboard" replace />;
+    return <Navigate to="/overview" replace />;
   }
 
   const handleSubmit = async (e) => {

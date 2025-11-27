@@ -379,7 +379,7 @@ function PipelineTable({ pipelines }) {
 }
 
 // --- Main Leadership Dashboard Component ---
-export function LeadershipDashboard() {
+export function AdminPage() {
   const [kpiData, setKpiData] = useState([]);
   const [pipelines, setPipelines] = useState([]);
 

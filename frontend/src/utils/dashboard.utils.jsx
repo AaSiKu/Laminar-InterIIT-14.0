@@ -4,35 +4,55 @@ import { BaseNode } from "../components/BaseNode";
 // hence the ui resets to simple rectangle box
 export const nodeTypes = {};
 
+const fixPydanticSchema = (schema) => {
+  // Create a deep copy to avoid mutating the original
+  const newSchema = JSON.parse(JSON.stringify(schema));
+
+  if (newSchema.properties) {
+    Object.keys(newSchema.properties).forEach((key) => {
+      const prop = newSchema.properties[key];
+
+      // Check if the property uses 'anyOf', its of 2 length and one of it is null
+      if (
+        prop.anyOf &&
+        Array.isArray(prop.anyOf) &&
+        Array.from(prop.anyOf).length == 2
+      ) {
+        // Find the non-null option (e.g., the string, integer, or array definition)
+        const realTypeOption = prop.anyOf.find((opt) => opt.type !== "null");
+        // Find if there is a null option (confirming it's just an optional field)
+        const hasNullOption = prop.anyOf.some((opt) => opt.type === "null");
+
+        // If we found a real type and a null option, flatten it!
+        if (realTypeOption && hasNullOption) {
+          delete prop.anyOf; // Remove the dropdown trigger
+
+          // Copy the properties from the real type (type, title, items, format, etc.)
+          Object.assign(prop, realTypeOption);
+
+          // Preserve the original title/description if the anyOf option didn't have one
+          // (Pydantic usually puts title on the parent, so we are safe)
+
+          // If the default is null, we must remove it because 'null' is not valid
+          // for type 'string', 'integer', or 'array' (which we just assigned above).
+          if (prop.default === null) {
+            delete prop.default;
+          }
+        }
+      }
+    });
+  }
+
+  return newSchema;
+};
+
 export const generateNode = (schema, nodes) => {
-  const props = schema.properties;
-  const filteredKeys = Object.keys(props).filter(
-    (key) => key !== "category" && key !== "node_id" && key !== "n_inputs"
-  );
-
-  // Extract the values
-  const properties = filteredKeys.map((key, idx) => {
-    const prop = props[key];
-    const value =
-      prop.const !== undefined
-        ? prop.const
-        : prop.default !== undefined
-        ? prop.default
-        : "";
-
-    return {
-      label: key,
-      value,
-      type: prop.type || (key === "table_schema" ? "json" : "str"),
-    };
-  });
-
+  // TODO: later correct the naming of properties fields (currently code is very messy)
   const data = {
     ui: {
       label: `${schema.title || schema.node_id || "Unnamed"} Node`,
       iconUrl: "",
     },
-    properties,
   };
 
   const type = schema.properties.node_id.const;
@@ -42,13 +62,13 @@ export const generateNode = (schema, nodes) => {
   // TODO: Random position to better method
   const node = {
     id: `n${nodes.length + 1}`,
+    schema: fixPydanticSchema(schema),
     type: type,
     position: { x: Math.random() * 300, y: Math.random() * 300 },
     node_id: schema.properties.node_id.const,
     category: schema.properties.category.const,
     data,
   };
-
   return node;
 };
 

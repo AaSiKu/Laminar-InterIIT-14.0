@@ -130,28 +130,6 @@ def schema_index(request: Request):
         "agent_nodes": agent_ids,
     }
 
-def _remap_schema_types(schema: dict) -> dict:
-    """
-    Recursively traverses a JSON schema and remaps standard JSON types
-    to Python-style type names.
-    """
-    if isinstance(schema, dict):
-        for key, value in schema.items():
-            if key == 'type':
-                if value == 'string':
-                    schema[key] = 'str'
-                elif value == 'integer':
-                    schema[key] = 'int'
-                elif value == 'number':
-                    schema[key] = 'float'
-                elif value == 'boolean':
-                    schema[key] = 'bool'
-            else:
-                schema[key] = _remap_schema_types(value)
-    elif isinstance(schema, list):
-        return [_remap_schema_types(item) for item in schema]
-    return schema
-
 def get_schema_for_node(node: Union[str, Type[Any]]) -> dict:
     """
     Retrieves the Pydantic JSON schema for a given node type.
@@ -168,11 +146,11 @@ def get_schema_for_node(node: Union[str, Type[Any]]) -> dict:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="node is not a Pydantic model class")
 
     if hasattr(cls, "model_json_schema"):
-        schema = cls.model_json_schema()
+        schema = cls.model_json_schema(mode='serialization')
     else:
-        schema = cls.model_json_schema()
-    
-    return _remap_schema_types(schema)
+        schema = cls.model_json_schema(mode='serialization')
+
+    return schema
 
 
 @app.get("/schema/{node_name}")
@@ -181,7 +159,7 @@ def schema_for_node(node_name: str):
     Returns the JSON schema for a specific node type.
     """
     schema_obj = get_schema_for_node(node_name)
-    return schema_obj   
+    return schema_obj
 
 # ------- Docker container functions ------- #
 class PipelineIdRequest(BaseModel):

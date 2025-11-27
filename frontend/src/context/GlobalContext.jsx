@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useState } from "react";
 import { useReactFlow } from "@xyflow/react";
-import { AuthContext } from './AuthContext';
+import { AuthContext } from "./AuthContext";
 import { useLocation } from "react-router-dom";
 
 const GlobalContext = createContext();
@@ -19,11 +19,11 @@ export const GlobalContextProvider = ({ children }) => {
   const { setViewport } = useReactFlow();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  const [containerId, setContainerId] = useState('73b6fc3055a7f0e228ae2eff2dfa8e760d667cbe280af80cda189bf12faf69c2');
+  const [containerId, setContainerId] = useState();
   const [dashboardSidebarOpen, setDashboardSidebarOpen] = useState(false);
-  const {login, user, logout, isAuthenticated } = useContext(AuthContext);
-  const [sidebarOpen, setSideBarOpen]= useState(false);
-  const {fileStructure,setFileStructure}=useState({});
+  const { login, user, logout, isAuthenticated } = useContext(AuthContext);
+  const [sidebarOpen, setSideBarOpen] = useState(false);
+  const { fileStructure, setFileStructure } = useState({});
 
   const globalContextValue = {
     user,
@@ -54,16 +54,16 @@ export const GlobalContextProvider = ({ children }) => {
     setSideBarOpen,
     fileStructure,
     setFileStructure,
-    logout
+    logout,
   };
 
-const location = useLocation();
+  const location = useLocation();
 
-useEffect(() => {
-  if (location.pathname !== "/dashboard") {
-    setDashboardSidebarOpen(false);
-  }
-}, [location.pathname]);
+  useEffect(() => {
+    if (location.pathname !== "/workflow") {
+      setDashboardSidebarOpen(false);
+    }
+  }, [location.pathname]);
 
   return (
     <GlobalContext.Provider value={globalContextValue}>

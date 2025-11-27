@@ -184,7 +184,7 @@ const useWorkflowState = ({ blueprint, navigate }) => {
       setContainerId?.(null);
       setCurrentPipelineId?.(null);
       setViewport?.({ x: 0, y: 0, zoom: 1 });
-      navigate("/dashboard");
+      navigate("/workflow");
       return;
     }
 
