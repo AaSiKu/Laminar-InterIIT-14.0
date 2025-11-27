@@ -284,7 +284,7 @@ export default function LoginPage() {
           >
             Don't have an account?{" "}
             <a
-              href="/auth/signup"
+              href="/signup"
               style={{
                 color: "#3b82f6",
                 textDecoration: "none",

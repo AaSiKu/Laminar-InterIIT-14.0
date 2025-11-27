@@ -337,7 +337,7 @@ const handleSubmit = async (e) => {
           >
             Already have an account?{" "}
             <a
-              href="/auth/login"
+              href="/login"
               style={{
                 color: "#3b82f6",
                 textDecoration: "none",

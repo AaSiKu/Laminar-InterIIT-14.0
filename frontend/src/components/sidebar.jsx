@@ -28,7 +28,7 @@ const Sidebar = () => {
   const { setDashboardSidebarOpen, dashboardSidebarOpen, sidebarOpen, setSideBarOpen } = useGlobalContext();
 
    useEffect(() => {
-    if (location.pathname === '/auth/login' || location.pathname === '/auth/signup') {
+    if (location.pathname === '/login' || location.pathname === '/signup') {
       setSideBarOpen(false);
       if (isAuthenticated) {
         navigate('/');
@@ -86,7 +86,7 @@ const Sidebar = () => {
                 }}
                 onClick={() => {
                   if (!isAuthenticated && item.path !== '/') {
-                    navigate('/auth/login');
+                    navigate('/login');
                     return;
                   }
 
