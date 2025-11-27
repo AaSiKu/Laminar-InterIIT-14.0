@@ -38,8 +38,7 @@ logger = get_logger(__name__)
 
 load_dotenv()
 
-# MONGO_URI = os.getenv("MONGO_URI")
-MONGO_URI = "mongodb+srv://aaahanamehrotra7:NjPrQkADqHKpxAuG@cluster0.tzautnp.mongodb.net/?appName=Cluster0"
+MONGO_URI = os.getenv("MONGO_URI")
 MONGO_DB = os.getenv("MONGO_DB", "db")
 WORKFLOW_COLLECTION = os.getenv("MONGO_COLLECTION", "pipelines")
 NOTIFICATION_COLLECTION = os.getenv("NOTIFICATION_COLLECTION", "notifications")
