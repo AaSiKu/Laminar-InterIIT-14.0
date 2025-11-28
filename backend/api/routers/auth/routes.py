@@ -1,12 +1,17 @@
 from fastapi import APIRouter, Depends, HTTPException, Request, status, Response
 from datetime import timedelta
 from jose import JWTError, jwt
+from pydantic.type_adapter import R
 from sqlalchemy.ext.asyncio import AsyncSession
+from fastapi.security import OAuth2PasswordRequestForm
 from . import crud, utils
-from .schemas import UserCreate, UserOut
+from .models import UserCreate, UserOut
 from .database import get_db
 import logging
+from dotenv import load_dotenv
 
+
+load_dotenv()
 logger = logging.getLogger(__name__)
 router = APIRouter()
 
@@ -32,6 +37,7 @@ async def signup(request: Request, response: Response, data: UserCreate, db: Asy
 
     access_token_expires = timedelta(minutes=request.app.state.access_token_expire_minutes)
     refresh_token_expires = timedelta(minutes=request.app.state.refresh_token_expire_minutes)
+
 
     access_token = utils.create_access_token(
         data={"sub": user.email, "user_id": str(user.id)},
@@ -66,7 +72,7 @@ async def signup(request: Request, response: Response, data: UserCreate, db: Asy
 
 # ------------------ LOGIN ------------------ #
 @router.post("/login", response_model=dict)
-async def login(request: Request, response: Response, form_data: utils.OAuth2PasswordRequestForm = Depends(), db: AsyncSession = Depends(get_db)):
+async def login(request: Request, response: Response, form_data: OAuth2PasswordRequestForm = Depends(), db: AsyncSession = Depends(get_db)):
     user_email = form_data.username.strip().lower()
 
     user = await crud.get_user_by_email(db, user_email)
@@ -119,20 +125,26 @@ async def logout(response: Response):
 async def get_current_user(request: Request, db: AsyncSession = Depends(get_db)):
     """Extract token from cookies instead of Authorization header"""
     token = request.cookies.get("access_token")
-    
     if not token:
-        print("DEBUG: No access token found in cookies", flush=True)
+        print("\n\n\nDEBUG: No access token found in cookies\n\n\n", flush=True)
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Not authenticated",
         )
 
     try:
-        payload = jwt.decode(
-            token,
-            request.app.state.secret_key,
-            algorithms=[request.app.state.algorithm],
-        )
+        try :
+            print(f"DEBUG: Decoding token with key: {request.app.state.secret_key}", flush=True)
+            print(f"DEBUG: Algorithms: {request.app.state.algorithm}", flush=True)
+            print(f"DEBUG: Token: {token}", flush=True)
+            payload = jwt.decode(
+                token,
+                request.app.state.secret_key,
+                algorithms=[request.app.state.algorithm],
+            )
+        except Exception as e:
+            print("error decoding token: ", e)
+            raise HTTPException(status_code=401, detail="Invalid token")
         email: str = payload.get("sub")
         print(f"DEBUG: Token decoded, email: {email}", flush=True)  # ADD THIS
         

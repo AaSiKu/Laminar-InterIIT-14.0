@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, Request, status, Response
 from bson.objectid import ObjectId
-from backend.auth.routes import get_current_user
-from backend.auth.models import User
+from backend.api.routers.auth.routes import get_current_user
+from backend.api.routers.auth.models import User
 from datetime import datetime
 from .schema import Version
 import logging
@@ -110,9 +110,11 @@ async def create_pipeline(
     Create a new pipeline
     """
     try:
+        print(f"current_user: {current_user}", flush=True)
         user_identifier = str(current_user.id)
+        print(f"user_identifier: {user_identifier}", flush=True)
         new_pipeline_id = await _create_pipeline(user_identifier,version_collection,workflow_collection)
-
+        print(f"new_pipeline_id: {new_pipeline_id}", flush=True)
         return {
             "message": "Pipeline created successfully",
             "id": str(new_pipeline_id["_id"]),

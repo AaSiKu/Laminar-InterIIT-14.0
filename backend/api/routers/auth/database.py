@@ -1,7 +1,8 @@
 import os
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
 from sqlalchemy.orm import DeclarativeBase
-
+from dotenv import load_dotenv
+load_dotenv()
 # Database URL construction
 def get_database_url():
     host = os.getenv("POSTGRES_HOST", "localhost")
