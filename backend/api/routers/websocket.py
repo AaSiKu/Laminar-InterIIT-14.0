@@ -3,6 +3,7 @@ import json
 from fastapi import WebSocket, WebSocketDisconnect, APIRouter
 from aiokafka import AIOKafkaConsumer
 from dotenv import load_dotenv
+from backend.api.routers.overview import active_connections
 load_dotenv()
 
 router = APIRouter()
@@ -46,3 +47,21 @@ async def alerts_ws(websocket: WebSocket, pipeline_id: str):
         pass
     finally:
         await consumer.stop()
+
+
+
+@router.websocket("/ws/pipeline")
+async def websocket_endpoint(websocket: WebSocket):
+    '''
+    Creates a websocket and keeps it alive
+    Deletes when websocket is inactive
+    '''
+    await websocket.accept()
+    active_connections.add(websocket)
+
+    try:
+        while True:
+            # Keep connection alive
+            test = await websocket.receive_text()
+    except WebSocketDisconnect:
+        active_connections.remove(websocket)
