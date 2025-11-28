@@ -1,6 +1,6 @@
 from dotenv import load_dotenv
 load_dotenv()
-from typing import List, Union, Dict,Any, Literal, Optional
+from typing import List, Dict
 import json
 from fastapi import FastAPI, HTTPException
 from contextlib import asynccontextmanager
@@ -8,7 +8,7 @@ from pydantic import BaseModel
 from lib.agents import AlertResponse
 from langchain.agents import create_agent
 from langgraph.graph.state import CompiledStateGraph
-from .agents import  model, create_planner_executor, AgentPayload, build_agent
+from .agents import  model, create_planner_executor, AgentPayload
 
 
 planner_executor: CompiledStateGraph = None
@@ -38,13 +38,10 @@ class InferModel(BaseModel):
 
 @app.post("/build")
 async def build(request: InferModel):
-    agents = []
-    for agent in request.agents:
-        langchain_agent = build_agent(agent)
-        agents.append(langchain_agent)
+    
 
     global planner_executor
-    planner_executor = create_planner_executor(agents)
+    planner_executor = create_planner_executor(request.agents)
 
     return {"status": "built"}
 

@@ -4,6 +4,7 @@ from pydantic import ValidationError
 from toposort import toposort_flatten
 from lib.node import Node
 from lib.utils import get_node_class_map
+from lib.agents.rag import RAGNode
 
 
 def validate_nodes(node_data_list: List[Dict[str, Any]]) -> List[Node]:
@@ -110,6 +111,8 @@ def validate_graph_topology(
         if target_idx is None:
             raise ValueError(f"Edge target '{edge['target']}' not found in nodes")
         
+        if nodes[source_idx].node_id == "rag_node":
+            raise ValueError(f"The RAG node cannot be an input to another node")
         # Build dependencies for toposort (target depends on source)
         dependencies[target_idx].append(source_idx)
         
