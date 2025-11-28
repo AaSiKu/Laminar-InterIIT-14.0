@@ -223,6 +223,8 @@ export default function WorkflowPage() {
             borderBottom: 1,
             borderColor: "divider",
             bgcolor: "background.paper",
+            zIndex: 1300,
+            position: "relative",
           }}
         >
           <Toolbar
@@ -286,7 +288,17 @@ export default function WorkflowPage() {
           </Toolbar>
         </AppBar>
 
-        <Box sx={{ height: "87vh", bgcolor: "white" }}>
+        <Box 
+          sx={{ height: "87vh", bgcolor: "#F7FAFC" }}
+          onClick={(e) => {
+            // Close PropertyBar when clicking on workspace
+            // Only if clicking on the canvas, not on nodes or controls
+            if (e.target.classList.contains('react-flow__pane') || 
+                e.target.classList.contains('react-flow__renderer')) {
+              setSelectedNode(null);
+            }
+          }}
+        >
           <ReactFlow
             nodes={currentNodes}
             edges={currentEdges}
@@ -298,6 +310,7 @@ export default function WorkflowPage() {
             onInit={setRfInstance}
             onDrop={onDrop}
             onDragOver={onDragOver}
+            onPaneClick={() => setSelectedNode(null)}
             fitView
           >
             <Controls position="top-right" />

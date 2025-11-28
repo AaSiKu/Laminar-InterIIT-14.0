@@ -158,22 +158,22 @@ export const addNodeType = (schema) => {
 };
 
 const hashColor = (str) => {
-  // Category-based color mapping with darker shades
+  // Category-based color mapping with custom colors
   const categoryColors = {
-    // Input nodes (darker blue)
-    "input": "#64B5F6",  // Medium blue
-    // Output nodes (darker pink/red)
-    "output": "#E57373",  // Medium red/pink
-    // Table/transformation nodes (darker teal)
-    "table": "#4DB6AC",  // Medium teal
-    // Windowing nodes (darker orange)
-    "temporal": "#FFA726",  // Medium orange
-    // Logic/control flow (darker purple)
-    "logic": "#BA68C8",  // Medium purple
-    // Agent nodes (darker purple)
-    "agent": "#9575CD",  // Medium purple
-    // Action nodes (darker amber)
-    "action": "#FFCA28",  // Medium amber
+    // Input nodes (blue)
+    "input": "#A1C7F8",  // Light blue
+    // Output nodes (pink)
+    "output": "#E99AA8",  // Pink
+    // Table/transformation nodes (teal/green)
+    "table": "#8ED3BA",  // Teal green
+    // Windowing nodes (orange/peach)
+    "temporal": "#FBCB9D",  // Peach
+    // Logic/control flow (purple)
+    "logic": "#E6CAFE",  // Lavender purple
+    // Agent nodes (purple)
+    "agent": "#E6CAFE",  // Lavender purple
+    // Action nodes (peach)
+    "action": "#FBCB9D",  // Peach
     // Default fallback
     "default": "#90A4AE",  // Medium grey
   };

@@ -1,4 +1,4 @@
-import React, { memo, useState, useCallback } from "react";
+import React, { memo, useState, useCallback, useRef } from "react";
 import { Handle, Position, useReactFlow } from "@xyflow/react";
 import {
   Paper,
@@ -90,6 +90,30 @@ export const BaseNode = memo(
 
     // Hover state for floating actions
     const [isHovered, setIsHovered] = useState(false);
+    
+    // Hover state for property tooltips
+    const [hoveredProp, setHoveredProp] = useState(null);
+    const [showTooltip, setShowTooltip] = useState(false);
+    const hoverTimeoutRef = useRef(null);
+
+    // Property hover handlers
+    const handlePropertyMouseEnter = (propKey, propValue) => {
+      setHoveredProp({ key: propKey, value: propValue });
+      
+      // Show tooltip after 0.5 seconds
+      hoverTimeoutRef.current = setTimeout(() => {
+        setShowTooltip(true);
+      }, 500);
+    };
+
+    const handlePropertyMouseLeave = () => {
+      // Clear timeout if mouse leaves before 2 seconds
+      if (hoverTimeoutRef.current) {
+        clearTimeout(hoverTimeoutRef.current);
+      }
+      setShowTooltip(false);
+      setHoveredProp(null);
+    };
 
     // Action buttons configuration
     const actionButtons = [
@@ -149,36 +173,102 @@ export const BaseNode = memo(
             border: selected ? `2px solid ${styles.borderColor || "#1976d2"}` : `1px solid #e0e0e0`,
           }}
         >
-        {/* Node Header (Colored) - Icon Only */}
+        {/* Node Header (Colored) - Icon + Title */}
         <div className="base-node-header" style={{
           backgroundColor: styles.bgColor || "#e0e0e0"
         }}>
-          <div className="base-node-indicator-dot">
-            <Extension sx={{ fontSize: 16, color: 'rgba(255, 255, 255, 0.9)' }} />
+          <div className="base-node-header-left">
+            <div className="base-node-indicator-dot">
+              <Extension sx={{ fontSize: 16, color: 'rgba(255, 255, 255, 0.9)' }} />
+            </div>
+            <Typography variant="subtitle2" className="base-node-title-in-header">
+              {data?.ui?.label || "Node"}
+            </Typography>
           </div>
         </div>
 
-        {/* Node Body (White) - Title + Properties */}
+        {/* Node Body (White) - Properties Only */}
         <div className="base-node-body">
-          {/* Node Title */}
-          <Typography variant="subtitle2" className="base-node-title">
-            {data?.ui?.label || "Node"}
-          </Typography>
-          
           {/* Properties */}
-          {displayProps.length > 0 && (
+          {displayProps.length > 0 ? (
             <div className="base-node-properties">
-              {displayProps.map((prop, idx) => (
-                <div key={`${prop.label}-${idx}`} className="base-node-property-row">
-                  <Typography variant="caption" className="base-node-property-label">
-                    {prop.label}
-                  </Typography>
-                  <div className="base-node-property-value">
-                    {prop.type === "json" ? "JSON" : prop.value}
+              {displayProps.map((prop, idx) => {
+                const propKey = `${prop.label}-${idx}`;
+                const isHoveredProp = hoveredProp?.key === propKey && showTooltip;
+                
+                // Check if property value is empty
+                const isEmpty = !prop.value || 
+                               prop.value === '' || 
+                               prop.value === 'null' || 
+                               prop.value === 'undefined';
+                
+                const displayValue = isEmpty ? 'Not assigned' : 
+                                    (prop.type === "json" ? "JSON" : prop.value);
+                
+                return (
+                  <div key={propKey} className="base-node-property-row">
+                    <Typography variant="caption" className="base-node-property-label">
+                      {prop.label}
+                    </Typography>
+                    <div 
+                      className="base-node-property-value"
+                      onMouseEnter={() => handlePropertyMouseEnter(propKey, prop.value)}
+                      onMouseLeave={handlePropertyMouseLeave}
+                      style={{ position: 'relative' }}
+                    >
+                      <div 
+                        className="base-node-property-value-text"
+                        style={{ 
+                          color: isEmpty ? '#9e9e9e' : 'inherit',
+                          fontStyle: isEmpty ? 'italic' : 'normal'
+                        }}
+                      >
+                        {displayValue}
+                      </div>
+                      
+                      {/* Delayed Tooltip */}
+                      {isHoveredProp && !isEmpty && (
+                        <Box
+                          sx={{
+                            position: 'absolute',
+                            top: '100%',
+                            left: 0,
+                            marginTop: '8px',
+                            padding: '8px 12px',
+                            backgroundColor: 'rgba(0, 0, 0, 0.9)',
+                            color: 'white',
+                            borderRadius: '6px',
+                            fontSize: '0.75rem',
+                            maxWidth: '300px',
+                            wordBreak: 'break-word',
+                            zIndex: 10000,
+                            boxShadow: '0 4px 12px rgba(0, 0, 0, 0.3)',
+                            animation: 'fadeIn 0.2s ease-in',
+                            pointerEvents: 'none',
+                            whiteSpace: 'pre-wrap',
+                          }}
+                        >
+                          {prop.type === "json" ? prop.value : prop.value}
+                        </Box>
+                      )}
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
+          ) : (
+            <Typography 
+              variant="caption" 
+              sx={{ 
+                color: '#9e9e9e',
+                fontStyle: 'italic',
+                textAlign: 'left',
+                display: 'block',
+                fontSize: '0.75rem'
+              }}
+            >
+              Click to add properties
+            </Typography>
           )}
         </div>
 
