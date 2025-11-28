@@ -12,15 +12,11 @@ const OverviewSection = ({ data }) => {
       color: '#86C8BC',
     },
     { 
-      name: 'Error', 
+      name: 'Total', 
       value: data?.error || 12000, 
       color: '#B4C7E7',
     },
-    { 
-      name: 'Deactivated', 
-      value: data?.deactivated || 12000, 
-      color: '#F4C7AB',
-    },
+    
     { 
       name: 'Failed', 
       value: data?.failed || 2000, 

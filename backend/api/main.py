@@ -31,6 +31,7 @@ from backend.auth.routes import get_current_user
 
 import asyncio
 from bson.json_util import dumps
+from datetime import datetime
 
 configure_root()
 logger = get_logger(__name__)
@@ -487,6 +488,7 @@ async def broadcast(message: str):
         try:
             print(message)
             await websocket.send_text(message)
+            break
         except:
             active_connections.remove(websocket)
 
@@ -519,6 +521,7 @@ async def watch_changes():
         async with notification_collection.watch(condition) as stream:
             print("Change stream listener started")
             async for change in stream:
+                print("-----------------")
                 print("Mongo change:", dumps(change["fullDocument"]))
                 await broadcast(dumps(change["fullDocument"]))
     except Exception as e:
@@ -528,6 +531,8 @@ class Notification(BaseModel):
   title: str
   desc: str
   action: str
+  type: str
+  timestamp: datetime
 
 @app.post("/add_notification")
 async def add_notification(data: Notification):

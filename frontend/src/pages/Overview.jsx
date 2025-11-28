@@ -73,12 +73,17 @@ export default function OverviewPage() {
       setOverviewData(overview);
 
       const kpis = await fetchKPIData();
+      console.log("here")
       setKpiData(kpis);
 
       // TODO: Extra may
-      const { items, count } = await fetchNotifications();
-      setNotifications(items);
-      setNotificationCount(count);
+      const ws = await fetchNotifications()
+      ws.onmessage = (event) => {
+      console.log("msg recd")
+      const newNotif = JSON.parse(event.data);
+      console.log("NEW WS NOTI:", newNotif);
+      setNotifications((prev) => [...prev, newNotif])
+      }
     };
 
     loadData();
@@ -93,7 +98,7 @@ export default function OverviewPage() {
     const projectId = `${templateId}-${randomSuffix}`;
     navigate(`/workflow/${projectId}`);
   };
-
+  console.log()
   return (
     <div className="overview-container">
       <div className="overview-main">

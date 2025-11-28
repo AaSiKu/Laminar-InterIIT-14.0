@@ -67,9 +67,11 @@ const HighlightsPanel = ({ notifications }) => {
           </Box>
         ) : (
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
-            {enhancedNotifications.map((notification, index) => (
+            {enhancedNotifications.map((notification, index) => {
+              console.log("no", notification._id.$oid)
+              return (
               <Box
-                key={notification.id}
+                key={notification._id.$oid}
                 sx={{
                   p: 2,
                   borderRadius: '12px',
@@ -112,14 +114,14 @@ const HighlightsPanel = ({ notifications }) => {
                           flex: 1,
                         }}
                       >
-                        {notification.message}
+                        {notification.desc}
                       </Typography>
                       <IconButton size="small" sx={{ ml: 1, mt: -0.5 }}>
                         <MoreHorizIcon sx={{ fontSize: 16 }} />
                       </IconButton>
                     </Box>
                     <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1 }}>
-                      {notification.timestamp}
+                      {notification.timestamp.$date}
                     </Typography>
                     {notification.status && (
                       <Box sx={{ display: 'flex', gap: 0.5 }}>
@@ -149,7 +151,7 @@ const HighlightsPanel = ({ notifications }) => {
                   </Box>
                 </Box>
               </Box>
-            ))}
+            )})}
           </Box>
         )}
       </Box>

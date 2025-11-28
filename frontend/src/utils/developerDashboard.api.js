@@ -48,6 +48,16 @@ export const fetchNotifications = async () => {
   // const data = await response.json();
   // return data;
 
+  const ws = new WebSocket("ws://localhost:8000/ws/pipeline");
+
+  ws.onopen = () => {
+    console.log("Notifications WS connected");
+  };
+    ws.onerror = (err) => {
+    console.error("WebSocket error:", err);
+  };
+  return ws
+
   const items = [
     { 
       id: 1, 
@@ -117,6 +127,7 @@ export const fetchNotifications = async () => {
   return {
     items,
     count: items.length,
+    ws,
   };
 };
 
@@ -129,12 +140,15 @@ export const fetchOverviewData = async () => {
   // const response = await fetch('/api/overview');
   // const data = await response.json();
   // return data;
-
+  console.log("fetching kpi")
+  const response = await fetch('http://localhost:8000/kpi');
+  const data = await response.json();
+  console.log(data)
   return {
-    successRate: 25000,
-    error: 12000,
-    deactivated: 12000,
-    failed: 2000,
+    successRate: data.running,
+    error: data.total,
+    deactivated: 0,
+    failed: data.broken,
   };
 };
 
@@ -144,8 +158,7 @@ export const fetchOverviewData = async () => {
  */
 export const fetchKPIData = async () => {
   // Real API call placeholder:
-  // const response = await fetch('/api/kpis');
-  // const data = await response.json();
+
   // return data;
 
   return [
