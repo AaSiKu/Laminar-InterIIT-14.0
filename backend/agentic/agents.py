@@ -1,12 +1,26 @@
-from typing import List, Union
+from typing import List, Union, Literal
 from langchain.agents import create_agent
+from langchain.agents.structured_output import ToolStrategy
 from langchain_groq import ChatGroq
 from langchain_core.tools import BaseTool
+from pydantic import BaseModel, Field
 from lib.agents import Agent
 from .sql_tool import TablePayload, create_sql_tool
 import os
 
 
+
+class Action(BaseModel):
+    id: int
+    agent: str = Field(description="Agent name to call")
+    request: str = Field(description="Natural language request to the agent")
+class Plan(BaseModel):
+    actions: List[Action]
+    reasoning: str = Field(description="Reasoning behind the plan")
+    execution_strategy: Literal["complete","staged"]
+
+class CANNOT_EXECUTE_Plan(BaseModel):
+    reason: str= Field(description="Reason why the request cannot be processed by our agentic system")
 
 class AgentPayload(Agent):
     tools: List[Union[TablePayload]]
@@ -55,59 +69,77 @@ def build_agent(agent: AgentPayload) -> BaseTool:
 def create_planner_executor(_agents: List[AgentPayload]):
     langchain_agents = [build_agent(_agent) for _agent in _agents]
     tool_descriptions = "\n".join(
-        f"{i + 1}. {tool.name}(request: str)\nRequest is natural language\n{tool.description}"
-        for i, tool in enumerate(
-            langchain_agents
-        )
+        f"{i + 1}. {tool.name}(request: str)\n{tool.description}"
+        for i, tool in enumerate(langchain_agents)
     )
     
     num_tools = len(_agents)
     planner_prompt = (
-        f"Given a user query, create a plan to solve it with the utmost parallelizability. "
-        f"Each plan should comprise an action from the following {num_tools+1} types:\n"
-        f"{tool_descriptions}\n"
-        f"{num_tools+1}. join(): Aggregates and finalizes results from previous actions.\n"
-        "\n"
-        "Rules and Guidelines:\n"
-        "1. Each action must be one of the types listed above — never invent new actions.\n"
-        "2. Each action must have a unique, strictly increasing integer ID.\n"
-        "3. Inputs for actions can either be constants or outputs from previous actions.\n"
-        "   - To use the output of a prior action, refer to it using the format `$id`, e.g. `$1` for action 1.\n"
-        "   - You can use `$id` directly inside a string argument to an action. If you need to include a literal dollar sign in that string argument `$`, escape it as `\\$`.\n"
-        "4. Each action should strictly adhere to its input/output types and its description.\n"
-        "5. join should always be the last action in the plan, and will be called in two scenarios:\n"
-        "   (a) if the answer can be determined by gathering the outputs from tasks to generate the final response.\n"
-        "   (b) if the answer cannot be determined in the planning phase before you execute the plans.\n"
-        "7. Prefer executing independent actions in parallel whenever possible (i.e., if an action does not depend on the output of another, it can be executed concurrently).\n"
-        "8. The plan must be acyclic — no action may depend on itself, directly or indirectly.\n"
-        "\n"
-        "Handling Impossible Requests:\n"
-        "If the user's request CANNOT be fulfilled with the available actions (missing agents, impossible query, no relevant data access), output 'CANNOT_EXECUTE' followed by explanation of why it cannot be executed:\n"
-        "- List available agents and their capabilities (based on descriptions above)\n"
-        "- Clarify if the request is fundamentally impossible (e.g., requesting future data, non-existent information)\n"
-        "- Provide concrete examples of what CAN be done with current setup\n"
-        "\n"
-        "Example CANNOT_EXECUTE response:\n"
-        "CANNOT_EXECUTE\n"
-        "I cannot execute this request because no agent has access to customer transaction data.\n\n"
-        "\n"
-        "Output Format (for executable requests):\n"
-        "1. tool_name(arg=value)\n"
-        "2. another_tool(arg=$1)\n"
-        "3. join(inputs=[$1,$2])\n"
-        "\n"
-        "Example:\n"
-        "1. search(query=\"nobel prize winners 2023\")\n"
-        "2. summarize(text=\"Summarise the following text: \\n $1\")\n"
-        "3. join(inputs=[$2])\n"
-        "\n"
-        "Notes:\n"
-        " - The plan must only contain the allowed actions.\n"
-        " - Maximize independence between actions to enable parallel execution.\n"
-        " - Do not include any explanations or commentary — output **only** the formatted plan or CANNOT_EXECUTE response.\n"
+        f"You are a plan generator using {num_tools} available agents.\n\n"
+        
+        f"AGENTS:\n{tool_descriptions}\n\n"
+        
+        "PLANNING RULES:\n"
+        "1. actions: List[Action(id: int, agent: exact_agent_name, request: str)]\n"
+        "   - IDs start at 1 and increment sequentially\n"
+        "   - Agent names must exactly match the list above (case-sensitive)\n"
+        "2. Dependencies: Reference prior action outputs as $1, $2, etc. in request strings\n"
+        "   - Example: 'Calculate profit margin from revenue $1 and expenses $2'\n"
+        "   - Escape literal dollars: Write \\$100 to represent the value '$100'\n"
+        "3. Validation: Trace $id references to ensure no circular dependencies\n"
+        "   - INVALID: Action 1 uses $2, Action 2 uses $1 (cycle)\n"
+        "4. No conditionals in action requests (no if/else logic)\n"
+        "   - If conditionals are required, use staged execution\n\n"
+        
+        "EXECUTION STRATEGIES:\n"
+        "complete: Plan all steps upfront when the full solution is deterministic\n"
+        "  - Use when: All actions are independent or have clear $id dependencies\n"
+        "  - After execution: An aggregator receives your reasoning + all outputs\n"
+        "  - The aggregator synthesizes the final answer, so focus on data gathering\n"
+        "  - Example: 'Get revenue, get expenses, calculate margin' - all steps known\n\n"
+        
+        "staged: Plan partial steps, inspect results, then replan (USE SPARINGLY)\n"
+        "  - Use ONLY when: Next actions genuinely depend on runtime values\n"
+        "  - Good use: 'Check if table X exists, then query it or return error'\n"
+        "  - Bad use: 'Get sales data, THEN calculate average' (use complete + $1)\n"
+        "  - After stage 1: You'll be re-invoked with outputs to plan next actions\n"
+        "  - Once dependencies resolve, switch to 'complete' for final gathering\n\n"
+        "  - Only plan the actions that we must definitely take in this case i.e their execution does not depend on a conditional"
+        
+        "REASONING FIELD (2-3 sentences):\n"
+        "- For execution_strategy = completed, Explain how the actions taken will help the aggregator solve the task given by the user\n"
+        "- If staged: Explain what you plan to do next once the planned actions are executed\n\n"
+        
+        "EXAMPLE (complete strategy):\n"
+        "Query: 'What was Q4 profit margin?'\n"
+        "Plan:\n"
+        "  actions:\n"
+        "    - id: 1, agent: 'finance_agent', request: 'Get total revenue for Q4 2024'\n"
+        "    - id: 2, agent: 'finance_agent', request: 'Get total expenses for Q4 2024'\n"
+        "    - id: 3, agent: 'finance_agent', request: 'Calculate profit margin using revenue $1 and expenses $2'\n"
+        "  reasoning: 'Actions 1-2 run in parallel (no deps). Action 3 waits for both. Aggregator will format final percentage.'\n"
+        "  execution_strategy: 'complete'\n\n"
+        
+        "EXAMPLE (staged strategy):\n"
+        "Query: 'Show sales for product XYZ if it exists'\n"
+        "Stage 1:\n"
+        "  actions:\n"
+        "    - id: 1, agent: 'inventory_agent', request: 'Check if product XYZ exists in catalog'\n"
+        "  reasoning: 'Must verify existence before querying sales. Will plan sales query or error response in stage 2.'\n"
+        "  execution_strategy: 'staged'\n"
+        "[After stage 1, you receive result and plan next actions based on existence]\n\n"
+        
+        "CANNOT_EXECUTE (return instead of Plan):\n"
+        "Use when the request is fundamentally impossible:\n"
+        "- No agent has access to required data sources\n"
+        "  Example: Query asks for customer_churn but no agent has that table\n"
+        "- Missing capability: 'Predict future sales' but no ML/forecasting agent\n"
+        "- Cross-database JOIN required but no single agent has both tables\n\n"
+        "Format:\n"
+        "  reason: 'Cannot execute: No agent has access to customer_churn table. Available tables: sales_data (finance_agent), inventory (warehouse_agent). Suggest: Rephrase query using available data or add agent with churn table access.'\n\n"
+        
+        "OUTPUT: Return Plan or CANNOT_EXECUTE_Plan model.\n"
     )
-
-
-    planner_executor = create_agent(model, system_prompt=planner_prompt)
     
+    planner_executor = create_agent(model, system_prompt=planner_prompt, response_format=ToolStrategy(Union[Plan, CANNOT_EXECUTE_Plan]))
     return planner_executor
