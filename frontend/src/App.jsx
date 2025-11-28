@@ -27,34 +27,34 @@ function AppContent() {
         <Route
           path="/dashboard"
           element={
-            // <ProtectedRoute>
+             <ProtectedRoute>
               <Dashboard />
-            // </ProtectedRoute>
+             </ProtectedRoute>
           }
         />
         {/* Default route */}
         <Route
           path="/developer-dashboard"
           element={
-            // <ProtectedRoute>
+             <ProtectedRoute>
               <OverviewPage />
-            // </ProtectedRoute>
+             </ProtectedRoute>
           }
         />
         <Route
           path="/developer-dashboard/:projectId"
           element={
-            // <ProtectedRoute>
+             <ProtectedRoute>
               <DeveloperDashboardProject />
-            // </ProtectedRoute>
+             </ProtectedRoute>
           }
         />
         <Route
           path="/leadership"
           element={
-            // <ProtectedRoute>
+            <ProtectedRoute>
               <AdminPage />
-            // </ProtectedRoute>
+            </ProtectedRoute>
           }
         />
       </Routes>
