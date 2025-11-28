@@ -17,7 +17,6 @@ SECURITY_PROTOCOL = os.getenv("KAFKA_SECURITY_PROTOCOL",None)
 @router.websocket("/alerts/{pipeline_id}")
 async def alerts_ws(websocket: WebSocket, pipeline_id: str):
     await websocket.accept()
-    print(pipeline_id)
     topic = f"alert_{pipeline_id}"
 
     kwargs = {}

@@ -35,56 +35,48 @@ async def save_graph(
         existing = await version_collection.find_one({
             '_id': ObjectId(current_version_id)
         })
-        print(f"user_identifier: {user_identifier}", flush=True)
-        print(f"Existing version found: {existing is not None}", flush=True)
 
         if existing:
             # Pipeline exists - update it
             try:
-                result = await version_collection.update_one(
-                    {'_id': ObjectId(current_version_id)},
-                    {
-                        '$set': {
-                             
-                            "version_description": data.version_description,
-                            "version_updated_at": datetime.now(),
-                            "pipeline": data.pipeline,
-                        }
-                    }
-                )
-            except Exception as e:
-                raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Error updating version: {e}")
-            
-            try:
-                new_version = await version_collection.insert_one(
-                    {
-                        "user_id": user_identifier,
-                         
-                        "version_description": data.version_description,
-                        "version_created_at": datetime.now(),
-                        "version_updated_at": datetime.now(),
-                        "pipeline": data.pipeline,
-                    }
-                )
-            except Exception as e:
-                raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Error making new version: {e}")
-            try:
-                workflow_collection.update_one(
-                    {'_id': ObjectId(pipeline_id)},
-                    {
-                        '$set': {
-                            "version_id": str(new_version.inserted_id),
-                        },
-                        "$push": {
-                            "versions": str(new_version.inserted_id)
-                        }
-                    }
-                ),
+                async with await mongo_client.start_session() as session:
+                    async with session.start_transaction():
+                        result = version_collection.update_one(
+                            {'_id': ObjectId(current_version_id)},
+                            {
+                                '$set': {
+                                    
+                                    "version_description": data.version_description,
+                                    "version_updated_at": datetime.now(),
+                                    "pipeline": data.pipeline,
+                                }
+                            }
+                        )
+                        new_version = version_collection.insert_one(
+                            {
+                                "user_id": user_identifier,
+                                
+                                "version_description": data.version_description,
+                                "version_created_at": datetime.now(),
+                                "version_updated_at": datetime.now(),
+                                "pipeline": data.pipeline,
+                            }
+                        )
+                        workflow_collection.update_one(
+                            {'_id': ObjectId(pipeline_id)},
+                            {
+                                '$set': {
+                                    "version_id": str(new_version.inserted_id),
+                                },
+                                "$push": {
+                                    "versions": str(new_version.inserted_id)
+                                }
+                            }
+                        ),
 
             except Exception as e:
                 raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Error updating pipeline: {e}")
             
-            print(f"Updated pipeline: {pipeline_id}, matched: {result.matched_count}, modified: {result.modified_count}", flush=True)
             
             return {
                 "message": "Updated successfully",
@@ -109,12 +101,9 @@ async def create_pipeline(
     """
     Create a new pipeline
     """
-    try:
-        print(f"current_user: {current_user}", flush=True)
+    try:            
         user_identifier = str(current_user.id)
-        print(f"user_identifier: {user_identifier}", flush=True)
-        new_pipeline_id = await _create_pipeline(user_identifier,version_collection,workflow_collection)
-        print(f"new_pipeline_id: {new_pipeline_id}", flush=True)
+        new_pipeline_id = await _create_pipeline(user_identifier,version_collection,workflow_collection,mongo_client)
         return {
             "message": "Pipeline created successfully",
             "id": str(new_pipeline_id["_id"]),
@@ -138,21 +127,19 @@ async def retrieve(
     pipeline_id = payload.pipeline_id
     try:
         user_identifier = str(current_user.id)
+        async with await mongo_client.start_session() as session:
+            async with session.start_transaction():
+                result = await workflow_collection.find_one({
+                    '_id': ObjectId(pipeline_id),
+                    'user_id': user_identifier
+                })
+                version_id = result['version_id']
 
-        result = await workflow_collection.find_one({
-            '_id': ObjectId(pipeline_id),
-            'user_id': user_identifier
-        })
-        if not result:
-            raise HTTPException(status_code=404, detail="Pipeline not found")
+                version = await version_collection.find_one({'_id': ObjectId(version_id)})
+                if not version:
+                    raise HTTPException(status_code=404, detail="Version not found")
 
-        version_id = result['version_id']  # <-- FIXED
-
-        version = await version_collection.find_one({'_id': ObjectId(version_id)})
-        if not version:
-            raise HTTPException(status_code=404, detail="Version not found")
-
-        result['pipeline'] = version['pipeline']
+                result['pipeline'] = version['pipeline']
 
         return {
             "message": "Pipeline data retrieved successfully",
@@ -211,22 +198,25 @@ async def delete_pipeline(
     try:
         user_identifier = str(current_user.id)
 
-        pipeline=await workflow_collection.find_one({
-            '_id': ObjectId(pipeline_id),
-            'user_id': user_identifier
-        })
-        if not pipeline:
-            raise HTTPException(status_code=404, detail="Pipeline not found or not authorized")
-         
-        for version_id in pipeline.get('versions', []):
-            await version_collection.delete_one({'_id': ObjectId(version_id)})
+        async with await mongo_client.start_session() as session:
+            async with session.start_transaction():
 
-        result = await workflow_collection.delete_one({
-            '_id': ObjectId(pipeline_id),
-            'user_id': user_identifier
-        })
-        if result.deleted_count == 0:
-            raise HTTPException(status_code=404, detail="Pipeline not found or not authorized")
+                pipeline=await workflow_collection.find_one({
+                    '_id': ObjectId(pipeline_id),
+                    'user_id': user_identifier
+                })
+                if not pipeline:
+                    raise HTTPException(status_code=404, detail="Pipeline not found or not authorized")
+                
+                for version_id in pipeline.get('versions', []):
+                    await version_collection.delete_one({'_id': ObjectId(version_id)})
+
+                result = await workflow_collection.delete_one({
+                    '_id': ObjectId(pipeline_id),
+                    'user_id': user_identifier
+                })
+                if result.deleted_count == 0:
+                    raise HTTPException(status_code=404, detail="Pipeline not found or not authorized")
 
         return {
             "message": "Pipeline deleted successfully",
@@ -249,31 +239,35 @@ async def delete_draft(
         user_identifier =str(current_user["_id"])
         pipeline_id = payload.pipeline_id
 
-        pipeline=await workflow_collection.find_one({
-            '_id': ObjectId(pipeline_id),
-            'user_id': user_identifier
-        })
-        if not pipeline:
-            raise HTTPException(status_code=404, detail="Pipeline not found or not authorized") 
-        current_version_id = pipeline['version_id'] 
-        previous_version_id= pipeline["versions"][1]
-        previous_version = await version_collection.find_one({
-            '_id': ObjectId(previous_version_id)
-        })
-        if not previous_version:
-            raise HTTPException(status_code=404, detail="Previous version not found")
-        version = await version_collection.update_one({
-            '_id': ObjectId(current_version_id)},
-            {
-                '$set': {
-                    "version_description": "",
-                    "version_updated_at": datetime.now(),
-                    "pipeline": previous_version["pipeline"],
-                }
-            }
-            )
-        if not version:
-            raise HTTPException(status_code=404, detail="Version not found")    
+        async with await mongo_client.start_session() as session:
+            async with session.start_transaction():
+
+
+                pipeline=await workflow_collection.find_one({
+                    '_id': ObjectId(pipeline_id),
+                    'user_id': user_identifier
+                })
+                if not pipeline:
+                    raise HTTPException(status_code=404, detail="Pipeline not found or not authorized") 
+                current_version_id = pipeline['version_id'] 
+                previous_version_id= pipeline["versions"][1]
+                previous_version = await version_collection.find_one({
+                    '_id': ObjectId(previous_version_id)
+                })
+                if not previous_version:
+                    raise HTTPException(status_code=404, detail="Previous version not found")
+                version = await version_collection.update_one({
+                    '_id': ObjectId(current_version_id)},
+                    {
+                        '$set': {
+                            "version_description": "",
+                            "version_updated_at": datetime.now(),
+                            "pipeline": previous_version["pipeline"],
+                        }
+                    }
+                    )
+                if not version:
+                    raise HTTPException(status_code=404, detail="Version not found")    
     
     except Exception as e:
         logger.error(f"Error deleting draft: {e}")
@@ -292,19 +286,21 @@ async def retrieve_version_pipeline(
     version_id=payload.version_id
     try:
         user_identifier = str(current_user.id)
+        async with await mongo_client.start_session() as session:
+            async with session.start_transaction():
 
-        result = await workflow_collection.find_one({
-            '_id': ObjectId(pipeline_id),
-            'user_id': user_identifier
-        })
-        if not result:
-            raise HTTPException(status_code=404, detail="Pipeline not found")
+                result = await workflow_collection.find_one({
+                    '_id': ObjectId(pipeline_id),
+                    'user_id': user_identifier
+                })
+                if not result:
+                    raise HTTPException(status_code=404, detail="Pipeline not found")
 
-        version = await version_collection.find_one({'_id': ObjectId(version_id)})
-        if not version:
-            raise HTTPException(status_code=404, detail="Version not found")
+                version = await version_collection.find_one({'_id': ObjectId(version_id)})
+                if not version:
+                    raise HTTPException(status_code=404, detail="Version not found")
 
-        result['pipeline'] = version['pipeline']
+                result['pipeline'] = version['pipeline']
 
         return {
             "message": "Pipeline data retrieved successfully",

@@ -126,7 +126,6 @@ async def get_current_user(request: Request, db: AsyncSession = Depends(get_db))
     """Extract token from cookies instead of Authorization header"""
     token = request.cookies.get("access_token")
     if not token:
-        print("\n\n\nDEBUG: No access token found in cookies\n\n\n", flush=True)
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Not authenticated",
@@ -134,25 +133,19 @@ async def get_current_user(request: Request, db: AsyncSession = Depends(get_db))
 
     try:
         try :
-            print(f"DEBUG: Decoding token with key: {request.app.state.secret_key}", flush=True)
-            print(f"DEBUG: Algorithms: {request.app.state.algorithm}", flush=True)
-            print(f"DEBUG: Token: {token}", flush=True)
             payload = jwt.decode(
                 token,
                 request.app.state.secret_key,
                 algorithms=[request.app.state.algorithm],
             )
         except Exception as e:
-            print("error decoding token: ", e)
             raise HTTPException(status_code=401, detail="Invalid token")
         email: str = payload.get("sub")
-        print(f"DEBUG: Token decoded, email: {email}", flush=True)  # ADD THIS
         
         if email is None:
             raise HTTPException(status_code=401, detail="Invalid token")
 
         user = await crud.get_user_by_email(db, email)
-        print(f"DEBUG: User lookup result: {user is not None}", flush=True)  # ADD THIS
         
         if not user:
             raise HTTPException(status_code=404, detail="User not found")

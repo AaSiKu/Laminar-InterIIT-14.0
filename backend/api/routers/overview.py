@@ -31,7 +31,6 @@ async def fetch_kpi(request: Request):
         "running": len(KPI["running"]),
         "broken": len(KPI["broken"])
     }
-    print(KPI)
     return KPI_stats
    
 
@@ -59,7 +58,6 @@ async def broadcast(message: str):
     '''
     for websocket in list(active_connections):
         try:
-            print(message)
             await websocket.send_text(message)
         except:
             active_connections.remove(websocket)
