@@ -1,8 +1,10 @@
 from fastapi import APIRouter, Depends, HTTPException, Request, status, Response
 from datetime import timedelta
 from jose import JWTError, jwt
+from sqlalchemy.ext.asyncio import AsyncSession
 from . import crud, utils
 from .schemas import UserCreate, UserOut
+from .database import get_db
 import logging
 
 logger = logging.getLogger(__name__)
@@ -10,9 +12,7 @@ router = APIRouter()
 
 # ------------------ SIGNUP ------------------ #
 @router.post("/signup", response_model=UserOut)
-async def signup(request: Request,response: Response, data: UserCreate):
-    user_collection = request.app.state.user_collection
-
+async def signup(request: Request, response: Response, data: UserCreate, db: AsyncSession = Depends(get_db)):
     # Validate email & password
     if not utils.is_email_valid(data.email):
         raise HTTPException(status_code=400, detail="Invalid email format")
@@ -23,22 +23,22 @@ async def signup(request: Request,response: Response, data: UserCreate):
         )
 
     email_normalized = data.email.strip().lower()
-    existing = await crud.get_user_by_email(user_collection, email_normalized)
+    existing = await crud.get_user_by_email(db, email_normalized)
     if existing:
         raise HTTPException(status_code=400, detail="Email already registered")
 
     data.email = email_normalized
-    user = await crud.create_user(user_collection, data)
+    user = await crud.create_user(db, data)
 
     access_token_expires = timedelta(minutes=request.app.state.access_token_expire_minutes)
     refresh_token_expires = timedelta(minutes=request.app.state.refresh_token_expire_minutes)
 
     access_token = utils.create_access_token(
-        data={"sub": user["email"], "user_id": str(user["_id"])},
+        data={"sub": user.email, "user_id": str(user.id)},
         expires_delta=access_token_expires
     )
     refresh_token = utils.create_access_token(
-        data={"sub": user["email"], "type": "refresh"},
+        data={"sub": user.email, "type": "refresh"},
         expires_delta=refresh_token_expires
     )
 
@@ -61,28 +61,27 @@ async def signup(request: Request,response: Response, data: UserCreate):
         path="/",
     )
 
-    return UserOut(id=str(user["_id"]), email=user["email"], full_name=user.get("full_name"))
+    return UserOut(id=str(user.id), email=user.email, full_name=user.full_name)
 
 
 # ------------------ LOGIN ------------------ #
 @router.post("/login", response_model=dict)
-async def login(request: Request, response: Response, form_data: utils.OAuth2PasswordRequestForm = Depends()):
-    user_collection = request.app.state.user_collection
+async def login(request: Request, response: Response, form_data: utils.OAuth2PasswordRequestForm = Depends(), db: AsyncSession = Depends(get_db)):
     user_email = form_data.username.strip().lower()
 
-    user = await crud.get_user_by_email(user_collection, user_email)
-    if not user or not utils.verify_password(form_data.password, user["hashed_password"]):
+    user = await crud.get_user_by_email(db, user_email)
+    if not user or not utils.verify_password(form_data.password, user.hashed_password):
         raise HTTPException(status_code=401, detail="Invalid credentials")
 
     access_token_expires = timedelta(minutes=request.app.state.access_token_expire_minutes)
     refresh_token_expires = timedelta(minutes=request.app.state.refresh_token_expire_minutes)
 
     access_token = utils.create_access_token(
-        data={"sub": user["email"], "user_id": str(user["_id"])},
+        data={"sub": user.email, "user_id": str(user.id)},
         expires_delta=access_token_expires
     )
     refresh_token = utils.create_access_token(
-        data={"sub": user["email"], "type": "refresh"},
+        data={"sub": user.email, "type": "refresh"},
         expires_delta=refresh_token_expires
     )
 
@@ -117,7 +116,7 @@ async def logout(response: Response):
 
 
 # ------------------ GET CURRENT USER ------------------ #
-async def get_current_user(request: Request):
+async def get_current_user(request: Request, db: AsyncSession = Depends(get_db)):
     """Extract token from cookies instead of Authorization header"""
     token = request.cookies.get("access_token")
     
@@ -140,7 +139,7 @@ async def get_current_user(request: Request):
         if email is None:
             raise HTTPException(status_code=401, detail="Invalid token")
 
-        user = await request.app.state.user_collection.find_one({"email": email})
+        user = await crud.get_user_by_email(db, email)
         print(f"DEBUG: User lookup result: {user is not None}", flush=True)  # ADD THIS
         
         if not user:
@@ -154,7 +153,7 @@ async def get_current_user(request: Request):
 
 # ------------------ REFRESH TOKEN ------------------ #
 @router.post("/refresh")
-async def refresh_token(request: Request, response: Response):
+async def refresh_token(request: Request, response: Response, db: AsyncSession = Depends(get_db)):
     refresh_token = request.cookies.get("refresh_token")
     if not refresh_token:
         raise HTTPException(status_code=401, detail="No refresh token found")
@@ -170,12 +169,12 @@ async def refresh_token(request: Request, response: Response):
             raise HTTPException(status_code=401, detail="Invalid refresh token type")
 
         email = payload.get("sub")
-        user = await request.app.state.user_collection.find_one({"email": email})
+        user = await crud.get_user_by_email(db, email)
         if not user:
             raise HTTPException(status_code=404, detail="User not found")
 
         new_access_token = utils.create_access_token(
-            data={"sub": user["email"], "user_id": str(user["_id"])},
+            data={"sub": user.email, "user_id": str(user.id)},
             expires_delta=timedelta(minutes=request.app.state.access_token_expire_minutes),
         )
 
@@ -198,5 +197,5 @@ async def refresh_token(request: Request, response: Response):
 
 # ------------------ ME ------------------ #
 @router.get("/me", response_model=UserOut)
-async def get_me(request: Request, current_user: dict = Depends(get_current_user)):
-    return UserOut(id=str(current_user["_id"]), email=current_user["email"], full_name=current_user.get("full_name"))
+async def get_me(request: Request, current_user = Depends(get_current_user)):
+    return UserOut(id=str(current_user.id), email=current_user.email, full_name=current_user.full_name)

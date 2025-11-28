@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, Request, status, Response
 from bson.objectid import ObjectId
 from backend.auth.routes import get_current_user
+from backend.auth.models import User
 from datetime import datetime
 from .schema import Version
 import logging
@@ -21,7 +22,7 @@ workflow_collection = db[os.getenv("WORKFLOW_COLLECTION", "workflows")]
 @router.post("/save")
 async def save_graph(
     payload: save_graph_payload,
-    current_user: dict = Depends(get_current_user)
+    current_user: User = Depends(get_current_user)
 ):
     """
     Saves a version to the database
@@ -30,7 +31,7 @@ async def save_graph(
     current_version_id=payload.current_version_id
     pipeline_id=payload.pipeline_id
     try:
-        user_identifier = str(current_user["_id"])
+        user_identifier = str(current_user.id)
         existing = await version_collection.find_one({
             '_id': ObjectId(current_version_id)
         })
@@ -103,13 +104,13 @@ async def save_graph(
 
 @router.post("/create_pipeline")
 async def create_pipeline(
-    current_user: dict = Depends(get_current_user)
+    current_user: User = Depends(get_current_user)
 ):
     """
     Create a new pipeline
     """
     try:
-        user_identifier = str(current_user["_id"])
+        user_identifier = str(current_user.id)
         new_pipeline_id = await _create_pipeline(user_identifier,version_collection,workflow_collection)
 
         return {
@@ -125,7 +126,7 @@ async def create_pipeline(
 @router.post("/retrieve_pipeline")
 async def retrieve(
     payload: _retrieve_payload,
-    current_user: dict = Depends(get_current_user)
+    current_user: User = Depends(get_current_user)
 ):
     
     """
@@ -134,7 +135,7 @@ async def retrieve(
     """
     pipeline_id = payload.pipeline_id
     try:
-        user_identifier = str(current_user["_id"])
+        user_identifier = str(current_user.id)
 
         result = await workflow_collection.find_one({
             '_id': ObjectId(pipeline_id),
@@ -164,14 +165,14 @@ async def retrieve(
 @router.post("/save_draft")
 async def save_draft(
     payload: Version,
-    current_user: dict = Depends(get_current_user)
+    current_user: User = Depends(get_current_user)
 ):
     """
     save the draft to the database
     """
     try: 
         current_version_id = payload.version_id
-        user_identifier = str(current_user["_id"])
+        user_identifier = str(current_user.id)
         result = await version_collection.update_one(
             {'_id': ObjectId(current_version_id),
             'user_id': user_identifier},
@@ -198,7 +199,7 @@ async def delete_pipeline(
 
 
     payload: _retrieve_payload,
-    current_user: dict = Depends(get_current_user)
+    current_user: User = Depends(get_current_user)
 ):
     
     """
@@ -206,7 +207,7 @@ async def delete_pipeline(
     """
     pipeline_id = payload.pipeline_id
     try:
-        user_identifier = str(current_user["_id"])
+        user_identifier = str(current_user.id)
 
         pipeline=await workflow_collection.find_one({
             '_id': ObjectId(pipeline_id),
@@ -237,7 +238,7 @@ async def delete_pipeline(
 @router.post("/delete_draft")
 async def delete_draft(
     payload: _retrieve_payload,
-    current_user: dict = Depends(get_current_user)
+    current_user: User = Depends(get_current_user)
 ):
     
     """
@@ -280,7 +281,7 @@ async def delete_draft(
 @router.post("/retrieve_version_pipeline")
 async def retrieve_version_pipeline(
     payload: _retrieve_version_payload,
-    current_user: dict = Depends(get_current_user)):
+    current_user: User = Depends(get_current_user)):
     
     """
     Retrieve a specific version of a pipeline from the database
@@ -288,7 +289,7 @@ async def retrieve_version_pipeline(
     pipeline_id = payload.pipeline_id
     version_id=payload.version_id
     try:
-        user_identifier = str(current_user["_id"])
+        user_identifier = str(current_user.id)
 
         result = await workflow_collection.find_one({
             '_id': ObjectId(pipeline_id),

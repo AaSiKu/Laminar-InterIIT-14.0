@@ -24,6 +24,8 @@ from .dockerScript import (
     run_pipeline_container, stop_docker_container
 )
 from aiokafka import AIOKafkaConsumer
+from backend.auth.database import get_engine, Base
+from backend.auth.models import User  # Import User model to register it with Base.metadata
 
 
 
@@ -40,19 +42,17 @@ MONGO_URI = os.getenv("MONGO_URI")
 MONGO_DB = os.getenv("MONGO_DB", "db")
 WORKFLOW_COLLECTION = os.getenv("MONGO_COLLECTION", "pipelines")
 VERSION_COLLECTION = os.getenv("VERSION_COLLECTION", "versions")
-USER_COLLECTION = os.getenv("USER_COLLECTION", "users")
 
 # Global variables
 mongo_client = None
 db = None
 workflow_collection = None
-user_collection = None
 docker_client = None
 NODES: Dict[str, BaseModel] = node_map
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    global mongo_client, db, workflow_collection, user_collection, docker_client, version_collection
+    global mongo_client, db, workflow_collection, docker_client, version_collection
 
     # ---- STARTUP ----
     if not MONGO_URI:
@@ -62,10 +62,23 @@ async def lifespan(app: FastAPI):
     db = mongo_client[MONGO_DB]
     workflow_collection = db[WORKFLOW_COLLECTION]
     version_collection = db[VERSION_COLLECTION]
-    user_collection = db[USER_COLLECTION]
     print(f"Connected to MongoDB at {MONGO_URI}, DB: {MONGO_DB}", flush=True)
 
-    app.state.user_collection = user_collection
+    # Create SQL database tables for users
+    try:
+        from backend.auth.database import get_engine
+        db_engine = get_engine()
+        # Use begin() for transaction, but check=True to ensure it works
+        async with db_engine.begin() as conn:
+            await conn.run_sync(Base.metadata.create_all, checkfirst=True)
+        print("SQL database tables created/verified", flush=True)
+    except Exception as e:
+        logger.error(f"Failed to connect to PostgreSQL database: {e}")
+        logger.error("User authentication features will not work until PostgreSQL is available.")
+        print(f"ERROR: PostgreSQL connection failed: {e}", flush=True)
+        print("ERROR: User authentication features will not work until PostgreSQL is available.", flush=True)
+        print("Run 'python3 backend/auth/init_db.py' to create the tables manually.", flush=True)
+
     app.state.version_collection = version_collection
     app.state.secret_key = os.getenv("SECRET_KEY")
     app.state.algorithm = os.getenv("ALGORITHM", "HS256")
@@ -87,6 +100,13 @@ async def lifespan(app: FastAPI):
     if mongo_client:
         mongo_client.close()
         print("MongoDB connection closed.")
+    try:
+        from backend.auth.database import get_engine
+        db_engine = get_engine()
+        await db_engine.dispose()
+        print("SQL database connection closed.")
+    except Exception as e:
+        logger.warning(f"Error closing PostgreSQL connection: {e}")
 
 
 app = FastAPI(title="Pipeline API", lifespan=lifespan)
