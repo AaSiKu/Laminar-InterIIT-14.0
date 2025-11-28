@@ -1,13 +1,16 @@
-import React from 'react';
-import { Box, Typography, Button, Chip, IconButton } from '@mui/material';
+import React, { useState, useMemo } from 'react';
+import { Box, Typography, Button, Chip, IconButton, Menu, MenuItem } from '@mui/material';
 import MoreHorizIcon from '@mui/icons-material/MoreHoriz';
 import PeopleAltOutlinedIcon from '@mui/icons-material/PeopleAltOutlined';
 import ErrorOutlineIcon from '@mui/icons-material/ErrorOutline';
 import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
 import WarningAmberIcon from '@mui/icons-material/WarningAmber';
-import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
+import ArrowDropDownIcon from '@mui/icons-material/ArrowDropDown';
 
 const HighlightsPanel = ({ notifications }) => {
+  const [anchorEl, setAnchorEl] = useState(null);
+  const [sortBy, setSortBy] = useState('all');
+
   const getNotificationIcon = (type) => {
     const iconMap = {
       success: <CheckCircleOutlineIcon sx={{ fontSize: 20 }} />,
@@ -28,8 +31,58 @@ const HighlightsPanel = ({ notifications }) => {
     return colorMap[type] || colorMap.info;
   };
 
-  // Use notifications as-is from API
-  const enhancedNotifications = notifications;
+  // Define sort order priority for notification types
+  const typePriority = {
+    error: 0,
+    warning: 1,
+    info: 2,
+    success: 3,
+  };
+
+  const handleSortClick = (event) => {
+    setAnchorEl(event.currentTarget);
+  };
+
+  const handleSortClose = () => {
+    setAnchorEl(null);
+  };
+
+  const handleSortSelect = (sortOption) => {
+    setSortBy(sortOption);
+    handleSortClose();
+  };
+
+  // Sort notifications based on selected option
+  const enhancedNotifications = useMemo(() => {
+    if (!notifications || notifications.length === 0) {
+      return [];
+    }
+
+    let sorted = [...notifications];
+
+    if (sortBy === 'all') {
+      return sorted;
+    }
+
+    if (sortBy === 'type') {
+      sorted.sort((a, b) => {
+        const priorityA = typePriority[a.type] ?? 999;
+        const priorityB = typePriority[b.type] ?? 999;
+        return priorityA - priorityB;
+      });
+    } else if (typePriority[sortBy] !== undefined) {
+      // Sort by specific type - show that type first
+      sorted.sort((a, b) => {
+        if (a.type === sortBy && b.type !== sortBy) return -1;
+        if (a.type !== sortBy && b.type === sortBy) return 1;
+        const priorityA = typePriority[a.type] ?? 999;
+        const priorityB = typePriority[b.type] ?? 999;
+        return priorityA - priorityB;
+      });
+    }
+
+    return sorted;
+  }, [notifications, sortBy]);
 
   return (
     <Box
@@ -48,15 +101,66 @@ const HighlightsPanel = ({ notifications }) => {
           <Button
             variant="text"
             size="small"
+            onClick={handleSortClick}
             sx={{
               textTransform: 'none',
               color: 'text.secondary',
               fontSize: '0.875rem',
             }}
-            endIcon={<ChevronLeftIcon sx={{ transform: 'rotate(180deg)' }} />}
+            endIcon={<ArrowDropDownIcon />}
           >
             Sort by
           </Button>
+          <Menu
+            anchorEl={anchorEl}
+            open={Boolean(anchorEl)}
+            onClose={handleSortClose}
+            anchorOrigin={{
+              vertical: 'bottom',
+              horizontal: 'right',
+            }}
+            transformOrigin={{
+              vertical: 'top',
+              horizontal: 'right',
+            }}
+          >
+            <MenuItem 
+              onClick={() => handleSortSelect('all')}
+              selected={sortBy === 'all'}
+            >
+              All
+            </MenuItem>
+            <MenuItem 
+              onClick={() => handleSortSelect('type')}
+              selected={sortBy === 'type'}
+            >
+              Priority
+            </MenuItem>
+            <MenuItem 
+              onClick={() => handleSortSelect('error')}
+              selected={sortBy === 'error'}
+            >
+              Error
+            </MenuItem>
+            <MenuItem 
+              onClick={() => handleSortSelect('warning')}
+              selected={sortBy === 'warning'}
+            >
+              Warning
+            </MenuItem>
+            <MenuItem 
+              onClick={() => handleSortSelect('info')}
+              selected={sortBy === 'info'}
+            >
+              Info
+            </MenuItem>
+            <MenuItem 
+              onClick={() => handleSortSelect('success')}
+              selected={sortBy === 'success'}
+            >
+              Success
+            </MenuItem>
+          </Menu>
         </Box>
       </Box>
 
