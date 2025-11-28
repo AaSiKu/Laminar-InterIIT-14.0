@@ -9,3 +9,5 @@ langchain_core==1.0.3
 langchain_groq==1.0.0
 langgraph==1.0.2
 langchain_community==0.4.1
+litellm==1.80.5
+sqlalchemy==2.0.44
