@@ -1,4 +1,4 @@
-import { useState, useCallback, memo, useEffect } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { useNavigate } from "react-router-dom"; // Import useNavigate
 import {
   ReactFlow,
@@ -20,9 +20,9 @@ import {
   Snackbar,
   CircularProgress,
 } from "@mui/material";
-import { PropertyBar } from '../components/PropertyBar';
+import { PropertyBar } from "../components/PropertyBar";
 import { NodeDrawer } from "../components/NodeDrawer";
-import {nodeTypes, generateNode} from "../utils/dashboard.utils"
+import { nodeTypes, generateNode } from "../utils/dashboard.utils";
 import { useGlobalContext } from "../context/GlobalContext";
 import {
   savePipelineAPI,
@@ -32,15 +32,10 @@ import {
   spindownPipeline,
 } from "../utils/pipelineUtils";
 
-
-export default function Dashboard() {
-  const theme = useTheme();
-  const isMobile = useMediaQuery(theme.breakpoints.down("md"));
+export default function WorkflowPage() {
   const [selectedNode, setSelectedNode] = useState(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
-
-
-  const navigate = useNavigate();
+  
   const {
     currentEdges,
     currentNodes,
@@ -61,7 +56,6 @@ export default function Dashboard() {
     containerId,
     setContainerId,
   } = useGlobalContext();
-
 
   useEffect(() => {
     if (currentPipelineId) {
@@ -134,7 +128,7 @@ export default function Dashboard() {
     } catch (err) {
       setError(err.message);
     } finally {
-      console.log(currentPipelineId)
+      console.log(currentPipelineId);
       setLoading(false);
     }
   };
@@ -167,15 +161,7 @@ export default function Dashboard() {
     setSelectedNode(null);
   };
 
-  const drawerWidth = 64 + (dashboardSidebarOpen && !isMobile ? 325 : 0);
-
-  const handleAnalyticsClick = () => {
-    if (currentPipelineId) {
-      navigate(`/analytics/${currentPipelineId}`);
-    } else {
-      setError("Please save the flow first to get an ID.");
-    }
-  };
+  const drawerWidth = 64 + (dashboardSidebarOpen ? 325 : 0);
 
   return (
     <>
@@ -206,11 +192,27 @@ export default function Dashboard() {
               justifyContent: "end",
             }}
           >
-            <Box sx={{ display: "flex", gap: 2, justifyContent: "end", alignContent: "center" }}>
+            <Box
+              sx={{
+                display: "flex",
+                gap: 2,
+                justifyContent: "end",
+                alignContent: "center",
+              }}
+            >
               {loading && <CircularProgress size={24} />}
               <Button
                 variant="outlined"
-                onClick={() => savePipelineAPI(currentPipelineId,rfInstance,currentPipelineId,setCurrentPipelineId,setLoading,setError)}
+                onClick={() =>
+                  savePipelineAPI(
+                    currentPipelineId,
+                    rfInstance,
+                    currentPipelineId,
+                    setCurrentPipelineId,
+                    setLoading,
+                    setError
+                  )
+                }
                 disabled={loading}
               >
                 Save
@@ -235,13 +237,6 @@ export default function Dashboard() {
                 disabled={loading || !currentPipelineId || !containerId}
               >
                 Spin Down
-              </Button>
-              <Button
-                variant="outlined"
-                onClick={handleAnalyticsClick} // Use navigate
-                disabled={!currentPipelineId}
-              >
-                Analytics
               </Button>
               <Button variant="contained" onClick={() => setDrawerOpen(true)}>
                 {" "}

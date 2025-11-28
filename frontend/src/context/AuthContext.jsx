@@ -32,7 +32,7 @@ export const AuthProvider = ({ children }) => {
 
   // Login: just update state and redirect; backend sets HttpOnly cookies
   const login = (data) => {
-    setUser(data);  
+    setUser(data);
     navigate("/developer-dashboard");
   };
 
@@ -47,7 +47,7 @@ export const AuthProvider = ({ children }) => {
       console.error(err);
     } finally {
       setUser(null);
-      navigate("/auth/login");
+      navigate("/login");
     }
   };
 

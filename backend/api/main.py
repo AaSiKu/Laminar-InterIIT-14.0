@@ -1,4 +1,5 @@
 import os
+import logging
 from dotenv import load_dotenv
 from motor.motor_asyncio import AsyncIOMotorClient
 from fastapi import FastAPI
@@ -8,20 +9,32 @@ from backend.api.routers.auth.database import Base
 import docker
 from utils.logging import get_logger, configure_root
 from backend.api.routers.main_router import router
+import asyncio
+from backend.api.routers.overview import watch_changes
 
 configure_root()
 logger = get_logger(__name__)
 load_dotenv()
 
+
+MONGO_URI = os.getenv("MONGO_URI")
+MONGO_DB = os.getenv("MONGO_DB", "db")
+WORKFLOW_COLLECTION = os.getenv("MONGO_COLLECTION", "pipelines")
+NOTIFICATION_COLLECTION = os.getenv("NOTIFICATION_COLLECTION", "notifications")
+VERSION_COLLECTION = os.getenv("VERSION_COLLECTION", "versions")
+# Global variables
+mongo_client = None
+db = None
+workflow_collection = None
+notification_collection = None
+version_collection = None
+user_collection = None
+docker_client = None
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-
-    MONGO_URI = os.getenv("MONGO_URI")
-    MONGO_DB = os.getenv("MONGO_DB", "db")
-    WORKFLOW_COLLECTION = os.getenv("MONGO_COLLECTION", "pipelines")
-    VERSION_COLLECTION = os.getenv("VERSION_COLLECTION", "versions")
-
-    global mongo_client, db, workflow_collection, docker_client, version_collection
+    global mongo_client, db, workflow_collection, notification_collection, user_collection, docker_client, version_collection
 
     # ---- STARTUP ----
     if not MONGO_URI:
@@ -31,6 +44,7 @@ async def lifespan(app: FastAPI):
     db = mongo_client[MONGO_DB]
     workflow_collection = db[WORKFLOW_COLLECTION]
     version_collection = db[VERSION_COLLECTION]
+    notification_collection = db[NOTIFICATION_COLLECTION]
     print(f"Connected to MongoDB at {MONGO_URI}, DB: {MONGO_DB}", flush=True)
 
     # Create SQL database tables for users
@@ -58,6 +72,10 @@ async def lifespan(app: FastAPI):
     app.state.docker_client = docker.from_env()
     
     print(f"Connected to docker daemon")
+
+    asyncio.create_task(watch_changes(notification_collection))
+    print("Started MongoDB change stream listener")
+
 
     yield
 

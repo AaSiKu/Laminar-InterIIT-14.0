@@ -3,10 +3,7 @@ import { Handle, Position, useReactFlow } from "@xyflow/react";
 import {
   Paper,
   Typography,
-  Box,
   Stack,
-  IconButton,
-  Tooltip,
   Menu,
   MenuItem,
   ListItemIcon,
@@ -138,7 +135,7 @@ export const BaseNode = memo(
         {properties.length > 0 && (
           <Stack spacing={0.5}>
             {properties.map((prop, idx) => {
-              if (prop.type === "str")
+              if (prop.type === "string")
                 return (
                   <Typography
                     key={`${prop.label}-${idx}`}
