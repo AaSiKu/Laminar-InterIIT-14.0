@@ -1,38 +1,20 @@
+from dotenv import load_dotenv
+load_dotenv()
 from typing import List, Union, Dict,Any, Literal, Optional
 import json
 from fastapi import FastAPI, HTTPException
 from contextlib import asynccontextmanager
-from dotenv import load_dotenv
 from pydantic import BaseModel
-from lib.agents import Agent, AlertResponse
+from lib.agents import AlertResponse
 from langchain.agents import create_agent
-from langchain_groq import ChatGroq
-from langchain_core.tools import tool, BaseTool
 from langgraph.graph.state import CompiledStateGraph
-from langchain_community.utilities.sql_database import SQLDatabase
-from langchain_community.tools import QuerySQLDataBaseTool
-import os
-load_dotenv()
-
-from postgres_util import postgre_engine
+from .agents import  model, create_planner_executor, AgentPayload, build_agent
 
 
-model = ChatGroq(
-    model="llama-3.1-8b-instant",
-    temperature=0.0,
-    max_retries=2,
-    api_key=os.environ["GROQ_API_KEY"]
-)
-
-
+planner_executor: CompiledStateGraph = None
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-
-    global supervisor
-    supervisor = None
-
-    # Hand over control to FastAPI runtime
     yield
 
 
@@ -46,93 +28,23 @@ app = FastAPI(title="Agentic API", lifespan=lifespan)
 def root() -> dict[str, str]:
     return {"status": "ok", "message": "Agentic API is running"}
 
-class TablePayload(BaseModel):
-    table_name: str
-    table_schema: Dict[str,Any]
-    description: str
 
-class AgentPayload(Agent):
-    tools: List[Union[TablePayload]]
+
+
+
 class InferModel(BaseModel):
     agents: List[AgentPayload]
     pipeline_name: str
 
 @app.post("/build")
 async def build(request: InferModel):
-    agents = request.agents
-    print(request)
-    agent_descriptions = '\n'.join([f"Agent with name {agent.name} described as: {agent.description}" for agent in agents])
-    SUPERVISOR_PROMPT = (
-        f"You are a supervisor agent that manages the {request.pipeline_name} pipeline\n"
-        "You have the following list of agents you can call as tools\n"
-        f"{agent_descriptions}\n"
-        "Break down user requests into appropriate agent calls and coordinate the agents, compile the answers and return what the user wants.\n"
-        "Do not execute the tasks yourself\n"
-    )
-    
-    agents_as_tool = []
-    for agent in agents:
-        agent.name = agent.name.replace(" ", "_")
-        # TODO: Create our pre defined custom tools array based on what the user has defined the agent's tools as
-            # The custom tools feature should also include a human in the loop implementation
-            # Implement mappings from tool ids to the actual tool function for custom tools
-        # TODO: Make sure the agentic LLM model does not hallucinate SQL calls
-        # TODO: Make sure that the agent if connected to any RAG node(s) call them appropriately with structured output
+    agents = []
+    for agent in request.agents:
+        langchain_agent = build_agent(agent)
+        agents.append(langchain_agent)
 
-        tool_tables = [tool for tool in agent.tools if isinstance(tool,TablePayload)]
-
-        tools = []
-        if len(tool_tables) > 0:
-            # Lazy SQL tool - connects only on first call
-            def create_lazy_sql_tool(tables: List[TablePayload]):
-                _db_instance: Optional[SQLDatabase] = None
-                _sql_tool: Optional[QuerySQLDataBaseTool] = None
-                db_description = (
-                            "The following is the list of tables you can access through this tool (in the format TABLE_NAME\n TABLE_SCHEMA:\n"
-                            f"{'\n'.join([
-                                f"{i+1}. {table.table_name}\n{json.dumps(table.table_schema)}" for i,table in enumerate(tables)
-                            ])}\n"
-                            "Input to this tool is a detailed and correct SQL query, output is a result from the database.\n"
-                            "Only use this tool for read requests and when you absolutely need some data from the table."
-                            "If the query is not correct, an error message will be returned.\n"
-                            "If an error is returned, rewrite the query, check the query, and try again.\n"
-                )
-                def lazy_init():
-                    nonlocal _db_instance, _sql_tool
-                    if _sql_tool is None:
-                        _db_instance = SQLDatabase(
-                            postgre_engine, 
-                            include_tables=[table.table_name for table in tables]
-                        )
-                        
-                        _sql_tool = QuerySQLDataBaseTool(db=_db_instance)
-                    return _sql_tool
-                
-                @tool("query_database", description=db_description)
-                def query_db(query: str) -> str:
-                    sql_tool = lazy_init()
-                    return sql_tool.invoke(query)
-                return query_db
-            
-            tools.append(create_lazy_sql_tool(tool_tables))
-
-        langchain_agent = create_agent(model=model,system_prompt=agent.master_prompt, tools=tools)
-
-
-        @tool(agent.name,description=agent.description)
-        async def agent_as_tool(request: str) -> str:
-            result = await langchain_agent.ainvoke({
-                "messages": [{"role": "user", "content": request}]
-            })
-            return result["messages"][-1].content
-        agents_as_tool.append(agent_as_tool)
-
-    global supervisor
-    supervisor = create_agent(
-        model,
-        tools=agents_as_tool,
-        system_prompt=SUPERVISOR_PROMPT,
-    )
+    global planner_executor
+    planner_executor = create_planner_executor(agents)
 
     return {"status": "built"}
 
@@ -143,9 +55,9 @@ class Prompt(BaseModel):
 
 @app.post("/infer")
 async def infer(prompt: Prompt):
-    if not supervisor:
+    if not planner_executor:
         raise HTTPException(status_code=502, detail="PIPELINE_ID not set in environment")
-    answer = await supervisor.ainvoke(
+    answer = await planner_executor.ainvoke(
         {
             "messages": [
                 {
@@ -174,21 +86,26 @@ class AlertRequest(BaseModel):
 @app.post("/generate-alert")
 async def generate_alert(alert_request: AlertRequest):
     full_prompt = (
-        "You are an alert generator. Produce a concise alert message.\n"
-        f"Alert Purpose: {alert_request.alert_prompt}\n"
-        "Trigger Description:\n"
-        f"{alert_request.trigger_description}\n"
-
-        "Trigger Data (JSON):\n"
-        f"{json.dumps(alert_request.trigger_data, indent=2)}\n"
-
-        "Decide the alert type:\n"
-        "- Use \"warning\" for undesirable but non-critical conditions.\n"
-        "- Use \"error\" for failed operations or critical issues.\n"
-        "- Use \"info\" for neutral notifications.\n"
-
-        "Return only a valid alert matching the schema.\n"
+        "Generate a structured alert based on the following information:\n\n"
+        
+        f"ALERT PURPOSE: {alert_request.alert_prompt}\n\n"
+        
+        f"TRIGGER CONDITION:\n{alert_request.trigger_description}\n\n"
+        
+        f"TRIGGER DATA:\n{json.dumps(alert_request.trigger_data, indent=2)}\n\n"
+        
+        "ALERT TYPE CRITERIA:\n"
+        "- 'error': Critical failures, system errors, data corruption, security breaches\n"
+        "- 'warning': Threshold exceeded, degraded performance, approaching limits, anomalies\n"
+        "- 'info': Routine notifications, status updates, successful operations\n\n"
+        
+        "RESPONSE REQUIREMENTS:\n"
+        "- Select the appropriate alert type based on severity\n"
+        "- Write a concise message explaining what happened and why it matters\n"
+        "- Include relevant values from trigger data (timestamps, counts, identifiers)\n"
+        "- Keep message under 200 characters for dashboard display"
     )
+    
     answer = await alert_agent.ainvoke(
         {
             "messages": [
