@@ -5,26 +5,22 @@ import MoreHorizIcon from '@mui/icons-material/MoreHoriz';
 
 const OverviewSection = ({ data }) => {
   // Chart data - all segments with uniform thickness
+  console.log("car", data)
   const chartData = [
     { 
-      name: 'Success Rate', 
-      value: data?.successRate || 25000, 
+      name: 'Running', 
+      value: data?.running || 25000, 
       color: '#86C8BC',
-    },
-    { 
-      name: 'Total', 
-      value: data?.error || 12000, 
-      color: '#B4C7E7',
     },
     
     { 
-      name: 'Failed', 
-      value: data?.failed || 2000, 
+      name: 'Broken', 
+      value: data?.broken || 2000, 
       color: '#F0B4C4',
     },
   ];
 
-  const total = 20; // Total count as shown in the image
+  const total = data?.total; // Total count as shown in the image
   
   return (
     <Paper

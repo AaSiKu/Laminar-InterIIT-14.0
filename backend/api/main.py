@@ -31,7 +31,9 @@ from backend.auth.routes import get_current_user
 
 import asyncio
 from bson.json_util import dumps
-from datetime import datetime
+from datetime import datetime, timedelta
+from typing import List
+
 
 configure_root()
 logger = get_logger(__name__)
@@ -527,12 +529,19 @@ async def watch_changes():
     except Exception as e:
         print("⚠ ChangeStream NOT running:", e)
 
+class Alert(BaseModel):
+    actions: List[str]
+    action_taken: str
+    taken_at: datetime
+
+
 class Notification(BaseModel):
-  title: str
-  desc: str
-  action: str
-  type: str
-  timestamp: datetime
+    title: str
+    desc: str
+    alert: Alert
+    type: str
+    timestamp: datetime
+    user_id: str
 
 @app.post("/add_notification")
 async def add_notification(data: Notification):
@@ -547,3 +556,87 @@ async def add_notification(data: Notification):
         "inserted_id": str(result.inserted_id),
         "inserted_data": data.model_dump()
     }
+
+@app.get("/kpi_stats")
+async def fetch_kpi_stats():
+    cursor = workflow_collection.find({"user":"TODO: later save from the auth token extraction"})
+    all_pipelines = await cursor.to_list(length=None)
+    current = datetime.now()
+
+    # stat 1: total runtime
+    total_runtime = timedelta()
+    for pipeline in all_pipelines:
+        if pipeline["status"] is True:
+            total_runtime += (current - datetime.fromisoformat(pipeline["start_time"]))
+    
+    # stat 2: total alerts
+    total_alerts = 0
+    pending_alerts = 0
+    total_warnings = 0
+    cursor_notif = notification_collection.find({"user_id":"testing"})
+    all_notifs = await cursor_notif.to_list(length=None)
+    for notif in all_notifs:
+        if notif["alert"]["actions"] != []:
+            total_alerts += 1
+            if notif["alert"]["action_taken"] != "":
+                pending_alerts += 1
+        if notif["type"] == "warning":
+            total_warnings+=1
+    return [
+    {
+      'id': 'total-runtime',
+      'title': 'Total Runtime',
+      'value': int(total_runtime.seconds),
+      'subtitle': 'Total runtime of running pipelines',
+      'iconType': 'timeline',
+      'iconColor': '#3b82f6',
+    },
+    {
+      'id': 'total-alerts',
+      'title': 'Total Alerts',
+      'value': int(total_alerts),
+      'subtitle': 'Total number of alerts generated',
+      'iconType': 'access-time',
+      'iconColor': '#10b981',
+    },
+    {
+      'id': 'pending-alerts',
+      'title': 'Pending Alerts',
+      'value': pending_alerts,
+      'subtitle': 'Alerts with action not taken',
+      'iconType': 'error-outline',
+      'iconColor': '#ef4444',
+    },
+    {
+      'id': 'total-warnings',
+      'title': 'Total Warnings',
+      'value': total_warnings,
+      'subtitle': 'Number of warnings generated',
+      'iconType': 'speed',
+      'iconColor': '#f59e0b',
+    },
+  ]
+    return {
+        "total_runtime": total_runtime,
+        "total_alerts": total_alerts,
+        "pending_alerts": pending_alerts,
+        "total_warnings": total_warnings
+    }
+
+
+@app.get("/api/workflows")
+async def workflow_data():
+    cursor = workflow_collection.find({"user":"TODO: later save from the auth token extraction", "status": True}).sort("last_updated", -1)
+    recent_pipelines = await cursor.to_list(length=3)
+    data =[]
+    for pipeline in recent_pipelines:
+        print(pipeline["last_updated"])
+        data.append({
+            "id": str(pipeline["_id"]), "lastModified": str(pipeline["last_updated"])
+        })
+    return data
+    
+    
+
+
+    

@@ -34,7 +34,7 @@ const RecentWorkflowCard = ({ workflow, onClick }) => {
     >
       <Box sx={{ flex: 1 }}>
         <Typography variant="body1" fontWeight="600" sx={{ mb: 0.5 }}>
-          {workflow.name}
+          {workflow.id}
         </Typography>
         <Typography variant="caption" color="text.secondary">
           Last Updated: {workflow.lastModified}

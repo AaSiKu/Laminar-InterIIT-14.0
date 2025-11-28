@@ -27,14 +27,16 @@ export const fetchTemplates = async () => {
  */
 export const fetchWorkflows = async () => {
   // Real API call placeholder:
-  // const response = await fetch('/api/workflows');
-  // const data = await response.json();
-  // return data;
+  const response = await fetch('http://localhost:8000/api/workflows');
+  const data = await response.json();
+  return data;
+  console.log("data")
+  console.log(data)
 
   return [
-    { id: 'wf1', name: 'Pipeline A', owner: 'Team 54', lastModified: '3 mins' },
-    { id: 'wf2', name: 'Pipeline B', owner: 'Jane Doe', lastModified: '1 days ago' },
-    { id: 'wf3', name: 'Pipeline C', owner: 'John Smith', lastModified: '2 days ago' },
+    { id: 'wf1', lastModified: '3 mins' },
+    { id: 'wf2', lastModified: '1 days ago' },
+    { id: 'wf3', lastModified: '2 days ago' },
   ];
 };
 
@@ -145,10 +147,9 @@ export const fetchOverviewData = async () => {
   const data = await response.json();
   console.log(data)
   return {
-    successRate: data.running,
-    error: data.total,
-    deactivated: 0,
-    failed: data.broken,
+    running: data.running,
+    total: data.total,
+    broken: data.broken,
   };
 };
 
@@ -158,8 +159,11 @@ export const fetchOverviewData = async () => {
  */
 export const fetchKPIData = async () => {
   // Real API call placeholder:
-
-  // return data;
+  const response = await fetch('http://localhost:8000/kpi_stats');
+  const data = await response.json();
+  console.log(data)
+  return data;
+  
 
   return [
     {
