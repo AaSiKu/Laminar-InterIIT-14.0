@@ -9,9 +9,7 @@ import {
   Divider,
 } from '@mui/material';
 import {
-  HomeRounded,
   AccountTreeRounded,
-  GroupRounded,
   QueryStatsRounded,
   TerminalRounded,
   WorkspacePremiumRounded,
@@ -30,7 +28,7 @@ const Sidebar = () => {
   const { setDashboardSidebarOpen, dashboardSidebarOpen, sidebarOpen, setSideBarOpen } = useGlobalContext();
 
    useEffect(() => {
-    if (location.pathname === '/auth/login' || location.pathname === '/auth/signup') {
+    if (location.pathname === '/login' || location.pathname === '/signup') {
       setSideBarOpen(false);
       if (isAuthenticated) {
         navigate('/');
@@ -45,10 +43,10 @@ const Sidebar = () => {
     {
       icon: <AccountTreeRounded />,
       label: 'Pipelines',
-      path: '/dashboard',
+      path: '/workflow',
       onClickExtra: () => setDashboardSidebarOpen(!dashboardSidebarOpen),
     },
-    { icon: <WorkspacePremiumRounded />, label: 'Admin Dashboard', path: '/leadership' },
+    { icon: <WorkspacePremiumRounded />, label: 'Admin Dashboard', path: '/admin' },
     { icon: <QueryStatsRounded />, label: 'Analytics', path: '/analytics' },
     {
       icon: <LogoutRounded color="error" />,
@@ -88,7 +86,7 @@ const Sidebar = () => {
                 }}
                 onClick={() => {
                   if (!isAuthenticated && item.path !== '/') {
-                    navigate('/auth/login');
+                    navigate('/login');
                     return;
                   }
 
