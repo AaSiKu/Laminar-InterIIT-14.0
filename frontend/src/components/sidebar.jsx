@@ -39,7 +39,7 @@ const Sidebar = () => {
   }, [location.pathname, setSideBarOpen, isAuthenticated, navigate]);
 
   const menuItems = [
-    { icon: <TerminalRounded />, label: 'Developer Hub', path: '/developer-dashboard' },
+    { icon: <TerminalRounded />, label: 'Developer Hub', path: '/overview' },
     {
       icon: <AccountTreeRounded />,
       label: 'Pipelines',
@@ -47,7 +47,6 @@ const Sidebar = () => {
       onClickExtra: () => setDashboardSidebarOpen(!dashboardSidebarOpen),
     },
     { icon: <WorkspacePremiumRounded />, label: 'Admin Dashboard', path: '/admin' },
-    { icon: <QueryStatsRounded />, label: 'Analytics', path: '/analytics' },
     {
       icon: <LogoutRounded color="error" />,
       label: 'Logout',

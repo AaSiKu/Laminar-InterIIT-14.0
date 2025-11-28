@@ -4,15 +4,17 @@ import { Routes, Route, Navigate, useLocation } from "react-router-dom";
 import ProtectedRoute from "./components/ProtectedRoute";
 import LoginPage from "./pages/Login.jsx";
 import SignupPage from "./pages/Signup.jsx";
-import Dashboard from "./pages/Workflows.jsx";
+import WorkflowPage from "./pages/Workflows.jsx";
 import Sidebar from "./components/sidebar.jsx";
-import OverviewPage from "./pages/Overview.jsx"
+import OverviewPage from "./pages/Overview.jsx";
 import { AdminPage } from "./pages/Admin.jsx";
 import { DeveloperDashboardProject } from "./pages/DeveloperDashboardProject.jsx";
+import NotFoundPage from "./pages/NotFoundPage.jsx";
+import { Box } from "@mui/material";
 
 function AppContent() {
   const location = useLocation();
-  const isPublicRoute = ["/", "/login", "/signup"];
+  const isPublicRoute = ["/", "/login", "/signup", "/404"];
 
   return (
     <>
@@ -22,41 +24,43 @@ function AppContent() {
         <Route path="/login" element={<LoginPage />} />
         <Route path="/signup" element={<SignupPage />} />
         <Route path="/" element={<Navigate to="/overview" />} />
+        <Route path="/404" element={<NotFoundPage />} />
 
         {/* Protected routes */}
         <Route
-          path="/dashboard"
+          path="/workflow"
           element={
-             <ProtectedRoute>
-              <Dashboard />
-             </ProtectedRoute>
+            <ProtectedRoute>
+              <WorkflowPage />
+            </ProtectedRoute>
           }
         />
         {/* Default route */}
         <Route
-          path="/developer-dashboard"
+          path="/overview"
           element={
-             <ProtectedRoute>
+            <ProtectedRoute>
               <OverviewPage />
-             </ProtectedRoute>
+            </ProtectedRoute>
           }
         />
         <Route
-          path="/developer-dashboard/:projectId"
+          path="/overview/:projectId"
           element={
-             <ProtectedRoute>
+            <ProtectedRoute>
               <DeveloperDashboardProject />
-             </ProtectedRoute>
+            </ProtectedRoute>
           }
         />
         <Route
-          path="/leadership"
+          path="/admin"
           element={
             <ProtectedRoute>
               <AdminPage />
             </ProtectedRoute>
           }
         />
+        <Route path="*" element={<Navigate to="/404" />} />
       </Routes>
     </>
   );

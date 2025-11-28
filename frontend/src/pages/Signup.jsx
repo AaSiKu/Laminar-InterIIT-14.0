@@ -24,7 +24,7 @@ export default function SignupPage() {
   const navigate = useNavigate();
   const API_SERVER = import.meta.env.VITE_API_SERVER;
   useEffect(() => {
-    if (isAuthenticated) navigate("/developer-dashboard");
+    if (isAuthenticated) navigate("/overview");
   }, [isAuthenticated]);
 
 const handleSubmit = async (e) => {
