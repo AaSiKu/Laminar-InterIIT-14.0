@@ -112,11 +112,11 @@ A **Linear** script would have done this:
 1.  Check Docker Status -> "Running" -> **Report: System Healthy.** (FALSE NEGATIVE)
 2.  Check Kafka Input -> "Has Data" -> **Report: System Healthy.** (FALSE NEGATIVE)
 
-Your **Non-Linear Agent** did this:
+The **Non-Linear Agent** did this:
 
 1.  Checked Output B.
 2.  Realized Output B was broken but Output A was fine.
 3.  **Inferred** that the Input and Docker uptime were irrelevant.
 4.  **Zoomed in** on the logs specifically for the breakage.
 
-The **Supervisor Node** in your code (Line 328) enables this by returning `"continue"` instead of `"end"`, forcing the `AnalysisAgent` to try a new angle.
+The **Supervisor Node** enables this by returning `"continue"` instead of `"end"`, forcing the `AnalysisAgent` to try a new angle.
