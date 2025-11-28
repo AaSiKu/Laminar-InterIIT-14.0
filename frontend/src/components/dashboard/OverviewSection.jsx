@@ -28,7 +28,7 @@ const OverviewSection = ({ data }) => {
     },
   ];
 
-  const total = 20; // Total count as shown in the image
+  const total = data?.total || 20;
   
   return (
     <Paper
