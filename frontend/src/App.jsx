@@ -30,34 +30,32 @@ function AppContent() {
         <Route
           path="/workflow"
           element={
-            <ProtectedRoute>
-              <WorkflowPage />
-            </ProtectedRoute>
+            <WorkflowPage />
+          }
+        />
+        <Route
+          path="/dashboard/:pipelineId"
+          element={
+            <WorkflowPage />
           }
         />
         {/* Default route */}
         <Route
           path="/overview"
           element={
-            <ProtectedRoute>
-              <OverviewPage />
-            </ProtectedRoute>
+            <OverviewPage />
           }
         />
         <Route
           path="/overview/:projectId"
           element={
-            <ProtectedRoute>
-              <DeveloperDashboardProject />
-            </ProtectedRoute>
+            <DeveloperDashboardProject />
           }
         />
         <Route
           path="/admin"
           element={
-            <ProtectedRoute>
-              <AdminPage />
-            </ProtectedRoute>
+            <AdminPage />
           }
         />
         <Route path="*" element={<Navigate to="/404" />} />

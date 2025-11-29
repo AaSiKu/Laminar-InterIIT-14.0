@@ -56,7 +56,7 @@ export const PropertyBar = ({
   onClose,
   onUpdateProperties,
   anchor = "right",
-  drawerWidth = 500,
+  drawerWidth = "25vw", // 25% of viewport width
   variant = "temporary",
 }) => {
   const [snackbar, setSnackbar] = useState({
