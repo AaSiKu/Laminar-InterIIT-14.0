@@ -60,7 +60,7 @@ function AppContent() {
           <Route path="/auth/login" element={<LoginPage />} />
           <Route path="/auth/signup" element={<SignupPage />} />
           <Route path="/analytics/:flowId" element={<AnalyticsPage />} />
-          <Route path="/" element={<Navigate to="/dashboard" />} />
+          <Route path="/" element={<Navigate to="/developer-dashboard" />} />
 
           {/* Protected routes */}
           <Route

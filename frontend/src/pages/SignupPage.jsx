@@ -24,38 +24,42 @@ export default function SignupPage() {
   const navigate = useNavigate();
   const API_SERVER = import.meta.env.VITE_API_SERVER;
   useEffect(() => {
-    if (isAuthenticated) {
-      navigate("/developer-dashboard");
-      // return <Typography sx={{ mt: 10, textAlign: "center" }}>Already logged in</Typography>;
-    }
-  }, []);
+    if (isAuthenticated) navigate("/developer-dashboard");
+  }, [isAuthenticated]);
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setError("");
-    try {
-      const res = await fetch(`${import.meta.env.VITE_API_SERVER}/auth/signup`, {
-        method: "POST",
-        mode: "cors",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password, full_name: fullName }),
-      });
+const handleSubmit = async (e) => {
+  e.preventDefault();
+  setError("");
+  try {
+    // 1. Signup → backend sets cookies
+    const res = await fetch(`${API_SERVER}/auth/signup`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, password, full_name: fullName }),
+      credentials: "include",
+    });
 
+    if (!res.ok) {
       const data = await res.json();
-      if (!res.ok) throw new Error(data.detail || JSON.stringify(data));
-
-      // Auto-login after signup
-      const loginRes = await fetch(`${API_SERVER}/auth/login`, {
-        method: "POST",
-        headers: { "Content-Type": "application/x-www-form-urlencoded" },
-        body: new URLSearchParams({ username: email, password }),
-      });
-      login(await loginRes.json());
-      navigate('/developer-dashboard')
-    } catch (err) {
-      setError(err.message);
+      throw new Error(data.detail || "Signup failed");
     }
-  };
+
+    // 2. Fetch user info
+    const userRes = await fetch(`${API_SERVER}/auth/me`, {
+      method: "GET",
+      credentials: "include",
+    });
+
+    if (!userRes.ok) throw new Error("Failed to fetch user info");
+    const userData = await userRes.json();
+
+    // 3. Update AuthProvider state → triggers redirect automatically
+    login(userData);
+  } catch (err) {
+    setError(err.message);
+  }
+};
+
 
   return (
     <Box
