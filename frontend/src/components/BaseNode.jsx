@@ -1,4 +1,4 @@
-import React, { memo, useState, useCallback, useRef } from "react";
+import React, { memo, useState, useCallback, useRef, useEffect } from "react";
 import { Handle, Position, useReactFlow } from "@xyflow/react";
 import {
   Paper,
@@ -9,6 +9,7 @@ import {
   Box,
 } from "@mui/material";
 import { ContentCopy, ContentCut, Delete, FileCopy, Extension } from "@mui/icons-material";
+import NodeDataTable from "./NodeDataTable";
 import "../css/BaseNode.css";
 
 export const BaseNode = memo(
@@ -95,6 +96,12 @@ export const BaseNode = memo(
     const [hoveredProp, setHoveredProp] = useState(null);
     const [showTooltip, setShowTooltip] = useState(false);
     const hoverTimeoutRef = useRef(null);
+    
+    // Hover state for data table
+    const [showDataTable, setShowDataTable] = useState(false);
+    const dataTableTimeoutRef = useRef(null);
+    const hideTableTimeoutRef = useRef(null);
+    const nodeRef = useRef(null);
 
     // Property hover handlers
     const handlePropertyMouseEnter = (propKey, propValue) => {
@@ -139,11 +146,97 @@ export const BaseNode = memo(
       },
     ];
 
+    // Data table hover handlers
+    const handleNodeMouseEnter = () => {
+      setIsHovered(true);
+      
+      // Clear any pending hide timeout
+      if (hideTableTimeoutRef.current) {
+        clearTimeout(hideTableTimeoutRef.current);
+        hideTableTimeoutRef.current = null;
+      }
+      
+      // Only set show timeout if table is not already visible
+      if (!showDataTable && !dataTableTimeoutRef.current) {
+        // Show data table after 800ms hover
+        dataTableTimeoutRef.current = setTimeout(() => {
+          setShowDataTable(true);
+          dataTableTimeoutRef.current = null;
+        }, 800);
+      }
+    };
+
+    const handleNodeMouseLeave = () => {
+      setIsHovered(false);
+      
+      // Clear show timeout if mouse leaves before table appears
+      if (dataTableTimeoutRef.current) {
+        clearTimeout(dataTableTimeoutRef.current);
+        dataTableTimeoutRef.current = null;
+      }
+      
+      // Only start hide timeout if not already pending
+      if (!hideTableTimeoutRef.current) {
+        // Hide data table after 500ms delay
+        hideTableTimeoutRef.current = setTimeout(() => {
+          setShowDataTable(false);
+          hideTableTimeoutRef.current = null;
+        }, 500);
+      }
+    };
+
+    // Handler for when mouse enters the data table
+    const handleTableMouseEnter = () => {
+      // Clear any pending hide timeout when mouse enters table
+      if (hideTableTimeoutRef.current) {
+        clearTimeout(hideTableTimeoutRef.current);
+        hideTableTimeoutRef.current = null;
+      }
+      
+      // Clear any pending show timeout
+      if (dataTableTimeoutRef.current) {
+        clearTimeout(dataTableTimeoutRef.current);
+        dataTableTimeoutRef.current = null;
+      }
+      
+      // Ensure table remains visible
+      setShowDataTable(true);
+    };
+
+    // Handler for when mouse leaves the data table
+    const handleTableMouseLeave = () => {
+      // Only start hide timeout if not already pending
+      if (!hideTableTimeoutRef.current) {
+        // Hide table after 500ms when mouse leaves table
+        hideTableTimeoutRef.current = setTimeout(() => {
+          setShowDataTable(false);
+          hideTableTimeoutRef.current = null;
+        }, 500);
+      }
+    };
+
+    // Cleanup timeouts on unmount
+    useEffect(() => {
+      return () => {
+        if (hoverTimeoutRef.current) {
+          clearTimeout(hoverTimeoutRef.current);
+        }
+        if (dataTableTimeoutRef.current) {
+          clearTimeout(dataTableTimeoutRef.current);
+        }
+        if (hideTableTimeoutRef.current) {
+          clearTimeout(hideTableTimeoutRef.current);
+        }
+      };
+    }, []);
+
     return (
       <div
+        ref={nodeRef}
         className="base-node-wrapper"
-        onMouseEnter={() => setIsHovered(true)}
-        onMouseLeave={() => setIsHovered(false)}
+        onMouseEnter={handleNodeMouseEnter}
+        onMouseLeave={handleNodeMouseLeave}
+        style={{ position: 'relative' }}
       >
         {/* Extended Action Bar */}
         {isHovered && (
@@ -312,6 +405,15 @@ export const BaseNode = memo(
           />
         ))}
       </Paper>
+      
+      {/* Node Data Table - shown on hover */}
+      <NodeDataTable 
+        nodeId={id} 
+        isVisible={showDataTable}
+        nodeRef={nodeRef}
+        onMouseEnter={handleTableMouseEnter}
+        onMouseLeave={handleTableMouseLeave}
+      />
       </div>
     );
   }
