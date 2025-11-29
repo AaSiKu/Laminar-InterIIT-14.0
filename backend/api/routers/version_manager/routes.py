@@ -5,11 +5,10 @@ from backend.api.routers.auth.models import User
 from datetime import datetime
 from .schema import Version
 import logging
-from .schema import Version, Graph,Notification, save_graph_payload, _retrieve_payload, _retrieve_version_payload
+from .schema import Version, Graph,Notification, save_graph_payload, retrieve_payload
 from motor.motor_asyncio import AsyncIOMotorClient
-import os
+import os 
 from .crud import create_pipeline as _create_pipeline
-from typing import Any
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -19,80 +18,10 @@ db = mongo_client[os.getenv("MONGO_DB", "pathway_db")]
 version_collection = db[os.getenv("VERSION_COLLECTION", "versions")]
 workflow_collection = db[os.getenv("WORKFLOW_COLLECTION", "workflows")]
 
-@router.post("/save")
-async def save_graph(
-    payload: save_graph_payload,
-    current_user: User = Depends(get_current_user)
-):
-    """
-    Saves a version to the database
-    """
-    data=payload.data
-    current_version_id=payload.current_version_id
-    pipeline_id=payload.pipeline_id
-    try:
-        user_identifier = str(current_user.id)
-        existing = await version_collection.find_one({
-            '_id': ObjectId(current_version_id)
-        })
 
-        if existing:
-            # Pipeline exists - update it
-            try:
-                async with await mongo_client.start_session() as session:
-                    async with session.start_transaction():
-                        result = version_collection.update_one(
-                            {'_id': ObjectId(current_version_id)},
-                            {
-                                '$set': {
-                                    
-                                    "version_description": data.version_description,
-                                    "version_updated_at": datetime.now(),
-                                    "pipeline": data.pipeline,
-                                }
-                            }
-                        )
-                        new_version = version_collection.insert_one(
-                            {
-                                "user_id": user_identifier,
-                                
-                                "version_description": data.version_description,
-                                "version_created_at": datetime.now(),
-                                "version_updated_at": datetime.now(),
-                                "pipeline": data.pipeline,
-                            }
-                        )
-                        workflow_collection.update_one(
-                            {'_id': ObjectId(pipeline_id)},
-                            {
-                                '$set': {
-                                    "version_id": str(new_version.inserted_id),
-                                },
-                                "$push": {
-                                    "versions": str(new_version.inserted_id)
-                                }
-                            }
-                        ),
 
-            except Exception as e:
-                raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Error updating pipeline: {e}")
-            
-            
-            return {
-                "message": "Updated successfully",
-                "id": str(new_version.inserted_id),
-                "user_id": user_identifier
-            }
-        else:
-            raise HTTPException(status_code=404, detail="Version not found")
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Save error: {e}", exc_info=True)
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Database error: {str(e)}"
-        )
+#----------------------------------Create Pipeline------------------------------------#
+
 
 @router.post("/create_pipeline")
 async def create_pipeline(
@@ -114,42 +43,88 @@ async def create_pipeline(
         logger.error(f"Create pipeline error: {e}")
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
 
-@router.post("/retrieve_pipeline")
-async def retrieve(
-    payload: _retrieve_payload,
+
+
+#-----------------------------------   Save pipeline and Drafts     ----------------------------------------#
+
+
+@router.post("/save")
+async def save_graph(
+    payload: save_graph_payload,
     current_user: User = Depends(get_current_user)
 ):
-    
     """
-    
-    Retrieve a pipeline from the database
+    Saves a version to the database
     """
-    pipeline_id = payload.pipeline_id
+    version_description=payload.version_description
+    version_updated_at=payload.version_updated_at
+    pipeline=payload.pipeline
+    current_version_id=payload.current_version_id
+    pipeline_id=payload.pipeline_id
     try:
         user_identifier = str(current_user.id)
-        async with await mongo_client.start_session() as session:
-            async with session.start_transaction():
-                result = await workflow_collection.find_one({
-                    '_id': ObjectId(pipeline_id),
-                    'user_id': user_identifier
-                })
-                version_id = result['version_id']
+        existing = await version_collection.find_one({
+            '_id': ObjectId(current_version_id)
+        })
 
-                version = await version_collection.find_one({'_id': ObjectId(version_id)})
-                if not version:
-                    raise HTTPException(status_code=404, detail="Version not found")
+        if existing:
+            # Pipeline exists - update it
+            try:
+                async with await mongo_client.start_session() as session:
+                    async with session.start_transaction():
 
-                result['pipeline'] = version['pipeline']
+                        await version_collection.update_one(
+                            {'_id': ObjectId(current_version_id)},
+                            {
+                                '$set': {
+                                    "version_description": version_description,
+                                    "version_updated_at": version_updated_at,
+                                    "pipeline": pipeline,
+                                }
+                            },
+                            session=session
+                        )
 
-        return {
-            "message": "Pipeline data retrieved successfully",
-            "pipeline": str(result),
-            "version": str(version)
-        }
+                        new_version = await version_collection.insert_one(
+                            {
+                                "user_id": user_identifier,
+                                "version_description": version_description,
+                                "version_created_at": datetime.now(),
+                                "version_updated_at": datetime.now(),
+                                "pipeline": pipeline,
+                            },
+                            session=session
+                        )
 
+                        update_result = await workflow_collection.update_one(
+                            {'_id': ObjectId(pipeline_id)},
+                            {
+                                '$set': {"version_id": str(new_version.inserted_id)},
+                                "$push": {"versions": str(new_version.inserted_id)}
+                            },
+                            session=session
+                        )
+
+            except Exception as e:
+                raise HTTPException(status_code=status.HTTP_404_INTERNAL_SERVER_ERROR, detail=f"Pipeline or version not found: {e}")
+            
+            
+            return {
+                "message": "Updated successfully",
+                "version_id": str(new_version.inserted_id),
+                "pipeline_id": str(pipeline_id),
+                "user_id": user_identifier
+            }
+        else:
+            raise HTTPException(status_code=404, detail="Version not found")
+    except HTTPException as e:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Error updating pipeline: {e}")
     except Exception as e:
-        logger.error(f"Retrieve error: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.error(f"Save error: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error updating pipeline: {str(e)}"
+        )
 
 @router.post("/save_draft")
 async def save_draft(
@@ -182,12 +157,103 @@ async def save_draft(
     except Exception as e:
         logger.error(f"Error updating version: {e}")
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)) 
+
+
+
+#---------------------------------    Retrieve Pipeline and Drafts--------------------------------------#  
+
+
+@router.post("/retrieve_pipeline")
+async def retrieve_pipeline(
+    payload: retrieve_payload,
+    current_user: User = Depends(get_current_user)
+):
     
+    """
+    
+    Retrieve a pipeline from the database
+    """
+    pipeline_id = payload.pipeline_id
+    try:
+        user_identifier = str(current_user.id)
+        async with await mongo_client.start_session() as session:
+            async with session.start_transaction():
+                result = await workflow_collection.find_one(
+                    {
+                        '_id': ObjectId(pipeline_id),
+                        'user_id': user_identifier
+                    },
+                session=session)
+                version_id = result['version_id']
+
+                version = await version_collection.find_one(
+                    {'_id': ObjectId(version_id)},
+                    session=session)
+                if not version:
+                    raise HTTPException(status_code=404, detail="Version not found")
+
+                result['pipeline'] = version['pipeline']
+
+        return {
+            "message": "Pipeline data retrieved successfully",
+            "pipeline": str(result),
+            "version": str(version)
+        }
+
+    except Exception as e:
+        logger.error(f"Retrieve error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/retrieve_version_pipeline")
+async def retrieve_version_pipeline(
+    payload: retrieve_payload,
+    current_user: User = Depends(get_current_user)):
+    
+    """
+    Retrieve a specific version of a pipeline from the database
+    """
+    pipeline_id = payload.pipeline_id
+    version_id=payload.version_id
+    try:
+        user_identifier = str(current_user.id)
+        async with await mongo_client.start_session() as session:
+            async with session.start_transaction():
+
+                result = await workflow_collection.find_one(
+                    {
+                    '_id': ObjectId(pipeline_id),
+                    'user_id': user_identifier
+                    },
+                    session=session)
+                if not result:
+                    raise HTTPException(status_code=404, detail="Pipeline not found")
+
+                version = await version_collection.find_one(
+                    {'_id': ObjectId(version_id)},
+                    session=session )
+                if not version:
+                    raise HTTPException(status_code=404, detail="Version not found")
+
+                result['pipeline'] = version['pipeline']
+
+        return {
+            "message": "Pipeline data retrieved successfully",
+            "pipeline": str(result)
+        }
+
+    except Exception as e:
+        logger.error(f"Retrieve error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+    
+
+
+#---------------------------- Delete Pipeline and Drafts--------------------------#
 @router.post("/delete_pipeline")
 async def delete_pipeline(
 
 
-    payload: _retrieve_payload,
+    payload: retrieve_payload,
     current_user: User = Depends(get_current_user)
 ):
     
@@ -204,17 +270,20 @@ async def delete_pipeline(
                 pipeline=await workflow_collection.find_one({
                     '_id': ObjectId(pipeline_id),
                     'user_id': user_identifier
-                })
+                },
+                session=session)
                 if not pipeline:
                     raise HTTPException(status_code=404, detail="Pipeline not found or not authorized")
                 
                 for version_id in pipeline.get('versions', []):
-                    await version_collection.delete_one({'_id': ObjectId(version_id)})
+                    await version_collection.delete_one({'_id': ObjectId(version_id)},
+                    session=session)
 
                 result = await workflow_collection.delete_one({
                     '_id': ObjectId(pipeline_id),
                     'user_id': user_identifier
-                })
+                }, 
+                session=session)
                 if result.deleted_count == 0:
                     raise HTTPException(status_code=404, detail="Pipeline not found or not authorized")
 
@@ -229,7 +298,7 @@ async def delete_pipeline(
     
 @router.post("/delete_draft")
 async def delete_draft(
-    payload: _retrieve_payload,
+    payload: retrieve_payload,
     current_user: User = Depends(get_current_user)
 ):
     
@@ -246,14 +315,16 @@ async def delete_draft(
                 pipeline=await workflow_collection.find_one({
                     '_id': ObjectId(pipeline_id),
                     'user_id': user_identifier
-                })
+                },
+                session=session)
                 if not pipeline:
                     raise HTTPException(status_code=404, detail="Pipeline not found or not authorized") 
                 current_version_id = pipeline['version_id'] 
                 previous_version_id= pipeline["versions"][1]
                 previous_version = await version_collection.find_one({
                     '_id': ObjectId(previous_version_id)
-                })
+                },
+                session=session)
                 if not previous_version:
                     raise HTTPException(status_code=404, detail="Previous version not found")
                 version = await version_collection.update_one({
@@ -273,40 +344,3 @@ async def delete_draft(
         logger.error(f"Error deleting draft: {e}")
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
     
-
-@router.post("/retrieve_version_pipeline")
-async def retrieve_version_pipeline(
-    payload: _retrieve_version_payload,
-    current_user: User = Depends(get_current_user)):
-    
-    """
-    Retrieve a specific version of a pipeline from the database
-    """
-    pipeline_id = payload.pipeline_id
-    version_id=payload.version_id
-    try:
-        user_identifier = str(current_user.id)
-        async with await mongo_client.start_session() as session:
-            async with session.start_transaction():
-
-                result = await workflow_collection.find_one({
-                    '_id': ObjectId(pipeline_id),
-                    'user_id': user_identifier
-                })
-                if not result:
-                    raise HTTPException(status_code=404, detail="Pipeline not found")
-
-                version = await version_collection.find_one({'_id': ObjectId(version_id)})
-                if not version:
-                    raise HTTPException(status_code=404, detail="Version not found")
-
-                result['pipeline'] = version['pipeline']
-
-        return {
-            "message": "Pipeline data retrieved successfully",
-            "pipeline": str(result)
-        }
-
-    except Exception as e:
-        logger.error(f"Retrieve error: {e}")
-        raise HTTPException(status_code=500, detail=str(e))

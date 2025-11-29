@@ -20,7 +20,7 @@ async def create_pipeline(user_identifier,version_collection,workflow_collection
                 "user_id": user_identifier,
                 "status": False,
                 "container_id": "",
-                "agent_id": "",
+                "agent_container_id": "",
                 "agent_port": "",
                 "agent_ip": "",
                 "notification": [],

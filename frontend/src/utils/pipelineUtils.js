@@ -1,6 +1,15 @@
 import { addNodeType } from "./dashboard.utils.jsx";
 import { fetchNodeSchema } from "./dashboard.api";
-const savePipelineAPI = async (path,rfInstance,currentPipelineId,setCurrentPipelineId,setLoading,setError) => {
+
+const savePipelineAPI = async (
+  rfInstance,
+  currentPipelineId,
+  setCurrentPipelineId,
+  currentVersionId,
+  setCurrentVersionId,
+  setLoading,
+  setError,
+  versionDescription="") => {
 
   if (!rfInstance) return;
 
@@ -9,19 +18,24 @@ const savePipelineAPI = async (path,rfInstance,currentPipelineId,setCurrentPipel
 
   try {
     const flow = rfInstance.toObject();
+    console.log(flow);
 
-    const response = await fetch(`${import.meta.env.VITE_API_SERVER}/save`, {
+    const response = await fetch(`${import.meta.env.VITE_API_SERVER}/version/save`, {
       method: "POST",
       credentials: "include", 
       headers: {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        pipeline_id: currentPipelineId,
-        path: path || "",
+        pipeline_id: "692b298db6c9fb504336a553" || currentPipelineId,
+        current_version_id: "692b298db6c9fb504336a552"||currentVersionId || "692b298db6c9fb504336a552",
+        version_description: versionDescription||"",
+        version_updated_at: Date.now(),
         pipeline: flow,
       }),
     });
+
+    console.log("Save response:", response);
 
     if (!response.ok) {
       const errText = await response.text();
@@ -29,36 +43,45 @@ const savePipelineAPI = async (path,rfInstance,currentPipelineId,setCurrentPipel
     }
 
     const data = await response.json();
+    console.log("Save succcessful:", data);
 
-    if (!currentPipelineId && data.id) {
-      setCurrentPipelineId(data.id);
+    if (data.pipeline_id) {
+      setCurrentPipelineId(data.pipeline_id);
+      console.log("SET PIPELINE ID:", data.pipeline_id);
+      console.log("CURRENT PIPELINE ID:", currentPipelineId);
     }
-
-    console.log("Pipeline saved successfully:", data);
+    if (data.version_id) {
+      setCurrentVersionId(data.version_id);
+      console.log("SET VERSION ID:", data.version_id);
+      console.log("CURRENT VERSION ID:", currentVersionId);
+    }
   } catch (err) {
     console.error("Save failed:", err);
+
     setError(err.message);
   } finally {
     setLoading(false);
   }
 };
 
-async function fetchAndSetPipeline(id, setters) {
+async function fetchAndSetPipeline(pipeline_id,version_id, setters) {
   const {
     setCurrentEdges,
     setCurrentNodes,
     setViewport,
     setCurrentPipelineStatus,
     setContainerId,
+    setCurrentVersionId,
   } = setters;
-  const res = await fetch(`${import.meta.env.VITE_API_SERVER}/retrieve`, {
+  const res = await fetch(`${import.meta.env.VITE_API_SERVER}/version/retrieve_pipeline`, {
     method: "POST",
     credentials: "include",
     headers: {
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      pipeline_id: id
+      pipeline_id: pipeline_id,
+      version_id: version_id,
     }),
   });
 
@@ -67,6 +90,10 @@ async function fetchAndSetPipeline(id, setters) {
   }
   const result = await res.json();
   const pipeline = result["pipeline"];
+  const version = result["version"];
+  if (version && version["version_id"]) {
+    setCurrentVersionId(version["version_id"]);
+  }
   await add_to_node_types(pipeline?.nodes || []);
   if (pipeline) {
     setCurrentEdges(pipeline["edges"] || []);
@@ -82,7 +109,7 @@ async function fetchAndSetPipeline(id, setters) {
 
 async function toggleStatus(id, currentStatus) {
   const endpoint = currentStatus ? 'stop' : 'run';
-  const res = await fetch(`${import.meta.env.VITE_API_SERVER}/${endpoint}`, {
+  const res = await fetch(`${import.meta.env.VITE_API_SERVER}/pipeline/${endpoint}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ pipeline_id: id }),
@@ -94,7 +121,7 @@ async function toggleStatus(id, currentStatus) {
 }
 
 async function spinupPipeline(id) {
-  const res = await fetch(`${import.meta.env.VITE_API_SERVER}/spinup`, {
+  const res = await fetch(`${import.meta.env.VITE_API_SERVER}/pipeline/spinup`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ pipeline_id: id }),
@@ -106,7 +133,7 @@ async function spinupPipeline(id) {
 }
 
 async function spindownPipeline(id) {
-  const res = await fetch(`${import.meta.env.VITE_API_SERVER}/spindown`, {
+  const res = await fetch(`${import.meta.env.VITE_API_SERVER}/pipeline/spindown`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ pipeline_id: id }),

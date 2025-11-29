@@ -34,34 +34,6 @@ async def fetch_kpi(request: Request):
     return KPI_stats
    
 
-
-async def watch_changes(notification_collection):
-    '''
-    Listens for any insertion to the notifications collection
-    '''
-    condition = [
-    {"$match": {"operationType": "insert"}}
-]
-    try:
-        async with notification_collection.watch(condition) as stream:
-            print("Change stream listener started")
-            async for change in stream:
-                print("Mongo change:", dumps(change["fullDocument"]))
-                await broadcast(dumps(change["fullDocument"]))
-    except Exception as e:
-        print("⚠ ChangeStream NOT running:", e)
-
-
-async def broadcast(message: str):
-    '''
-    Sends/Broadcasts the notification to all connections
-    '''
-    for websocket in list(active_connections):
-        try:
-            await websocket.send_text(message)
-        except:
-            active_connections.remove(websocket)
-
 class Notification(BaseModel):
   title: str
   desc: str

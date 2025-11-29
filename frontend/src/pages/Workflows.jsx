@@ -55,6 +55,8 @@ export default function WorkflowPage() {
     setViewport,
     containerId,
     setContainerId,
+    currentVersionId,
+    setCurrentVersionId,
   } = useGlobalContext();
 
   useEffect(() => {
@@ -66,6 +68,7 @@ export default function WorkflowPage() {
         setViewport,
         setCurrentPipelineStatus,
         setContainerId,
+        setCurrentVersionId
       })
         .catch((err) => setError(err.message))
         .finally(() => setLoading(false));
@@ -205,10 +208,11 @@ export default function WorkflowPage() {
                 variant="outlined"
                 onClick={() =>
                   savePipelineAPI(
-                    currentPipelineId,
                     rfInstance,
                     currentPipelineId,
                     setCurrentPipelineId,
+                    currentVersionId,
+                    setCurrentVersionId,
                     setLoading,
                     setError
                   )
@@ -216,6 +220,26 @@ export default function WorkflowPage() {
                 disabled={loading}
               >
                 Save
+              </Button>
+              <Button
+                variant="outlined"
+                onClick={() =>
+                  fetchAndSetPipeline(
+                    pipeline_id=currentPipelineId,
+                    version_id=currentVersionId,
+                    setters={
+                      setCurrentEdges,
+                      setCurrentNodes,
+                      setViewport,
+                      setCurrentPipelineStatus,
+                      setContainerId,
+                      setCurrentVersionId
+                    }
+                  )
+                }
+                disabled={loading}
+              >
+                Fetch
               </Button>
               <Button
                 variant="outlined"

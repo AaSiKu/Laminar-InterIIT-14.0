@@ -1,7 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, Request, status, Response
 from datetime import timedelta
 from jose import JWTError, jwt
-from pydantic.type_adapter import R
 from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi.security import OAuth2PasswordRequestForm
 from . import crud, utils

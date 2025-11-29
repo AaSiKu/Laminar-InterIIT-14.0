@@ -25,7 +25,7 @@ class Graph(BaseModel):
     start_Date: datetime
     status: str
     container_id: str 
-    agent_id: str
+    agent_container_id: str
     agent_port: str
     agent_ip: str
     notification: List[Notification]
@@ -37,16 +37,15 @@ class Version(BaseModel):
     version_description: str
     version_created_at: datetime
     version_updated_at: datetime
-    pipeline: dict[str, Any]
+    pipeline: Any
 
 class save_graph_payload(BaseModel):
-    data: Version
+    version_updated_at: datetime
+    version_description: str
     current_version_id: str
     pipeline_id: str
+    pipeline: Any
 
-class _retrieve_payload(BaseModel):
+class retrieve_payload(BaseModel):
     pipeline_id: str
-
-class _retrieve_version_payload(BaseModel):
     version_id: str
-    pipeline_id: str

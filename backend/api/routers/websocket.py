@@ -4,7 +4,12 @@ from fastapi import WebSocket, WebSocketDisconnect, APIRouter
 from aiokafka import AIOKafkaConsumer
 from dotenv import load_dotenv
 from backend.api.routers.overview import active_connections
+from bson.json_util import dumps
 load_dotenv()
+
+#TODO: broadcast to only selected connections
+#    : if pipeline_id is provided, broadcast to only that pipeline's connections of only that user
+#    : if pipeline_id is not provided, broadcast to all connections of only that user
 
 router = APIRouter()
 
@@ -48,6 +53,33 @@ async def alerts_ws(websocket: WebSocket, pipeline_id: str):
         await consumer.stop()
 
 
+
+async def watch_changes(notification_collection):
+    '''
+    Listens for any insertion to the notifications collection
+    '''
+    condition = [
+    {"$match": {"operationType": "insert"}}
+]
+    try:
+        async with notification_collection.watch(condition) as stream:
+            print("Change stream listener started")
+            async for change in stream:
+                print("Mongo change:", dumps(change["fullDocument"]))
+                await broadcast(dumps(change["fullDocument"]))
+    except Exception as e:
+        print("⚠ ChangeStream NOT running:", e)
+
+
+async def broadcast(message: str):
+    '''
+    Sends/Broadcasts the notification to all connections
+    '''
+    for websocket in list(active_connections):
+        try:
+            await websocket.send_text(message)
+        except:
+            active_connections.remove(websocket)
 
 @router.websocket("/ws/pipeline")
 async def websocket_endpoint(websocket: WebSocket):

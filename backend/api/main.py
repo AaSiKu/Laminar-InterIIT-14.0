@@ -10,7 +10,7 @@ import docker
 from utils.logging import get_logger, configure_root
 from backend.api.routers.main_router import router
 import asyncio
-from backend.api.routers.overview import watch_changes
+from backend.api.routers.websocket import watch_changes
 
 configure_root()
 logger = get_logger(__name__)

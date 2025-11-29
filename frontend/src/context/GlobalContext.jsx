@@ -24,6 +24,7 @@ export const GlobalContextProvider = ({ children }) => {
   const { login, user, logout, isAuthenticated } = useContext(AuthContext);
   const [sidebarOpen, setSideBarOpen] = useState(false);
   const { fileStructure, setFileStructure } = useState({});
+  const [currentVersionId, setCurrentVersionId] = useState(null);
 
   const globalContextValue = {
     user,
@@ -31,6 +32,8 @@ export const GlobalContextProvider = ({ children }) => {
     setRoll,
     currentPipelineId,
     setCurrentPipelineId,
+    currentVersionId,
+    setCurrentVersionId,
     currentPipelineStatus,
     setCurrentPipelineStatus,
     currentEdges,
