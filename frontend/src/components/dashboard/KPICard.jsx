@@ -5,27 +5,28 @@ const KPICard = ({ title, value, subtitle, icon: Icon, iconColor }) => {
   return (
     <Paper
       sx={{
-        p: 3,
-        borderRadius: '12px',
-        border: '1px solid #e5e7eb',
+        p: '1.5rem',
+        borderRadius: '0.75rem',
+        border: '0.0625rem solid #e5e7eb',
         boxShadow: 'none',
         height: '100%',
         width: '100%',
         display: 'flex',
         flexDirection: 'column',
-        justifyContent: 'space-between',
-        minHeight: '150px',
+        justifyContent: 'center',
+        alignItems: 'center',
+        minHeight: '9.375rem',
       }}
     >
-      <Box>
+      <Box sx={{ textAlign: 'left', width: '100%', maxWidth: '12rem' }}>
         <Typography 
           variant="body2" 
           color="text.secondary" 
           sx={{ 
-            mb: 2,
+            mb: '1rem',
             fontSize: '0.75rem',
             lineHeight: 1.2,
-            minHeight: '32px',
+            minHeight: '2rem',
             display: '-webkit-box',
             WebkitLineClamp: 2,
             WebkitBoxOrient: 'vertical',
@@ -37,17 +38,17 @@ const KPICard = ({ title, value, subtitle, icon: Icon, iconColor }) => {
         {Icon && (
           <Box
             sx={{
-              width: 48,
-              height: 48,
-              borderRadius: '12px',
+              width: '3rem',
+              height: '3rem',
+              borderRadius: '0.75rem',
               bgcolor: iconColor ? `${iconColor}15` : '#f3f4f6',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              mb: 2,
+              mb: '1rem',
             }}
           >
-            <Icon sx={{ fontSize: 24, color: iconColor || 'text.secondary' }} />
+            <Icon sx={{ fontSize: '1.5rem', color: iconColor || 'text.secondary' }} />
           </Box>
         )}
         <Typography variant="h4" fontWeight="700" sx={{ mb: 0.5, fontSize: { xs: '1.75rem', md: '2rem' } }}>

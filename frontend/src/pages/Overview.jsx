@@ -69,77 +69,77 @@ export default function OverviewPage() {
 
   return (
     <>
-      <div className="overview-container">
-        <div className="overview-main">
-          <div className="overview-topbar">
-            <div className="overview-topbar-left">
-              <input
-                type="text"
-                placeholder="Search"
-                className="overview-search-input"
-              />
+    <div className="overview-container">
+      <div className="overview-main">
+        <div className="overview-topbar">
+          <div className="overview-topbar-left">
+            <input
+              type="text"
+              placeholder="Search"
+              className="overview-search-input"
+            />
+          </div>
+          <div className="overview-topbar-right">
+            <div className="overview-user-avatar">U</div>
+          </div>
+        </div>
+
+        <div className="overview-content-wrapper">
+          <div className="overview-left-content">
+            <div className="overview-overview-kpi-row">
+              <div className="overview-overview-wrapper">
+                {overviewData && <OverviewSection data={overviewData} />}
+              </div>
+
+              <div className="overview-vertical-divider" />
+
+              <div className="overview-kpi-grid">
+                {kpiData.map((kpi) => {
+                  const IconComponent = getIconComponent(kpi.iconType);
+                  return (
+                    <div key={kpi.id} className="overview-kpi-item">
+                      <KPICard
+                        title={kpi.title}
+                        value={kpi.value}
+                        subtitle={kpi.subtitle}
+                        icon={IconComponent}
+                        iconColor={kpi.iconColor}
+                      />
+                    </div>
+                  );
+                })}
+              </div>
             </div>
-            <div className="overview-topbar-right">
-              <div className="overview-user-avatar">U</div>
+
+            <div className="overview-horizontal-divider" />
+
+            <div className="overview-workflows-section">
+              <div className="overview-workflows-header">
+                <Typography variant="h6" className="overview-workflows-title">
+                  Recent Workflows
+                </Typography>
+                <div className="overview-more-btn">
+                  <MoreHorizIcon className="overview-more-icon" />
+                </div>
+              </div>
+              <div className="overview-workflows-list">
+                {workflows.map((workflow) => (
+                  <RecentWorkflowCard
+                    key={workflow.id}
+                    workflow={workflow}
+                    onClick={() => handleSelectTemplate(workflow.id)}
+                  />
+                ))}
+              </div>
             </div>
           </div>
 
-          <div className="overview-content-wrapper">
-            <div className="overview-left-content">
-              <div className="overview-overview-kpi-row">
-                <div className="overview-overview-wrapper">
-                  {overviewData && <OverviewSection data={overviewData} />}
-                </div>
-
-                <div className="overview-vertical-divider" />
-
-                <div className="overview-kpi-grid">
-                  {kpiData.map((kpi) => {
-                    const IconComponent = getIconComponent(kpi.iconType);
-                    return (
-                      <div key={kpi.id} className="overview-kpi-item">
-                        <KPICard
-                          title={kpi.title}
-                          value={kpi.value}
-                          subtitle={kpi.subtitle}
-                          icon={IconComponent}
-                          iconColor={kpi.iconColor}
-                        />
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-
-              <div className="overview-horizontal-divider" />
-
-              <div className="overview-workflows-section">
-                <div className="overview-workflows-header">
-                  <Typography variant="h6" className="overview-workflows-title">
-                    Recent Workflows
-                  </Typography>
-                  <div className="overview-more-btn">
-                    <MoreHorizIcon className="overview-more-icon" />
-                  </div>
-                </div>
-                <div className="overview-workflows-list">
-                  {workflows.map((workflow) => (
-                    <RecentWorkflowCard
-                      key={workflow.id}
-                      workflow={workflow}
-                      onClick={() => handleSelectTemplate(workflow.id)}
-                    />
-                  ))}
-                </div>
-              </div>
-            </div>
-
-            <div className="overview-highlights-panel">
-              <HighlightsPanel notifications={notifications} />
-            </div>
+          <div className="overview-highlights-panel">
+            <HighlightsPanel notifications={notifications} />
           </div>
         </div>
       </div>
+    </div>
 
       {/* Floating Action Button for Mobile/Tablet */}
       <Fab

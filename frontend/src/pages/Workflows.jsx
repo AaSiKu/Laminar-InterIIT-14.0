@@ -311,7 +311,9 @@ export default function WorkflowPage() {
             onDrop={onDrop}
             onDragOver={onDragOver}
             onPaneClick={() => setSelectedNode(null)}
+            defaultViewport={{ x: 0, y: 0, zoom: 0.9 }}
             fitView
+            fitViewOptions={{ maxZoom: 0.9 }}
           >
             <Controls position="top-right" />
             <Background color="#aaa" gap={16} />
