@@ -31,7 +31,6 @@ tool_map = get_tool_class_map()
 
 
 class Agent(BaseModel):
-    master_prompt: str
     name: str
     description: str
     tools : Optional[List[Union[int,str]]] = []
