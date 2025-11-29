@@ -14,8 +14,6 @@ import {
   Toolbar,
   Button,
   Box,
-  useTheme,
-  useMediaQuery,
   Alert,
   Snackbar,
   CircularProgress,
@@ -151,11 +149,11 @@ export default function WorkflowPage() {
     setSelectedNode(node);
   };
 
-  const handleUpdateProperties = (nodeId, updatedProps) => {
+  const handleUpdateProperties = (nodeId, data) => {
     setCurrentNodes((nds) =>
       nds.map((n, idx) =>
         n.id === nodeId
-          ? { ...n, data: { ...n.data, properties: updatedProps } }
+          ? { ...n, data: { ...n.data, properties: data} }
           : n
       )
     );
@@ -172,7 +170,7 @@ export default function WorkflowPage() {
       event.preventDefault();
 
       const nodeName = event.dataTransfer.getData('application/reactflow');
-      
+
       if (!nodeName || !rfInstance) {
         return;
       }
@@ -186,7 +184,7 @@ export default function WorkflowPage() {
 
         // Fetch the schema for the node
         const schema = await fetchNodeSchema(nodeName);
-        
+
         // Generate the node with the drop position
         const newNode = generateNode(schema, currentNodes);
         newNode.position = position;

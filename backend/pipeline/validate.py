@@ -3,7 +3,9 @@ from collections import defaultdict
 from pydantic import ValidationError
 from toposort import toposort_flatten
 from lib.node import Node
+from lib.io_nodes import ColumnType
 from lib.utils import get_node_class_map
+from mappings.helpers import parse_table_schema
 
 
 def validate_nodes(node_data_list: List[Dict[str, Any]]) -> List[Node]:
@@ -38,14 +40,13 @@ def validate_nodes(node_data_list: List[Dict[str, Any]]) -> List[Node]:
         if "data" not in node_data or "properties" not in node_data["data"] or len(node_data["data"]["properties"]) == 0:
             raise ValueError(f"Error parsing 'properties': {node_data}")
 
-        # FIXME: Handel table scheme transformation
         parsed_node_data = {}
         parsed_node_data["node_id"] = node_id
         parsed_node_data["category"] = node_data["category"]
-        for prop_dict in node_data["data"]["properties"]:
-            _label = prop_dict["label"]
-            _value = prop_dict["value"]
-            parsed_node_data[_label] = _value
+        for key, value in node_data["data"]["properties"].items():
+            if key == "table_schema":
+                value = parse_table_schema(value)
+            parsed_node_data[key] = value
 
         try:
             validated = node_class(**parsed_node_data)

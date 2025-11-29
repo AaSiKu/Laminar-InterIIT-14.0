@@ -68,7 +68,7 @@ def build_agentic_graph(
         async def infer(self, role: str, content: str) -> str:
             async with httpx.AsyncClient(timeout=30) as client:
                 resp = await client.post(
-                    f"{agentic_url.rstrip("/")}/infer",
+                    f"{agentic_url.rstrip('/')}/infer",
                     json={"role": role, "content": content},
                 )
                 resp.raise_for_status()
