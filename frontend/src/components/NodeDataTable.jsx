@@ -38,7 +38,7 @@ const NodeDataTable = ({ nodeId, isVisible, nodeRef, onMouseEnter, onMouseLeave 
   const intervalRef = useRef(null);
   const countdownIntervalRef = useRef(null);
   const tableRef = useRef(null);
-
+  const serverUrl = import.meta.env.VITE_POSTGRES_SERVER;
   // Fetch data from API
   const fetchData = useCallback(async (startRow = 0) => {
     if (!isVisible) return;
@@ -48,7 +48,7 @@ const NodeDataTable = ({ nodeId, isVisible, nodeRef, onMouseEnter, onMouseLeave 
     
     try {
       const limit = rowsPerPage;
-      const url = `http://localhost:8001/api/node-data/${nodeId}?start_row=${startRow}&limit=${limit}`;
+      const url = `${serverUrl}/api/node-data/${nodeId}?start_row=${startRow}&limit=${limit}`;
       
       console.log(`Fetching data: startRow=${startRow}, limit=${limit}, rowsPerPage=${rowsPerPage}`);
       

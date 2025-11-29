@@ -334,7 +334,7 @@ export const BaseNode = memo(
                             fontSize: '0.75rem',
                             maxWidth: '300px',
                             wordBreak: 'break-word',
-                            zIndex: 10000,
+                            zIndex: 9000,
                             boxShadow: '0 4px 12px rgba(0, 0, 0, 0.3)',
                             animation: 'fadeIn 0.2s ease-in',
                             pointerEvents: 'none',
