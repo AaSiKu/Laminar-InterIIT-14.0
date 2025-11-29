@@ -1,16 +1,52 @@
 import { addNodeType } from "./dashboard.utils.jsx";
 import { fetchNodeSchema } from "./dashboard.api";
 
-const savePipelineAPI = async (
-  rfInstance,
-  currentPipelineId,
-  setCurrentPipelineId,
-  currentVersionId,
-  setCurrentVersionId,
-  setLoading,
-  setError,
-  versionDescription="") => {
+const temporart_PId="692b4d05d4ac6919f809f461"
+const temporary_VId="692b4d05d4ac6919f809f460"
 
+const create_pipeline = async(
+    setCurrentPipelineId,
+    setCurrentVersionId,
+    setError,
+    setLoading,) => {
+  setLoading(true);
+  try{
+    const response = await fetch(`${import.meta.env.VITE_API_SERVER}/version/create_pipeline`, {
+      method: "POST",
+      credentials: "include",
+      headers: {
+        "Content-Type": "application/json",
+      },
+    });
+
+    if (!response.ok) {
+      const errText = await response.text();
+      throw new Error(`Failed to create pipeline: ${errText || response.status}`);
+    }
+
+    const data = await response.json();
+    if (data.pipeline_id) {
+      setCurrentPipelineId(data.pipeline_id);
+    }
+    if (data.version_id) {
+      setCurrentVersionId(data.version_id);
+    }
+  } catch (err) {
+    setError(err.message);
+  } finally {
+    setLoading(false);
+  }
+}
+
+const savePipelineAPI = async (
+    rfInstance,
+    currentPipelineId,
+    setCurrentPipelineId,
+    currentVersionId,
+    setCurrentVersionId,
+    setError,
+    setLoading,
+    versionDescription="") => {
   if (!rfInstance) return;
 
   setLoading(true);
@@ -27,8 +63,8 @@ const savePipelineAPI = async (
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        pipeline_id: "692b298db6c9fb504336a553" || currentPipelineId,
-        current_version_id: "692b298db6c9fb504336a552"||currentVersionId || "692b298db6c9fb504336a552",
+        pipeline_id: temporart_PId||currentPipelineId,
+        current_version_id: currentVersionId||temporary_VId,
         version_description: versionDescription||"",
         version_updated_at: Date.now(),
         pipeline: flow,
@@ -53,7 +89,7 @@ const savePipelineAPI = async (
     if (data.version_id) {
       setCurrentVersionId(data.version_id);
       console.log("SET VERSION ID:", data.version_id);
-      console.log("CURRENT VERSION ID:", currentVersionId);
+      console.log("CURRENT VERSION ID:", data.version_id);
     }
   } catch (err) {
     console.error("Save failed:", err);
@@ -64,15 +100,20 @@ const savePipelineAPI = async (
   }
 };
 
-async function fetchAndSetPipeline(pipeline_id,version_id, setters) {
+async function fetchAndSetPipeline(pipeline_id, version_id, setters) {
   const {
+    setCurrentPipelineId,
+    setCurrentVersionId,
+    setError,
+    setLoading,
     setCurrentEdges,
     setCurrentNodes,
     setViewport,
     setCurrentPipelineStatus,
     setContainerId,
-    setCurrentVersionId,
   } = setters;
+
+  setLoading(true);
   const res = await fetch(`${import.meta.env.VITE_API_SERVER}/version/retrieve_pipeline`, {
     method: "POST",
     credentials: "include",
@@ -80,8 +121,8 @@ async function fetchAndSetPipeline(pipeline_id,version_id, setters) {
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      pipeline_id: pipeline_id,
-      version_id: version_id,
+      pipeline_id: temporart_PId||pipeline_id,
+      version_id: version_id||temporary_VId,
     }),
   });
 
@@ -94,6 +135,9 @@ async function fetchAndSetPipeline(pipeline_id,version_id, setters) {
   if (version && version["version_id"]) {
     setCurrentVersionId(version["version_id"]);
   }
+  if (pipeline && pipeline["pipeline_id"]) {
+    setCurrentPipelineId(pipeline["pipeline_id"]);
+  }
   await add_to_node_types(pipeline?.nodes || []);
   if (pipeline) {
     setCurrentEdges(pipeline["edges"] || []);
@@ -104,6 +148,7 @@ async function fetchAndSetPipeline(pipeline_id,version_id, setters) {
     setCurrentPipelineStatus(result["status"]);
     setContainerId(result["container_id"]);
   }
+  setLoading(false);
   return result;
 }
 
@@ -167,4 +212,5 @@ export {
   toggleStatus,
   spinupPipeline,
   spindownPipeline,
+  create_pipeline,
 };

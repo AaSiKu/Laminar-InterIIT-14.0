@@ -35,7 +35,7 @@ async def create_pipeline(user_identifier,version_collection,workflow_collection
 
             version = await version_collection.insert_one(version_doc, session=session)
             version_doc["_id"] = version.inserted_id
-
+            pipeline_doc["versions"]=[str(version.inserted_id)]
             pipeline_doc["version_id"] = str(version.inserted_id)
 
             result = await workflow_collection.insert_one(pipeline_doc, session=session)

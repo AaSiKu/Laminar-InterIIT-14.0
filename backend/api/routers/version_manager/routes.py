@@ -186,6 +186,9 @@ async def retrieve_pipeline(
                 session=session)
                 version_id = result['version_id']
 
+                if not result:
+                    raise HTTPException(status_code=404, detail="Pipeline not found")
+
                 version = await version_collection.find_one(
                     {'_id': ObjectId(version_id)},
                     session=session)
@@ -204,49 +207,7 @@ async def retrieve_pipeline(
         logger.error(f"Retrieve error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
-
-@router.post("/retrieve_version_pipeline")
-async def retrieve_version_pipeline(
-    payload: retrieve_payload,
-    current_user: User = Depends(get_current_user)):
-    
-    """
-    Retrieve a specific version of a pipeline from the database
-    """
-    pipeline_id = payload.pipeline_id
-    version_id=payload.version_id
-    try:
-        user_identifier = str(current_user.id)
-        async with await mongo_client.start_session() as session:
-            async with session.start_transaction():
-
-                result = await workflow_collection.find_one(
-                    {
-                    '_id': ObjectId(pipeline_id),
-                    'user_id': user_identifier
-                    },
-                    session=session)
-                if not result:
-                    raise HTTPException(status_code=404, detail="Pipeline not found")
-
-                version = await version_collection.find_one(
-                    {'_id': ObjectId(version_id)},
-                    session=session )
-                if not version:
-                    raise HTTPException(status_code=404, detail="Version not found")
-
-                result['pipeline'] = version['pipeline']
-
-        return {
-            "message": "Pipeline data retrieved successfully",
-            "pipeline": str(result)
-        }
-
-    except Exception as e:
-        logger.error(f"Retrieve error: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
-    
-
+#retrieve version was redundant as retrieve pipeline uses version id and i can get the draft version from current version id and the pipeline to be used form the workflow collection
 
 #---------------------------- Delete Pipeline and Drafts--------------------------#
 @router.post("/delete_pipeline")

@@ -30,6 +30,7 @@ import {
   fetchAndSetPipeline,
   spinupPipeline,
   spindownPipeline,
+  create_pipeline
 } from "../utils/pipelineUtils";
 
 export default function WorkflowPage() {
@@ -62,19 +63,23 @@ export default function WorkflowPage() {
   useEffect(() => {
     if (currentPipelineId) {
       setLoading(true);
-      fetchAndSetPipeline(currentPipelineId, {
+        fetchAndSetPipeline(currentPipelineId, currentVersionId,{
+        setCurrentPipelineId,
+        setCurrentVersionId,
+        setError,
+        setLoading,
         setCurrentEdges,
         setCurrentNodes,
         setViewport,
         setCurrentPipelineStatus,
         setContainerId,
-        setCurrentVersionId
       })
         .catch((err) => setError(err.message))
         .finally(() => setLoading(false));
     }
   }, [
     currentPipelineId,
+    currentVersionId,
     setCurrentEdges,
     setCurrentNodes,
     setViewport,
@@ -213,30 +218,27 @@ export default function WorkflowPage() {
                     setCurrentPipelineId,
                     currentVersionId,
                     setCurrentVersionId,
-                    setLoading,
-                    setError
-                  )
-                }
+                  setError,
+                  setLoading
+                )}
                 disabled={loading}
               >
                 Save
               </Button>
               <Button
                 variant="outlined"
-                onClick={() =>
-                  fetchAndSetPipeline(
-                    pipeline_id=currentPipelineId,
-                    version_id=currentVersionId,
-                    setters={
-                      setCurrentEdges,
-                      setCurrentNodes,
-                      setViewport,
-                      setCurrentPipelineStatus,
-                      setContainerId,
-                      setCurrentVersionId
-                    }
-                  )
-                }
+                onClick={() => fetchAndSetPipeline(
+                  currentPipelineId, currentVersionId,{
+                  setCurrentPipelineId,
+                  setCurrentVersionId,
+                  setError,
+                  setLoading,
+                  setCurrentEdges,
+                  setCurrentNodes,
+                  setViewport,
+                  setCurrentPipelineStatus,
+                  setContainerId,
+                })}
                 disabled={loading}
               >
                 Fetch
