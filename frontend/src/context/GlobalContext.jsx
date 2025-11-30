@@ -20,7 +20,6 @@ export const GlobalContextProvider = ({ children }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [containerId, setContainerId] = useState();
-  const [dashboardSidebarOpen, setDashboardSidebarOpen] = useState(false);
   const { login, user, logout, isAuthenticated } = useContext(AuthContext);
   const [sidebarOpen, setSideBarOpen] = useState(false);
   const { fileStructure, setFileStructure } = useState({});
@@ -52,8 +51,6 @@ export const GlobalContextProvider = ({ children }) => {
     setContainerId,
     agentContainerId,
     setAgentContainerId,
-    dashboardSidebarOpen,
-    setDashboardSidebarOpen,
     login,
     isAuthenticated,
     sidebarOpen,
@@ -62,14 +59,6 @@ export const GlobalContextProvider = ({ children }) => {
     setFileStructure,
     logout,
   };
-
-  const location = useLocation();
-
-  useEffect(() => {
-    if (location.pathname !== "/workflow") {
-      setDashboardSidebarOpen(false);
-    }
-  }, [location.pathname]);
 
   return (
     <GlobalContext.Provider value={globalContextValue}>

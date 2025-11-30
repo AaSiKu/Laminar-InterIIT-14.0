@@ -135,6 +135,7 @@ export const fetchOverviewData = async () => {
     error: 12000,
     deactivated: 12000,
     failed: 2000,
+    total: 20, // Total count of pipelines/workflows
   };
 };
 
