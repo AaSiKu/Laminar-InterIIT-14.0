@@ -25,16 +25,20 @@ import { useGlobalContext } from "../context/GlobalContext";
 import {
   savePipelineAPI,
   toggleStatus as togglePipelineStatus,
-  fetchAndSetPipeline,
   spinupPipeline,
   spindownPipeline,
+  saveDraftsAPI,
 } from "../utils/pipelineUtils";
 import { fetchNodeSchema } from "../utils/dashboard.api";
+//TODO: need to fix this logic for setting status to Broken/Running/Stopped
+function toggleStatusLogic(variable) {
+  return variable;
+}
 
 export default function WorkflowPage() {
   const [selectedNode, setSelectedNode] = useState(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
-  
+
   const {
     currentEdges,
     currentNodes,
@@ -43,10 +47,10 @@ export default function WorkflowPage() {
     setCurrentEdges,
     currentPipelineStatus,
     setCurrentPipelineStatus,
+    setAgentContainerId,
     currentPipelineId,
     rfInstance,
     setCurrentPipelineId,
-    dashboardSidebarOpen,
     loading,
     setLoading,
     error,
@@ -54,23 +58,27 @@ export default function WorkflowPage() {
     setViewport,
     containerId,
     setContainerId,
+    currentVersionId,
+    setCurrentVersionId,
   } = useGlobalContext();
 
   useEffect(() => {
     if (currentPipelineId) {
       setLoading(true);
-      fetchAndSetPipeline(currentPipelineId, {
-        setCurrentEdges,
-        setCurrentNodes,
-        setViewport,
-        setCurrentPipelineStatus,
-        setContainerId,
-      })
+
+      saveDraftsAPI(
+        currentVersionId,
+        rfInstance,
+        setCurrentVersionId,
+        setLoading,
+        setError
+      )
         .catch((err) => setError(err.message))
         .finally(() => setLoading(false));
     }
   }, [
     currentPipelineId,
+    currentVersionId,
     setCurrentEdges,
     setCurrentNodes,
     setViewport,
@@ -109,7 +117,8 @@ export default function WorkflowPage() {
         currentPipelineStatus
       );
       setCurrentPipelineStatus(
-        newStatus["status"] === "stopped" ? false : true
+        // newStatus["status"] === "Stopped" ? "" : true
+        toggleStatusLogic(newStatus["status"])
       );
     } catch (err) {
       setError(err.message);
@@ -152,9 +161,7 @@ export default function WorkflowPage() {
   const handleUpdateProperties = (nodeId, data) => {
     setCurrentNodes((nds) =>
       nds.map((n, idx) =>
-        n.id === nodeId
-          ? { ...n, data: { ...n.data, properties: data} }
-          : n
+        n.id === nodeId ? { ...n, data: { ...n.data, properties: data } } : n
       )
     );
     setSelectedNode(null);
@@ -162,14 +169,14 @@ export default function WorkflowPage() {
 
   const onDragOver = useCallback((event) => {
     event.preventDefault();
-    event.dataTransfer.dropEffect = 'move';
+    event.dataTransfer.dropEffect = "move";
   }, []);
 
   const onDrop = useCallback(
     async (event) => {
       event.preventDefault();
 
-      const nodeName = event.dataTransfer.getData('application/reactflow');
+      const nodeName = event.dataTransfer.getData("application/reactflow");
 
       if (!nodeName || !rfInstance) {
         return;
@@ -192,14 +199,14 @@ export default function WorkflowPage() {
         // Add the node to the canvas
         setCurrentNodes((prev) => [...prev, newNode]);
       } catch (err) {
-        console.error('Failed to add node:', err);
-        setError('Failed to add node. Please try again.');
+        console.error("Failed to add node:", err);
+        setError("Failed to add node. Please try again.");
       }
     },
     [rfInstance, currentNodes, setCurrentNodes, setError]
   );
 
-  const drawerWidth = 64 + (dashboardSidebarOpen ? 325 : 0);
+  const drawerWidth = 64;
 
   return (
     <>
@@ -241,16 +248,18 @@ export default function WorkflowPage() {
               }}
             >
               {loading && <CircularProgress size={24} />}
+
               <Button
                 variant="outlined"
                 onClick={() =>
                   savePipelineAPI(
-                    currentPipelineId,
                     rfInstance,
                     currentPipelineId,
                     setCurrentPipelineId,
-                    setLoading,
-                    setError
+                    currentVersionId,
+                    setCurrentVersionId,
+                    setError,
+                    setLoading
                   )
                 }
                 disabled={loading}
@@ -286,13 +295,15 @@ export default function WorkflowPage() {
           </Toolbar>
         </AppBar>
 
-        <Box 
+        <Box
           sx={{ height: "87vh", bgcolor: "#F7FAFC" }}
           onClick={(e) => {
             // Close PropertyBar when clicking on workspace
             // Only if clicking on the canvas, not on nodes or controls
-            if (e.target.classList.contains('react-flow__pane') || 
-                e.target.classList.contains('react-flow__renderer')) {
+            if (
+              e.target.classList.contains("react-flow__pane") ||
+              e.target.classList.contains("react-flow__renderer")
+            ) {
               setSelectedNode(null);
             }
           }}

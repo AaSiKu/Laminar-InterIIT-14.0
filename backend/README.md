@@ -150,6 +150,9 @@ docker --version
 
 # MongoDB (running)
 mongosh --version
+
+#postgresql 
+psql --version   
 ```
 
 <!-- TODO : Add link to local setup -->
@@ -174,9 +177,35 @@ SECRET_KEY=your-secret-key-here
 GROQ_API_KEY=your-groq-api-key
 PATHWAY_LICENSE_KEY=your-pathway-license
 KAFKA_BOOTSTRAP_SERVER=localhost:9092
+
+# PostgreSQL for user authentication
+POSTGRES_HOST=localhost
+POSTGRES_PORT=5432
+POSTGRES_DB=db
+POSTGRES_USER=admin
+POSTGRES_PASSWORD=admin123
 ```
 
-3. **Build Docker images:**
+3. **Setup PostgreSQL for user authentication:**
+
+```bash
+# Install PostgreSQL (if not installed)
+sudo apt install postgresql postgresql-contrib  # Ubuntu/Debian
+# or: brew install postgresql@15  # macOS
+
+# Create database and user
+sudo -u postgres psql
+CREATE DATABASE db;
+CREATE USER admin WITH PASSWORD 'admin123';
+GRANT ALL PRIVILEGES ON DATABASE db TO admin;
+\c db
+GRANT ALL ON SCHEMA public TO admin;
+\q
+```
+
+**Note:** User tables are automatically created when you start the API server. For manual setup, see `backend/auth/README.md`.
+
+4. **Build Docker images:**
 
 ```bash
 cd backend
@@ -390,21 +419,25 @@ The API server manages containers using Docker SDK:
   "agentic_host_port": 8002,
   "db_host_port": 5433,
   "host_ip": "192.168.1.100",
-  "status": false
+  "status": "Stopped"
 }
 ```
 
-**users** (authentication):
-```json
-{
-  "_id": "ObjectId",
-  "username": "user@example.com",
-  "hashed_password": "bcrypt_hash",
-  "created_at": "ISODate",
-  "role": "user"
-}
-```
+**users** (authentication) - stored in PostgreSQL:
+- `id` (Integer, Primary Key)
+- `email` (String, Unique)
+- `hashed_password` (String, bcrypt)
+- `full_name` (String, Optional)
+- `is_active` (Boolean)
+- `created_at` (DateTime)
 
+Tables are automatically created on server startup.
+
+### PostgreSQL
+
+**User Authentication** (`users` table):
+- Automatically created when API server starts
+- Stores user credentials for authentication
 ### PostgreSQL (Agent Data)
 
 Tables are dynamically created based on pipeline output schemas. Agents can query these tables using natural language.
@@ -415,7 +448,7 @@ Tables are dynamically created based on pipeline output schemas. Agents can quer
 
 1. User registers: `POST /auth/signup`
    - Password hashed with bcrypt
-   - User stored in MongoDB
+   - User stored in PostgreSQL
 
 2. User logs in: `POST /auth/login`
    - Credentials verified

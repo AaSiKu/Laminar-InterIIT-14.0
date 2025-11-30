@@ -11,7 +11,6 @@ import { AdminPage } from "./pages/Admin.jsx";
 import { DeveloperDashboardProject } from "./pages/DeveloperDashboardProject.jsx";
 import NotFoundPage from "./pages/NotFoundPage.jsx";
 import { Box } from "@mui/material";
-
 function AppContent() {
   const location = useLocation();
   const isPublicRoute = ["/", "/login", "/signup", "/404"];
