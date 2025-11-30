@@ -264,14 +264,16 @@ class JsonLinesWriteNode(OutputNode):
 class PostgreSQLWriteNode(OutputNode):
     postgres_settings: Dict[str, Any]
     table_name: str
-    primary_keys: List[str]
+    primary_keys: List[str] = Field(
+        description="When using snapshot mode, one or more columns that form the primary key in the target Postgres table."
+    )
     node_id: Literal["postgres_write"]
 
 
 class MySQLWriteNode(OutputNode):
     mysql_settings: Dict[str, Any]
     table_name: str
-    primary_keys: List[str]
+    primary_keys: List[str] = Field(description="When using snapshot mode, one or more columns that form the primary key in the target MySQL table.")
     node_id: Literal["mysql_write"]
 
 
@@ -292,7 +294,9 @@ class BigQueryWriteNode(OutputNode):
 
 
 class ElasticsearchWriteNode(OutputNode):
-    hosts: List[str]
+    hosts: List[str] = Field(
+        description="the host and port, on which Elasticsearch server works."
+    )
     index: str
     node_id: Literal["elasticsearch_write"]
     username: Optional[str] = None
@@ -318,9 +322,13 @@ class KinesisWriteNode(OutputNode):
 
 
 class NATSWriteNode(OutputNode):
-    uri: str
+    uri: str = Field(
+        description="The URI of the NATS server."
+    )
     topic: str
-    format: Literal["json", "dsv", "plaintext", "raw"]
+    format: Literal["json", "dsv", "plaintext", "raw"] = Field(
+        description="The input data format, which can be \"raw\", \"plaintext\", or \"json\"."
+    )
     node_id: Literal["nats_write"]
 
 
@@ -331,7 +339,9 @@ class MQTTWriteNode(OutputNode):
 
 
 class LogstashWriteNode(OutputNode):
-    endpoint: str
+    endpoint: str = Field(
+        description="Logstash endpoint, accepting entries"
+    )
     node_id: Literal["logstash_write"]
 
 
