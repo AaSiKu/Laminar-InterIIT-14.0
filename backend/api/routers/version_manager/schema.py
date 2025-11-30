@@ -6,6 +6,8 @@ from pydantic import BaseModel
 
 class Notification(BaseModel):
     notification_id: str
+    user_id:str
+    pipeline_id:str
     notification_message: str
     notification_created_at: datetime
     notification_role: List[str]

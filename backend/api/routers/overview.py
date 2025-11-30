@@ -1,6 +1,7 @@
 import asyncio
 from fastapi import APIRouter, Request, Depends
 from pydantic import BaseModel
+from .version_manager.schema import Notification
 from bson.json_util import dumps
 from backend.api.routers.auth.routes import get_current_user
 from backend.api.routers.auth.models import User
@@ -34,11 +35,6 @@ async def fetch_kpi(request: Request, current_user: User = Depends(get_current_u
     }
     return KPI_stats
    
-
-class Notification(BaseModel):
-  title: str
-  desc: str
-  action: str
 
 @router.post("/add_notification")
 async def add_notification(data: Notification, request: Request):

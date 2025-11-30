@@ -19,7 +19,7 @@ load_dotenv()
 
 MONGO_URI = os.getenv("MONGO_URI")
 MONGO_DB = os.getenv("MONGO_DB", "db")
-WORKFLOW_COLLECTION = os.getenv("MONGO_COLLECTION", "workflows")
+WORKFLOW_COLLECTION = os.getenv("WORKFLOW_COLLECTION", "workflows")
 NOTIFICATION_COLLECTION = os.getenv("NOTIFICATION_COLLECTION", "notifications")
 VERSION_COLLECTION = os.getenv("VERSION_COLLECTION", "versions")
 # Global variables
@@ -64,6 +64,7 @@ async def lifespan(app: FastAPI):
 
     app.state.workflow_collection = workflow_collection
     app.state.version_collection = version_collection
+    app.state.notification_collection= notification_collection
     app.state.mongo_client=mongo_client
     app.state.secret_key = os.getenv("SECRET_KEY", "default_secret_key")
     app.state.algorithm = os.getenv("ALGORITHM", "HS256")

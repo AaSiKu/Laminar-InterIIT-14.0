@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, Request, status, Response
+from fastapi import APIRouter, Depends, HTTPException, Request, status, Response, WebSocket
 from datetime import timedelta
 from jose import JWTError, jwt
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -154,6 +154,53 @@ async def get_current_user(request: Request, db: AsyncSession = Depends(get_db))
     except JWTError as e:
         logger.error(f"JWT Error: {e}")
         raise HTTPException(status_code=401, detail="Invalid token")
+
+class WebSocketAuthException(Exception):
+    def __init__(self, code: int, reason: str):
+        self.code = code
+        self.reason = reason
+
+#----------------------------Auth for websocket connections----------------------------#
+async def get_current_user_ws(websocket: WebSocket, db: AsyncSession):
+    token = websocket.cookies.get("access_token")
+    
+    if not token:
+        raise WebSocketAuthException(
+            code=status.WS_1008_POLICY_VIOLATION,
+            reason="Not authenticated"
+        )
+
+    try:
+        payload = jwt.decode(
+            token,
+            websocket.app.state.secret_key,
+            algorithms=[websocket.app.state.algorithm],
+        )
+        email: str = payload.get("sub")
+        
+        if email is None:
+            raise WebSocketAuthException(
+                code=status.WS_1008_POLICY_VIOLATION,
+                reason="Invalid token"
+            )
+
+        user = await crud.get_user_by_email(db, email)
+        
+        if not user:
+            raise WebSocketAuthException(
+                code=status.WS_1008_POLICY_VIOLATION,
+                reason="User not found"
+            )
+
+        return user
+
+    except JWTError as e:
+        logger.error(f"JWT Error: {e}")
+        raise WebSocketAuthException(
+            code=status.WS_1008_POLICY_VIOLATION,
+            reason="Invalid token"
+        )
+
 
 # ------------------ REFRESH TOKEN ------------------ #
 @router.post("/refresh")
