@@ -100,8 +100,14 @@ class AirbyteNode(InputNode):
     )
     node_id: Literal["airbyte"]
     env_vars: Optional[Dict[str, str]] = None
-    enforce_method: Optional[str] = None
-    refresh_interval_ms: int = Field(default=60000)
+    enforce_method: Optional[str] = Field(
+        default=None,
+        description =( "when set to \"docker\", Pathway will not try to locate and run the latest connector version from PyPI. On the other hand, when set to \"pypi\", Pathway will prefer the usage of the latest image available on PyPI")
+    )
+    refresh_interval_ms: int = Field(
+        default=60000,
+        description="time in milliseconds between new data queries. Applicable if mode is set to \"streaming\""
+        )
 
 
 class DebeziumNode(InputNode):
@@ -114,19 +120,29 @@ class DebeziumNode(InputNode):
 
 class S3Node(InputNode):
     path: str
-    aws_s3_settings: Dict[str, Any]
+    aws_s3_settings: Dict[str, Any] = Field(
+        description="Connection parameters for the S3 account and the bucket."
+    )
     format: str
     node_id: Literal["s3"]
     csv_settings: Optional[Dict[str, Any]] = None
-    with_metadata: bool = False
+    with_metadata: bool = Field(
+        default=False,
+        description="When set to true, the connector will add an additional column named '_metadata' to the table. This column will be a JSON field"
+    )
 
 
 class MinIONode(InputNode):
     path: str
-    minio_settings: Dict[str, Any]
+    minio_settings: Dict[str, Any] = Field(
+        description="Connection parameters for the MinIO account and the bucket."
+    )
     format: str
     node_id: Literal["minio"]
-    with_metadata: bool = False
+    with_metadata: bool = Field(
+        default=False,
+        description="When set to true, the connector will add an additional column named _metadata to the table. This column will be a JSON field"
+    )
 
 
 class DeltaLakeNode(InputNode):
@@ -137,15 +153,22 @@ class DeltaLakeNode(InputNode):
 
 
 class IcebergNode(InputNode):
-    catalog: str
+    catalog: str = Field(
+        description="Settings for Iceberg catalog connection."
+    )
     table_name: str
     node_id: Literal["iceberg"]
 
 class PlainTextNode(InputNode):
     path: str
     node_id: Literal["plaintext"]
-    object_pattern: str = Field(default="*")
-    with_metadata: bool = True
+    object_pattern: str = Field(
+        default="*",
+        description="Unix shell style pattern for filtering only certain files in the directory. Ignored in case a path to a single file is specified")
+    with_metadata: bool = Field(
+        default=True,
+        description="When set to true, the connector will add an additional column named _metadata to the table. This column will be a JSON field"
+    )
 
 class HTTPNode(InputNode):
     url: str
@@ -177,7 +200,10 @@ class GoogleDriveNode(InputNode):
     object_id: str
     service_user_credentials_file: str
     node_id: Literal["gdrive"]
-    with_metadata: bool = False
+    with_metadata: bool = Field(
+        default=False,
+        description="when set to True, the connector will add an additional column named _metadata to the table. This column will contain file metadata, such as: id, name, mimeType, parents, modifiedTime, thumbnailLink, lastModifyingUser."
+    )
 
 
 class KinesisNode(InputNode):
