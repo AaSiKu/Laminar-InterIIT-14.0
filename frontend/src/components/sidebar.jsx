@@ -18,13 +18,14 @@ import {
   TerminalRounded,
   WorkspacePremiumRounded,
   LogoutRounded,
-  Menu as MenuIcon,
   ChevronLeft,
+  ChevronRight,
 } from "@mui/icons-material";
 import { useNavigate, useLocation } from "react-router-dom";
 import { AuthContext } from "../context/AuthContext";
 import { useGlobalContext } from "../context/GlobalContext";
-import Logo from "../assets/logo.svg";
+import LogoExpanded from "../assets/logo.svg";
+import LogoCollapsed from "../../assets/logo.svg";
 export const SIDEBAR_WIDTH = 64;
 const DRAWER_WIDTH = 240;
 
@@ -59,15 +60,15 @@ const Sidebar = () => {
   };
 
   const menuItems = [
-    { icon: <TerminalRounded />, label: "Overview", path: "/overview" },
+    { icon: <TerminalRounded sx={{ fontSize: '1.5rem' }} />, label: "Overview", path: "/overview" },
     {
-      icon: <AccountTreeRounded />,
+      icon: <AccountTreeRounded sx={{ fontSize: '1.5rem' }} />,
       label: "Workflows",
       path: "/workflow",
     },
-    { icon: <WorkspacePremiumRounded />, label: "Admin", path: "/admin" },
+    { icon: <WorkspacePremiumRounded sx={{ fontSize: '1.5rem' }} />, label: "Admin", path: "/admin" },
     {
-      icon: <LogoutRounded color="error" />,
+      icon: <LogoutRounded color="error" sx={{ fontSize: '1.5rem' }} />,
       label: "Logout",
       onClick: logout,
     },
@@ -100,7 +101,7 @@ const Sidebar = () => {
               ? theme.transitions.duration.enteringScreen
               : theme.transitions.duration.leavingScreen,
           }),
-          overflowX: "hidden",
+          overflow: "visible",
           position: "fixed",
           backgroundColor: drawerOpen ? 'background.elevation1' : 'background.paper',
           borderRight: '1px solid',
@@ -112,52 +113,37 @@ const Sidebar = () => {
         },
       }}
     >
-      {/* Header with logo and menu/close button */}
+      {/* Header with logo */}
       <Box
         sx={{
           display: "flex",
           alignItems: "center",
-          justifyContent: drawerOpen ? "space-between" : "center",
-          padding: theme.spacing(1, 2.4),
+          justifyContent: "center",
+          padding: theme.spacing(1, drawerOpen ? 2.4 : 1),
           minHeight: 64,
-          borderBottom: drawerOpen ? '1px solid' : 'none',
+          borderBottom: '1px solid',
           borderColor: 'divider',
         }}
       >
-        {/* Logo - visible when expanded */}
-        {drawerOpen && (
-          <Box
-            component="img"
-            src={Logo}
-            alt="Logo"
-            sx={{
-              height: 24,
-              width: "auto",
-              objectFit: "contain",
-              transition: theme.transitions.create(["opacity", "transform"], {
-                easing: theme.transitions.easing.sharp,
-                duration: theme.transitions.duration.enteringScreen,
-              }),
-            }}
-          />
-        )}
-        
-        <IconButton 
-          onClick={drawerOpen ? handleDrawerClose : handleDrawerOpen} 
-          sx={{ 
-            color: 'primary.main',
-            '& svg': {
-              fontSize: '1.5rem', // Make menu/close icon larger
-            },
+        <Box
+          component="img"
+          src={drawerOpen ? LogoExpanded : LogoCollapsed}
+          alt="Logo"
+          sx={{
+            height: drawerOpen ? 24 : 32,
+            width: "auto",
+            objectFit: "contain",
+            transition: theme.transitions.create(["opacity", "transform", "height"], {
+              easing: theme.transitions.easing.sharp,
+              duration: theme.transitions.duration.enteringScreen,
+            }),
           }}
-        >
-          {drawerOpen ? <ChevronLeft /> : <MenuIcon />}
-        </IconButton>
+        />
       </Box>
 
       <Divider />
 
-      <List>
+      <List sx={{ flex: 1 }}>
         {menuItems.map((item, index) => {
           const isActive = item.path && location.pathname.startsWith(item.path);
           return (
@@ -213,8 +199,8 @@ const Sidebar = () => {
                           easing: theme.transitions.easing.easeInOut,
                           duration: theme.transitions.duration.short,
                         }),
-                        '& svg': {
-                          fontSize: '1.5rem', // Make icons larger
+                        '& .MuiSvgIcon-root': {
+                          fontSize: '1.5rem !important',
                         },
                       }}
                     >
@@ -250,6 +236,32 @@ const Sidebar = () => {
           );
         })}
       </List>
+
+      {/* Toggle Arrow Button - positioned at middle right edge */}
+      <IconButton
+        onClick={drawerOpen ? handleDrawerClose : handleDrawerOpen}
+        sx={{
+          position: 'absolute',
+          right: -16,
+          top: '50%',
+          transform: 'translateY(-50%)',
+          width: 32,
+          height: 32,
+          bgcolor: 'background.paper',
+          border: '1px solid',
+          borderColor: 'divider',
+          borderRadius: '50%',
+          zIndex: 9999,
+          '&:hover': {
+            bgcolor: 'action.hover',
+          },
+          '& .MuiSvgIcon-root': {
+            fontSize: '1.25rem',
+          },
+        }}
+      >
+        {drawerOpen ? <ChevronLeft /> : <ChevronRight />}
+      </IconButton>
     </Drawer>
   );
 };

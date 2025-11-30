@@ -6,8 +6,16 @@ import ViewListIcon from "@mui/icons-material/ViewList";
 export function AlertsChart({ data }) {
   const theme = useTheme();
   const [viewMode, setViewMode] = useState("chart"); // "chart" or "table"
-  const maxValue = 40;
-  const barHeight = 10; // rem
+  const maxValue = 35;
+  const minValue = 0;
+  const valueRange = maxValue - minValue; // 35
+  const barHeight = 16; // rem
+  
+  // Calculate bar height based on value position in range (10-35)
+  const getBarHeight = (value) => {
+    const normalizedValue = Math.max(0, value - minValue);
+    return (normalizedValue / valueRange) * barHeight;
+  };
 
   // Transform chart data for table view
   const tableData = data.map((item) => {
@@ -199,160 +207,167 @@ export function AlertsChart({ data }) {
           sx={{
             flex: 1,
             display: 'flex',
-            position: 'relative',
+            flexDirection: 'column',
           }}
         >
+          {/* Chart Area */}
           <Box
             sx={{
-              flex: 1,
               display: 'flex',
-              flexDirection: 'column',
+              position: 'relative',
+              height: `${barHeight}rem`,
+              pr: 4,
             }}
           >
+            {/* Grid Lines Background - evenly distributed across full height */}
+            <Box
+              sx={{
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                right: '2rem',
+                bottom: 0,
+                display: 'flex',
+                flexDirection: 'column',
+                justifyContent: 'space-between',
+                pointerEvents: 'none',
+              }}
+            >
+              {[35, 30, 25, 20, 15, 10, 5, 0].map((val, index) => (
+                <Box
+                  key={val}
+                  sx={{
+                    width: '100%',
+                    borderBottom: '1px dashed',
+                    borderColor: 'divider',
+                  }}
+                />
+              ))}
+            </Box>
+            
+            {/* Bars Container */}
             <Box
               sx={{
                 flex: 1,
                 display: 'flex',
+                alignItems: 'flex-end',
+                justifyContent: 'space-between',
+                pr: 5,
+                gap: 0.5,
                 position: 'relative',
-                pr: 4,
+                zIndex: 1,
+                height: '100%',
               }}
             >
-              <Box
-                sx={{
-                  position: 'absolute',
-                  top: 0,
-                  left: 0,
-                  right: '2rem',
-                  bottom: '1.5rem',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  justifyContent: 'space-between',
-                  pointerEvents: 'none',
-                }}
-              >
-                {[35, 30, 25, 20, 15, 10].map((val) => (
+              {data.map((item, index) => (
+                <Box
+                  key={index}
+                  sx={{
+                    display: 'flex',
+                    flexDirection: 'row',
+                    alignItems: 'flex-end',
+                    gap: 0.125,
+                    flex: 1,
+                    justifyContent: 'center',
+                    height: '100%',
+                  }}
+                >
                   <Box
-                    key={val}
                     sx={{
-                      borderBottom: '1px dashed',
-                      borderColor: 'divider',
-                      position: 'relative',
+                      width: '0.625rem',
+                      minHeight: '0.25rem',
+                      height: `${getBarHeight(item.warning)}rem`,
+                      borderRadius: '2px 2px 0 0',
+                      bgcolor: 'error.main',
+                      transition: 'all 0.3s ease',
                     }}
                   />
-                ))}
-              </Box>
-              <Box
-                sx={{
-                  flex: 1,
-                  display: 'flex',
-                  alignItems: 'flex-end',
-                  justifyContent: 'space-between',
-                  pb: 3,
-                  pr: 5,
-                  gap: 0.5,
-                }}
-              >
-                {data.map((item, index) => (
                   <Box
-                    key={index}
                     sx={{
-                      display: 'flex',
-                      flexDirection: 'column',
-                      alignItems: 'center',
-                      flex: 1,
+                      width: '0.625rem',
+                      minHeight: '0.25rem',
+                      height: `${getBarHeight(item.critical)}rem`,
+                      borderRadius: '2px 2px 0 0',
+                      bgcolor: 'warning.main',
+                      transition: 'all 0.3s ease',
                     }}
-                  >
-                    <Box
-                      sx={{
-                        display: 'flex',
-                        flexDirection: 'row',
-                        alignItems: 'flex-end',
-                        gap: 0.125,
-                        height: '10rem',
-                      }}
-                    >
-                      <Box
-                        sx={{
-                          width: '0.625rem',
-                          minHeight: '0.25rem',
-                          height: `${(item.warning / maxValue) * barHeight}rem`,
-                          borderRadius: '2px 2px 0 0',
-                          bgcolor: 'error.main',
-                          transition: 'all 0.3s ease',
-                        }}
-                      />
-                      <Box
-                        sx={{
-                          width: '0.625rem',
-                          minHeight: '0.25rem',
-                          height: `${(item.critical / maxValue) * barHeight}rem`,
-                          borderRadius: '2px 2px 0 0',
-                          bgcolor: 'warning.main',
-                          transition: 'all 0.3s ease',
-                        }}
-                      />
-                      <Box
-                        sx={{
-                          width: '0.625rem',
-                          minHeight: '0.25rem',
-                          height: `${(item.low / maxValue) * barHeight}rem`,
-                          borderRadius: '2px 2px 0 0',
-                          bgcolor: 'success.main',
-                          transition: 'all 0.3s ease',
-                        }}
-                      />
-                    </Box>
-                    <Typography
-                      sx={{
-                        fontSize: '0.625rem',
-                        color: 'text.secondary',
-                        mt: 1,
-                        whiteSpace: 'nowrap',
-                        textAlign: 'center',
-                        lineHeight: 1.2,
-                      }}
-                    >
-                      {item.workflow}
-                    </Typography>
-                  </Box>
-                ))}
-              </Box>
-              <Box
+                  />
+                  <Box
+                    sx={{
+                      width: '0.625rem',
+                      minHeight: '0.25rem',
+                      height: `${getBarHeight(item.low)}rem`,
+                      borderRadius: '2px 2px 0 0',
+                      bgcolor: 'success.main',
+                      transition: 'all 0.3s ease',
+                    }}
+                  />
+                </Box>
+              ))}
+            </Box>
+            
+            {/* Y-Axis Labels - evenly distributed */}
+            <Box
+              sx={{
+                position: 'absolute',
+                right: 0,
+                top: 0,
+                bottom: 0,
+                width: '2rem',
+                display: 'flex',
+                flexDirection: 'column',
+                justifyContent: 'space-between',
+              }}
+            >
+              {[35, 30, 25, 20, 15, 10, 5, 0].map((val) => (
+                <Typography
+                  key={val}
+                  sx={{
+                    fontSize: '0.625rem',
+                    color: 'text.secondary',
+                    textAlign: 'right',
+                    lineHeight: 1,
+                  }}
+                >
+                  {val}
+                </Typography>
+              ))}
+            </Box>
+          </Box>
+          
+          {/* X-Axis Labels (below baseline) */}
+          <Box
+            sx={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              pr: 5,
+              mt: 1,
+              gap: 0.5,
+            }}
+          >
+            {data.map((item, index) => (
+              <Typography
+                key={index}
                 sx={{
-                  position: 'absolute',
-                  right: 0,
-                  top: 0,
-                  bottom: '1.5rem',
-                  width: '2rem',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  justifyContent: 'space-between',
-                  p: 0,
+                  fontSize: '0.625rem',
+                  color: 'text.secondary',
+                  flex: 1,
+                  textAlign: 'center',
+                  whiteSpace: 'nowrap',
+                  lineHeight: 1.2,
                 }}
               >
-                {[35, 30, 25, 20, 15, 10].map((val) => (
-                  <Typography
-                    key={val}
-                    sx={{
-                      fontSize: '0.625rem',
-                      color: 'text.secondary',
-                      textAlign: 'right',
-                      lineHeight: 1,
-                    }}
-                  >
-                    {val}
-                  </Typography>
-                ))}
-              </Box>
-            </Box>
+                {item.workflow}
+              </Typography>
+            ))}
           </Box>
         </Box>
       ) : (
         <Box
           sx={{
-            flex: 1,
-            overflowY: 'auto',
             mt: 2,
+            height: `${barHeight + 2}rem`, // Match chart height
+            overflowY: 'auto',
           }}
         >
           <TableContainer

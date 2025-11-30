@@ -1,6 +1,6 @@
-import ContentCopyIcon from "@mui/icons-material/ContentCopy";
-import AutoAwesomeIcon from "@mui/icons-material/AutoAwesome";
-import BarChartIcon from "@mui/icons-material/BarChart";
+import PieChartOutlineIcon from "@mui/icons-material/PieChartOutline";
+import AutoGraphIcon from "@mui/icons-material/AutoGraph";
+import EqualizerIcon from "@mui/icons-material/Equalizer";
 import PercentIcon from "@mui/icons-material/Percent";
 
 // Mock data for KPI cards
@@ -10,7 +10,7 @@ export const kpiData = [
     title: "Pipeline Running",
     value: "35",
     description: "Total number of pipeline running",
-    icon: ContentCopyIcon,
+    icon: PieChartOutlineIcon,
     iconClass: "blue",
   },
   {
@@ -18,16 +18,16 @@ export const kpiData = [
     title: "MTTR",
     value: "32 min",
     description: "Average Time",
-    icon: AutoAwesomeIcon,
-    iconClass: "purple",
+    icon: AutoGraphIcon,
+    iconClass: "blue",
   },
   {
     id: 3,
     title: "Alerts",
     value: "07",
     description: "No. of alerts today",
-    icon: BarChartIcon,
-    iconClass: "green",
+    icon: EqualizerIcon,
+    iconClass: "blue",
     cardClass: "alerts",
   },
   {
@@ -40,16 +40,16 @@ export const kpiData = [
   },
 ];
 
-// Mock data for alerts chart
+// Mock data for alerts chart (values based on y-axis 10-35)
 export const alertsChartData = [
-  { workflow: "Workflow A", warning: 25, critical: 5, low: 15 },
-  { workflow: "Workflow B", warning: 20, critical: 8, low: 18 },
-  { workflow: "Workflow C", warning: 28, critical: 6, low: 12 },
-  { workflow: "Workflow D", warning: 22, critical: 10, low: 20 },
-  { workflow: "Workflow E", warning: 18, critical: 4, low: 25 },
-  { workflow: "Workflow F", warning: 30, critical: 7, low: 16 },
-  { workflow: "Workflow G", warning: 24, critical: 9, low: 22 },
-  { workflow: "Workflow H", warning: 26, critical: 5, low: 19 },
+  { workflow: "Workflow A", warning: 20, critical: 12, low: 17 },
+  { workflow: "Workflow B", warning: 19, critical: 14, low: 18 },
+  { workflow: "Workflow C", warning: 22, critical: 12, low: 16 },
+  { workflow: "Workflow D", warning: 20, critical: 15, low: 19 },
+  { workflow: "Workflow E", warning: 18, critical: 12, low: 21 },
+  { workflow: "Workflow F", warning: 22, critical: 14, low: 17 },
+  { workflow: "Workflow G", warning: 20, critical: 15, low: 20 },
+  { workflow: "Workflow H", warning: 21, critical: 13, low: 18 },
 ];
 
 // Mock data for pipeline stats
@@ -115,6 +115,62 @@ export const workflowsData = [
     lastActivity: "18 Nov 2025, 5:00 PM",
     state: "Overdue",
   },
+  {
+    id: 5,
+    name: "Workflow E",
+    members: [1, 2, 3, 4],
+    lastActivity: "25 Nov 2025, 2:30 PM",
+    state: "Done",
+  },
+  {
+    id: 6,
+    name: "Workflow F",
+    members: [1, 2],
+    lastActivity: "24 Nov 2025, 10:15 AM",
+    state: "Done",
+  },
+  {
+    id: 7,
+    name: "Workflow G",
+    members: [1, 2, 3, 4, 5, 6],
+    lastActivity: "23 Nov 2025, 3:45 PM",
+    state: "Overdue",
+  },
+  {
+    id: 8,
+    name: "Workflow H",
+    members: [1, 2, 3],
+    lastActivity: "22 Nov 2025, 9:00 AM",
+    state: "Done",
+  },
+  {
+    id: 9,
+    name: "Workflow I",
+    members: [1, 2, 3, 4],
+    lastActivity: "21 Nov 2025, 1:20 PM",
+    state: "Done",
+  },
+  {
+    id: 10,
+    name: "Workflow J",
+    members: [1, 2],
+    lastActivity: "20 Nov 2025, 4:50 PM",
+    state: "Overdue",
+  },
+  {
+    id: 11,
+    name: "Workflow K",
+    members: [1, 2, 3, 4, 5],
+    lastActivity: "19 Nov 2025, 11:30 AM",
+    state: "Done",
+  },
+  {
+    id: 12,
+    name: "Workflow L",
+    members: [1, 2, 3],
+    lastActivity: "18 Nov 2025, 2:00 PM",
+    state: "Done",
+  },
 ];
 
 // Mock data for members
@@ -124,7 +180,7 @@ export const membersData = [
     name: "Prashant Kashyap",
     code: "DEV -101",
     access: "Admin",
-    envAccess: "Prod, Stagin, Dev",
+    envAccess: "Prod, Staging, Dev",
     assignedPipelines: 12,
     status: "Active",
   },
@@ -133,13 +189,13 @@ export const membersData = [
     name: "Mansi Yadav",
     code: "DEV -204",
     access: "Developer",
-    envAccess: "Stating , Dev",
+    envAccess: "Staging, Dev",
     assignedPipelines: 7,
     status: "Active",
   },
   {
     id: 3,
-    name: "Niya",
+    name: "Niya Sharma",
     code: "DEV -333",
     access: "QA Tester",
     envAccess: "Dev",
@@ -148,12 +204,84 @@ export const membersData = [
   },
   {
     id: 4,
-    name: "Ravi Bhusahan",
-    code: "DEV -33",
+    name: "Ravi Bhushan",
+    code: "DEV -033",
     access: "Viewer",
     envAccess: "Dev",
     assignedPipelines: 0,
     status: "Suspended",
+  },
+  {
+    id: 5,
+    name: "Amit Kumar",
+    code: "DEV -105",
+    access: "Developer",
+    envAccess: "Prod, Dev",
+    assignedPipelines: 9,
+    status: "Active",
+  },
+  {
+    id: 6,
+    name: "Priya Singh",
+    code: "DEV -210",
+    access: "Admin",
+    envAccess: "Prod, Staging, Dev",
+    assignedPipelines: 15,
+    status: "Active",
+  },
+  {
+    id: 7,
+    name: "Rahul Verma",
+    code: "DEV -156",
+    access: "Developer",
+    envAccess: "Staging, Dev",
+    assignedPipelines: 5,
+    status: "Active",
+  },
+  {
+    id: 8,
+    name: "Sneha Patel",
+    code: "DEV -089",
+    access: "QA Tester",
+    envAccess: "Dev",
+    assignedPipelines: 4,
+    status: "Active",
+  },
+  {
+    id: 9,
+    name: "Vikram Joshi",
+    code: "DEV -222",
+    access: "Developer",
+    envAccess: "Prod, Staging",
+    assignedPipelines: 8,
+    status: "Suspended",
+  },
+  {
+    id: 10,
+    name: "Ananya Gupta",
+    code: "DEV -301",
+    access: "Viewer",
+    envAccess: "Dev",
+    assignedPipelines: 2,
+    status: "Active",
+  },
+  {
+    id: 11,
+    name: "Karan Mehta",
+    code: "DEV -178",
+    access: "Developer",
+    envAccess: "Staging, Dev",
+    assignedPipelines: 6,
+    status: "Active",
+  },
+  {
+    id: 12,
+    name: "Divya Reddy",
+    code: "DEV -245",
+    access: "Admin",
+    envAccess: "Prod, Staging, Dev",
+    assignedPipelines: 11,
+    status: "Active",
   },
 ];
 

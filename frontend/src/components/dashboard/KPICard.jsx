@@ -21,16 +21,24 @@ const KPICard = ({ title, value, subtitle, icon: Icon, iconColor }) => {
         bgcolor: 'background.paper',
       }}
     >
-      <Box sx={{ textAlign: 'left', width: '100%', maxWidth: '12rem' }}>
+      <Box 
+        sx={{ 
+          textAlign: 'left', 
+          width: '100%', 
+          maxWidth: '12rem',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '0.75rem',
+        }}
+      >
         <Typography 
           variant="body2" 
-          color="text.secondary" 
-          fontWeight="700"
+          color="text.primary" 
+          fontWeight="600"
           sx={{ 
-            mb: '1rem',
-            fontSize: '0.75rem',
-            lineHeight: 1.2,
-            minHeight: '2rem',
+            fontSize: '1rem',
+            lineHeight: 1.3,
+            minHeight: 'auto',
             display: '-webkit-box',
             WebkitLineClamp: 2,
             WebkitBoxOrient: 'vertical',
@@ -40,29 +48,16 @@ const KPICard = ({ title, value, subtitle, icon: Icon, iconColor }) => {
           {title}
         </Typography>
         {Icon && (
-          <Box
-            sx={{
-              width: '3rem',
-              height: '3rem',
-              borderRadius: 0,
-              bgcolor: iconColor ? `${iconColor}15` : 'background.elevation1',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              mb: '1rem',
-            }}
-          >
-            <Icon sx={{ fontSize: '1.5rem', color: iconColor || 'text.secondary' }} />
-          </Box>
+          <Icon sx={{ fontSize: '3rem', color: iconColor || 'text.secondary' }} />
         )}
-        <Typography variant="h4" fontWeight="700" sx={{ mb: 0.5, fontSize: { xs: '1.75rem', md: '2rem' } }}>
+        <Typography variant="h4" fontWeight="400" sx={{ fontSize: { xs: '2rem', md: '2.5rem' }, lineHeight: 1 }}>
           {value}
         </Typography>
         <Typography 
           variant="caption" 
           color="text.secondary"
           sx={{
-            fontSize: '0.7rem',
+            fontSize: '0.8rem',
             display: '-webkit-box',
             WebkitLineClamp: 1,
             WebkitBoxOrient: 'vertical',

@@ -1,3 +1,4 @@
+import { useState } from "react";
 import {
   Typography,
   Button,
@@ -22,6 +23,44 @@ import { StatusChip } from "./StatusChip";
 import { Avatar } from "@mui/material";
 
 export function MembersTable({ data }) {
+  const [currentPage, setCurrentPage] = useState(1);
+  const [showAll, setShowAll] = useState(false);
+  const itemsPerPage = 5;
+
+  const totalItems = data.length;
+  const totalPages = Math.ceil(totalItems / itemsPerPage);
+
+  // Get current page data
+  const getCurrentPageData = () => {
+    if (showAll) return data;
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    const endIndex = startIndex + itemsPerPage;
+    return data.slice(startIndex, endIndex);
+  };
+
+  const displayedData = getCurrentPageData();
+  
+  // Calculate empty rows needed to maintain consistent height
+  const emptyRows = showAll ? 0 : itemsPerPage - displayedData.length;
+
+  const handleFirstPage = () => setCurrentPage(1);
+  const handleLastPage = () => setCurrentPage(totalPages);
+  const handlePrevPage = () => setCurrentPage((prev) => Math.max(1, prev - 1));
+  const handleNextPage = () => setCurrentPage((prev) => Math.min(totalPages, prev + 1));
+  const handlePageClick = (page) => setCurrentPage(page);
+  const handleShowAll = () => {
+    setShowAll(!showAll);
+    setCurrentPage(1);
+  };
+
+  // Generate page numbers to display
+  const getPageNumbers = () => {
+    const pages = [];
+    for (let i = 1; i <= totalPages; i++) {
+      pages.push(i);
+    }
+    return pages;
+  };
   return (
     <Box
       className="admin-members-section"
@@ -114,7 +153,7 @@ export function MembersTable({ data }) {
             </TableRow>
           </TableHead>
           <TableBody>
-            {data.map((member) => (
+            {displayedData.map((member) => (
               <TableRow
                 key={member.id}
                 sx={{
@@ -241,6 +280,21 @@ export function MembersTable({ data }) {
                 </TableCell>
               </TableRow>
             ))}
+            {/* Empty rows to maintain consistent table height */}
+            {emptyRows > 0 && Array.from({ length: emptyRows }).map((_, index) => (
+              <TableRow
+                key={`empty-${index}`}
+                sx={{
+                  '& .MuiTableCell-root': {
+                    borderBottom: 'none',
+                    bgcolor: 'transparent',
+                    py: 1.75,
+                  },
+                }}
+              >
+                <TableCell colSpan={6} sx={{ height: '3.5rem' }} />
+              </TableRow>
+            ))}
           </TableBody>
         </Table>
       </TableContainer>
@@ -264,9 +318,15 @@ export function MembersTable({ data }) {
             color: 'text.secondary',
           }}
         >
-          <span>Showing <strong>5 out of 12</strong> items</span>
+          <span>
+            {showAll 
+              ? <>Showing <strong>all {totalItems} items</strong></>
+              : <>Showing <strong>page {currentPage} out of {totalPages}</strong></>
+            }
+          </span>
           <Button
             size="small"
+            onClick={handleShowAll}
             sx={{
               color: 'primary.main',
               textTransform: 'none',
@@ -275,99 +335,91 @@ export function MembersTable({ data }) {
               minWidth: 'auto',
             }}
           >
-            Show all
+            {showAll ? 'Show less' : 'Show all'}
           </Button>
         </Box>
-        <Box
-          sx={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 0.5,
-          }}
-        >
-          <IconButton
-            size="small"
+        {!showAll && (
+          <Box
             sx={{
-              color: 'text.secondary',
-              minWidth: 'auto',
-              p: 0.5,
-              fontSize: '0.75rem',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 0.5,
             }}
           >
-            <KeyboardDoubleArrowLeftIcon sx={{ fontSize: "1rem" }} />
-          </IconButton>
-          <IconButton
-            size="small"
-            sx={{
-              color: 'text.secondary',
-              minWidth: 'auto',
-              p: 0.5,
-              fontSize: '0.75rem',
-            }}
-          >
-            <ChevronLeftIcon sx={{ fontSize: "1rem" }} />
-          </IconButton>
-          <Button
-            size="small"
-            sx={{
-              bgcolor: 'primary.main',
-              color: 'primary.contrastText',
-              minWidth: 'auto',
-              p: 0.5,
-              fontSize: '0.75rem',
-              borderRadius: 1.5,
-              '&:hover': {
-                bgcolor: 'primary.dark',
-              },
-            }}
-          >
-            1
-          </Button>
-          <Button
-            size="small"
-            sx={{
-              color: 'text.secondary',
-              minWidth: 'auto',
-              p: 0.5,
-              fontSize: '0.75rem',
-            }}
-          >
-            2
-          </Button>
-          <Button
-            size="small"
-            sx={{
-              color: 'text.secondary',
-              minWidth: 'auto',
-              p: 0.5,
-              fontSize: '0.75rem',
-            }}
-          >
-            3
-          </Button>
-          <IconButton
-            size="small"
-            sx={{
-              color: 'text.secondary',
-              minWidth: 'auto',
-              p: 0.5,
-              fontSize: '0.75rem',
-            }}
-          >
-            <ChevronRightIcon sx={{ fontSize: "1rem" }} />
-          </IconButton>
-          <IconButton
-            size="small"
-            sx={{
-              color: 'text.secondary',
-              minWidth: 'auto',
-              p: 0.5,
-              fontSize: '0.75rem',
-            }}
-          >
-            <KeyboardDoubleArrowRightIcon sx={{ fontSize: "1rem" }} />
-          </IconButton>
-        </Box>
+            <IconButton
+              size="small"
+              onClick={handleFirstPage}
+              disabled={currentPage === 1}
+              sx={{
+                color: currentPage === 1 ? 'text.disabled' : 'text.secondary',
+                minWidth: 'auto',
+                p: 0.5,
+                fontSize: '0.75rem',
+              }}
+            >
+              <KeyboardDoubleArrowLeftIcon sx={{ fontSize: "1rem" }} />
+            </IconButton>
+            <IconButton
+              size="small"
+              onClick={handlePrevPage}
+              disabled={currentPage === 1}
+              sx={{
+                color: currentPage === 1 ? 'text.disabled' : 'text.secondary',
+                minWidth: 'auto',
+                p: 0.5,
+                fontSize: '0.75rem',
+              }}
+            >
+              <ChevronLeftIcon sx={{ fontSize: "1rem" }} />
+            </IconButton>
+            {getPageNumbers().map((page) => (
+              <Button
+                key={page}
+                size="small"
+                onClick={() => handlePageClick(page)}
+                sx={{
+                  bgcolor: currentPage === page ? 'primary.main' : 'transparent',
+                  color: currentPage === page ? 'primary.contrastText' : 'text.secondary',
+                  minWidth: 'auto',
+                  p: 0.5,
+                  fontSize: '0.75rem',
+                  borderRadius: 1.5,
+                  '&:hover': {
+                    bgcolor: currentPage === page ? 'primary.dark' : 'action.hover',
+                  },
+                }}
+              >
+                {page}
+              </Button>
+            ))}
+            <IconButton
+              size="small"
+              onClick={handleNextPage}
+              disabled={currentPage === totalPages}
+              sx={{
+                color: currentPage === totalPages ? 'text.disabled' : 'text.secondary',
+                minWidth: 'auto',
+                p: 0.5,
+                fontSize: '0.75rem',
+              }}
+            >
+              <ChevronRightIcon sx={{ fontSize: "1rem" }} />
+            </IconButton>
+            <IconButton
+              size="small"
+              onClick={handleLastPage}
+              disabled={currentPage === totalPages}
+              sx={{
+                color: currentPage === totalPages ? 'text.disabled' : 'text.secondary',
+                minWidth: 'auto',
+                p: 0.5,
+                fontSize: '0.75rem',
+              }}
+            >
+              <KeyboardDoubleArrowRightIcon sx={{ fontSize: "1rem" }} />
+            </IconButton>
+          </Box>
+        )}
       </Box>
     </Box>
   );
