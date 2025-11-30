@@ -160,3 +160,4 @@ zipp==3.23.0
 lz4
 cramjam
 twilio
+greenlet

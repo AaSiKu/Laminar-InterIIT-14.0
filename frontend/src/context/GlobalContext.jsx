@@ -12,7 +12,8 @@ export function useGlobalContext() {
 export const GlobalContextProvider = ({ children }) => {
   const [roll, setRoll] = useState(null);
   const [currentPipelineId, setCurrentPipelineId] = useState("69138bfd2d5fe329d1dfe689");
-  const [currentPipelineStatus, setCurrentPipelineStatus] = useState("Stopped");//TODO: Need to fix this for broken/etc
+  const [currentPipelineStatus, setCurrentPipelineStatus] = useState("Stopped");
+  //TODO: Need to fix this for broken/etc
   const [currentNodes, setCurrentNodes] = useState([]);
   const [currentEdges, setCurrentEdges] = useState([]);
   const [rfInstance, setRfInstance] = useState(null);
