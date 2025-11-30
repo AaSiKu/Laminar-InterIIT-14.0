@@ -120,3 +120,35 @@ The **Non-Linear Agent** did this:
 4.  **Zoomed in** on the logs specifically for the breakage.
 
 The **Supervisor Node** enables this by returning `"continue"` instead of `"end"`, forcing the `AnalysisAgent` to try a new angle.
+
+```mermaid
+---
+config:
+  flowchart:
+    curve: linear
+---
+graph TD;
+	__start__([<p>__start__</p>]):::first
+	FinancialImpactAnalyzer(FinancialImpactAnalyzer)
+	QuickActions(QuickActions)
+	ContextBuilder(ContextBuilder)
+	AnalysisAgent(AnalysisAgent)
+	ValidationAgent(ValidationAgent)
+	FinalReportGenerator(FinalReportGenerator)
+	Join(Join)
+	__end__([<p>__end__</p>]):::last
+	AnalysisAgent -.-> ValidationAgent;
+	ContextBuilder --> AnalysisAgent;
+	FinalReportGenerator --> Join;
+	FinancialImpactAnalyzer --> Join;
+	QuickActions --> Join;
+	ValidationAgent -.-> AnalysisAgent;
+	ValidationAgent -.-> FinalReportGenerator;
+	__start__ --> ContextBuilder;
+	__start__ --> FinancialImpactAnalyzer;
+	__start__ --> QuickActions;
+	Join --> __end__;
+	classDef default fill:#f2f0ff,line-height:1.2
+	classDef first fill-opacity:0
+	classDef last fill:#bfb6fc
+```

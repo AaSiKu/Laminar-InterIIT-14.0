@@ -68,7 +68,8 @@ class RemediationPlan(BaseModel):
 
 class RCAState(TypedDict):
     sla_alert: SLAAlert
-    suggested_quick_fixes: Optional[List[PlausibleAction]]
+    financial_impact_report: Optional[str]
+    quick_actions: Optional[List[PlausibleAction]]
     hydrated_trace: Optional[Dict[str, any]]
     error_logs: Optional[List[Dict]]
     hypothesis: Optional[str]
@@ -88,82 +89,64 @@ DB_CONNECTION_PARAMS = f"host='{host}' port='{port}' dbname='{dbname}' user='{us
 def get_workflow_from_db(
         workflow_id: str
 ) -> dict:
-    """Fetches workflow topology from the PostgreSQL database."""
-    # with psycopg2.connect(DB_CONNECTION_PARAMS) as conn:
-    #     with conn.cursor() as cur:
-    #         cur.execute("SELECT topology FROM workflows WHERE id = %s", (workflow_id,))
-    #         return cur.fetchone()[0]
-    print(f"DATABASE: Fetching workflow topology for {workflow_id}")
-    # Returning mock data for structure reference
-    return {
-        "nodes": {
-            "start": {"type": "WebhookTrigger"},
-            "fetch_data": {"type": "HTTP_Request", "config": {"url": "https://api.thirdparty.com/v1/records"}},
-            "process_data": {"type": "Code", "config": {"timeout": "30s"}},
-            "save_results": {"type": "PostgresQuery"}
-        }
-    }
+    with psycopg2.connect(DB_CONNECTION_PARAMS) as conn:
+        with conn.cursor() as cur:
+            cur.execute("SELECT topology FROM workflows WHERE id = %s", (workflow_id,))
+            result = cur.fetchone()
+            if result:
+                return result[0]
+            raise ValueError(f"Workflow with id {workflow_id} not found.")
 
 def get_baselines_from_db(
         workflow_id: str
 ) -> dict:
-    """Fetches performance baselines from the PostgreSQL database."""
-    print(f"DATABASE: Fetching performance baselines for {workflow_id}")
-    # with psycopg2.connect(DB_CONNECTION_PARAMS) as conn:
-    #     ...
-    return {
-        "fetch_data": {"p95": 2.0},
-        "process_data": {"p95": 5.0},
-    }
+    with psycopg2.connect(DB_CONNECTION_PARAMS) as conn:
+        with conn.cursor() as cur:
+            cur.execute("SELECT baselines FROM performance_baselines WHERE workflow_id = %s", (workflow_id,))
+            result = cur.fetchone()
+            if result:
+                return result[0]
+            return {}
 
 def get_past_cases_from_db() -> List[Document]:
-    """Fetches historical remediation cases from the PostgreSQL database."""
-    print("DATABASE: Fetching historical cases for vector store.")
-    # with psycopg2.connect(DB_CONNECTION_PARAMS) as conn:
-    #     ...
-    return [
-        Document(
-            page_content="An HTTP request node timed out because the input JSON payload was over 20MB.",
-            metadata={"case_id": "case_002", "action": "Add a 'Split in Batches' node to reduce payload size per call."}
-        ),
-    ]
+    with psycopg2.connect(DB_CONNECTION_PARAMS) as conn:
+        with conn.cursor() as cur:
+            cur.execute("SELECT page_content, metadata FROM remediation_cases")
+            return [Document(page_content=row[0], metadata=row[1]) for row in cur.fetchall()]
 
 def get_payload_size_from_opentelemetry(
         execution_id: str,
         node_name: str
 ) -> dict:
-    """
-    Queries the OpenTelemetry traces in PostgreSQL to find the payload size
-    for a specific span (node).
-    """
-    print(f"DATABASE: Querying OpenTelemetry traces for payload size of {node_name} in {execution_id}")
-    # with psycopg2.connect(DB_CONNECTION_PARAMS) as conn:
-    #     with conn.cursor() as cur:
-    #         # This query is an example and depends heavily on your schema
-    #         cur.execute("""
-    #             SELECT attributes->>'http.request.content_length'
-    #             FROM otel_spans
-    #             WHERE trace_id = %s AND name = %s;
-    #         """, (execution_id, node_name))
-    #         size_bytes = cur.fetchone()[0]
-    #         return {"size_mb": int(size_bytes) / (1024*1024)}
-    # Simulate the large payload for the specific execution ID
-    if execution_id == "exec_xyz_789":
-        return {"size_mb": 50}
-    return {"size_mb": 0.5}
+    with psycopg2.connect(DB_CONNECTION_PARAMS) as conn:
+        with conn.cursor() as cur:
+            cur.execute("""
+                SELECT attributes->>'http.request.content_length'
+                FROM otel_spans
+                WHERE trace_id = %s AND name = %s;
+            """, (execution_id, node_name))
+            result = cur.fetchone()
+            if result and result[0]:
+                size_bytes = int(result[0])
+                return {"size_mb": size_bytes / (1024*1024)}
+            return {"size_mb": 0}
 
-def get_api_health_from_monitoring(url: str) -> dict:
-    """
-    Queries a monitoring database or calls a monitoring service API
-    to get the health of an external endpoint.
-    """
-    print(f"DATABASE: Querying monitoring service for health of {url}")
-    # with psycopg2.connect(DB_CONNECTION_PARAMS) as conn:
-    #     ...
-    return {"status": "healthy", "avg_latency_ms": 800}
+def get_api_health_from_monitoring(
+    url: str
+) -> dict:
+    # This would typically call an external API or a different database.
+    # For this example, we'll assume it's in the same DB.
+    with psycopg2.connect(DB_CONNECTION_PARAMS) as conn:
+        with conn.cursor() as cur:
+            cur.execute("SELECT status, avg_latency_ms FROM api_health WHERE url = %s", (url,))
+            result = cur.fetchone()
+            if result:
+                return {"status": result[0], "avg_latency_ms": result[1]}
+            return {"status": "unknown"}
 
 def analyze_financial_impact(
     question: str,
+    system_prompt: str
 ):
     llm = ChatGoogleGenerativeAI(
         model='gemini-2.5-pro',
@@ -173,51 +156,22 @@ def analyze_financial_impact(
 
     tavily = TavilySearchResults(max_results=3)
     agent = create_react_agent(llm, [tavily])
-
-    SYSTEM_PROMPT = f"""You are a Senior Business Analyst and Cloud Economist, tasked with providing a financial impact assessment for a technical service disruption. Your audience is a non-technical executive team, so your analysis must be clear, concise, and focused on business outcomes.
-
-Based on the incident details provided in the user's question, generate a professional business report.
-
-**Your report must include the following sections using Markdown:**
-
-1.  **Executive Summary:**
-    *   Start with a one-paragraph, high-level overview of the incident and its most significant financial consequences.
-
-2.  **Estimated Direct Financial Costs:**
-    *   Quantify the immediate, measurable financial losses.
-    *   Use your web search tool to find industry benchmarks for metrics like:
-        *   Cost of IT downtime per hour for the relevant industry (e.g., e-commerce, SaaS, finance).
-        *   Typical SLA (Service Level Agreement) penalty calculations.
-        *   Estimated lost revenue from failed transactions or user activity during the outage.
-    *   Clearly state your assumptions (e.g., "Assuming 1,000 transactions per hour at an average value of $50...").
-
-3.  **Indirect Business Impact:**
-    *   Analyze the less tangible, but often more significant, long-term costs.
-    *   Consider factors such as:
-        *   Damage to customer trust and brand reputation.
-        *   Potential for customer churn and impact on user retention.
-        *   Cost of engineering and operational team time spent on investigation and remediation (use industry-average salaries for estimation if needed).
-
-4.  **Strategic Recommendations:**
-    *   Suggest 1-2 high-level, business-focused actions to mitigate future risks.
-    *   Frame these recommendations in terms of ROI (Return on Investment), such as "Investing in an automated batch-processing solution could prevent an estimated $X in future losses."
-
-**Crucial Instructions:**
-*   **Be Quantitative:** Use numbers and estimates wherever possible.
-*   **Cite Your Sources:** When you use data from your web search, mention it (e.g., "According to a 2024 Gartner report...").
-*   **State Assumptions:** Clearly articulate any assumptions made during your calculations."""
     result = agent.invoke({
         "messages": [
-            SystemMessage(content=SYSTEM_PROMPT),
+            SystemMessage(content=system_prompt),
             HumanMessage(content=question)
         ]
     })
 
     return result["messages"][-1].content
 
-    
 
 class VectorStore:
+    """
+    The vectorstore is supposed to have two kinds of data
+    1. Structured company SLA rulebook
+    2. Unstructured Previous or past use-cases or actions on particular workflows
+    """
     def __init__(self, file_path: str = "rca_vector_store.faiss"):
         self.file_path = file_path
         try:
@@ -311,15 +265,6 @@ def context_builder_node(
 
     return {"hydrated_trace": hydrated_trace, "error_logs": error_logs}
 
-def retrieval_agent_node(state: RCAState) -> Dict:
-    alert = state['sla_alert']
-    bottleneck_node = max(alert.trace_timings, key=alert.trace_timings.get)
-    query = f"SLA breach in workflow {alert.workflow_id} at node {bottleneck_node}. Breach magnitude: {alert.breach_magnitude}."
-    
-    similar_cases = vector_store.find_similar_cases(query)
-        
-    return {"suggested_quick_fixes": similar_cases}
-
 async def analysis_agent_node(state: RCAState) -> Dict:
     error_context = "No errors detected."
     if state.get("error_logs"):
@@ -402,38 +347,151 @@ def supervisor_edge(state: RCAState) -> str:
     if state.get("validation_result"):
         validation_data = json.loads(state['validation_result'])
         if "size_mb" in validation_data and validation_data["size_mb"] > 10:
-             return "generate_final_report"
+             return "FinalReportGenerator"
         
         return "AnalysisAgent"
 
     return "AnalysisAgent"
 
-def final_report_node(state: RCAState) -> Dict:
-    bottleneck_node = max(state['sla_alert'].trace_timings, key=state['sla_alert'].trace_timings.get)
+
+def quick_action_node(
+    state: RCAState
+) -> Dict:
+    alert = state['sla_alert']
+    query = f"SLA breach for workflow {alert.workflow_id}. Breach magnitude: {alert.breach_magnitude}. Error: {alert.error_message or 'N/A'}"
     
-    report = RemediationPlan(
-        bottleneck_node=bottleneck_node,
-        root_cause_summary="Data Volume Issue: The payload processed by the node was excessively large (50MB), causing a timeout.",
-        recommended_action="Add a 'Split in Batches' node before the HTTP Request node to process records in smaller chunks.",
-        action_type="Workflow Redesign"
+    # Query for both company SLA rules and past similar cases
+    similar_cases = vector_store.find_similar_cases(query, k=3)
+        
+    return {"quick_actions": similar_cases}
+
+async def final_report_node(
+    state: RCAState
+) -> Dict:
+    hypothesis = state.get("hypothesis", "Could not be determined.")
+    bottleneck = max(state['sla_alert'].trace_timings, key=state['sla_alert'].trace_timings.get)
+
+    prompt = f"""
+    You are an expert SRE. Based on the validated hypothesis and context, generate a final remediation plan.
+
+    **Context:**
+    - Workflow ID: {state['sla_alert'].workflow_id}
+    - Bottleneck Node: {bottleneck}
+    - Validated Hypothesis: {hypothesis}
+    - Trace Data: {json.dumps(state['hydrated_trace'], indent=2)}
+
+    **Your Task:**
+    Generate a JSON object conforming to the RemediationPlan schema. The `root_cause_summary` should be a concise explanation based on the hypothesis. The `recommended_action` should be a specific, actionable step. The `action_type` must be one of "Configuration Change", "Workflow Redesign", or "Data Pre-processing".
+
+    **JSON Output Format:**
+    {{
+        "bottleneck_node": "{bottleneck}",
+        "root_cause_summary": "Your summary here.",
+        "recommended_action": "Your specific action here.",
+        "action_type": "Choose one of the three valid types."
+    }}
+    """
+
+    response = await acompletion(
+        model=os.getenv('RCA_LLM_MODEL', 'gemini-1.5-pro'),
+        messages=[{"role": "user", "content": prompt}],
+        response_format={"type": "json_object"}
     )
+    
+    report_json = json.loads(response.choices[0].message.content)
+    report = RemediationPlan(**report_json)
     
     return {"final_report": report}
 
 
+### TODO: Currently the financial impact node consists only the websearch functionality
+### TODO: Company profit records etc. are to be added here to predict the amount of loss it is going to face
+
+def financial_impact_node(
+    state: RCAState
+) -> Dict:
+    report = state.get("final_report")
+    if not report:
+        return {"financial_impact_report": "Skipped: No final report available."}
+
+    question = f"""
+    An SLA breach occurred with the following details:
+    - Workflow ID: {state['sla_alert'].workflow_id}
+    - Bottleneck Node: {report.bottleneck_node}
+    - Root Cause: {report.root_cause_summary}
+    - Downtime: The bottleneck node was delayed by approximately {state['sla_alert'].trace_timings.get(report.bottleneck_node, 0)} seconds.
+
+    Given that this workflow is critical for customer order processing, what is the estimated financial impact of this specific incident?
+    """
+    
+    SYSTEM_PROMPT = f"""You are a Senior Business Analyst and Cloud Economist, tasked with providing a financial impact assessment for a technical service disruption. Your audience is a non-technical executive team, so your analysis must be clear, concise, and focused on business outcomes.
+
+Based on the incident details provided in the user's question, generate a professional business report.
+
+**Your report must include the following sections using Markdown:**
+
+1.  **Executive Summary:**
+    *   Start with a one-paragraph, high-level overview of the incident and its most significant financial consequences.
+
+2.  **Estimated Direct Financial Costs:**
+    *   Quantify the immediate, measurable financial losses.
+    *   Use your web search tool to find industry benchmarks for metrics like:
+        *   Cost of IT downtime per hour for the relevant industry (e.g., e-commerce, SaaS, finance).
+        *   Typical SLA (Service Level Agreement) penalty calculations.
+        *   Estimated lost revenue from failed transactions or user activity during the outage.
+    *   Clearly state your assumptions (e.g., "Assuming 1,000 transactions per hour at an average value of $50...").
+
+3.  **Indirect Business Impact:**
+    *   Analyze the less tangible, but often more significant, long-term costs.
+    *   Consider factors such as:
+        *   Damage to customer trust and brand reputation.
+        *   Potential for customer churn and impact on user retention.
+        *   Cost of engineering and operational team time spent on investigation and remediation (use industry-average salaries for estimation if needed).
+
+4.  **Strategic Recommendations:**
+    *   Suggest 1-2 high-level, business-focused actions to mitigate future risks.
+    *   Frame these recommendations in terms of ROI (Return on Investment), such as "Investing in an automated batch-processing solution could prevent an estimated $X in future losses."
+
+**Crucial Instructions:**
+*   **Be Quantitative:** Use numbers and estimates wherever possible.
+*   **Cite Your Sources:** When you use data from your web search, mention it (e.g., "According to a 2024 Gartner report...").
+*   **State Assumptions:** Clearly articulate any assumptions made during your calculations."""
+    
+    impact_analysis = analyze_financial_impact(question= question,
+                                               system_prompt=SYSTEM_PROMPT
+                                               )
+    
+    return {"financial_impact_report": impact_analysis}
+
+def join_node(
+    state: RCAState
+) -> Dict:
+    # A synchronization point.
+    return {}
+
 def build_graph() -> StateGraph:
     workflow = StateGraph(RCAState)
 
+    # Add all nodes
+    workflow.add_node("FinancialImpactAnalyzer", financial_impact_node)
+    workflow.add_node("QuickActions", quick_action_node)
     workflow.add_node("ContextBuilder", context_builder_node)
-    workflow.add_node("RetrievalAgent", retrieval_agent_node)
     workflow.add_node("AnalysisAgent", analysis_agent_node)
     workflow.add_node("ValidationAgent", validation_agent_node)
-    workflow.add_node("generate_final_report", final_report_node)
+    workflow.add_node("FinalReportGenerator", final_report_node)
+    workflow.add_node("Join", join_node)
 
+    # The entry point forks to three parallel tracks
+    workflow.set_entry_point("FinancialImpactAnalyzer")
+    workflow.add_edge("FinancialImpactAnalyzer", "Join")
+
+    workflow.set_entry_point("QuickActions")
+    workflow.add_edge("QuickActions", "Join")
+    
     workflow.set_entry_point("ContextBuilder")
-    workflow.add_edge("ContextBuilder", "RetrievalAgent")
-    workflow.add_edge("RetrievalAgent", "AnalysisAgent")
+    workflow.add_edge("ContextBuilder", "AnalysisAgent")
 
+    # The main analysis and validation loop
     workflow.add_conditional_edges(
         "AnalysisAgent",
         lambda x: "ValidationAgent",
@@ -445,53 +503,55 @@ def build_graph() -> StateGraph:
         supervisor_edge,
         {
             "AnalysisAgent": "AnalysisAgent",
-            "generate_final_report": "generate_final_report"
+            "FinalReportGenerator": "FinalReportGenerator"
         }
     )
     
-    workflow.add_edge("generate_final_report", END)
+    workflow.add_edge("FinalReportGenerator", "Join")
+    workflow.add_edge("Join", END)
     
     return workflow.compile()
 
-# --- 6. Main Simulation Block ---
+
+vector_store = VectorStore()
+
+def handle_incoming_alert(
+    alert_data: dict
+):
+    
+    sla_rulebook_docs = [
+        Document(page_content="All customer-facing workflows must have a p99 latency of under 5 seconds.", metadata={"source": "SLA_Policy_v1.2"}),
+        Document(page_content="Any data payload exceeding 10MB is considered a 'large payload' and requires batch processing.", metadata={"source": "Data_Handling_Policy_v3.1"})
+    ]
+    past_cases_docs = get_past_cases_from_db()
+    vector_store.add_remediation_cases(sla_rulebook_docs + past_cases_docs)
+    
+    app = build_graph()
+    
+    initial_state = {"sla_alert": SLAAlert(**alert_data), "messages": []}
+    
+    async def run_agent():
+        async for event in app.astream(initial_state):
+            print(f"--- Event: {event} ---")
+
+    asyncio.run(run_agent())
 
 if __name__ == "__main__":
-    vector_store = VectorStore()
-    past_cases = [
-        Document(
-            page_content="A workflow with a slow HTTP node was fixed by enabling caching on the API endpoint.",
-            metadata={"case_id": "case_001", "action": "Enable caching on the target API."}
-        ),
-        Document(
-            page_content="An HTTP request node timed out because the input JSON payload was over 20MB.",
-            metadata={"case_id": "case_002", "action": "Add a 'Split in Batches' node to reduce payload size per call."}
-        ),
-        Document(
-            page_content="High latency in a Postgres node was resolved by adding an index to the queried table.",
-            metadata={"case_id": "case_003", "action": "Add a database index to the 'created_at' column."}
-        )
-    ]
-    vector_store.add_remediation_cases(past_cases)
-    
-    simulated_alert = SLAAlert(
-        workflow_id="wf_abc_123",
-        execution_id="exec_xyz_789",
-        trigger_node="start",
-        breach_magnitude="500% over p95 baseline",
-        trace_timings={
+    # This block now simulates an external system calling our handler
+    # with data for a specific SLA breach.
+    alert_payload = {
+        "workflow_id": "wf_abc_123",
+        "execution_id": "exec_xyz_789",
+        "trigger_node": "start",
+        "breach_magnitude": "500% over p95 baseline",
+        "trace_timings": {
             "start": 0.1,
             "fetch_data": 30.0,
             "process_data": 0.0,
             "save_results": 0.0
-        }
-    )
-
-    app = build_graph()
-    
-    initial_state = {"sla_alert": simulated_alert, "messages": []}
-    
-    async def run_agent():
-        async for event in app.astream(initial_state):
-            pass
-
-    asyncio.run(run_agent())
+        },
+        "has_error": True,
+        "error_node": "fetch_data",
+        "error_message": "Request timed out after 30 seconds."
+    }
+    handle_incoming_alert(alert_payload)
