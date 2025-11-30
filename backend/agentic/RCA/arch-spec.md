@@ -128,27 +128,25 @@ config:
     curve: linear
 ---
 graph TD;
-	__start__([<p>__start__</p>]):::first
-	FinancialImpactAnalyzer(FinancialImpactAnalyzer)
-	QuickActions(QuickActions)
-	ContextBuilder(ContextBuilder)
-	AnalysisAgent(AnalysisAgent)
-	ValidationAgent(ValidationAgent)
-	FinalReportGenerator(FinalReportGenerator)
-	Join(Join)
-	__end__([<p>__end__</p>]):::last
-	AnalysisAgent -.-> ValidationAgent;
-	ContextBuilder --> AnalysisAgent;
-	FinalReportGenerator --> Join;
-	FinancialImpactAnalyzer --> Join;
-	QuickActions --> Join;
-	ValidationAgent -.-> AnalysisAgent;
-	ValidationAgent -.-> FinalReportGenerator;
-	__start__ --> ContextBuilder;
-	__start__ --> FinancialImpactAnalyzer;
-	__start__ --> QuickActions;
-	Join --> __end__;
-	classDef default fill:#f2f0ff,line-height:1.2
-	classDef first fill-opacity:0
-	classDef last fill:#bfb6fc
+        __start__([<p>__start__</p>]):::first
+        FinancialImpactAnalyzer(FinancialImpactAnalyzer)
+        QuickActions(QuickActions)
+        ContextBuilder(ContextBuilder)
+        AnalysisAgent(AnalysisAgent)
+        ValidationAgent(ValidationAgent)
+        FinalReportGenerator(FinalReportGenerator)
+        __end__([<p>__end__</p>]):::last
+        AnalysisAgent -.-> ValidationAgent;
+        ContextBuilder --> AnalysisAgent;
+        ValidationAgent -.-> AnalysisAgent;
+        ValidationAgent -.-> FinalReportGenerator;
+        __start__ --> ContextBuilder;
+        __start__ --> FinancialImpactAnalyzer;
+        __start__ --> QuickActions;
+        FinalReportGenerator --> __end__;
+        FinancialImpactAnalyzer --> __end__;
+        QuickActions --> __end__;
+        classDef default fill:#ffffff,line-height:1.2
+        classDef first fill-opacity:0
+        classDef last fill:#ffffff
 ```

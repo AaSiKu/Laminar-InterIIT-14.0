@@ -1,7 +1,7 @@
 import asyncio
 import json
 import os
-from dotnev import load_dotenv
+from dotenv import load_dotenv
 from typing import List, TypedDict, Annotated, Dict, Optional, Literal
 from pydantic.v1 import BaseModel, Field
 from langgraph.graph import StateGraph, END
@@ -14,10 +14,13 @@ from langchain_google_genai import GoogleGenerativeAIEmbeddings, ChatGoogleGener
 from langchain_community.tools.tavily_search import TavilySearchResults
 from langchain_core.messages import HumanMessage, SystemMessage
 from langgraph.prebuilt import create_react_agent
+from langchain_core.prompts import ChatPromptTemplate
+from langchain.agents import AgentExecutor, create_tool_calling_agent
 import numpy as np
 import litellm
 from litellm import acompletion
-import psycopg2 # Assumed to be installed for database access
+import psycopg2
+from psycopg2 import pool
 
 load_dotenv()
 
@@ -84,41 +87,70 @@ dbname = os.getenv("dbname", "observability")
 user = os.getenv("user", "user")
 password = os.getenv("password", "password")
 
-DB_CONNECTION_PARAMS = f"host='{host}' port='{port}' dbname='{dbname}' user='{user}' password='{password}'"
+DB_CONFIG = {
+    "host": host,
+    "port": port,
+    "dbname": dbname,
+    "user": user,
+    "password": password
+}
+
+try:
+    postgreSQL_pool = psycopg2.pool.SimpleConnectionPool(1, 20, **DB_CONFIG)
+    if postgreSQL_pool:
+        print("Connection pool created successfully")
+except (Exception, psycopg2.DatabaseError) as error:
+    print("Error while connecting to PostgreSQL", error)
+
+def get_db_connection():
+    return postgreSQL_pool.getconn()
+
+def release_db_connection(conn):
+    postgreSQL_pool.putconn(conn)
 
 def get_workflow_from_db(
         workflow_id: str
 ) -> dict:
-    with psycopg2.connect(DB_CONNECTION_PARAMS) as conn:
+    conn = get_db_connection()
+    try:
         with conn.cursor() as cur:
             cur.execute("SELECT topology FROM workflows WHERE id = %s", (workflow_id,))
             result = cur.fetchone()
             if result:
                 return result[0]
             raise ValueError(f"Workflow with id {workflow_id} not found.")
+    finally:
+        release_db_connection(conn)
 
 def get_baselines_from_db(
         workflow_id: str
 ) -> dict:
-    with psycopg2.connect(DB_CONNECTION_PARAMS) as conn:
+    conn = get_db_connection()
+    try:
         with conn.cursor() as cur:
             cur.execute("SELECT baselines FROM performance_baselines WHERE workflow_id = %s", (workflow_id,))
             result = cur.fetchone()
             if result:
                 return result[0]
             return {}
+    finally:
+        release_db_connection(conn)
 
 def get_past_cases_from_db() -> List[Document]:
-    with psycopg2.connect(DB_CONNECTION_PARAMS) as conn:
+    conn = get_db_connection()
+    try:
         with conn.cursor() as cur:
             cur.execute("SELECT page_content, metadata FROM remediation_cases")
             return [Document(page_content=row[0], metadata=row[1]) for row in cur.fetchall()]
+    finally:
+        release_db_connection(conn)
 
 def get_payload_size_from_opentelemetry(
         execution_id: str,
         node_name: str
 ) -> dict:
-    with psycopg2.connect(DB_CONNECTION_PARAMS) as conn:
+    conn = get_db_connection()
+    try:
         with conn.cursor() as cur:
             cur.execute("""
                 SELECT attributes->>'http.request.content_length'
@@ -130,40 +162,64 @@ def get_payload_size_from_opentelemetry(
                 size_bytes = int(result[0])
                 return {"size_mb": size_bytes / (1024*1024)}
             return {"size_mb": 0}
+    finally:
+        release_db_connection(conn)
 
 def get_api_health_from_monitoring(
     url: str
 ) -> dict:
-    # This would typically call an external API or a different database.
-    # For this example, we'll assume it's in the same DB.
-    with psycopg2.connect(DB_CONNECTION_PARAMS) as conn:
+    conn = get_db_connection()
+    try:
         with conn.cursor() as cur:
             cur.execute("SELECT status, avg_latency_ms FROM api_health WHERE url = %s", (url,))
             result = cur.fetchone()
             if result:
                 return {"status": result[0], "avg_latency_ms": result[1]}
             return {"status": "unknown"}
+    finally:
+        release_db_connection(conn)
 
-def analyze_financial_impact(
-    question: str,
-    system_prompt: str
-):
+def analyze_financial_impact(question: str, system_prompt: str):
+    """
+    Analyzes financial impact using Google Gemini and Tavily Search.
+    Uses a Tool-Calling Agent pattern to ensure actual search occurs.
+    """
+    # 1. Initialize LLM
     llm = ChatGoogleGenerativeAI(
-        model='gemini-2.5-pro',
-        temperature=0.2,
+        model='gemini-1.5-pro', # Upgraded to 1.5-pro for better tool adherence
+        temperature=0.0,        # Lower temperature to reduce hallucination
         google_api_version="v1",
     )
 
+    # 2. Define Tools
     tavily = TavilySearchResults(max_results=3)
-    agent = create_react_agent(llm, [tavily])
-    result = agent.invoke({
-        "messages": [
-            SystemMessage(content=system_prompt),
-            HumanMessage(content=question)
-        ]
-    })
+    tools = [tavily]
 
-    return result["messages"][-1].content
+    # 3. Create a Strict Prompt Template
+    # This forces the LLM to understand its role and available tools.
+    prompt = ChatPromptTemplate.from_messages([
+        ("system", "{system_prompt}"),
+        ("placeholder", "{chat_history}"),
+        ("human", "{input}"),
+        ("placeholder", "{agent_scratchpad}"),
+    ])
+
+    # 4. Construct the Agent
+    # create_tool_calling_agent is more robust for modern LLMs than create_react_agent
+    agent = create_tool_calling_agent(llm, tools, prompt)
+    
+    # 5. Create Executor
+    agent_executor = AgentExecutor(agent=agent, tools=tools, verbose=True)
+
+    # 6. Invoke
+    try:
+        result = agent_executor.invoke({
+            "input": question,
+            "system_prompt": system_prompt
+        })
+        return result["output"]
+    except Exception as e:
+        return f"Error calculating financial impact: {str(e)}"
 
 
 class VectorStore:
@@ -472,26 +528,23 @@ def join_node(
 def build_graph() -> StateGraph:
     workflow = StateGraph(RCAState)
 
-    # Add all nodes
     workflow.add_node("FinancialImpactAnalyzer", financial_impact_node)
     workflow.add_node("QuickActions", quick_action_node)
     workflow.add_node("ContextBuilder", context_builder_node)
     workflow.add_node("AnalysisAgent", analysis_agent_node)
     workflow.add_node("ValidationAgent", validation_agent_node)
     workflow.add_node("FinalReportGenerator", final_report_node)
-    workflow.add_node("Join", join_node)
 
-    # The entry point forks to three parallel tracks
     workflow.set_entry_point("FinancialImpactAnalyzer")
-    workflow.add_edge("FinancialImpactAnalyzer", "Join")
-
     workflow.set_entry_point("QuickActions")
-    workflow.add_edge("QuickActions", "Join")
-    
     workflow.set_entry_point("ContextBuilder")
+
+    workflow.add_edge("FinancialImpactAnalyzer", END)
+
+    workflow.add_edge("QuickActions", END)
+
     workflow.add_edge("ContextBuilder", "AnalysisAgent")
 
-    # The main analysis and validation loop
     workflow.add_conditional_edges(
         "AnalysisAgent",
         lambda x: "ValidationAgent",
@@ -502,13 +555,12 @@ def build_graph() -> StateGraph:
         "ValidationAgent",
         supervisor_edge,
         {
-            "AnalysisAgent": "AnalysisAgent",
-            "FinalReportGenerator": "FinalReportGenerator"
+            "AnalysisAgent": "AnalysisAgent",          # Loop back
+            "FinalReportGenerator": "FinalReportGenerator" # Break out
         }
     )
     
-    workflow.add_edge("FinalReportGenerator", "Join")
-    workflow.add_edge("Join", END)
+    workflow.add_edge("FinalReportGenerator", END)
     
     return workflow.compile()
 
