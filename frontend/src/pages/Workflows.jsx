@@ -35,6 +35,10 @@ import {
   deleteDrafts,
   deletePipeline,
 } from "../utils/pipelineUtils";
+//TODO: need to fix this logic for setting status to Broken/Running/Stopped
+function toggleStatusLogic(variable){
+  return variable;
+}
 
 export default function WorkflowPage() {
   const [selectedNode, setSelectedNode] = useState(null);
@@ -119,7 +123,8 @@ export default function WorkflowPage() {
         currentPipelineStatus
       );
       setCurrentPipelineStatus(
-        newStatus["status"] === "stopped" ? false : true
+        // newStatus["status"] === "Stopped" ? "" : true
+        toggleStatusLogic(newStatus["status"])
       );
     } catch (err) {
       setError(err.message);

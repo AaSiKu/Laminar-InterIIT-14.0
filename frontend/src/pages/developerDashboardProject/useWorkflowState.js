@@ -180,7 +180,7 @@ const useWorkflowState = ({ blueprint, navigate }) => {
 
       setCurrentNodes?.(finalNodes);
       setCurrentEdges?.(edges.map((edge) => ({ ...edge })));
-      setCurrentPipelineStatus?.(false);
+      setCurrentPipelineStatus?.(false);//TODO: need to fix this for broken/running/etc pipeline
       setContainerId?.(null);
       setCurrentPipelineId?.(null);
       setViewport?.({ x: 0, y: 0, zoom: 1 });

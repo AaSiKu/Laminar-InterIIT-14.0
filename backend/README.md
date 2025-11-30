@@ -419,7 +419,7 @@ The API server manages containers using Docker SDK:
   "agentic_host_port": 8002,
   "db_host_port": 5433,
   "host_ip": "192.168.1.100",
-  "status": false
+  "status": "Stopped"
 }
 ```
 

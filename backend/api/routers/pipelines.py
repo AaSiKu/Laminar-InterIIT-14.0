@@ -114,7 +114,7 @@ async def run_pipeline_endpoint(request_obj: Request, request: PipelineIdRequest
             response.raise_for_status()
             await workflow_collection.update_one(
                 {'_id': ObjectId(request.pipeline_id)},
-                {'$set': {'status': True}}
+                {'$set': {'status': "Runnign"}}
             )
             return response.json()
         except httpx.RequestError as exc:

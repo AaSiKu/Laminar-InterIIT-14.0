@@ -3,20 +3,13 @@ from bson.objectid import ObjectId
 from backend.api.routers.auth.routes import get_current_user
 from backend.api.routers.auth.models import User
 from datetime import datetime
-from .schema import Version
 import logging
 from .schema import save_graph_payload, retrieve_payload,save_draft_payload
-from motor.motor_asyncio import AsyncIOMotorClient
 import os 
 from .crud import create_pipeline as _create_pipeline
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
-
-mongo_client = AsyncIOMotorClient(os.getenv("MONGO_URI", "mongodb://localhost:27017"))
-db = mongo_client[os.getenv("MONGO_DB", "pathway_db")]
-version_collection = db[os.getenv("VERSION_COLLECTION", "versions")]
-workflow_collection = db[os.getenv("WORKFLOW_COLLECTION", "workflows")]
 
 def serialize_mongo(doc):
     if isinstance(doc, ObjectId):
@@ -36,11 +29,16 @@ def serialize_mongo(doc):
 
 @router.post("/create_pipeline")
 async def create_pipeline(
+    request:Request,
     current_user: User = Depends(get_current_user)
 ):
     """
     Create a new pipeline
     """
+
+    workflow_collection = request.app.state.workflow_collection
+    version_collection = request.app.state.version_collection
+    mongo_client = request.app.state.mongo_client
     try:            
         user_identifier = str(current_user.id)
         new_pipeline_id = await _create_pipeline(user_identifier,version_collection,workflow_collection,mongo_client)
@@ -61,12 +59,17 @@ async def create_pipeline(
 
 @router.post("/save")
 async def save_graph(
+    request:Request,
     payload: save_graph_payload,
     current_user: User = Depends(get_current_user)
 ):
     """
     Saves a version to the database
     """
+
+    workflow_collection = request.app.state.workflow_collection
+    version_collection = request.app.state.version_collection
+    mongo_client = request.app.state.mongo_client
     version_description=payload.version_description
     version_updated_at=payload.version_updated_at
     pipeline=payload.pipeline
@@ -142,12 +145,16 @@ async def save_graph(
 
 @router.post("/save_draft")
 async def save_draft(
+    request:Request,
     payload: save_draft_payload,
     current_user: User = Depends(get_current_user)
 ):
     """
     save the draft to the database
     """
+    workflow_collection = request.app.state.workflow_collection
+    version_collection = request.app.state.version_collection
+    mongo_client = request.app.state.mongo_client
     try: 
         current_version_id = payload.version_id
         pipeline=payload.pipeline
@@ -184,6 +191,7 @@ async def save_draft(
 
 @router.post("/retrieve_pipeline")
 async def retrieve_pipeline(
+    request:Request,
     payload: retrieve_payload,
     current_user: User = Depends(get_current_user)
 ):
@@ -192,6 +200,9 @@ async def retrieve_pipeline(
     
     Retrieve a pipeline from the database
     """
+    workflow_collection = request.app.state.workflow_collection
+    version_collection = request.app.state.version_collection
+    mongo_client = request.app.state.mongo_client
     pipeline_id = payload.pipeline_id
     try:
         user_identifier = str(current_user.id)
@@ -234,6 +245,7 @@ async def retrieve_pipeline(
 #---------------------------- Delete Pipeline and Drafts--------------------------#
 @router.post("/delete_pipeline")
 async def delete_pipeline(
+    request:Request,
     pipeline_id: str,
     current_user: User = Depends(get_current_user)
 ):
@@ -241,6 +253,9 @@ async def delete_pipeline(
     """
     Delete a pipeline from the database
     """
+    workflow_collection = request.app.state.workflow_collection
+    version_collection = request.app.state.version_collection
+    mongo_client = request.app.state.mongo_client
 
     try:
         user_identifier = str(current_user.id)
@@ -282,9 +297,13 @@ async def delete_pipeline(
     
 @router.post("/delete_draft")
 async def delete_draft(
+    request:Request,
     pipeline_id: str,
-    current_user: User = Depends(get_current_user)
 ):
+    current_user: User = Depends(get_current_user)
+    workflow_collection = request.app.state.workflow_collection
+    version_collection = request.app.state.version_collection
+    mongo_client = request.app.state.mongo_client
     try:
         user_identifier = str(current_user.id)
 
