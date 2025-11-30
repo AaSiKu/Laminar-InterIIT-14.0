@@ -240,6 +240,7 @@ class PostgreSQLWriteNode(OutputNode):
     table_name: str
     primary_keys: List[str]
     node_id: Literal["postgres_write"]
+    output_table_type : Literal['stream_of_changes', 'snapshot'] = 'stream_of_changes'
 
 
 class MySQLWriteNode(OutputNode):
