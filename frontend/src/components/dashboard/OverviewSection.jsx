@@ -34,13 +34,15 @@ const OverviewSection = ({ data }) => {
     <Paper
       sx={{
         p: '2rem',
-        borderRadius: '1rem',
-        border: '0.0625rem solid #e5e7eb',
+        borderRadius: 0,
+        border: '1px solid',
+        borderColor: 'divider',
         boxShadow: 'none',
         height: '100%',
         position: 'relative',
         display: 'flex',
         flexDirection: 'column',
+        bgcolor: 'background.elevation1',
       }}
     >
       {/* Header */}
@@ -62,13 +64,12 @@ const OverviewSection = ({ data }) => {
           sx={{
             width: '2.25rem',
             height: '2.25rem',
-            borderRadius: '0.5rem',
-            border: '0.0625rem solid #e5e7eb',
+            borderRadius: 0,
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
             cursor: 'pointer',
-            '&:hover': { bgcolor: '#f9fafb' },
+            '&:hover': { bgcolor: 'action.hover' },
           }}
         >
           <MoreHorizIcon sx={{ fontSize: '1.25rem', color: 'text.secondary' }} />

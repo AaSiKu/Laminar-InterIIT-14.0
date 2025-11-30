@@ -33,7 +33,6 @@
   position: sticky;
   top: 0;
   z-index: 10;
-  border-bottom: 1px solid rgba(0, 0, 0, 0.12);
 }
 
 @media (max-width: 900px) {

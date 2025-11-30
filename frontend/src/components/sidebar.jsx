@@ -102,12 +102,13 @@ const Sidebar = () => {
           }),
           overflowX: "hidden",
           position: "fixed",
-          backgroundColor: drawerOpen ? "#f8f9fa" : "#fff",
-          borderRight: "1px solid #e0e0e0",
+          backgroundColor: drawerOpen ? 'background.elevation1' : 'background.paper',
+          borderRight: '1px solid',
+          borderColor: 'divider',
           zIndex: 2500,
           boxShadow: drawerOpen
-            ? "4px 0 16px rgba(0,0,0,0.15)"
-            : "1px 0 4px rgba(0,0,0,0.05)",
+            ? theme.shadows[4]
+            : theme.shadows[1],
         },
       }}
     >
@@ -119,7 +120,8 @@ const Sidebar = () => {
           justifyContent: drawerOpen ? "space-between" : "center",
           padding: theme.spacing(1, 2.4),
           minHeight: 64,
-          borderBottom: drawerOpen ? "1px solid #e0e0e0" : "none",
+          borderBottom: drawerOpen ? '1px solid' : 'none',
+          borderColor: 'divider',
         }}
       >
         {/* Logo - visible when expanded */}
@@ -143,7 +145,7 @@ const Sidebar = () => {
         <IconButton 
           onClick={drawerOpen ? handleDrawerClose : handleDrawerOpen} 
           sx={{ 
-            color: '#1976d2',
+            color: 'primary.main',
             '& svg': {
               fontSize: '1.5rem', // Make menu/close icon larger
             },
@@ -174,7 +176,7 @@ const Sidebar = () => {
                     my: 0.5,
                     mx: 1,
                     borderRadius: 1,
-                    backgroundColor: isActive ? "#e3f2fd" : "transparent",
+                    backgroundColor: isActive ? 'action.selected' : 'transparent',
                     transition: theme.transitions.create(
                       ["background-color", "color"],
                       {
@@ -183,7 +185,7 @@ const Sidebar = () => {
                       }
                     ),
                     "&:hover": {
-                      backgroundColor: isActive ? "#bbdefb" : "#f5f5f5",
+                      backgroundColor: isActive ? 'action.hover' : 'action.hover',
                     },
                   }}
                   onClick={() => {
@@ -206,7 +208,7 @@ const Sidebar = () => {
                         minWidth: 0,
                         mr: drawerOpen ? 3 : 'auto',
                         justifyContent: 'center',
-                        color: isActive ? '#1976d2' : '#666',
+                        color: isActive ? 'primary.main' : 'text.secondary',
                         transition: theme.transitions.create('color', {
                           easing: theme.transitions.easing.easeInOut,
                           duration: theme.transitions.duration.short,
@@ -222,7 +224,7 @@ const Sidebar = () => {
                       primary={item.label}
                       primaryTypographyProps={{
                         sx: {
-                          color: isActive ? '#1976d2' : '#374151',
+                          color: isActive ? 'primary.main' : 'text.primary',
                           fontWeight: isActive ? 600 : 400,
                           fontSize: '0.875rem',
                           transition: theme.transitions.create(['color', 'font-weight'], {

@@ -6,8 +6,10 @@ const KPICard = ({ title, value, subtitle, icon: Icon, iconColor }) => {
     <Paper
       sx={{
         p: '1.5rem',
-        borderRadius: '0.75rem',
-        border: '0.0625rem solid #e5e7eb',
+        borderRadius: 0,
+        border: '1px solid',
+        borderColor: 'divider',
+        borderLeft: 'none',
         boxShadow: 'none',
         height: '100%',
         width: '100%',
@@ -16,12 +18,14 @@ const KPICard = ({ title, value, subtitle, icon: Icon, iconColor }) => {
         justifyContent: 'center',
         alignItems: 'center',
         minHeight: '9.375rem',
+        bgcolor: 'background.paper',
       }}
     >
       <Box sx={{ textAlign: 'left', width: '100%', maxWidth: '12rem' }}>
         <Typography 
           variant="body2" 
           color="text.secondary" 
+          fontWeight="700"
           sx={{ 
             mb: '1rem',
             fontSize: '0.75rem',
@@ -40,8 +44,8 @@ const KPICard = ({ title, value, subtitle, icon: Icon, iconColor }) => {
             sx={{
               width: '3rem',
               height: '3rem',
-              borderRadius: '0.75rem',
-              bgcolor: iconColor ? `${iconColor}15` : '#f3f4f6',
+              borderRadius: 0,
+              bgcolor: iconColor ? `${iconColor}15` : 'background.elevation1',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
