@@ -1,6 +1,4 @@
-import asyncio
 from fastapi import APIRouter, Request, Depends
-from pydantic import BaseModel
 from .version_manager.schema import Notification
 from bson.json_util import dumps
 from backend.api.routers.auth.routes import get_current_user

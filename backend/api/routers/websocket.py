@@ -1,5 +1,7 @@
 import os
 import json
+import time
+import asyncio
 from fastapi import WebSocket, WebSocketDisconnect, APIRouter
 from aiokafka import AIOKafkaConsumer
 from dotenv import load_dotenv
@@ -17,6 +19,8 @@ load_dotenv()
 
 router = APIRouter()
 
+WS_INACTIVITY_TIMEOUT = int(os.getenv("WS_INACTIVITY_TIMEOUT", 300))
+WS_CLEANUP_INTERVAL = int(os.getenv("WS_CLEANUP_INTERVAL", 60))
 KAFKA_BOOTSTRAP_SERVER = os.getenv("KAFKA_BOOTSTRAP_SERVER", "localhost:9092")
 SASL_USERNAME = os.getenv("KAFKA_SASL_USERNAME", None)
 SASL_PASSWORD = os.getenv("KAFKA_SASL_PASSWORD", None)
@@ -58,6 +62,40 @@ async def alerts_ws(websocket: WebSocket, pipeline_id: str):
 
 
 
+async def close_inactive_connections():
+    '''
+    Background task that periodically checks for inactive connections and closes them.
+    This is the function/API for handling inactivity timeouts.
+    Runs continuously, checking every WS_CLEANUP_INTERVAL seconds.
+    '''
+    while True:
+        try:
+            await asyncio.sleep(WS_CLEANUP_INTERVAL)
+            current_time = time.time()
+            connections_to_close = []
+            
+            # active_connections set contains: (websocket, user_id, pipeline_id, last_activity)
+            for conn in list(active_connections):
+                if len(conn) == 4:
+                    websocket, user_id, pipeline_id, last_activity = conn
+                    if current_time - last_activity > WS_INACTIVITY_TIMEOUT:
+                        inactive_duration = current_time - last_activity
+                        connections_to_close.append((conn, user_id, pipeline_id, inactive_duration))
+            
+            for conn, user_id, pipeline_id, inactive_duration in connections_to_close:
+                try:
+                    logger.info(f"Closing inactive connection for user {user_id}, pipeline {pipeline_id} (inactive for {inactive_duration:.0f}s)")
+                    await conn[0].close(code=1000, reason="Connection inactive")
+                except Exception as e:
+                    logger.warning(f"Error closing inactive connection: {e}")
+                finally:
+                    # Remove from set using the exact tuple
+                    active_connections.discard(conn)
+                    
+        except Exception as e:
+            logger.error(f"Error in close_inactive_connections: {e}")
+
+
 async def watch_changes(notification_collection):
     condition = [{"$match": {"operationType": "insert"}}]
     try:
@@ -76,22 +114,44 @@ async def broadcast(message: dict):
     '''
     target_user = message["user_id"]
     target_pipeline = message["pipeline_id"]
+    current_time = time.time()
 
-    for websocket, ws_user_id, ws_pipeline_id in list(active_connections):
+    connections_to_remove = []
+    
+    # active_connections set contains: (websocket, user_id, pipeline_id, last_activity)
+    for websocket, ws_user_id, ws_pipeline_id, last_activity in list(active_connections):
         if ws_user_id == target_user:
             if ws_pipeline_id == "All":
                 try:
                     await websocket.send_text(dumps(message))
+                    active_connections.discard((websocket, ws_user_id, ws_pipeline_id, last_activity))
+                    active_connections.add((websocket, ws_user_id, ws_pipeline_id, current_time))
                     return "message sent"
-                except:
-                    active_connections.remove((websocket, ws_user_id, ws_pipeline_id))
+                except Exception as e:
+                    logger.warning(f"Failed to send message, closing connection: {e}")
+                    try:
+                        await websocket.close(code=1000, reason="Connection error")
+                    except:
+                        pass
+                    connections_to_remove.append((websocket, ws_user_id, ws_pipeline_id, last_activity))
                 continue
             if ws_pipeline_id == target_pipeline:
                 try:
                     await websocket.send_text(dumps(message))
+                    active_connections.discard((websocket, ws_user_id, ws_pipeline_id, last_activity))
+                    active_connections.add((websocket, ws_user_id, ws_pipeline_id, current_time))
                     return "message sent"
-                except:
-                    active_connections.remove((websocket, ws_user_id, ws_pipeline_id))
+                except Exception as e:
+                    logger.warning(f"Failed to send message, closing connection: {e}")
+                    try:
+                        await websocket.close(code=1000, reason="Connection error")
+                    except:
+                        pass
+                    connections_to_remove.append((websocket, ws_user_id, ws_pipeline_id, last_activity))
+    
+    # Remove failed connections
+    for conn in connections_to_remove:
+        active_connections.discard(conn)
 
 
 @router.websocket("/pipeline/{pipeline_id}")
@@ -117,13 +177,26 @@ async def websocket_endpoint(
                     await websocket.close(code=1008, reason="Pipeline not found")
                     return
 
-            active_connections.add((websocket, user_identifier, pipeline_id))
+            current_activity_time = time.time()
+            active_connections.add((websocket, user_identifier, pipeline_id, current_activity_time))
 
             try:
                 while True:
                     await websocket.receive_text()
+                    for conn in list(active_connections):
+                        if len(conn) == 4 and conn[0] == websocket and conn[1] == user_identifier and conn[2] == pipeline_id:
+                            active_connections.discard(conn)
+                            active_connections.add((websocket, user_identifier, pipeline_id, time.time()))
+                            break
             except WebSocketDisconnect:
-                active_connections.remove((websocket, user_identifier, pipeline_id))
+                connection_closed = True
+            except Exception as e:
+                logger.error(f"Error in websocket connection: {e}")
+                try:
+                    await websocket.close(code=1011, reason="Internal error")
+                    connection_closed = True
+                except:
+                    pass
             break
                 
     except WebSocketAuthException as e:

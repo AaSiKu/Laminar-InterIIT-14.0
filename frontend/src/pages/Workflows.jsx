@@ -359,3 +359,24 @@ export default function WorkflowPage() {
     </>
   );
 }
+
+
+/**
+   <Button
+      variant="outlined"
+      onClick={()=>{
+
+        const pipelineId = "All"; // or "abc123" for a specific pipeline
+        const wsUrl = `ws://localhost:8081/ws/pipeline/${pipelineId}`;
+        const ws = new WebSocket(wsUrl);
+        ws.onopen=()=>{console.log("ench")}
+        ws.onmessage = (event) => {
+            console.log("Notification received:", event.data);
+        };
+
+      }  }
+      >
+      test
+    </Button>
+
+ */

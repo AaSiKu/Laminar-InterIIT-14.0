@@ -16,6 +16,7 @@ from backend.api.routers.auth.database import Base
 from backend.api.routers.main_router import router
 from backend.api.routers.websocket import watch_changes
 from utils.logging import get_logger, configure_root
+from backend.api.routers.websocket import close_inactive_connections
 
 configure_root()
 logger = get_logger(__name__)
@@ -82,6 +83,8 @@ async def lifespan(app: FastAPI):
 
     asyncio.create_task(watch_changes(notification_collection))
     print("Started MongoDB change stream listener")
+    ws_cleanup_task = asyncio.create_task(close_inactive_connections())
+    print("Started WebSocket inactivity cleanup task")
 
 
     yield
