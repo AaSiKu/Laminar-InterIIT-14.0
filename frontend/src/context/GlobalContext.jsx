@@ -25,6 +25,7 @@ export const GlobalContextProvider = ({ children }) => {
   const [sidebarOpen, setSideBarOpen] = useState(false);
   const { fileStructure, setFileStructure } = useState({});
   const [currentVersionId, setCurrentVersionId] = useState(null);
+  const [agentContainerId, setAgentContainerId]=useState(null);
 
   const globalContextValue = {
     user,
@@ -49,6 +50,8 @@ export const GlobalContextProvider = ({ children }) => {
     setError,
     containerId,
     setContainerId,
+    agentContainerId,
+    setAgentContainerId,
     dashboardSidebarOpen,
     setDashboardSidebarOpen,
     login,

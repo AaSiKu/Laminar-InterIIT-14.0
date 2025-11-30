@@ -12,6 +12,7 @@ async def create_pipeline(user_identifier,version_collection,workflow_collection
                 }
     version_doc = {
         "version_description": "",
+        "user_id": user_identifier,
         "version_created_at": datetime.now(),
         "version_updated_at": datetime.now(),
         "pipeline": graph_doc

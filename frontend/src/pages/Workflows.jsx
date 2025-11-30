@@ -30,7 +30,10 @@ import {
   fetchAndSetPipeline,
   spinupPipeline,
   spindownPipeline,
-  create_pipeline
+  create_pipeline,
+  saveDraftsAPI,
+  deleteDrafts,
+  deletePipeline,
 } from "../utils/pipelineUtils";
 
 export default function WorkflowPage() {
@@ -45,6 +48,7 @@ export default function WorkflowPage() {
     setCurrentEdges,
     currentPipelineStatus,
     setCurrentPipelineStatus,
+    setAgentContainerId,
     currentPipelineId,
     rfInstance,
     setCurrentPipelineId,
@@ -63,17 +67,14 @@ export default function WorkflowPage() {
   useEffect(() => {
     if (currentPipelineId) {
       setLoading(true);
-        fetchAndSetPipeline(currentPipelineId, currentVersionId,{
-        setCurrentPipelineId,
-        setCurrentVersionId,
-        setError,
-        setLoading,
-        setCurrentEdges,
-        setCurrentNodes,
-        setViewport,
-        setCurrentPipelineStatus,
-        setContainerId,
-      })
+        
+                  saveDraftsAPI(
+                    currentVersionId,
+                    rfInstance,
+                    setCurrentVersionId, 
+                    setLoading,
+                    setError,
+                )
         .catch((err) => setError(err.message))
         .finally(() => setLoading(false));
     }
@@ -209,6 +210,7 @@ export default function WorkflowPage() {
               }}
             >
               {loading && <CircularProgress size={24} />}
+
               <Button
                 variant="outlined"
                 onClick={() =>
@@ -224,24 +226,6 @@ export default function WorkflowPage() {
                 disabled={loading}
               >
                 Save
-              </Button>
-              <Button
-                variant="outlined"
-                onClick={() => fetchAndSetPipeline(
-                  currentPipelineId, currentVersionId,{
-                  setCurrentPipelineId,
-                  setCurrentVersionId,
-                  setError,
-                  setLoading,
-                  setCurrentEdges,
-                  setCurrentNodes,
-                  setViewport,
-                  setCurrentPipelineStatus,
-                  setContainerId,
-                })}
-                disabled={loading}
-              >
-                Fetch
               </Button>
               <Button
                 variant="outlined"

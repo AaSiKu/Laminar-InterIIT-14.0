@@ -56,9 +56,6 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -
     now = datetime.now(timezone.utc)  # timezone-aware UTC
     expire = now + (expires_delta or timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES))
     to_encode.update({"exp": expire, "iat": now})
-    print(f"DEBUG: Encoding token with key: {SECRET_KEY}", flush=True)
-    print(f"DEBUG: Algorithms: {ALGORITHM}", flush=True)
-    print(f"DEBUG: Token: {to_encode}", flush=True)
     return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
 
 def decode_token(token: str) -> TokenData:

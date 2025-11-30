@@ -46,6 +46,11 @@ class save_graph_payload(BaseModel):
     pipeline_id: str
     pipeline: Any
 
+class save_draft_payload(BaseModel):
+    version_id:str
+    pipeline:Any
+    version_description:Optional[str]
+
 class retrieve_payload(BaseModel):
     pipeline_id: str
     version_id: str
