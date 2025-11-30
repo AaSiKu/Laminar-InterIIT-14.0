@@ -112,6 +112,8 @@ pydantic==2.12.4
 pydantic_core==2.41.5
 Pygments==2.19.2
 pymongo==4.15.3
+sqlalchemy==2.0.44
+asyncpg==0.31.0
 pyparsing==3.2.5
 python-dateutil==2.9.0.post0
 python-dotenv==1.2.1
@@ -157,3 +159,5 @@ yarl==1.22.0
 zipp==3.23.0
 lz4
 cramjam
+twilio
+greenlet

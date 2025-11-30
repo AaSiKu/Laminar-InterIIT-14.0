@@ -37,18 +37,22 @@ import { useGlobalContext } from "../context/GlobalContext";
 import {
   savePipelineAPI,
   toggleStatus as togglePipelineStatus,
-  fetchAndSetPipeline,
   spinupPipeline,
   spindownPipeline,
+  saveDraftsAPI,
 } from "../utils/pipelineUtils";
 import { fetchNodeSchema } from "../utils/dashboard.api";
+//TODO: need to fix this logic for setting status to Broken/Running/Stopped
+function toggleStatusLogic(variable) {
+  return variable;
+}
 
 export default function WorkflowPage() {
   const [selectedNode, setSelectedNode] = useState(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [shareAnchorEl, setShareAnchorEl] = useState(null);
   const navigate = useNavigate();
-  
+
   const {
     currentEdges,
     currentNodes,
@@ -57,10 +61,10 @@ export default function WorkflowPage() {
     setCurrentEdges,
     currentPipelineStatus,
     setCurrentPipelineStatus,
+    setAgentContainerId,
     currentPipelineId,
     rfInstance,
     setCurrentPipelineId,
-    dashboardSidebarOpen,
     loading,
     setLoading,
     error,
@@ -68,23 +72,27 @@ export default function WorkflowPage() {
     setViewport,
     containerId,
     setContainerId,
+    currentVersionId,
+    setCurrentVersionId,
   } = useGlobalContext();
 
   useEffect(() => {
     if (currentPipelineId) {
       setLoading(true);
-      fetchAndSetPipeline(currentPipelineId, {
-        setCurrentEdges,
-        setCurrentNodes,
-        setViewport,
-        setCurrentPipelineStatus,
-        setContainerId,
-      })
+
+      saveDraftsAPI(
+        currentVersionId,
+        rfInstance,
+        setCurrentVersionId,
+        setLoading,
+        setError
+      )
         .catch((err) => setError(err.message))
         .finally(() => setLoading(false));
     }
   }, [
     currentPipelineId,
+    currentVersionId,
     setCurrentEdges,
     setCurrentNodes,
     setViewport,
@@ -123,7 +131,8 @@ export default function WorkflowPage() {
         currentPipelineStatus
       );
       setCurrentPipelineStatus(
-        newStatus["status"] === "stopped" ? false : true
+        // newStatus["status"] === "Stopped" ? "" : true
+        toggleStatusLogic(newStatus["status"])
       );
     } catch (err) {
       setError(err.message);
@@ -166,9 +175,7 @@ export default function WorkflowPage() {
   const handleUpdateProperties = (nodeId, data) => {
     setCurrentNodes((nds) =>
       nds.map((n, idx) =>
-        n.id === nodeId
-          ? { ...n, data: { ...n.data, properties: data} }
-          : n
+        n.id === nodeId ? { ...n, data: { ...n.data, properties: data } } : n
       )
     );
     setSelectedNode(null);
@@ -176,14 +183,14 @@ export default function WorkflowPage() {
 
   const onDragOver = useCallback((event) => {
     event.preventDefault();
-    event.dataTransfer.dropEffect = 'move';
+    event.dataTransfer.dropEffect = "move";
   }, []);
 
   const onDrop = useCallback(
     async (event) => {
       event.preventDefault();
 
-      const nodeName = event.dataTransfer.getData('application/reactflow');
+      const nodeName = event.dataTransfer.getData("application/reactflow");
 
       if (!nodeName || !rfInstance) {
         return;
@@ -206,14 +213,14 @@ export default function WorkflowPage() {
         // Add the node to the canvas
         setCurrentNodes((prev) => [...prev, newNode]);
       } catch (err) {
-        console.error('Failed to add node:', err);
-        setError('Failed to add node. Please try again.');
+        console.error("Failed to add node:", err);
+        setError("Failed to add node. Please try again.");
       }
     },
     [rfInstance, currentNodes, setCurrentNodes, setError]
   );
 
-  const drawerWidth = 64 + (dashboardSidebarOpen ? 325 : 0);
+  const drawerWidth = 64;
 
   const handleShareClick = (event) => {
     setShareAnchorEl(event.currentTarget);
@@ -263,9 +270,9 @@ export default function WorkflowPage() {
           >
             {/* Laminar Logo */}
             <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
-              <img 
-                src={logo} 
-                alt="Laminar" 
+              <img
+                src={logo}
+                alt="Laminar"
                 style={{ height: "20px", width: "auto" }}
               />
             </Box>
@@ -323,10 +330,10 @@ export default function WorkflowPage() {
                   "&:hover": { bgcolor: "#e5e7eb" },
                   padding: "6px",
                 }}
-          >
+              >
                 <ArrowBackIcon sx={{ fontSize: 20 }} />
               </IconButton>
-              
+
               <Typography
                 variant="body1"
                 sx={{
@@ -349,7 +356,7 @@ export default function WorkflowPage() {
               }}
             >
               {loading && <CircularProgress size={18} />}
-              
+
               <IconButton
                 onClick={handleShareClick}
                 sx={{
@@ -363,7 +370,24 @@ export default function WorkflowPage() {
               >
                 <ShareIcon sx={{ fontSize: 18 }} />
               </IconButton>
-              
+              <Button
+                variant="outlined"
+                onClick={() =>
+                  savePipelineAPI(
+                    rfInstance,
+                    currentPipelineId,
+                    setCurrentPipelineId,
+                    currentVersionId,
+                    setCurrentVersionId,
+                    setError,
+                    setLoading
+                  )
+                }
+                disabled={loading}
+              >
+                Save
+              </Button>
+
               <Menu
                 anchorEl={shareAnchorEl}
                 open={Boolean(shareAnchorEl)}
@@ -460,11 +484,11 @@ export default function WorkflowPage() {
           </Toolbar>
         </AppBar>
 
-        <Box 
-          sx={{ 
+        <Box
+          sx={{
             height: "calc(100vh - 96px)",
             width: "100%",
-            bgcolor: "#ffffff", 
+            bgcolor: "#ffffff",
             position: "relative",
             padding: "16px",
             display: "flex",
@@ -484,34 +508,36 @@ export default function WorkflowPage() {
               width: "100%",
               height: "100%",
             }}
-          onClick={(e) => {
-            // Close PropertyBar when clicking on workspace
-            // Only if clicking on the canvas, not on nodes or controls
-            if (e.target.classList.contains('react-flow__pane') || 
-                e.target.classList.contains('react-flow__renderer')) {
-              setSelectedNode(null);
-            }
-          }}
-        >
-          <ReactFlow
-            nodes={currentNodes}
-            edges={currentEdges}
-            nodeTypes={nodeTypes}
-            onNodesChange={onNodesChange}
-            onEdgesChange={onEdgesChange}
-            onConnect={onConnect}
-            onNodeClick={onNodeClick}
-            onInit={setRfInstance}
-            onDrop={onDrop}
-            onDragOver={onDragOver}
-            onPaneClick={() => setSelectedNode(null)}
-            defaultViewport={{ x: 0, y: 0, zoom: 0.9 }}
-            fitView
-            fitViewOptions={{ maxZoom: 0.9 }}
+            onClick={(e) => {
+              // Close PropertyBar when clicking on workspace
+              // Only if clicking on the canvas, not on nodes or controls
+              if (
+                e.target.classList.contains("react-flow__pane") ||
+                e.target.classList.contains("react-flow__renderer")
+              ) {
+                setSelectedNode(null);
+              }
+            }}
           >
-            <Controls position="top-right" />
+            <ReactFlow
+              nodes={currentNodes}
+              edges={currentEdges}
+              nodeTypes={nodeTypes}
+              onNodesChange={onNodesChange}
+              onEdgesChange={onEdgesChange}
+              onConnect={onConnect}
+              onNodeClick={onNodeClick}
+              onInit={setRfInstance}
+              onDrop={onDrop}
+              onDragOver={onDragOver}
+              onPaneClick={() => setSelectedNode(null)}
+              defaultViewport={{ x: 0, y: 0, zoom: 0.5 }}
+              fitView
+              fitViewOptions={{ maxZoom: 0.9 }}
+            >
+              <Controls position="top-right" />
               <Background color="#DBE6EB" gap={16} size={2} />
-          </ReactFlow>
+            </ReactFlow>
           </Box>
 
           {/* Bottom Toolbar */}

@@ -1,14 +1,14 @@
 import { useState, useEffect } from "react";
-import { Typography, IconButton, Drawer, Fab } from "@mui/material";
+import { Typography, IconButton, Drawer, Fab, Grid, Box, Divider } from "@mui/material";
 import OverviewSection from "../components/dashboard/OverviewSection";
 import KPICard from "../components/dashboard/KPICard";
 import RecentWorkflowCard from "../components/dashboard/RecentWorkflowCard";
 import HighlightsPanel from "../components/dashboard/HighlightsPanel";
+import TopBar from "../components/TopBar";
 import {
   fetchWorkflows,
   fetchNotifications,
   fetchOverviewData,
-  fetchKPIData,
 } from "../utils/developerDashboard.api";
 import { useNavigate } from "react-router-dom";
 import "../css/overview.css";
@@ -35,7 +35,6 @@ export default function OverviewPage() {
   const navigate = useNavigate();
   const [workflows, setWorkflows] = useState([]);
   const [notifications, setNotifications] = useState([]);
-  const [kpiData, setKpiData] = useState([]);
   const [overviewData, setOverviewData] = useState(null);
   const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false);
 
@@ -47,13 +46,12 @@ export default function OverviewPage() {
       const overview = await fetchOverviewData();
       setOverviewData(overview);
 
-      const kpis = await fetchKPIData();
-      setKpiData(kpis);
-
-      const { items } = await fetchNotifications();
-      setNotifications(items);
+      const ws = await fetchNotifications();
+      ws.onmessage = (event) => {
+        const newNotification = JSON.parse(event.data);
+        setNotifications((prev) => [...prev, newNotification]);
+      };
     };
-
     loadData();
   }, []);
 
@@ -66,80 +64,78 @@ export default function OverviewPage() {
     const projectId = `${templateId}-${randomSuffix}`;
     navigate(`/workflow/${projectId}`);
   };
-
+  console.log();
   return (
     <>
-    <div className="overview-container">
+    <div className="below-sidebar-container">
       <div className="overview-main">
-        <div className="overview-topbar">
-          <div className="overview-topbar-left">
-            <input
-              type="text"
-              placeholder="Search"
-              className="overview-search-input"
-            />
-          </div>
-          <div className="overview-topbar-right">
-            <div className="overview-user-avatar">U</div>
-          </div>
-        </div>
+        <TopBar userAvatar="https://i.pravatar.cc/40" />
 
         <div className="overview-content-wrapper">
           <div className="overview-left-content">
-            <div className="overview-overview-kpi-row">
-              <div className="overview-overview-wrapper">
-                {overviewData && <OverviewSection data={overviewData} />}
-              </div>
+            <Box sx={{ 
+              mx: { xs: '-16px', md: '-32px' },
+              mt: { xs: '-16px', md: '-32px' },
+              width: { xs: 'calc(100% + 32px)', md: 'calc(100% + 64px)' },
+            }}>
+              {overviewData && <Grid container spacing={0}>
+                <Grid size={{ xs: 12, md: 6, xl: 7 }}>
+                  {overviewData["pie_chart"] && <OverviewSection data={overviewData["pie_chart"]} />}
+                </Grid>
 
-              <div className="overview-vertical-divider" />
+                <Grid container size={{ xs: 12, md: 6, xl: 5 }} spacing={0}>
+                  {overviewData["kpi"] && overviewData["kpi"].map((kpi, index) => {
+                    const IconComponent = getIconComponent(kpi.iconType);
+                    const totalKpis = overviewData["kpi"].length;
+                    const isFirstRow = index < Math.ceil(totalKpis / 2);
+                    const isLastRow = index >= totalKpis - Math.ceil(totalKpis / 2);
+                    return (
+                      <Grid size={{ xs: 6, sm: 4, md: 6, xl: 4 }} key={kpi.id}>
+                        <KPICard
+                          title={kpi.title}
+                          value={kpi.value}
+                          subtitle={kpi.subtitle}
+                          icon={IconComponent}
+                          iconColor={kpi.iconColor}
+                          isFirstRow={isFirstRow}
+                          isLastRow={isLastRow}
+                        />
+                      </Grid>
+                    );
+                  })}
+                </Grid>
+              </Grid>}
+            </Box>
 
-              <div className="overview-kpi-grid">
-                {kpiData.map((kpi) => {
-                  const IconComponent = getIconComponent(kpi.iconType);
-                  return (
-                    <div key={kpi.id} className="overview-kpi-item">
-                      <KPICard
-                        title={kpi.title}
-                        value={kpi.value}
-                        subtitle={kpi.subtitle}
-                        icon={IconComponent}
-                        iconColor={kpi.iconColor}
-                      />
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
+              <div className="overview-horizontal-divider" />
 
-            <div className="overview-horizontal-divider" />
-
-            <div className="overview-workflows-section">
-              <div className="overview-workflows-header">
-                <Typography variant="h6" className="overview-workflows-title">
-                  Recent Workflows
-                </Typography>
-                <div className="overview-more-btn">
-                  <MoreHorizIcon className="overview-more-icon" />
+              <div className="overview-workflows-section">
+                <div className="overview-workflows-header">
+                  <Typography variant="h6" className="overview-workflows-title">
+                    Recent Workflows
+                  </Typography>
+                  <div className="overview-more-btn">
+                    <MoreHorizIcon className="overview-more-icon" />
+                  </div>
+                </div>
+                <div className="overview-workflows-list">
+                  {workflows.map((workflow) => (
+                    <RecentWorkflowCard
+                      key={workflow.id}
+                      workflow={workflow}
+                      onClick={() => handleSelectTemplate(workflow.id)}
+                    />
+                  ))}
                 </div>
               </div>
-              <div className="overview-workflows-list">
-                {workflows.map((workflow) => (
-                  <RecentWorkflowCard
-                    key={workflow.id}
-                    workflow={workflow}
-                    onClick={() => handleSelectTemplate(workflow.id)}
-                  />
-                ))}
-              </div>
             </div>
-          </div>
 
-          <div className="overview-highlights-panel">
-            <HighlightsPanel notifications={notifications} />
+            <div className="overview-highlights-panel">
+              <HighlightsPanel notifications={notifications} />
+            </div>
           </div>
         </div>
       </div>
-    </div>
 
       {/* Floating Action Button for Mobile/Tablet */}
       <Fab

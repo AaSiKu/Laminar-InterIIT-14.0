@@ -5,13 +5,12 @@ import ProtectedRoute from "./components/ProtectedRoute";
 import LoginPage from "./pages/Login.jsx";
 import SignupPage from "./pages/Signup.jsx";
 import WorkflowPage from "./pages/Workflows.jsx";
-import WorkflowsList from "./pages/WorkflowsList.jsx";
 import Sidebar from "./components/sidebar.jsx";
 import OverviewPage from "./pages/Overview.jsx";
 import { AdminPage } from "./pages/Admin.jsx";
+import {WorkflowsList} from "./pages/WorkflowsList.jsx"
 import { DeveloperDashboardProject } from "./pages/DeveloperDashboardProject.jsx";
 import NotFoundPage from "./pages/NotFoundPage.jsx";
-import { Box } from "@mui/material";
 
 function AppContent() {
   const location = useLocation();
@@ -27,36 +26,45 @@ function AppContent() {
         <Route path="/" element={<Navigate to="/overview" />} />
         <Route path="/404" element={<NotFoundPage />} />
 
-        {/* Workflows List */}
-        <Route path="/workflows" element={<WorkflowsList />} />
-
-        {/* Workflow Canvas */}
-        <Route path="/workflows/:pipelineId" element={<WorkflowPage />} />
-
         {/* Protected routes */}
         <Route
           path="/workflow"
           element={
-            <WorkflowPage />
+            <ProtectedRoute>
+              <WorkflowsList />
+            </ProtectedRoute>
           }
         />
-        {/* Default route */}
+        <Route
+          path="/workflows/:pipelineId"
+          element={
+            <ProtectedRoute>
+              <WorkflowPage />
+            </ProtectedRoute>
+          }
+        />
         <Route
           path="/overview"
           element={
-            <OverviewPage />
+            <ProtectedRoute>
+              <OverviewPage />
+            </ProtectedRoute>
           }
         />
         <Route
           path="/overview/:projectId"
           element={
-            <DeveloperDashboardProject />
+            <ProtectedRoute>
+              <DeveloperDashboardProject />
+            </ProtectedRoute>
           }
         />
         <Route
           path="/admin"
           element={
-            <AdminPage />
+            <ProtectedRoute>
+              <AdminPage />
+            </ProtectedRoute>
           }
         />
         <Route path="*" element={<Navigate to="/404" />} />
