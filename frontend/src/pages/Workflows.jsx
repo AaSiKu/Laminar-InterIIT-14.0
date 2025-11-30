@@ -14,8 +14,6 @@ import {
   Toolbar,
   Button,
   Box,
-  useTheme,
-  useMediaQuery,
   Alert,
   Snackbar,
   CircularProgress,
@@ -35,6 +33,7 @@ import {
   deleteDrafts,
   deletePipeline,
 } from "../utils/pipelineUtils";
+import { fetchNodeSchema } from "../utils/dashboard.api";
 
 export default function WorkflowPage() {
   const [selectedNode, setSelectedNode] = useState(null);
@@ -52,7 +51,6 @@ export default function WorkflowPage() {
     currentPipelineId,
     rfInstance,
     setCurrentPipelineId,
-    dashboardSidebarOpen,
     loading,
     setLoading,
     error,
@@ -159,18 +157,57 @@ export default function WorkflowPage() {
     setSelectedNode(node);
   };
 
-  const handleUpdateProperties = (nodeId, updatedProps) => {
+  const handleUpdateProperties = (nodeId, data) => {
     setCurrentNodes((nds) =>
       nds.map((n, idx) =>
         n.id === nodeId
-          ? { ...n, data: { ...n.data, properties: updatedProps } }
+          ? { ...n, data: { ...n.data, properties: data} }
           : n
       )
     );
     setSelectedNode(null);
   };
 
-  const drawerWidth = 64 + (dashboardSidebarOpen ? 325 : 0);
+  const onDragOver = useCallback((event) => {
+    event.preventDefault();
+    event.dataTransfer.dropEffect = 'move';
+  }, []);
+
+  const onDrop = useCallback(
+    async (event) => {
+      event.preventDefault();
+
+      const nodeName = event.dataTransfer.getData('application/reactflow');
+
+      if (!nodeName || !rfInstance) {
+        return;
+      }
+
+      try {
+        // Get the position where the node was dropped
+        const position = rfInstance.screenToFlowPosition({
+          x: event.clientX,
+          y: event.clientY,
+        });
+
+        // Fetch the schema for the node
+        const schema = await fetchNodeSchema(nodeName);
+
+        // Generate the node with the drop position
+        const newNode = generateNode(schema, currentNodes);
+        newNode.position = position;
+
+        // Add the node to the canvas
+        setCurrentNodes((prev) => [...prev, newNode]);
+      } catch (err) {
+        console.error('Failed to add node:', err);
+        setError('Failed to add node. Please try again.');
+      }
+    },
+    [rfInstance, currentNodes, setCurrentNodes, setError]
+  );
+
+  const drawerWidth = 64;
 
   return (
     <>
@@ -192,6 +229,8 @@ export default function WorkflowPage() {
             borderBottom: 1,
             borderColor: "divider",
             bgcolor: "background.paper",
+            zIndex: 1300,
+            position: "relative",
           }}
         >
           <Toolbar
@@ -256,7 +295,17 @@ export default function WorkflowPage() {
           </Toolbar>
         </AppBar>
 
-        <Box sx={{ height: "87vh", bgcolor: "white" }}>
+        <Box 
+          sx={{ height: "87vh", bgcolor: "#F7FAFC" }}
+          onClick={(e) => {
+            // Close PropertyBar when clicking on workspace
+            // Only if clicking on the canvas, not on nodes or controls
+            if (e.target.classList.contains('react-flow__pane') || 
+                e.target.classList.contains('react-flow__renderer')) {
+              setSelectedNode(null);
+            }
+          }}
+        >
           <ReactFlow
             nodes={currentNodes}
             edges={currentEdges}
@@ -266,7 +315,12 @@ export default function WorkflowPage() {
             onConnect={onConnect}
             onNodeClick={onNodeClick}
             onInit={setRfInstance}
+            onDrop={onDrop}
+            onDragOver={onDragOver}
+            onPaneClick={() => setSelectedNode(null)}
+            defaultViewport={{ x: 0, y: 0, zoom: 0.9 }}
             fitView
+            fitViewOptions={{ maxZoom: 0.9 }}
           >
             <Controls position="top-right" />
             <Background color="#aaa" gap={16} />

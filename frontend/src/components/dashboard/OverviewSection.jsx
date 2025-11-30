@@ -28,35 +28,42 @@ const OverviewSection = ({ data }) => {
     },
   ];
 
-  const total = 20; // Total count as shown in the image
+  const total = data?.total || 20;
   
   return (
     <Paper
       sx={{
-        p: 5,
-        borderRadius: '16px',
-        border: '1px solid #e5e7eb',
+        p: '2rem',
+        borderRadius: '1rem',
+        border: '0.0625rem solid #e5e7eb',
         boxShadow: 'none',
         height: '100%',
         position: 'relative',
+        display: 'flex',
+        flexDirection: 'column',
       }}
     >
       {/* Header */}
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 2 }}>
+      <Box sx={{ 
+        display: 'flex', 
+        justifyContent: 'space-between', 
+        alignItems: 'flex-start',
+        mb: '1rem',
+      }}>
         <Box>
-          <Typography variant="h5" fontWeight="700" sx={{ mb: 0.5 }}>
+          <Typography variant="h5" fontWeight="700" sx={{ mb: '0.25rem', fontSize: '1.5rem' }}>
             Overview
           </Typography>
-          <Typography variant="body2" color="text.secondary">
+          <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.875rem' }}>
             Current state of workflows
           </Typography>
         </Box>
         <Box
           sx={{
-            width: 36,
-            height: 36,
-            borderRadius: '8px',
-            border: '1px solid #e5e7eb',
+            width: '2.25rem',
+            height: '2.25rem',
+            borderRadius: '0.5rem',
+            border: '0.0625rem solid #e5e7eb',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
@@ -64,13 +71,20 @@ const OverviewSection = ({ data }) => {
             '&:hover': { bgcolor: '#f9fafb' },
           }}
         >
-          <MoreHorizIcon sx={{ fontSize: 20, color: 'text.secondary' }} />
+          <MoreHorizIcon sx={{ fontSize: '1.25rem', color: 'text.secondary' }} />
         </Box>
       </Box>
 
-      {/* Semicircle Donut Chart */}
-      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'flex-end', mb: 2, mt: 3 }}>
-        <Box sx={{ position: 'relative', width: 320, height: 160 }}>
+      {/* Semicircle Donut Chart - Top 40% */}
+      <Box sx={{ 
+        display: 'flex', 
+        justifyContent: 'center', 
+        alignItems: 'flex-start',
+        flex: '0 0 40%',
+        position: 'relative',
+        pt: '1rem',
+      }}>
+        <Box sx={{ position: 'relative', width: '20rem', height: '10rem' }}>
           <ResponsiveContainer width="100%" height={200}>
             <PieChart>
               <Pie
@@ -94,7 +108,7 @@ const OverviewSection = ({ data }) => {
           <Box
             sx={{
               position: 'absolute',
-              bottom: -30,
+              bottom: '-1.875rem',
               left: '50%',
               transform: 'translateX(-50%)',
               textAlign: 'center',
@@ -110,27 +124,51 @@ const OverviewSection = ({ data }) => {
         </Box>
       </Box>
 
-      {/* Legend */}
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', gap: 2, mt: 6 }}>
+      {/* Legend - Bottom section with centered boxes */}
+      <Box sx={{ 
+        display: 'flex', 
+        justifyContent: 'center',
+        alignItems: 'center',
+        gap: '1.5rem',
+        flex: '1',
+        mt: '3rem',
+        pt: '1rem',
+        flexWrap: 'nowrap',
+        '@media (min-width: 112.5rem) and (max-width: 134.3125rem)': {
+          display: 'grid',
+          gridTemplateColumns: 'repeat(2, 1fr)',
+          gridTemplateRows: 'repeat(2, 1fr)',
+          gap: '1rem',
+          maxWidth: '80%',
+        },
+      }}>
         {chartData.map((item, index) => (
-          <Box key={index} sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <Box 
+            key={index} 
+            sx={{ 
+              display: 'flex', 
+              alignItems: 'center', 
+              gap: '0.5rem',
+              '@media (min-width: 112.5rem) and (max-width: 134.3125rem)': {
+                justifyContent: 'center',
+              },
+            }}
+          >
               <Box
                 sx={{
-                  width: 4,
-                  height: 36,
+                width: '0.25rem',
+                height: '2.25rem',
                   bgcolor: item.color,
-                  borderRadius: '2px',
+                borderRadius: '0.125rem',
                 }}
               />
-              <Box>
-                <Typography variant="caption" color="text.secondary" sx={{ display: 'block', fontSize: '0.75rem' }}>
+            <Box sx={{ textAlign: 'left' }}>
+              <Typography variant="caption" color="text.secondary" sx={{ display: 'block', fontSize: '0.75rem', lineHeight: 1.2 }}>
                   {item.name}
                 </Typography>
-                <Typography variant="body2" fontWeight="600">
+              <Typography variant="body2" fontWeight="600" sx={{ fontSize: '0.875rem' }}>
                   {item.value.toLocaleString()}
                 </Typography>
-              </Box>
             </Box>
           </Box>
         ))}

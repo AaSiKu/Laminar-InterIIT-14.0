@@ -1,8 +1,5 @@
-import { useState, useEffect, useCallback } from "react";
-import { Box, Typography, IconButton, Badge, Drawer } from "@mui/material";
-import TemplateSection from "../components/dashboard/TemplateSection";
-import WorkflowsTable from "../components/dashboard/WorkflowsTable";
-import NotificationsList from "../components/dashboard/NotificationsList";
+import { useState, useEffect } from "react";
+import { Typography, IconButton, Drawer, Fab } from "@mui/material";
 import OverviewSection from "../components/dashboard/OverviewSection";
 import KPICard from "../components/dashboard/KPICard";
 import RecentWorkflowCard from "../components/dashboard/RecentWorkflowCard";
@@ -12,7 +9,6 @@ import {
   fetchNotifications,
   fetchOverviewData,
   fetchKPIData,
-  fetchTemplates,
 } from "../utils/developerDashboard.api";
 import { useNavigate } from "react-router-dom";
 import "../css/overview.css";
@@ -21,8 +17,10 @@ import AccessTimeIcon from "@mui/icons-material/AccessTime";
 import ErrorOutlineIcon from "@mui/icons-material/ErrorOutline";
 import SpeedIcon from "@mui/icons-material/Speed";
 import MoreHorizIcon from "@mui/icons-material/MoreHoriz";
+import HighlightIcon from "@mui/icons-material/Highlight";
+import CloseIcon from "@mui/icons-material/Close";
 
-// Move this to theme
+// Icon mapping utility
 const getIconComponent = (iconType) => {
   const iconMap = {
     timeline: TimelineIcon,
@@ -33,39 +31,16 @@ const getIconComponent = (iconType) => {
   return iconMap[iconType] || TimelineIcon;
 };
 
-const workflowBlueprint = {};
-
-// TODO: here is it, do i need it or its from mui/lab
-const TabPanel = (props) => {
-  const { children, value, index, ...other } = props;
-  return (
-    <div
-      role="tabpanel"
-      hidden={value !== index}
-      id={`tabpanel-${index}`}
-      aria-labelledby={`tab-${index}`}
-      {...other}
-    >
-      {value === index && <Box sx={{ p: 3 }}>{children}</Box>}
-    </div>
-  );
-};
-
 export default function OverviewPage() {
   const navigate = useNavigate();
-  const [templates, setTemplates] = useState([]);
   const [workflows, setWorkflows] = useState([]);
   const [notifications, setNotifications] = useState([]);
-  const [notificationCount, setNotificationCount] = useState(0);
-  const [currentTab, setCurrentTab] = useState(0);
   const [kpiData, setKpiData] = useState([]);
   const [overviewData, setOverviewData] = useState(null);
+  const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false);
 
   useEffect(() => {
     const loadData = async () => {
-      const templateData = await fetchTemplates();
-      setTemplates(templateData);
-
       const workflowData = await fetchWorkflows();
       setWorkflows(workflowData);
 
@@ -75,10 +50,8 @@ export default function OverviewPage() {
       const kpis = await fetchKPIData();
       setKpiData(kpis);
 
-      // TODO: Extra may
-      const { items, count } = await fetchNotifications();
+      const { items } = await fetchNotifications();
       setNotifications(items);
-      setNotificationCount(count);
     };
 
     loadData();
@@ -95,6 +68,7 @@ export default function OverviewPage() {
   };
 
   return (
+    <>
     <div className="overview-container">
       <div className="overview-main">
         <div className="overview-topbar">
@@ -166,5 +140,33 @@ export default function OverviewPage() {
         </div>
       </div>
     </div>
+
+      {/* Floating Action Button for Mobile/Tablet */}
+      <Fab
+        className="overview-highlights-fab"
+        onClick={() => setMobileDrawerOpen(true)}
+        aria-label="highlights"
+      >
+        <HighlightIcon />
+      </Fab>
+
+      {/* Mobile/Tablet Drawer for Highlights */}
+      <Drawer
+        anchor="right"
+        open={mobileDrawerOpen}
+        onClose={() => setMobileDrawerOpen(false)}
+        className="overview-drawer"
+      >
+        <div className="overview-drawer-header">
+          <Typography variant="h6" className="overview-drawer-title">
+            Highlights
+          </Typography>
+          <IconButton onClick={() => setMobileDrawerOpen(false)}>
+            <CloseIcon />
+          </IconButton>
+        </div>
+        <HighlightsPanel notifications={notifications} />
+      </Drawer>
+    </>
   );
 }
