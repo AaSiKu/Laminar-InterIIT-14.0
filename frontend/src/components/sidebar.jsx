@@ -140,6 +140,9 @@ const Sidebar = () => {
           onClick={drawerOpen ? handleDrawerClose : handleDrawerOpen} 
           sx={{ 
             color: '#1976d2',
+            '& svg': {
+              fontSize: '1.5rem', // Make menu/close icon larger
+            },
           }}
         >
           {drawerOpen ? <ChevronLeft /> : <MenuIcon />}
@@ -201,6 +204,9 @@ const Sidebar = () => {
                           easing: theme.transitions.easing.easeInOut,
                           duration: theme.transitions.duration.short,
                         }),
+                        '& svg': {
+                          fontSize: '1.5rem', // Make icons larger
+                        },
                       }}
                     >
                       {item.icon}
