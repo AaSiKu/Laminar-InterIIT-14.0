@@ -1,23 +1,27 @@
-from pydantic import Field, field_validator, BaseModel
-from typing import Optional, Dict, Any, List, Literal, Annotated
+from pydantic import Field, TypeAdapter, field_validator, BaseModel
+from pydantic.json_schema import SkipJsonSchema
+from typing import Optional, Dict, Any, List, Literal, Annotated, Tuple
 import pathway as pw
 from .node import Node
 import json
 
 # TODO: Add descriptions for the fields for user help on the UI, the description will be rendered as md
-
 # NOTE: Instead of using tuple, using this special type to ensure correct rending mechanism on frontend
 PairOfStrings = Annotated[List[str], Field(min_length=2, max_length=2)]
 class ColumnType(BaseModel):
-    key: str = Field(..., title="Column Name", description="e.g. Name")
-    value: str = Field(..., title="Type", description="string")
+    key: str = Field(..., title="Column Name")
+    value: str = Field(..., title="Type")
 class IONode(Node):
     category: Literal['io']
     name: Optional[str] = Field(default="")
 
 class InputNode(IONode):
     n_inputs : Literal[0] = 0
-    table_schema: List[ColumnType]
+    # input_schema will be sent to frontend and will be converted in to the table_schema at backend for parsing
+    input_schema: List[ColumnType] = Field(
+        description="List of columns names and types (eg. `str`, `float`, `int` for more details refer [here](https://pathway.com/developers/user-guide/connect/schema/))"
+    )
+    table_schema: SkipJsonSchema[Any]
     datetime_columns: Optional[List[PairOfStrings]] = Field(
         default=None,
         description =( "List of tuples **[column_name, format_string]** to convert string columns to datetime. "

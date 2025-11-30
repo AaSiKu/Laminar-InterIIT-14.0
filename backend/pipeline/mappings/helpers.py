@@ -55,7 +55,7 @@ def select_for_join(left: pw.Table, right: pw.Table, without1: List[str], withou
 
 
 def parse_table_schema(schema: List[ColumnType]) -> Dict[str, str]:
-    final_table_schema = {}
-    for column in schema:
-        final_table_schema[column.key] = column.value
+    final_table_schema : Dict[str, str] = {}
+    for col in schema:
+        final_table_schema[col['key']] = col['value']
     return final_table_schema

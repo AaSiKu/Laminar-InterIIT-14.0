@@ -39,18 +39,20 @@ def build_agentic_graph(
                     if t < 0 or t >= len(nodes):
                         raise IndexError(f"Tool index {t} out of range for nodes.")
                     node = nodes[t]
+                    if node.node_id == "rag_node":
+                        # Handle RAG nodes as tools to agents
+                        continue
                     out_tbl = node_outputs[t]
                     if not hasattr(node, "tool_description") or not node.tool_description:
                         raise ValueError(f"Node at index {t} must have tool_description.")
                     tool_tables.append({
-                        "table_name": construct_table_name(node, t),
-                        "schema": out_tbl.schema.columns_to_json_serializable_dict(),
+                        "table_name": construct_table_name(node.node_id, t),
+                        "table_schema": out_tbl.schema.columns_to_json_serializable_dict(),
                         "description": node.tool_description,
                     })
 
         payload.append({
             "name": agent.name,
-            "master_prompt": agent.master_prompt,
             "description": agent.description,
             "tools": tool_tables
         })
@@ -103,7 +105,6 @@ def build_agentic_graph(
                 f"Description: {self.trigger_description}\n"
                 f"New row: {json.dumps(kwargs, indent=4)}\n"
                 "This row is a new addition to the table. "
-                "Decide if any agent-tools should be called, then produce the final answer."
             )
             answer = await self.infer("trigger", prompt)
             return {

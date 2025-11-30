@@ -1,4 +1,4 @@
-from typing import List, Optional, Literal,  Union
+from typing import List, Tuple, Optional, Literal, Union
 from typing_extensions import TypedDict
 from .base import TemporalNode, ReducerDict, TimedeltaType, DateTimeType
 
