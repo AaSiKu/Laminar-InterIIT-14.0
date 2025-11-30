@@ -1,36 +1,61 @@
 import React, { createContext, useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import Cookies from "js-cookie";
 
 export const AuthContext = createContext();
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
-  // Load token from cookies when app starts
   useEffect(() => {
-    const token = Cookies.get("access_token");
-    if (token) setUser({ token });
+    const checkAuth = async () => {
+      try {
+        const res = await fetch(`${import.meta.env.VITE_API_SERVER}/auth/me`, {
+          method: "GET",
+          credentials: "include",
+        });
+        if (res.ok) {
+          const data = await res.json();
+          setUser(data);
+        } else {
+          setUser(null); 
+        }
+      } catch (err) {
+        setUser(null);
+      } finally {
+        setLoading(false);
+      }
+    };
+    checkAuth();
   }, []);
 
-  // Login → Save tokens in cookies
+  // Login: just update state and redirect; backend sets HttpOnly cookies
   const login = (data) => {
-    Cookies.set("access_token", data.access_token, { expires: 1, sameSite: "Lax" }); // expires in 1 day
-    Cookies.set("refresh_token", data.refresh_token, { expires: 7, sameSite: "Lax" }); // refresh token lasts longer
-    setUser({ token: data.access_token });
-    navigate("/dashboard");
+    setUser(data);
+    navigate("/overview");
   };
 
-  // Logout → Remove cookies
-  const logout = () => {
-    Cookies.remove("access_token");
-    Cookies.remove("refresh_token");
-    setUser(null);
-    navigate("/auth/login");
+  // Logout: call backend to delete cookies
+  const logout = async () => {
+    try {
+      await fetch(`${import.meta.env.VITE_API_SERVER}/auth/logout`, {
+        method: "POST",
+        credentials: "include",
+      });
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setUser(null);
+      navigate("/login");
+    }
   };
 
   const isAuthenticated = !!user;
+
+  if (loading) {
+    return <div>Loading...</div>; 
+  }
 
   return (
     <AuthContext.Provider value={{ user, login, logout, isAuthenticated }}>

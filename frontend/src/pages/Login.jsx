@@ -7,63 +7,65 @@ import {
   Alert,
   Paper,
 } from "@mui/material";
-// Assuming useGlobalContext provides the same shape as AuthContext
 import { useGlobalContext } from "../context/GlobalContext";
 import EmailIcon from "@mui/icons-material/Email";
 import LockIcon from "@mui/icons-material/Lock";
-import LoginIcon from "@mui/icons-material/Login"; // Icon for the login header
-import { useNavigate } from "react-router-dom";
+import LoginIcon from "@mui/icons-material/Login"; 
+import { Navigate } from "react-router-dom";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const navigate = useNavigate();
-  // Using useGlobalContext as per your provided snippet
   const { login, isAuthenticated } = useGlobalContext();
 
-  useEffect(() => {
-    if (isAuthenticated) {
-      navigate("/developer-dashboard");
-      // return <Typography sx={{ mt: 10, textAlign: "center" }}>Already logged in</Typography>;
-    }
-  }, []);
+ if (isAuthenticated) {
+    return <Navigate to="/overview" replace />;
+  }
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
     setIsLoading(true);
+
     try {
       const res = await fetch(`${import.meta.env.VITE_API_SERVER}/auth/login`, {
         method: "POST",
-        mode: "cors",
         credentials: "include",
         headers: { "Content-Type": "application/x-www-form-urlencoded" },
         body: new URLSearchParams({ username: email, password }),
       });
 
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.detail || JSON.stringify(data));
-      login(data);
-      navigate("/developer-dashboard");
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.detail || "Login failed");
+      }
+
+      const userRes = await fetch(`${import.meta.env.VITE_API_SERVER}/auth/me`, {
+        method: "GET",
+        credentials: "include",
+      });
+
+      if (!userRes.ok) throw new Error("Failed to fetch user info");
+
+      const userData = await userRes.json();
+      login(userData); // triggers redirect
     } catch (err) {
       setError(err.message);
-    }
-    finally{
+    } finally {
       setIsLoading(false);
     }
   };
-
   return (
     <Box
       sx={{
         minHeight: "100vh",
-        minWidth: "100vw", // Ensured minWidth is set
+        minWidth: "100vw", 
         display: "flex",
         justifyContent: "center",
         alignItems: "center",
-        background: "#f0f2f5", // Changed to light grey background
+        background: "#f0f2f5",
         position: "relative",
         overflow: "hidden",
         p: 2,
@@ -282,7 +284,7 @@ export default function LoginPage() {
           >
             Don't have an account?{" "}
             <a
-              href="/auth/signup"
+              href="/signup"
               style={{
                 color: "#3b82f6",
                 textDecoration: "none",

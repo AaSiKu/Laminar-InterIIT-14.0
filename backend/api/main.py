@@ -1,5 +1,7 @@
+# TODO: Refactor the routes in
 import logging
 import os
+from typing_extensions import Annotated
 from dotenv import load_dotenv
 from motor.motor_asyncio import AsyncIOMotorClient
 from bson.objectid import ObjectId
@@ -7,8 +9,8 @@ from fastapi import FastAPI, Request, status, HTTPException, WebSocket, WebSocke
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware 
 from fastapi.security import OAuth2PasswordBearer
-from typing import Any, Dict, Union, Optional, Type
-from pydantic import BaseModel
+from typing import Any, Dict, List, Union, Optional, Type
+from pydantic import BaseModel, Field
 from contextlib import asynccontextmanager
 import inspect
 import docker
@@ -25,9 +27,12 @@ from .dockerScript import (
 from aiokafka import AIOKafkaConsumer
 
 
-
 from backend.auth.routes import router as auth_router
 from backend.auth.routes import get_current_user
+
+
+import asyncio
+from bson.json_util import dumps
 
 configure_root()
 logger = get_logger(__name__)
@@ -37,19 +42,23 @@ load_dotenv()
 MONGO_URI = os.getenv("MONGO_URI")
 MONGO_DB = os.getenv("MONGO_DB", "db")
 WORKFLOW_COLLECTION = os.getenv("MONGO_COLLECTION", "pipelines")
+NOTIFICATION_COLLECTION = os.getenv("NOTIFICATION_COLLECTION", "notifications")
 USER_COLLECTION = os.getenv("USER_COLLECTION", "users")
-
+print("NOTIFICATION COLLECTION", NOTIFICATION_COLLECTION)
+print("WORKFLOW COLLECTION", WORKFLOW_COLLECTION)
+print("USERS COLLECTION", USER_COLLECTION)
 # Global variables
 mongo_client = None
 db = None
 workflow_collection = None
+notification_collection = None
 user_collection = None
 docker_client = None
 NODES: Dict[str, BaseModel] = node_map
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    global mongo_client, db, workflow_collection, user_collection, docker_client
+    global mongo_client, db, workflow_collection, notification_collection, user_collection, docker_client
 
     # ---- STARTUP ----
     if not MONGO_URI:
@@ -59,6 +68,7 @@ async def lifespan(app: FastAPI):
     db = mongo_client[MONGO_DB]
     workflow_collection = db[WORKFLOW_COLLECTION]
     user_collection = db[USER_COLLECTION]
+    notification_collection = db[NOTIFICATION_COLLECTION]
     print(f"Connected to MongoDB at {MONGO_URI}, DB: {MONGO_DB}", flush=True)
 
     app.state.user_collection = user_collection
@@ -72,6 +82,10 @@ async def lifespan(app: FastAPI):
 
     docker_client = docker.from_env()
     print(f"Connected to docker daemon")
+
+    asyncio.create_task(watch_changes())
+    print("Started MongoDB change stream listener")
+
 
     yield
 
@@ -99,6 +113,7 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
 
 
 # ---------------- AUTH HELPERS ---------------- #
@@ -131,28 +146,6 @@ def schema_index(request: Request):
         "agent_nodes": agent_ids,
     }
 
-def _remap_schema_types(schema: dict) -> dict:
-    """
-    Recursively traverses a JSON schema and remaps standard JSON types
-    to Python-style type names.
-    """
-    if isinstance(schema, dict):
-        for key, value in schema.items():
-            if key == 'type':
-                if value == 'string':
-                    schema[key] = 'str'
-                elif value == 'integer':
-                    schema[key] = 'int'
-                elif value == 'number':
-                    schema[key] = 'float'
-                elif value == 'boolean':
-                    schema[key] = 'bool'
-            else:
-                schema[key] = _remap_schema_types(value)
-    elif isinstance(schema, list):
-        return [_remap_schema_types(item) for item in schema]
-    return schema
-
 def get_schema_for_node(node: Union[str, Type[Any]]) -> dict:
     """
     Retrieves the Pydantic JSON schema for a given node type.
@@ -169,11 +162,11 @@ def get_schema_for_node(node: Union[str, Type[Any]]) -> dict:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="node is not a Pydantic model class")
 
     if hasattr(cls, "model_json_schema"):
-        schema = cls.model_json_schema()
+        schema = cls.model_json_schema(mode='serialization')
     else:
-        schema = cls.model_json_schema()
-    
-    return _remap_schema_types(schema)
+        schema = cls.model_json_schema(mode='serialization')
+
+    return schema
 
 
 @app.get("/schema/{node_name}")
@@ -182,7 +175,7 @@ def schema_for_node(node_name: str):
     Returns the JSON schema for a specific node type.
     """
     schema_obj = get_schema_for_node(node_name)
-    return schema_obj   
+    return schema_obj
 
 # ------- Docker container functions ------- #
 class PipelineIdRequest(BaseModel):
@@ -459,3 +452,96 @@ async def alerts_ws(websocket: WebSocket, pipeline_id: str):
         pass
     finally:
         await consumer.stop()
+
+@app.get("/kpi")
+async def fetch_kpi():
+    # send a request to mongodb pipelines collection and get all pipelines associated with userid
+    # total: display all pipelines
+    # running: those with status=true
+    # broken: those with status=false
+    cursor = workflow_collection.find({"user":"TODO: later save from the auth token extraction"})
+    all_pipelines = await cursor.to_list(length=None)
+    running = []
+    for pipeline in all_pipelines:
+        if pipeline["status"] is True:
+            running.append(pipeline["_id"])
+    KPI = {
+        "total": [str(item["_id"]) for item in all_pipelines],
+        "running": [str(item["_id"]) for item in all_pipelines if item.get("status") is True],
+        "broken": [str(item["_id"]) for item in all_pipelines if item.get("status") is False],
+    }
+
+    KPI_stats= {
+        "total": len(KPI["total"]),
+        "running": len(KPI["running"]),
+        "broken": len(KPI["broken"])
+    }
+    print(KPI)
+    return KPI_stats
+   
+
+active_connections = set()
+
+async def broadcast(message: str):
+    '''
+    Sends/Broadcasts the notification to all connections
+    '''
+    for websocket in list(active_connections):
+        try:
+            print(message)
+            await websocket.send_text(message)
+        except:
+            active_connections.remove(websocket)
+
+
+@app.websocket("/ws/pipeline")
+async def websocket_endpoint(websocket: WebSocket):
+    '''
+    Creates a websocket and keeps it alive
+    Deletes when websocket is inactive
+    '''
+    await websocket.accept()
+    active_connections.add(websocket)
+
+    try:
+        while True:
+            # Keep connection alive
+            test = await websocket.receive_text()
+    except WebSocketDisconnect:
+        active_connections.remove(websocket)
+
+
+async def watch_changes():
+    '''
+    Listens for any insertion to the notifications collection
+    '''
+    condition = [
+    {"$match": {"operationType": "insert"}}
+]
+    try:
+        async with notification_collection.watch(condition) as stream:
+            print("Change stream listener started")
+            async for change in stream:
+                print("Mongo change:", dumps(change["fullDocument"]))
+                await broadcast(dumps(change["fullDocument"]))
+    except Exception as e:
+        print("⚠ ChangeStream NOT running:", e)
+
+class Notification(BaseModel):
+  title: str
+  desc: str
+  action: str
+
+@app.post("/add_notification")
+async def add_notification(data: Notification):
+    '''
+    Route to add a notification 
+    Would be called by an agent
+    '''
+    result = await notification_collection.insert_one(data.model_dump())
+
+    return {
+        "status": "success",
+        "inserted_id": str(result.inserted_id),
+        "inserted_data": data.model_dump()
+    }
