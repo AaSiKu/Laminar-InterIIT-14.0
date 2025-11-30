@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import Markdown from 'react-markdown';
+import Markdown from "react-markdown";
 import {
   Drawer,
   Box,
@@ -23,31 +23,9 @@ import {
   AccessTime as AccessTimeIcon,
   CalendarToday as CalendarTodayIcon,
 } from "@mui/icons-material";
-import { PropertyInput } from "./PropertyInput";
 import Form from "@rjsf/mui";
 import validator from "@rjsf/validator-ajv8";
 import "../css/PropertyBar.css";
-
-const stringifyJsonProperties = (properties) =>
-  properties.map((prop) => {
-    if (prop.type === "json" && typeof prop.value === "object") {
-      return { ...prop, value: JSON.stringify(prop?.value, null, 2) };
-    } else if (prop.type == "array") {
-      return { ...prop, value: prop?.value?.split(",") };
-    }
-    return prop;
-  });
-
-// const parseProperties = (properties) =>
-  // properties.map((prop) => {
-  //   if (prop.type === "json") {
-  //     return { ...prop, value: JSON.parse(prop.value) };
-  //   } else if (prop.type === "array") {
-  //     console.log(prop.value.toString().split(","));
-  //     return { ...prop, value: prop?.value?.toString().split(",") };
-  //   }
-  //   return prop;
-  // });
 
 
 export const PropertyBar = ({
@@ -81,26 +59,10 @@ export const PropertyBar = ({
     );
   };
 
-  console.log(selectedNode?.schema)
+  console.log(selectedNode?.schema);
 
   const handleSave = ({ formData }) => {
     if (!selectedNode) return;
-
-    // const hasEmptyRequired = properties.some((prop) => {
-    //   if (prop.type === "json") {
-    //     return !prop.value || !prop.value.toString().trim();
-    //   }
-    //   return `${prop.value ?? ""}`.trim() === "";
-    // });
-
-    // if (hasEmptyRequired) {
-    //   setSnackbar({
-    //     open: true,
-    //     message: "Please complete all required properties before saving.",
-    //     severity: "error",
-    //   });
-    //   return;
-    // }
 
     try {
       onUpdateProperties(selectedNode.id, formData);
@@ -155,7 +117,9 @@ export const PropertyBar = ({
             </Alert>
           </Box>
         ) : (
-          <Box sx={{ height: "100%", display: "flex", flexDirection: "column" }}>
+          <Box
+            sx={{ height: "100%", display: "flex", flexDirection: "column" }}
+          >
             {/* Header */}
             <Box
               sx={{
@@ -167,7 +131,10 @@ export const PropertyBar = ({
                 borderBottom: "1px solid #e0e0e0",
               }}
             >
-              <Typography variant="h6" sx={{ fontWeight: 600, fontSize: "1.125rem" }}>
+              <Typography
+                variant="h6"
+                sx={{ fontWeight: 600, fontSize: "1.125rem" }}
+              >
                 Property Editor
               </Typography>
               <IconButton
@@ -212,9 +179,9 @@ export const PropertyBar = ({
                       borderRadius: "6px",
                       fontSize: "0.8125rem",
                       "& fieldset": { borderColor: "#e0e0e0" },
-                      "& input": { 
+                      "& input": {
                         padding: "10px 12px",
-                        fontSize: "0.8125rem"
+                        fontSize: "0.8125rem",
                       },
                     },
                   }}
@@ -274,62 +241,11 @@ export const PropertyBar = ({
                     validator={validator}
                     formData={selectedNode?.data?.properties}
                     onSubmit={handleSave}
+                    onClose={onClose}
                     templates={{
                       DescriptionFieldTemplate: MarkdownDescriptionField,
                     }}
-                  >
-                    {/* Custom Action Buttons */}
-                    <Box
-                      sx={{
-                        display: "flex",
-                        gap: 1.5,
-                        pt: 2.5,
-                        borderTop: "1px solid #e0e0e0",
-                        mt: 3,
-                      }}
-                    >
-                      <Button
-                        onClick={onClose}
-                        variant="outlined"
-                        fullWidth
-                        sx={{
-                          borderRadius: "6px",
-                          textTransform: "none",
-                          fontWeight: 500,
-                          fontSize: "0.8125rem",
-                          borderColor: "#e0e0e0",
-                          color: "#616161",
-                          py: 0.875,
-                          "&:hover": {
-                            borderColor: "#bdbdbd",
-                            backgroundColor: "#f5f5f5",
-                          },
-                        }}
-                      >
-                        Discard
-                      </Button>
-                      <Button
-                        type="submit"
-                        variant="contained"
-                        fullWidth
-                        sx={{
-                          borderRadius: "6px",
-                          textTransform: "none",
-                          fontWeight: 500,
-                          fontSize: "0.8125rem",
-                          backgroundColor: "#1976d2",
-                          py: 0.875,
-                          boxShadow: "none",
-                          "&:hover": {
-                            backgroundColor: "#1565c0",
-                            boxShadow: "0 2px 8px rgba(25, 118, 210, 0.3)",
-                          },
-                        }}
-                      >
-                        Save
-                      </Button>
-                    </Box>
-                  </Form>
+                  ></Form>
                 </div>
               </Box>
             </Box>
