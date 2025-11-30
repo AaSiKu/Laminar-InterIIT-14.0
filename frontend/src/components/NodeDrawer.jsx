@@ -159,38 +159,38 @@ export const NodeDrawer = ({ open, onClose, onAddNode, onDragStart: onDragStartP
     if (searchQuery && filteredNodes.length === 0) return null;
     
     return (
-      <Box key={key} sx={{ mb: 2 }}>
-        {/* Header */}
-        <Box
-          onClick={() => toggleSection(key)}
-          sx={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            cursor: "pointer",
+    <Box key={key} sx={{ mb: 2 }}>
+      {/* Header */}
+      <Box
+        onClick={() => toggleSection(key)}
+        sx={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          cursor: "pointer",
             px: 2,
             py: 1.5,
-            borderRadius: 1,
+          borderRadius: 1,
             "&:hover": { bgcolor: "#f9fafb" },
-          }}
-        >
+        }}
+      >
           <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
             {getCategoryIcon(key)}
-            <Typography 
-              variant="subtitle1" 
-              fontWeight={600}
+          <Typography 
+            variant="subtitle1" 
+            fontWeight={600}
               sx={{ 
                 fontSize: "0.875rem",
                 color: "#374151"
               }}
-            >
-              {key.charAt(0).toUpperCase() + key.slice(1)}
-            </Typography>
-          </Box>
-          <IconButton size="small" sx={{ color: "#77878F" }}>
-            {openSections[key] ? <ExpandLess fontSize="small" /> : <ExpandMore fontSize="small" />}
-          </IconButton>
+          >
+            {key.charAt(0).toUpperCase() + key.slice(1)}
+          </Typography>
         </Box>
+          <IconButton size="small" sx={{ color: "#77878F" }}>
+          {openSections[key] ? <ExpandLess fontSize="small" /> : <ExpandMore fontSize="small" />}
+        </IconButton>
+      </Box>
 
       {/* Node List */}
       <Collapse in={openSections[key]}>
@@ -269,19 +269,19 @@ export const NodeDrawer = ({ open, onClose, onAddNode, onDragStart: onDragStartP
                       boxShadow: "0 4px 12px rgba(0, 0, 0, 0.08)",
                       borderColor: "#d1d5db",
                     },
-                        }}
-                      >
+                  }}
+                >
                         {imageErrors[nodeName] ? (
-                          <Typography
-                            sx={{
+                <Typography
+                  sx={{
                               fontSize: "2rem",
                               fontWeight: 600,
                               color: "#77878F",
-                              pointerEvents: "none",
-                            }}
-                          >
+                    pointerEvents: "none",
+                  }}
+                >
                             →
-                          </Typography>
+                </Typography>
                         ) : (
                           <img
                             src={getNodeImage(key)}
@@ -295,32 +295,32 @@ export const NodeDrawer = ({ open, onClose, onAddNode, onDragStart: onDragStartP
                             }}
                           />
                         )}
-                  
-                  {/* Drag and Drop Popup */}
-                  {clickedNode === nodeName && (
-                    <Box
-                      sx={{
-                        position: 'absolute',
-                        top: '50%',
-                        left: '50%',
-                        transform: 'translate(-50%, -50%)',
-                        bgcolor: 'rgba(0, 0, 0, 0.85)',
-                        color: 'white',
-                        padding: '6px 12px',
+                
+                {/* Drag and Drop Popup */}
+                {clickedNode === nodeName && (
+                  <Box
+                    sx={{
+                      position: 'absolute',
+                      top: '50%',
+                      left: '50%',
+                      transform: 'translate(-50%, -50%)',
+                      bgcolor: 'rgba(0, 0, 0, 0.85)',
+                      color: 'white',
+                      padding: '6px 12px',
                         borderRadius: '6px',
                         fontSize: "0.6875rem",
-                        fontWeight: 500,
-                        whiteSpace: 'nowrap',
-                        zIndex: 10,
-                        pointerEvents: 'none',
-                        boxShadow: '0 4px 12px rgba(0, 0, 0, 0.3)',
-                        animation: 'fadeInOut 2s ease-in-out',
-                      }}
-                    >
-                      Drag and Drop
-                    </Box>
-                  )}
-                </Paper>
+                      fontWeight: 500,
+                      whiteSpace: 'nowrap',
+                      zIndex: 10,
+                      pointerEvents: 'none',
+                      boxShadow: '0 4px 12px rgba(0, 0, 0, 0.3)',
+                      animation: 'fadeInOut 2s ease-in-out',
+                    }}
+                  >
+                    Drag and Drop
+                  </Box>
+                )}
+              </Paper>
                 
                 {/* Text Outside Gray Background */}
                 <Typography
@@ -596,22 +596,22 @@ export const NodeDrawer = ({ open, onClose, onAddNode, onDragStart: onDragStartP
         ) : (
           // All Files Tab
           <Box>
-            {Object.keys(nodeCategories).length === 0 && !loading ? (
-              <Typography
-                variant="body2"
-                sx={{ 
-                  textAlign: "center", 
+        {Object.keys(nodeCategories).length === 0 && !loading ? (
+          <Typography
+            variant="body2"
+            sx={{ 
+              textAlign: "center", 
                   color: "#9ca3af",
                   fontSize: "0.8125rem",
                   py: 4
-                }}
-              >
-                No node categories found.
-              </Typography>
-            ) : (
+            }}
+          >
+            No node categories found.
+          </Typography>
+        ) : (
               Object.entries(nodeCategories).map(([key, nodes]) =>
-                renderCategory(key, nodes)
-              )
+            renderCategory(key, nodes)
+          )
             )}
           </Box>
         )}

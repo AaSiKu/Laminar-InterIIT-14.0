@@ -60,8 +60,7 @@ const Sidebar = () => {
     {
       icon: <AccountTreeRounded />,
       label: 'Workflows',
-      path: '/workflow',
-      onClickExtra: () => setDashboardSidebarOpen(!dashboardSidebarOpen),
+      path: '/workflows',
     },
     { icon: <WorkspacePremiumRounded />, label: 'Admin', path: '/admin' },
     {
@@ -76,37 +75,54 @@ const Sidebar = () => {
   const drawerWidth = drawerOpen ? DRAWER_WIDTH : SIDEBAR_WIDTH;
 
   return (
-    <Drawer
-      variant="permanent"
-      open={drawerOpen}
-      sx={{
-        width: drawerWidth,
-        flexShrink: 0,
-        whiteSpace: 'nowrap',
-        boxSizing: 'border-box',
-        transition: theme.transitions.create('width', {
-          easing: theme.transitions.easing.sharp,
-          duration: drawerOpen
-            ? theme.transitions.duration.enteringScreen
-            : theme.transitions.duration.leavingScreen,
-        }),
-        [`& .${drawerClasses.paper}`]: {
+    <>
+      {/* Backdrop when drawer is open */}
+      {drawerOpen && (
+        <Box
+          onClick={handleDrawerClose}
+          sx={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(0, 0, 0, 0.5)',
+            zIndex: 2499,
+          }}
+        />
+      )}
+      
+      <Drawer
+        variant="permanent"
+        open={drawerOpen}
+        sx={{
           width: drawerWidth,
+          flexShrink: 0,
+          whiteSpace: 'nowrap',
+          boxSizing: 'border-box',
           transition: theme.transitions.create('width', {
             easing: theme.transitions.easing.sharp,
             duration: drawerOpen
               ? theme.transitions.duration.enteringScreen
               : theme.transitions.duration.leavingScreen,
           }),
-          overflowX: 'hidden',
-          position: 'fixed',
-          backgroundColor: drawerOpen ? '#f8f9fa' : '#fff',
-          borderRight: '1px solid #e0e0e0',
-          zIndex: 2500,
-          boxShadow: drawerOpen ? '4px 0 16px rgba(0,0,0,0.15)' : '1px 0 4px rgba(0,0,0,0.05)',
-        },
-      }}
-    >
+          [`& .${drawerClasses.paper}`]: {
+            width: drawerWidth,
+            transition: theme.transitions.create('width', {
+              easing: theme.transitions.easing.sharp,
+              duration: drawerOpen
+                ? theme.transitions.duration.enteringScreen
+                : theme.transitions.duration.leavingScreen,
+            }),
+            overflowX: 'hidden',
+            position: 'fixed',
+            backgroundColor: drawerOpen ? '#f8f9fa' : '#fff',
+            borderRight: '1px solid #e0e0e0',
+            zIndex: 2500,
+            boxShadow: drawerOpen ? '4px 0 16px rgba(0,0,0,0.15)' : '1px 0 4px rgba(0,0,0,0.05)',
+          },
+        }}
+      >
       {/* Header with logo and menu/close button */}
       <Box
         sx={{
@@ -235,6 +251,7 @@ const Sidebar = () => {
           })}
         </List>
       </Drawer>
+    </>
   );
 };
 

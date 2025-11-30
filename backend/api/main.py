@@ -103,7 +103,7 @@ origins = [
     "http://localhost:4173",
     "http://localhost",
     "http://localhost:5173",
-    "http://localhost:8083"
+    "http://localhost:8081"
 ]
 app.add_middleware(
     CORSMiddleware,

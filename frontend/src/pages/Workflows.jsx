@@ -226,7 +226,7 @@ export default function WorkflowPage() {
   };
 
   const handleBackClick = () => {
-    navigate("/developer-dashboard");
+    navigate("/workflows");
   };
 
   return (
@@ -325,7 +325,7 @@ export default function WorkflowPage() {
                   "&:hover": { bgcolor: "#e5e7eb" },
                   padding: "6px",
                 }}
-              >
+          >
                 <ArrowBackIcon sx={{ fontSize: 20 }} />
               </IconButton>
               
@@ -486,34 +486,34 @@ export default function WorkflowPage() {
               width: "100%",
               height: "100%",
             }}
-            onClick={(e) => {
-              // Close PropertyBar when clicking on workspace
-              // Only if clicking on the canvas, not on nodes or controls
-              if (e.target.classList.contains('react-flow__pane') || 
-                  e.target.classList.contains('react-flow__renderer')) {
-                setSelectedNode(null);
-              }
-            }}
+          onClick={(e) => {
+            // Close PropertyBar when clicking on workspace
+            // Only if clicking on the canvas, not on nodes or controls
+            if (e.target.classList.contains('react-flow__pane') || 
+                e.target.classList.contains('react-flow__renderer')) {
+              setSelectedNode(null);
+            }
+          }}
+        >
+          <ReactFlow
+            nodes={currentNodes}
+            edges={currentEdges}
+            nodeTypes={nodeTypes}
+            onNodesChange={onNodesChange}
+            onEdgesChange={onEdgesChange}
+            onConnect={onConnect}
+            onNodeClick={onNodeClick}
+            onInit={setRfInstance}
+            onDrop={onDrop}
+            onDragOver={onDragOver}
+            onPaneClick={() => setSelectedNode(null)}
+            defaultViewport={{ x: 0, y: 0, zoom: 0.9 }}
+            fitView
+            fitViewOptions={{ maxZoom: 0.9 }}
           >
-            <ReactFlow
-              nodes={currentNodes}
-              edges={currentEdges}
-              nodeTypes={nodeTypes}
-              onNodesChange={onNodesChange}
-              onEdgesChange={onEdgesChange}
-              onConnect={onConnect}
-              onNodeClick={onNodeClick}
-              onInit={setRfInstance}
-              onDrop={onDrop}
-              onDragOver={onDragOver}
-              onPaneClick={() => setSelectedNode(null)}
-              defaultViewport={{ x: 0, y: 0, zoom: 0.9 }}
-              fitView
-              fitViewOptions={{ maxZoom: 0.9 }}
-            >
-              <Controls position="top-right" />
+            <Controls position="top-right" />
               <Background color="#DBE6EB" gap={16} size={2} />
-            </ReactFlow>
+          </ReactFlow>
           </Box>
 
           {/* Bottom Toolbar */}
