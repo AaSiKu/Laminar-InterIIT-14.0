@@ -1,8 +1,10 @@
-import React from 'react';
-import { Box, Typography, Avatar, AvatarGroup, Chip } from '@mui/material';
+import React, { useState } from 'react';
+import { Box, Typography, Avatar, AvatarGroup, Chip, IconButton } from '@mui/material';
 import MoreHorizIcon from '@mui/icons-material/MoreHoriz';
 
-const RecentWorkflowCard = ({ workflow, onClick }) => {
+const RecentWorkflowCard = ({ workflow, onClick, selected }) => {
+  const [isPressed, setIsPressed] = useState(false);
+  
   // Generate mock avatars based on workflow data with colors matching overview section
   const generateAvatars = (count = 4) => {
     const colors = ['#86C8BC', '#B4C7E7', '#F4C7AB', '#F0B4C4'];
@@ -14,23 +16,43 @@ const RecentWorkflowCard = ({ workflow, onClick }) => {
 
   const avatars = generateAvatars();
 
+  const handleMouseDown = () => {
+    setIsPressed(true);
+  };
+
+  const handleMouseUp = () => {
+    setIsPressed(false);
+  };
+
+  const handleClick = (e) => {
+    setIsPressed(false);
+    if (onClick) onClick(e);
+  };
+
+  const isActive = selected || isPressed;
+
   return (
     <Box
       sx={{
         p: '1.5rem',
         borderRadius: '0.75rem',
-        border: '0.0625rem solid #e5e7eb',
+        bgcolor: isActive ? 'action.selected' : 'background.elevation1',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
         cursor: 'pointer',
-        transition: 'all 0.2s',
+        transition: 'background-color 0.2s ease',
         '&:hover': {
-          bgcolor: '#f9fafb',
-          boxShadow: '0 0.0625rem 0.1875rem rgba(0,0,0,0.1)',
+          bgcolor: isActive ? 'action.selected' : 'action.hover',
+        },
+        '&:active': {
+          bgcolor: 'action.selected',
         },
       }}
-      onClick={onClick}
+      onClick={handleClick}
+      onMouseDown={handleMouseDown}
+      onMouseUp={handleMouseUp}
+      onMouseLeave={handleMouseUp}
     >
       <Box sx={{ flex: 1 }}>
         <Typography variant="body1" fontWeight="600" sx={{ mb: 0.5, fontSize: '1rem' }}>
@@ -52,31 +74,24 @@ const RecentWorkflowCard = ({ workflow, onClick }) => {
 
         <Chip
           label="Active"
+          color="success"
+          variant="soft"
           size="small"
-          sx={{
-            bgcolor: '#dcfce7',
-            color: '#15803d',
-            fontWeight: 600,
-            fontSize: '0.75rem',
-            height: '1.5rem',
-          }}
         />
 
-        <Box
+        <IconButton
+          size="small"
           sx={{
             width: '1.5rem',
             height: '1.5rem',
             borderRadius: '0.375rem',
-            border: '0.0625rem solid #e5e7eb',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            cursor: 'pointer',
-            '&:hover': { bgcolor: '#f3f4f6' },
+            '&:hover': {
+              bgcolor: 'action.hover',
+            },
           }}
         >
           <MoreHorizIcon sx={{ fontSize: '1rem', color: 'text.secondary' }} />
-        </Box>
+        </IconButton>
       </Box>
     </Box>
   );

@@ -3,9 +3,10 @@ import json
 from fastapi import WebSocket, WebSocketDisconnect, APIRouter
 from aiokafka import AIOKafkaConsumer
 from dotenv import load_dotenv
-from backend.api.routers.overview import active_connections
 from bson.json_util import dumps
 load_dotenv()
+
+active_connections = set()
 
 #TODO: broadcast to only selected connections
 #    : if pipeline_id is provided, broadcast to only that pipeline's connections of only that user
@@ -89,7 +90,6 @@ async def websocket_endpoint(websocket: WebSocket):
     '''
     await websocket.accept()
     active_connections.add(websocket)
-
     try:
         while True:
             # Keep connection alive
