@@ -1,4 +1,5 @@
-from typing import Union, Literal, TypedDict
+from typing import Union, Literal
+from typing_extensions import TypedDict
 from datetime import datetime, timedelta
 from ..node import Node
 

@@ -19,15 +19,16 @@
 }
 
 /* RJSF Form Styling - Make it professional */
-.property-bar-form-content .MuiTextField-root {
+/* NOTE: this is for root of the mui */
+/* .property-bar-form-content .MuiTextField-root {
   margin-bottom: 16px;
-}
+} */
 
 .property-bar-form-content .MuiOutlinedInput-root {
   border-radius: 6px !important;
-  background-color: #EBF2F5;
+  background-color: #ebf2f5;
   transition: all 0.2s ease;
-  font-size: 0.8125rem !important;
+  /* font-size: 0.8125rem !important; */
 }
 
 .property-bar-form-content .MuiOutlinedInput-input {
@@ -48,7 +49,9 @@
   border-color: #e0e0e0 !important;
 }
 
-.property-bar-form-content .MuiOutlinedInput-root.Mui-focused .MuiOutlinedInput-notchedOutline {
+.property-bar-form-content
+  .MuiOutlinedInput-root.Mui-focused
+  .MuiOutlinedInput-notchedOutline {
   border-color: #1976d2 !important;
   border-width: 2px !important;
 }
@@ -91,7 +94,7 @@
 /* Select Dropdowns */
 .property-bar-form-content .MuiSelect-select {
   border-radius: 6px;
-  background-color: #EBF2F5;
+  background-color: #ebf2f5;
   padding: 10px 12px !important;
   font-size: 0.8125rem !important;
 }
@@ -107,9 +110,25 @@
   color: #1976d2;
 }
 
-/* Remove default RJSF submit button */
+/* Style the default RJSF submit button */
 .property-bar-form-content button[type="submit"] {
-  display: none;
+  display: block;
+  width: 100%;
+  border-radius: 6px;
+  text-transform: none;
+  font-weight: 500;
+  font-size: 0.8125rem;
+  background-color: #1976d2;
+  color: white;
+  border: none;
+  box-shadow: none;
+  cursor: pointer;
+  transition: background-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.property-bar-form-content button[type="submit"]:hover {
+  background-color: #1565c0;
+  box-shadow: 0 2px 8px rgba(25, 118, 210, 0.3);
 }
 
 /* Helper Text */
@@ -138,7 +157,7 @@
 /* Array fields */
 .property-bar-form-content .array-item {
   padding: 10px;
-  background-color: #EBF2F5;
+  background-color: #ebf2f5;
   border-radius: 6px;
   margin-bottom: 10px;
   border: 1px solid #e0e0e0;
@@ -147,7 +166,7 @@
 /* Object fields */
 .property-bar-form-content .object-property {
   padding: 12px;
-  background-color: #EBF2F5;
+  background-color: #ebf2f5;
   border-radius: 6px;
   margin-bottom: 12px;
   border: 1px solid #e0e0e0;
@@ -173,7 +192,7 @@
   background-color: rgba(25, 118, 210, 0.1);
   padding: 2px 6px;
   border-radius: 3px;
-  font-family: 'Roboto Mono', monospace;
+  font-family: "Roboto Mono", monospace;
   font-size: 0.8125rem;
   color: #1565c0;
 }
@@ -226,10 +245,12 @@
 
 /* Disabled Fields */
 .property-bar-form-content .MuiOutlinedInput-root.Mui-disabled {
-  background-color: #EBF2F5;
+  background-color: #ebf2f5;
   cursor: not-allowed;
 }
 
-.property-bar-form-content .MuiOutlinedInput-root.Mui-disabled .MuiOutlinedInput-notchedOutline {
+.property-bar-form-content
+  .MuiOutlinedInput-root.Mui-disabled
+  .MuiOutlinedInput-notchedOutline {
   border-color: #e0e0e0 !important;
 }

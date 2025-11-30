@@ -1,4 +1,5 @@
-from typing import List, Tuple, Optional, Literal, TypedDict, Union
+from typing import List, Tuple, Optional, Literal, Union
+from typing_extensions import TypedDict
 from .base import TemporalNode, ReducerDict, TimedeltaType, DateTimeType
 
 class CommonBehaviour(TypedDict):
