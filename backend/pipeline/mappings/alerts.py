@@ -42,7 +42,7 @@ def alert_node_fn(inputs: List[pw.Table], alert_node: AlertNode):
 
     pipeline_id = os.getenv("PIPELINE_ID")
     config = {
-        "bootstrap.servers": os.getenv("KAFKA_BOOTSTRAP_SERVER", "host.docker.internal:9092"),
+        "bootstrap.servers": os.getenv("KAFKA_BOOTSTRAP_SERVER", "host.docker.internal:9094"),
         "client.id": os.getenv("KAFKA_CLIENT_ID", pipeline_id),
         "linger.ms": "5",
         "batch.num.messages": "10000",
