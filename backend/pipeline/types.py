@@ -1,4 +1,5 @@
-from typing import TypedDict, List, Tuple, Dict, Optional
+from typing import List, Tuple, Dict, Optional
+from typing_extensions import TypedDict
 from collections import defaultdict
 from lib.node import Node
 from lib.agents import Agent

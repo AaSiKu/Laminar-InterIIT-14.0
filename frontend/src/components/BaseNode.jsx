@@ -1,16 +1,16 @@
-import React, { memo, useState, useCallback } from "react";
+import React, { memo, useState, useCallback, useRef, useEffect } from "react";
 import { Handle, Position, useReactFlow } from "@xyflow/react";
 import {
   Paper,
   Typography,
   Stack,
-  Menu,
-  MenuItem,
-  ListItemIcon,
-  ListItemText,
-  Divider,
+  IconButton,
+  Tooltip,
+  Box,
 } from "@mui/material";
-import { ContentCopy, ContentCut, Delete, FileCopy } from "@mui/icons-material";
+import { ContentCopy, ContentCut, Delete, FileCopy, Extension } from "@mui/icons-material";
+import NodeDataTable from "./NodeDataTable";
+import "../css/BaseNode.css";
 
 export const BaseNode = memo(
   ({
@@ -24,6 +24,36 @@ export const BaseNode = memo(
     contextMenu = [],
   }) => {
     const { setNodes, getNode } = useReactFlow();
+
+    // Convert properties to array and get top 3
+    const getDisplayProperties = () => {
+      // If properties is already an array, use it
+      if (Array.isArray(properties)) {
+        return properties.slice(0, 3);
+      }
+      
+      // If properties is an object (from data.properties), convert to array
+      if (properties && typeof properties === 'object') {
+        const propsArray = Object.entries(properties)
+          .filter(([key, value]) => 
+            key !== 'node_id' && 
+            key !== 'category' && 
+            key !== 'n_inputs' &&
+            value !== null &&
+            value !== undefined
+          )
+          .map(([key, value]) => ({
+            label: key,
+            value: typeof value === 'object' ? JSON.stringify(value) : String(value),
+            type: typeof value === 'object' ? 'json' : 'string'
+          }));
+        return propsArray.slice(0, 3);
+      }
+      
+      return [];
+    };
+
+    const displayProps = getDisplayProperties();
 
     // Default actions
     const handleCopy = useCallback(() => {
@@ -59,106 +89,281 @@ export const BaseNode = memo(
       }
     }, [id, getNode, setNodes]);
 
-    // Combine default + custom context menu options
-    const menuOptions = [
+    // Hover state for floating actions
+    const [isHovered, setIsHovered] = useState(false);
+    
+    // Hover state for property tooltips
+    const [hoveredProp, setHoveredProp] = useState(null);
+    const [showTooltip, setShowTooltip] = useState(false);
+    const hoverTimeoutRef = useRef(null);
+    
+    // Hover state for data table
+    const [showDataTable, setShowDataTable] = useState(false);
+    const dataTableTimeoutRef = useRef(null);
+    const hideTableTimeoutRef = useRef(null);
+    const nodeRef = useRef(null);
+
+    // Property hover handlers
+    const handlePropertyMouseEnter = (propKey, propValue) => {
+      setHoveredProp({ key: propKey, value: propValue });
+      
+      // Show tooltip after 0.5 seconds
+      hoverTimeoutRef.current = setTimeout(() => {
+        setShowTooltip(true);
+      }, 500);
+    };
+
+    const handlePropertyMouseLeave = () => {
+      // Clear timeout if mouse leaves before 2 seconds
+      if (hoverTimeoutRef.current) {
+        clearTimeout(hoverTimeoutRef.current);
+      }
+      setShowTooltip(false);
+      setHoveredProp(null);
+    };
+
+    // Action buttons configuration
+    const actionButtons = [
       {
         label: "Copy",
-        icon: <ContentCopy fontSize="small" />,
+        icon: <ContentCopy />,
         onClick: handleCopy,
       },
       {
         label: "Cut",
-        icon: <ContentCut fontSize="small" />,
+        icon: <ContentCut />,
         onClick: handleCut,
       },
       {
         label: "Duplicate",
-        icon: <FileCopy fontSize="small" />,
+        icon: <FileCopy />,
         onClick: handleDuplicate,
       },
       {
         label: "Delete",
-        icon: <Delete fontSize="small" />,
+        icon: <Delete />,
         onClick: handleDelete,
       },
-      { divider: true },
-      ...contextMenu,
     ];
 
-    // Context menu anchor
-    const [anchorEl, setAnchorEl] = useState(null);
-    const handleContextMenu = (event) => {
-      event.preventDefault();
-      setAnchorEl(event.currentTarget);
+    // Data table hover handlers
+    const handleNodeMouseEnter = () => {
+      setIsHovered(true);
+      
+      // Clear any pending hide timeout
+      if (hideTableTimeoutRef.current) {
+        clearTimeout(hideTableTimeoutRef.current);
+        hideTableTimeoutRef.current = null;
+      }
+      
+      // Only set show timeout if table is not already visible
+      if (!showDataTable && !dataTableTimeoutRef.current) {
+        // Show data table after 800ms hover
+        dataTableTimeoutRef.current = setTimeout(() => {
+          setShowDataTable(true);
+          dataTableTimeoutRef.current = null;
+        }, 800);
+      }
     };
-    const handleCloseMenu = () => setAnchorEl(null);
+
+    const handleNodeMouseLeave = () => {
+      setIsHovered(false);
+      
+      // Clear show timeout if mouse leaves before table appears
+      if (dataTableTimeoutRef.current) {
+        clearTimeout(dataTableTimeoutRef.current);
+        dataTableTimeoutRef.current = null;
+      }
+      
+      // Only start hide timeout if not already pending
+      if (!hideTableTimeoutRef.current) {
+        // Hide data table after 500ms delay
+        hideTableTimeoutRef.current = setTimeout(() => {
+          setShowDataTable(false);
+          hideTableTimeoutRef.current = null;
+        }, 500);
+      }
+    };
+
+    // Handler for when mouse enters the data table
+    const handleTableMouseEnter = () => {
+      // Clear any pending hide timeout when mouse enters table
+      if (hideTableTimeoutRef.current) {
+        clearTimeout(hideTableTimeoutRef.current);
+        hideTableTimeoutRef.current = null;
+      }
+      
+      // Clear any pending show timeout
+      if (dataTableTimeoutRef.current) {
+        clearTimeout(dataTableTimeoutRef.current);
+        dataTableTimeoutRef.current = null;
+      }
+      
+      // Ensure table remains visible
+      setShowDataTable(true);
+    };
+
+    // Handler for when mouse leaves the data table
+    const handleTableMouseLeave = () => {
+      // Only start hide timeout if not already pending
+      if (!hideTableTimeoutRef.current) {
+        // Hide table after 500ms when mouse leaves table
+        hideTableTimeoutRef.current = setTimeout(() => {
+          setShowDataTable(false);
+          hideTableTimeoutRef.current = null;
+        }, 500);
+      }
+    };
+
+    // Cleanup timeouts on unmount
+    useEffect(() => {
+      return () => {
+        if (hoverTimeoutRef.current) {
+          clearTimeout(hoverTimeoutRef.current);
+        }
+        if (dataTableTimeoutRef.current) {
+          clearTimeout(dataTableTimeoutRef.current);
+        }
+        if (hideTableTimeoutRef.current) {
+          clearTimeout(hideTableTimeoutRef.current);
+        }
+      };
+    }, []);
 
     return (
-      <Paper
-        onContextMenu={handleContextMenu}
-        elevation={selected ? 8 : 2}
-        sx={{
-          boxShadow: "none",
-          minWidth: styles.minWidth || 200,
-          minHeight: styles.minHeight || 100,
-          borderRadius: styles.borderRadius || 2,
-          p: 2,
-          position: "relative",
-          borderColor: selected
-            ? "primary.main"
-            : styles.borderColor || "divider",
-          bgcolor: styles.bgColor || "background.paper",
-          color: styles.color || "text.primary",
-          transition: "all 0.2s ease",
-          "&:hover": {
-            bgcolor: styles.hoverBgColor || styles.bgColor || "action.hover",
-            transform: "scale(1.02)",
-            boxShadow: 4,
-          },
-          // Remove any background bleed
-          overflow: "visible",
-        }}
+      <div
+        ref={nodeRef}
+        className="base-node-wrapper"
+        onMouseEnter={handleNodeMouseEnter}
+        onMouseLeave={handleNodeMouseLeave}
+        style={{ position: 'relative' }}
       >
-        {/* Node title */}
-        <Typography
-          variant="subtitle1"
+        {/* Extended Action Bar */}
+        {isHovered && (
+          <div className="base-node-action-bar">
+            {actionButtons.map((action, idx) => (
+              <Tooltip key={idx} title={action.label} arrow placement="top">
+                <IconButton
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    action.onClick();
+                  }}
+                  className="base-node-action-btn"
+                >
+                  {action.icon}
+                </IconButton>
+              </Tooltip>
+            ))}
+          </div>
+        )}
+
+        <Paper
+          elevation={0}
+          className={`base-node-paper ${selected ? 'selected' : ''}`}
           sx={{
-            fontWeight: 600,
-            textAlign: "center",
-            mb: properties.length > 0 ? 1 : 0,
+            minWidth: styles.minWidth || 200,
+            minHeight: styles.minHeight || 100,
+            border: selected ? `2px solid ${styles.borderColor || "#1976d2"}` : `1px solid #e0e0e0`,
           }}
         >
-          {data?.ui?.label || "Node"}
-        </Typography>
+        {/* Node Header (Colored) - Icon + Title */}
+        <div className="base-node-header" style={{
+          backgroundColor: styles.bgColor || "#e0e0e0"
+        }}>
+          <div className="base-node-header-left">
+            <div className="base-node-indicator-dot">
+              <Extension sx={{ fontSize: 16, color: 'rgba(255, 255, 255, 0.9)' }} />
+            </div>
+            <Typography variant="subtitle2" className="base-node-title-in-header">
+              {data?.ui?.label || "Node"}
+            </Typography>
+          </div>
+        </div>
 
-        {/* Properties */}
-        {properties.length > 0 && (
-          <Stack spacing={0.5}>
-            {properties.map((prop, idx) => {
-              if (prop.type === "string")
+        {/* Node Body (White) - Properties Only */}
+        <div className="base-node-body">
+          {/* Properties */}
+          {displayProps.length > 0 ? (
+            <div className="base-node-properties">
+              {displayProps.map((prop, idx) => {
+                const propKey = `${prop.label}-${idx}`;
+                const isHoveredProp = hoveredProp?.key === propKey && showTooltip;
+                
+                // Check if property value is empty
+                const isEmpty = !prop.value || 
+                               prop.value === '' || 
+                               prop.value === 'null' || 
+                               prop.value === 'undefined';
+                
+                const displayValue = isEmpty ? 'Not assigned' : 
+                                    (prop.type === "json" ? "JSON" : prop.value);
+                
                 return (
-                  <Typography
-                    key={`${prop.label}-${idx}`}
-                    variant="caption"
-                    color="text.secondary"
-                  >
-                    {prop.label}: {prop.value}
-                  </Typography>
+                  <div key={propKey} className="base-node-property-row">
+                    <Typography variant="caption" className="base-node-property-label">
+                      {prop.label}
+                    </Typography>
+                    <div 
+                      className="base-node-property-value"
+                      onMouseEnter={() => handlePropertyMouseEnter(propKey, prop.value)}
+                      onMouseLeave={handlePropertyMouseLeave}
+                      style={{ position: 'relative' }}
+                    >
+                      <div 
+                        className="base-node-property-value-text"
+                        style={{ 
+                          color: isEmpty ? '#9e9e9e' : 'inherit',
+                          fontStyle: isEmpty ? 'italic' : 'normal'
+                        }}
+                      >
+                        {displayValue}
+                      </div>
+                      
+                      {/* Delayed Tooltip */}
+                      {isHoveredProp && !isEmpty && (
+                        <Box
+                          sx={{
+                            position: 'absolute',
+                            top: '100%',
+                            left: 0,
+                            marginTop: '8px',
+                            padding: '8px 12px',
+                            backgroundColor: 'rgba(0, 0, 0, 0.9)',
+                            color: 'white',
+                            borderRadius: '6px',
+                            fontSize: '0.75rem',
+                            maxWidth: '300px',
+                            wordBreak: 'break-word',
+                            zIndex: 9000,
+                            boxShadow: '0 4px 12px rgba(0, 0, 0, 0.3)',
+                            animation: 'fadeIn 0.2s ease-in',
+                            pointerEvents: 'none',
+                            whiteSpace: 'pre-wrap',
+                          }}
+                        >
+                          {prop.type === "json" ? prop.value : prop.value}
+                        </Box>
+                      )}
+                    </div>
+                  </div>
                 );
-              if (prop.type === "json")
-                return (
-                  <Typography
-                    key={`${prop.label}-${idx}`}
-                    variant="caption"
-                    color="text.secondary"
-                  >
-                    {prop.label}: JSON value
-                  </Typography>
-                );
-              return null;
-            })}
-          </Stack>
-        )}
+              })}
+            </div>
+          ) : (
+            <Typography 
+              variant="caption" 
+              sx={{ 
+                color: '#9e9e9e',
+                fontStyle: 'italic',
+                textAlign: 'left',
+                display: 'block',
+                fontSize: '0.75rem'
+              }}
+            >
+              Click to add properties
+            </Typography>
+          )}
+        </div>
 
         {/* INPUT HANDLES */}
         {inputs.map((input, i) => (
@@ -168,14 +373,14 @@ export const BaseNode = memo(
             position={input.position || Position.Left}
             id={input.id || `in-${i}`}
             style={{
-              background: input.color || "#10b981",
+              background: "#fff",
               top: input.top || `${((i + 1) / (inputs.length + 1)) * 100}%`,
-              left: "-6px",
-              width: 12,
-              height: 12,
+              left: "-5px",
+              width: 10,
+              height: 10,
               borderRadius: "50%",
-              border: "2px solid white",
-              boxShadow: "0 0 0 1px rgba(0,0,0,0.1)",
+              border: "2px solid #9e9e9e",
+              boxShadow: "none",
             }}
           />
         ))}
@@ -188,37 +393,28 @@ export const BaseNode = memo(
             position={output.position || Position.Right}
             id={output.id || `out-${i}`}
             style={{
-              background: output.color || "#3b82f6",
+              background: "#fff",
               top: output.top || `${((i + 1) / (outputs.length + 1)) * 100}%`,
-              right: "-6px",
-              width: 12,
-              height: 12,
+              right: "-5px",
+              width: 10,
+              height: 10,
               borderRadius: "50%",
-              border: "2px solid white",
-              boxShadow: "0 0 0 1px rgba(0,0,0,0.1)",
+              border: "2px solid #9e9e9e",
+              boxShadow: "none",
             }}
           />
         ))}
-
-        {/* Context Menu */}
-        <Menu
-          anchorEl={anchorEl}
-          open={Boolean(anchorEl)}
-          onClose={handleCloseMenu}
-          onClick={handleCloseMenu}
-        >
-          {menuOptions.map((opt, idx) =>
-            opt.divider ? (
-              <Divider key={idx} />
-            ) : (
-              <MenuItem key={idx} onClick={opt.onClick}>
-                {opt.icon && <ListItemIcon>{opt.icon}</ListItemIcon>}
-                <ListItemText>{opt.label}</ListItemText>
-              </MenuItem>
-            )
-          )}
-        </Menu>
       </Paper>
+      
+      {/* Node Data Table - shown on hover */}
+      <NodeDataTable 
+        nodeId={id} 
+        isVisible={showDataTable}
+        nodeRef={nodeRef}
+        onMouseEnter={handleTableMouseEnter}
+        onMouseLeave={handleTableMouseLeave}
+      />
+      </div>
     );
   }
 );

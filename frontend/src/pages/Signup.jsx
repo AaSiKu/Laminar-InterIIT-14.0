@@ -24,7 +24,7 @@ export default function SignupPage() {
   const navigate = useNavigate();
   const API_SERVER = import.meta.env.VITE_API_SERVER;
   useEffect(() => {
-    if (isAuthenticated) navigate("/developer-dashboard");
+    if (isAuthenticated) navigate("/overview");
   }, [isAuthenticated]);
 
 const handleSubmit = async (e) => {
@@ -337,7 +337,7 @@ const handleSubmit = async (e) => {
           >
             Already have an account?{" "}
             <a
-              href="/auth/login"
+              href="/login"
               style={{
                 color: "#3b82f6",
                 textDecoration: "none",

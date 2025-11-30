@@ -51,10 +51,10 @@ def parse_agents(data: Flowchart) -> List[Agent]:
     Returns:
         List of Agent instances
     """
-    if not hasattr(data, "agents") or data.get("agents") is None:
+    if data.get("agents",None) is None:
         return []
     
-    return [Agent(**agent) for agent in data["agents"]]
+    return [Agent(**agent) for agent in data.get("agents")]
 
 
 def read_and_validate_graph(filepath: str) -> Graph:

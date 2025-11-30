@@ -141,8 +141,8 @@
 }
 
 .admin-kpi-card.selected {
-  background: #3385F029;
-  border-color: #3385F029;
+  background: #3385f029;
+  border-color: #3385f029;
 }
 
 /* Pipeline Stats Chart */
@@ -770,12 +770,12 @@
   .admin-bar {
     width: 0.75rem;
   }
-  
+
   .admin-bar-stack {
     height: 12rem;
     gap: 0.1875rem;
   }
-  
+
   .admin-bar-label {
     font-size: 0.6875rem;
   }
@@ -1078,26 +1078,26 @@
     flex-direction: column;
     border-radius: 0.75rem 0.75rem 0 0;
   }
-  
+
   .admin-left-column {
     width: 100%;
   }
-  
+
   .admin-alerts-wrapper {
     width: 100%;
   }
-  
+
   .admin-bottom-section {
     flex-direction: column;
     border-radius: 0 0 0.75rem 0.75rem;
   }
-  
+
   .admin-workflows-section {
     width: 100%;
     border-right: none;
     border-bottom: 1px solid #e5e7eb;
   }
-  
+
   .admin-members-section {
     width: 100%;
   }
@@ -1107,24 +1107,24 @@
   .admin-content {
     padding: 1rem;
   }
-  
+
   .admin-topbar {
     padding: 0.75rem 1rem;
   }
-  
+
   .admin-search-input {
     width: 12.5rem;
   }
-  
+
   .admin-kpi-section {
     grid-template-columns: 1fr;
   }
-  
+
   .admin-kpi-card {
     border-right: none !important;
     border-bottom: 1px solid #e5e7eb !important;
   }
-  
+
   .admin-kpi-card:last-child {
     border-bottom: none !important;
   }
@@ -1134,14 +1134,13 @@
   .admin-search-input {
     width: 9rem;
   }
-  
+
   .admin-title {
     font-size: 1.5rem !important;
   }
-  
+
   .admin-chart-container {
     height: 10rem;
     overflow-x: auto;
   }
 }
-

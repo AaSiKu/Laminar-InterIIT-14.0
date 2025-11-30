@@ -12,73 +12,56 @@ import { AdminPage } from "./pages/Admin.jsx";
 import { DeveloperDashboardProject } from "./pages/DeveloperDashboardProject.jsx";
 import NotFoundPage from "./pages/NotFoundPage.jsx";
 import { Box } from "@mui/material";
-
 function AppContent() {
   const location = useLocation();
-  const isPublicRoute = ["/", "/login", "/signup", "*"];
+  const isPublicRoute = ["/", "/login", "/signup", "/404"];
 
-  // TODO: 404 page
   return (
     <>
       {!isPublicRoute.includes(location.pathname) && <Sidebar />}
-      <Box
-        sx={{
-          flex: 1,
-          overflow: "auto",
-          marginLeft: isPublicRoute ? "0" : "64px",
-        }}
-      >
-        <Routes>
-          {/* Public routes */}
-          <Route path="/login" element={<LoginPage />} />
-          <Route path="/signup" element={<SignupPage />} />
-          <Route path="/" element={<Navigate to="/overview" />} />
+      <Routes>
+        {/* Public routes */}
+        <Route path="/login" element={<LoginPage />} />
+        <Route path="/signup" element={<SignupPage />} />
+        <Route path="/" element={<Navigate to="/overview" />} />
+        <Route path="/404" element={<NotFoundPage />} />
 
-          {/* Protected routes */}
-          <Route
-            path="/workflow"
-            element={
-              <ProtectedRoute>
-                <WorkflowPage />
-              </ProtectedRoute>
-            }
-          />
-          {/* Default route */}
-          <Route
-            path="/overview"
-            element={
-              <ProtectedRoute>
-                <OverviewPage />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/developer-dashboard/:projectId"
-            element={
-              <ProtectedRoute>
-                <DeveloperDashboardProject />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/pipelines/:pipelineId"
-            element={
-              <ProtectedRoute>
-                <Pipeline />
-              </ProtectedRoute>
-            }
-          />
-            <Route
-            path="/admin"
-            element={
-              <ProtectedRoute>
-                <AdminPage />
-              </ProtectedRoute>
-            }
-          />
-          <Route path="*" element={<NotFoundPage />} />
-        </Routes>
-      </Box>
+        {/* Protected routes */}
+        <Route
+          path="/workflow"
+          element={
+            <ProtectedRoute>
+              <WorkflowPage />
+            </ProtectedRoute>
+          }
+        />
+        {/* Default route */}
+        <Route
+          path="/overview"
+          element={
+            <ProtectedRoute>
+              <OverviewPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/overview/:projectId"
+          element={
+            <ProtectedRoute>
+              <DeveloperDashboardProject />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin"
+          element={
+            <ProtectedRoute>
+              <AdminPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route path="*" element={<Navigate to="/404" />} />
+      </Routes>
     </>
   );
 }
