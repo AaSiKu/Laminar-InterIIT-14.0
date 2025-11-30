@@ -7,6 +7,7 @@ import SignupPage from "./pages/Signup.jsx";
 import WorkflowPage from "./pages/Workflows.jsx";
 import Sidebar from "./components/sidebar.jsx";
 import OverviewPage from "./pages/Overview.jsx";
+import CreatePipeline from "./pages/CreatePipeline.jsx";
 import { AdminPage } from "./pages/Admin.jsx";
 import { DeveloperDashboardProject } from "./pages/DeveloperDashboardProject.jsx";
 import NotFoundPage from "./pages/NotFoundPage.jsx";
@@ -41,6 +42,14 @@ function AppContent() {
           element={
             <ProtectedRoute>
               <OverviewPage />
+            </ProtectedRoute>
+          }
+        />
+         <Route
+          path="/create-pipeline"
+          element={
+            <ProtectedRoute>
+              <CreatePipeline />
             </ProtectedRoute>
           }
         />
