@@ -1,0 +1,160 @@
+/* Property Bar Drawer Styles - Layout and Positioning Only */
+
+.property-bar-drawer {
+  background-color: transparent;
+}
+
+.property-bar-alert {
+  margin: 16px;
+  border-radius: 8px;
+}
+
+.property-bar-form-content {
+  width: 100%;
+}
+
+/* RJSF Form Styling - Layout only */
+.property-bar-form-content .MuiTextField-root {
+  margin-bottom: 16px;
+} */
+
+.property-bar-form-content .MuiOutlinedInput-root {
+  border-radius: 6px !important;
+  transition: all 0.2s ease;
+  /* font-size: 0.8125rem !important; */
+}
+
+.property-bar-form-content .MuiOutlinedInput-input {
+  padding: 10px 12px !important;
+  font-size: 0.8125rem !important;
+}
+
+.property-bar-form-content .MuiInputLabel-outlined {
+  transform: translate(14px, 12px) scale(1);
+}
+
+.property-bar-form-content .MuiInputLabel-outlined.MuiInputLabel-shrink {
+  transform: translate(14px, -6px) scale(0.75);
+}
+
+/* Field Groups */
+.property-bar-form-content fieldset {
+  border: none !important;
+  padding: 0 !important;
+  margin: 0 !important;
+}
+
+.property-bar-form-content legend {
+  font-weight: 600;
+  font-size: 0.8125rem !important;
+  margin-bottom: 10px;
+  padding: 0;
+}
+
+/* Select Dropdowns */
+.property-bar-form-content .MuiSelect-select {
+  border-radius: 6px;
+  padding: 10px 12px !important;
+  font-size: 0.8125rem !important;
+}
+
+/* Remove default RJSF submit button */
+.property-bar-form-content button[type="submit"] {
+  display: block;
+  width: 100%;
+  border-radius: 6px;
+  text-transform: none;
+  font-weight: 500;
+  font-size: 0.8125rem;
+  background-color: #1976d2;
+  color: white;
+  border: none;
+  box-shadow: none;
+  cursor: pointer;
+  transition: background-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.property-bar-form-content button[type="submit"]:hover {
+  background-color: #1565c0;
+  box-shadow: 0 2px 8px rgba(25, 118, 210, 0.3);
+}
+
+/* Helper Text */
+.property-bar-form-content .MuiFormHelperText-root {
+  font-size: 0.6875rem !important;
+  margin-top: 4px;
+  margin-left: 14px;
+}
+
+/* Error States - Layout only */
+.property-bar-form-content .MuiFormHelperText-root.Mui-error {
+  font-size: 0.6875rem !important;
+}
+
+/* Spacing between form fields */
+.property-bar-form-content > div {
+  margin-bottom: 12px;
+}
+
+/* Array fields */
+.property-bar-form-content .array-item {
+  padding: 10px;
+  border-radius: 6px;
+  margin-bottom: 10px;
+}
+
+/* Object fields */
+.property-bar-form-content .object-property {
+  padding: 12px;
+  border-radius: 6px;
+  margin-bottom: 12px;
+}
+
+/* Markdown Description */
+.property-bar-form-content .MuiTypography-body2 {
+  margin-bottom: 12px;
+  padding: 12px;
+  border-radius: 6px;
+}
+
+.property-bar-form-content .MuiTypography-body2 p {
+  margin: 0;
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+
+.property-bar-form-content .MuiTypography-body2 code {
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-family: "Roboto Mono", monospace;
+  font-size: 0.8125rem;
+}
+
+/* Form Actions */
+.property-bar-form-content .form-actions {
+  margin-top: 24px;
+  padding-top: 24px;
+  display: flex;
+  gap: 12px;
+}
+
+/* Add/Remove Buttons for Arrays */
+.property-bar-form-content .MuiButton-root[type="button"] {
+  border-radius: 6px;
+  text-transform: none;
+  font-weight: 500;
+  padding: 6px 12px;
+  margin-top: 6px;
+  font-size: 0.8125rem !important;
+}
+
+/* Number Input Arrows */
+.property-bar-form-content input[type="number"]::-webkit-inner-spin-button,
+.property-bar-form-content input[type="number"]::-webkit-outer-spin-button {
+  opacity: 0.5;
+}
+
+/* Disabled Fields */
+.property-bar-form-content .MuiOutlinedInput-root.Mui-disabled {
+  cursor: not-allowed;
+}

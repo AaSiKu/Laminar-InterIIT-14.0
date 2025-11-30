@@ -1,16 +1,21 @@
 import os
 import logging
+import os
+import docker
+import asyncio
 from dotenv import load_dotenv
-from motor.motor_asyncio import AsyncIOMotorClient
+from typing_extensions import Annotated
+from typing import Any, Dict, List, Union, Optional, Type
+from pydantic import BaseModel, Field
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware 
+from fastapi.security import OAuth2PasswordBearer
+from motor.motor_asyncio import AsyncIOMotorClient
 from contextlib import asynccontextmanager
 from backend.api.routers.auth.database import Base
-import docker
-from utils.logging import get_logger, configure_root
 from backend.api.routers.main_router import router
-import asyncio
 from backend.api.routers.websocket import watch_changes
+from utils.logging import get_logger, configure_root
 
 configure_root()
 logger = get_logger(__name__)
@@ -114,3 +119,4 @@ app.add_middleware(
 )
 
 app.include_router(router)
+
