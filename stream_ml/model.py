@@ -5,6 +5,7 @@ import numpy as np
 
 #TODO : Check normalization params usage
 #TODO : Make the truth in predict optional with default None, and return error as None
+#TODO : Remove redundant truth argument in predict, and push to context AFTER predicting
 
 class BaseModel(ABC):
     """
