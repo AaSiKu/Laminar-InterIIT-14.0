@@ -58,7 +58,7 @@ class ModelWrapper:
     def train(self, X: NDArray, y: NDArray) -> Tuple[float, float, float]:
         """
         Args:
-            X: Input data array of shape (Batch_size, Context, n_channels)
+            X: Input data array of shape (Batch_size, Context, n_channels) # Note, context for each sample must be persisted, so it can be passed here, this wrapper doesn't create context from array itself
             y: Truth data array of shape (Batch_size, Horizon, n_channels)
         Returns:
             Tuple of (Avg RAM usage, Avg Latency, MAE)
@@ -67,14 +67,12 @@ class ModelWrapper:
         y_output = self._extract_streams(y, self.output_stream_indices)
         return self.model.train(X_input, y_output)
     
-    def predict(self, X: NDArray, Y: NDArray) -> Tuple[float, float, float, NDArray[np.float32]]:
+    def predict(self, X: NDArray) -> Tuple[float, float, float, NDArray[np.float32]]:
         """
         Args:
             X: Input data array of shape (n_channels)
-            Y: Truth data array of shape (n_channels)
         Returns:
             Tuple of (RAM usage, Latency, Error, Predictions : [Horizon * Out Features])
         """
         X_input = self._extract_streams(X, self.input_stream_indices)
-        Y_output = self._extract_streams(Y, self.output_stream_indices)
-        return self.model.predict(X_input, Y_output)
+        return self.model.predict(X_input)

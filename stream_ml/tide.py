@@ -154,20 +154,16 @@ class TiDEModel(StreamBaseModel):
     def predict(
         self,
         input: NDArray[np.float32],     # [In Features]
-        truth: NDArray[np.float32]      # [Out Features]
     ) -> Tuple[float, float, float, NDArray[np.float32]]:
         """
         Predicts the next horizon using stored context (past inputs + truths).
         Returns:
             Tuple of (RAM usage in MB, Latency in seconds, Error, Predictions [Horizon * Out Features])
         """
-        # Update context history
-        self.context_history.append(input)
-        if len(self.context_history) > self.lookback:
-            self.context_history.pop(0)
-        
         # If we don't have enough context yet, return zeros
         if len(self.context_history) < self.lookback:
+            # Update context history even during warmup
+            self.context_history.append(input)
             return (
                 0.0,
                 0.0,
@@ -188,6 +184,11 @@ class TiDEModel(StreamBaseModel):
         y_pred = prediction[0, :, :]  # [horizon * out features]
         
         # Calculate error (for the first step if horizon > 1)
-        error = np.abs(truth - y_pred[0])
+        error = float(np.mean(np.abs(input - y_pred[0])))
+
+        # Update context history
+        self.context_history.append(input)
+        if len(self.context_history) > self.lookback:
+            self.context_history.pop(0)
         
         return mem_usage, latency, error, y_pred

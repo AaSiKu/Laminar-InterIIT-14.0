@@ -3,9 +3,6 @@ from typing import Tuple, List, Any
 from numpy.typing import NDArray
 import numpy as np
 
-#TODO : Check normalization params usage
-#TODO : Make the truth in predict optional with default None, and return error as None
-#TODO : Remove redundant truth argument in predict, and push to context AFTER predicting
 
 class BaseModel(ABC):
     """
@@ -16,7 +13,7 @@ class BaseModel(ABC):
     @abstractmethod
     def train(
         self,
-        inputs: NDArray[np.float32],   # [Batch * Context Size * In Features]
+        inputs: NDArray[np.float32],   # [Batch * Context Size * In Features] # We only get 1 batch which is the entire data provided for training over epochs
         truths:  NDArray[np.float32]    # [Batch * Horizon * Out Features]
     ) -> Tuple[float, float, float]:
         """
@@ -35,7 +32,6 @@ class BaseModel(ABC):
     def predict(
         self,
         input: NDArray[np.float32],     # [In Features]
-        truth: NDArray[np.float32]      # [Out Features]
     ) -> Tuple[float, float, float, NDArray[np.float32]]:
         """
         Predicts the next horizon using stored context (past inputs + truths).

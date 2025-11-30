@@ -1,9 +1,7 @@
 import numpy as np
-from collections import deque
-from river import forest, metrics
+from river import forest
 from typing import List, Tuple, Optional, Dict, Any
 import warnings
-import pandas as pd
 import time
 import psutil
 import os
@@ -154,7 +152,6 @@ class ArfRegressor(StreamBaseModel):
     def predict(
         self,
         input: NDArray[np.float32],     # [In Features]
-        truth: NDArray[np.float32]      # [Out Features]
     ) -> Tuple[float, float, float, NDArray[np.float32]]:
         """
         Predicts the next horizon using stored context (past inputs + truths).
@@ -164,13 +161,10 @@ class ArfRegressor(StreamBaseModel):
             Error (based on provided single truth),
             Predictions for full horizon: [Horizon * Out Features]
         """
-        # Update context history
-        self.context_history.append(input)
-        if len(self.context_history) > self.lookback:
-            self.context_history.pop(0)
-        
         # If we don't have enough context yet, return zeros
         if len(self.context_history) < self.lookback:
+            # Update context history even during warmup
+            self.context_history.append(input)
             return (
                 0.0,
                 0.0,
@@ -185,7 +179,13 @@ class ArfRegressor(StreamBaseModel):
         predictions = self._predict_one(context_array)
         ram_after = psutil.Process(os.getpid()).memory_info().rss / (1024 * 1024)  # in MB
         latency = time.time() - start_time  
-        error = np.mean(np.abs(truth - predictions[0]))  # Error based on first horizon step
+        error = np.mean(np.abs(input - predictions[0]))  # Error based on first horizon step
+
+        # Update context history
+        self.context_history.append(input)
+        if len(self.context_history) > self.lookback:
+            self.context_history.pop(0)
+        
         return (
             (ram_before + ram_after) / 2,
             latency,
