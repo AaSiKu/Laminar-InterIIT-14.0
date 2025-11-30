@@ -1,6 +1,6 @@
 import { useState } from "react";
-import { Typography } from "@mui/material";
-import SearchIcon from "@mui/icons-material/Search";
+import { Typography, Box, Divider } from "@mui/material";
+import TopBar from "../components/TopBar";
 
 // Import components from admin folder
 import {
@@ -39,43 +39,89 @@ export function AdminPage() {
   };
 
   return (
-    <div className="below-sidebar-container">
-      {" "}
-      <div className="admin-container">
+    <Box
+      className="below-sidebar-container"
+      sx={{
+        minHeight: '100vh',
+        bgcolor: 'background.default',
+        display: 'flex',
+        flexDirection: 'column',
+      }}
+    >
+      <Box
+        className="admin-container"
+        sx={{
+          minHeight: '100vh',
+          bgcolor: 'background.default',
+          display: 'flex',
+          flexDirection: 'column',
+        }}
+      >
         {/* Top Bar */}
-        <div className="admin-topbar">
-          <div className="admin-search-wrapper">
-            <SearchIcon className="admin-search-icon" />
-            <input
-              type="text"
-              placeholder="Search"
-              className="admin-search-input"
-            />
-          </div>
-          <div className="admin-user-avatar">
-            <img
-              src="https://i.pravatar.cc/40"
-              alt="User"
-              className="admin-avatar-img"
-            />
-          </div>
-        </div>
+        <TopBar userAvatar="https://i.pravatar.cc/40" />
 
         {/* Main Content */}
-        <div className="admin-content">
+        <Box
+          className="admin-content"
+          sx={{
+            flex: 1,
+            p: { xs: 2, md: 3 },
+            overflowY: 'auto',
+          }}
+        >
           {/* Main Grid - KPIs and Alerts */}
-          <div className="admin-grid">
+          <Box
+            className="admin-grid"
+            sx={{
+              display: 'flex',
+              overflow: 'hidden',
+              flexDirection: { xs: 'column', lg: 'row' },
+            }}
+          >
             {/* Left Column - Header + KPI Cards */}
-            <div className="admin-left-column">
+            <Box
+              className="admin-left-column"
+              sx={{
+                width: { xs: '100%', lg: '50%' },
+                p: 2.5,
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 2,
+              }}
+            >
               {/* Header */}
-              <div className="admin-header">
-                <Typography className="admin-title">Admin Overview</Typography>
-                <Typography className="admin-subtitle">
+              <Box className="admin-header" sx={{ mb: 0.5 }}>
+                <Typography
+                  variant="h5"
+                  sx={{
+                    fontSize: '1.5rem',
+                    fontWeight: 600,
+                    color: 'text.primary',
+                    mb: 0.25,
+                  }}
+                >
+                  Admin Overview
+                </Typography>
+                <Typography
+                  variant="body2"
+                  sx={{
+                    color: 'text.secondary',
+                    fontSize: '0.875rem',
+                  }}
+                >
                   Select the metric to visualize it on right !
                 </Typography>
-              </div>
+              </Box>
               {/* KPI Cards */}
-              <div className="admin-kpi-section">
+              <Box
+                className="admin-kpi-section"
+                sx={{
+                  display: 'grid',
+                  gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)' },
+                  gap: 2,
+                  flex: 1,
+                }}
+              >
                 {kpiData.map((kpi) => (
                   <KpiCard
                     key={kpi.id}
@@ -94,11 +140,17 @@ export function AdminPage() {
                     }
                   />
                 ))}
-              </div>
-            </div>
+              </Box>
+            </Box>
 
             {/* Chart Section */}
-            <div className="admin-alerts-wrapper">
+            <Box
+              className="admin-alerts-wrapper"
+              sx={{
+                width: { xs: '100%', lg: '50%' },
+                p: 2.5,
+              }}
+            >
               {selectedChart === "pipeline" ? (
                 <PipelineStatsChart data={pipelineStatsData} />
               ) : selectedChart === "mttr" ? (
@@ -108,16 +160,42 @@ export function AdminPage() {
               ) : (
                 <AlertsChart data={alertsChartData} />
               )}
-            </div>
-          </div>
+            </Box>
+          </Box>
+
+          {/* Divider between top and bottom sections */}
+          <Divider sx={{ my: 3 }} />
 
           {/* Bottom Section - Workflows and Members */}
-          <div className="admin-bottom-section">
+          <Box
+            className="admin-bottom-section"
+            sx={{
+              display: 'flex',
+              overflow: 'hidden',
+              flexDirection: { xs: 'column', lg: 'row' },
+            }}
+          >
             <WorkflowsTable data={workflowsData} />
+            <Divider 
+              orientation="vertical" 
+              flexItem 
+              sx={{ 
+                display: { xs: 'none', lg: 'block' },
+                mx: 0,
+              }} 
+            />
+            <Box
+              sx={{
+                display: { xs: 'block', lg: 'none' },
+                width: '100%',
+              }}
+            >
+              <Divider sx={{ my: 0 }} />
+            </Box>
             <MembersTable data={membersData} />
-          </div>
-        </div>
-      </div>
-    </div>
+          </Box>
+        </Box>
+      </Box>
+    </Box>
   );
 }

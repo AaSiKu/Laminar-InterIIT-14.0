@@ -4,7 +4,7 @@ import OverviewSection from "../components/dashboard/OverviewSection";
 import KPICard from "../components/dashboard/KPICard";
 import RecentWorkflowCard from "../components/dashboard/RecentWorkflowCard";
 import HighlightsPanel from "../components/dashboard/HighlightsPanel";
-import ThemeToggler from "../components/ThemeToggler";
+import TopBar from "../components/TopBar";
 import {
   fetchWorkflows,
   fetchNotifications,
@@ -69,25 +69,7 @@ export default function OverviewPage() {
     <>
     <div className="below-sidebar-container">
       <div className="overview-main">
-        <Box
-          className="overview-topbar"
-          sx={{
-            borderBottom: '1px solid',
-            borderColor: 'divider',
-          }}
-        >
-          <div className="overview-topbar-left">
-            <input
-              type="text"
-              placeholder="Search"
-              className="overview-search-input"
-            />
-          </div>
-          <div className="overview-topbar-right">
-            <ThemeToggler type="slim" />
-            <div className="overview-user-avatar">U</div>
-          </div>
-        </Box>
+        <TopBar userAvatar="https://i.pravatar.cc/40" />
 
         <div className="overview-content-wrapper">
           <div className="overview-left-content">

@@ -1,75 +1,334 @@
-import { Typography } from "@mui/material";
+import { Typography, Box, useTheme } from "@mui/material";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import ErrorOutlineIcon from "@mui/icons-material/ErrorOutline";
 import WarningIcon from "@mui/icons-material/Warning";
 
 export function PipelineStatsChart({ data }) {
+  const theme = useTheme();
   const maxValue = 20;
   const barHeight = 12; // rem
 
   return (
-    <div className="admin-alerts-section">
-      <div className="admin-pipeline-stats">
-        <div className="admin-pipeline-stats-left">
-          <Typography className="admin-pipeline-stats-label">Total number of</Typography>
-          <Typography className="admin-pipeline-stats-title">Pipeline Running</Typography>
-          <Typography className="admin-pipeline-stats-value">35</Typography>
+    <Box
+      sx={{
+        bgcolor: 'background.elevation1',
+        p: 2.5,
+        display: 'flex',
+        flexDirection: 'column',
+        border: '1px solid',
+        borderColor: 'divider',
+        borderRadius: 2,
+        height: '100%',
+      }}
+    >
+      <Box
+        sx={{
+          display: 'flex',
+          height: '100%',
+          gap: 4,
+          flexDirection: { xs: 'column', md: 'row' },
+        }}
+      >
+        <Box
+          sx={{
+            flex: 1,
+            display: 'flex',
+            flexDirection: 'column',
+          }}
+        >
+          <Typography
+            variant="body2"
+            sx={{
+              fontSize: '0.875rem',
+              color: 'text.secondary',
+              mb: 0.25,
+            }}
+          >
+            Total number of
+          </Typography>
+          <Typography
+            variant="h4"
+            sx={{
+              fontSize: '1.75rem',
+              fontWeight: 700,
+              color: 'text.primary',
+              lineHeight: 1.2,
+              mb: 0.25,
+            }}
+          >
+            Pipeline Running
+          </Typography>
+          <Typography
+            variant="h5"
+            sx={{
+              fontSize: '1.5rem',
+              fontWeight: 400,
+              color: 'text.primary',
+              mb: 3,
+            }}
+          >
+            35
+          </Typography>
           
-          <div className="admin-pipeline-stats-list">
-            <div className="admin-pipeline-stat-item">
-              <div className="admin-pipeline-stat-icon success">
+          <Box
+            sx={{
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 2,
+            }}
+          >
+            <Box
+              sx={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 1.5,
+              }}
+            >
+              <Box
+                sx={{
+                  width: '2.5rem',
+                  height: '2.5rem',
+                  borderRadius: '50%',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  bgcolor: 'success.lighter',
+                  color: 'success.dark',
+                }}
+              >
                 <CheckCircleIcon sx={{ fontSize: "1.25rem" }} />
-              </div>
-              <Typography className="admin-pipeline-stat-number">{data.successful}</Typography>
-              <Typography className="admin-pipeline-stat-text">Successful</Typography>
-            </div>
-            <div className="admin-pipeline-stat-item">
-              <div className="admin-pipeline-stat-icon error">
+              </Box>
+              <Typography
+                sx={{
+                  fontSize: '1.5rem',
+                  fontWeight: 500,
+                  color: 'text.primary',
+                  minWidth: '2.5rem',
+                }}
+              >
+                {data.successful}
+              </Typography>
+              <Typography
+                sx={{
+                  fontSize: '0.875rem',
+                  color: 'text.secondary',
+                }}
+              >
+                Successful
+              </Typography>
+            </Box>
+            <Box
+              sx={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 1.5,
+              }}
+            >
+              <Box
+                sx={{
+                  width: '2.5rem',
+                  height: '2.5rem',
+                  borderRadius: '50%',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  bgcolor: 'error.lighter',
+                  color: 'error.dark',
+                }}
+              >
                 <ErrorOutlineIcon sx={{ fontSize: "1.25rem" }} />
-              </div>
-              <Typography className="admin-pipeline-stat-number">{data.errors}</Typography>
-              <Typography className="admin-pipeline-stat-text">Errors</Typography>
-            </div>
-            <div className="admin-pipeline-stat-item">
-              <div className="admin-pipeline-stat-icon warning">
+              </Box>
+              <Typography
+                sx={{
+                  fontSize: '1.5rem',
+                  fontWeight: 500,
+                  color: 'text.primary',
+                  minWidth: '2.5rem',
+                }}
+              >
+                {data.errors}
+              </Typography>
+              <Typography
+                sx={{
+                  fontSize: '0.875rem',
+                  color: 'text.secondary',
+                }}
+              >
+                Errors
+              </Typography>
+            </Box>
+            <Box
+              sx={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 1.5,
+              }}
+            >
+              <Box
+                sx={{
+                  width: '2.5rem',
+                  height: '2.5rem',
+                  borderRadius: '50%',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  bgcolor: 'warning.lighter',
+                  color: 'warning.dark',
+                }}
+              >
                 <WarningIcon sx={{ fontSize: "1.25rem" }} />
-              </div>
-              <Typography className="admin-pipeline-stat-number">{data.warning.toString().padStart(2, "0")}</Typography>
-              <Typography className="admin-pipeline-stat-text">Warrning</Typography>
-            </div>
-          </div>
-        </div>
+              </Box>
+              <Typography
+                sx={{
+                  fontSize: '1.5rem',
+                  fontWeight: 500,
+                  color: 'text.primary',
+                  minWidth: '2.5rem',
+                }}
+              >
+                {data.warning.toString().padStart(2, "0")}
+              </Typography>
+              <Typography
+                sx={{
+                  fontSize: '0.875rem',
+                  color: 'text.secondary',
+                }}
+              >
+                Warning
+              </Typography>
+            </Box>
+          </Box>
+        </Box>
         
-        <div className="admin-pipeline-stats-right">
-          <div className="admin-pipeline-bars">
-            <div className="admin-pipeline-bar-group">
-              <span className="admin-pipeline-bar-value">{data.successful}</span>
-              <div 
-                className="admin-pipeline-bar success"
-                style={{ height: `${(data.successful / maxValue) * barHeight}rem` }}
+        <Box
+          sx={{
+            flex: 1,
+            display: 'flex',
+            alignItems: 'flex-end',
+            justifyContent: 'center',
+          }}
+        >
+          <Box
+            sx={{
+              display: 'flex',
+              alignItems: 'flex-end',
+              gap: 6,
+              height: '100%',
+              pb: 3,
+            }}
+          >
+            <Box
+              sx={{
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+              }}
+            >
+              <Typography
+                sx={{
+                  fontSize: '0.875rem',
+                  fontWeight: 600,
+                  color: 'text.primary',
+                  mb: 1,
+                }}
+              >
+                {data.successful}
+              </Typography>
+              <Box
+                sx={{
+                  width: '3rem',
+                  height: `${(data.successful / maxValue) * barHeight}rem`,
+                  borderRadius: '4px 4px 0 0',
+                  bgcolor: 'success.main',
+                  transition: 'height 0.3s ease',
+                }}
               />
-              <span className="admin-pipeline-bar-label">Successful</span>
-            </div>
-            <div className="admin-pipeline-bar-group">
-              <span className="admin-pipeline-bar-value">{data.errors}</span>
-              <div 
-                className="admin-pipeline-bar error"
-                style={{ height: `${(data.errors / maxValue) * barHeight}rem` }}
+              <Typography
+                sx={{
+                  fontSize: '0.75rem',
+                  color: 'text.secondary',
+                  mt: 1.5,
+                }}
+              >
+                Successful
+              </Typography>
+            </Box>
+            <Box
+              sx={{
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+              }}
+            >
+              <Typography
+                sx={{
+                  fontSize: '0.875rem',
+                  fontWeight: 600,
+                  color: 'text.primary',
+                  mb: 1,
+                }}
+              >
+                {data.errors}
+              </Typography>
+              <Box
+                sx={{
+                  width: '3rem',
+                  height: `${(data.errors / maxValue) * barHeight}rem`,
+                  borderRadius: '4px 4px 0 0',
+                  bgcolor: 'warning.main',
+                  transition: 'height 0.3s ease',
+                }}
               />
-              <span className="admin-pipeline-bar-label">Errors</span>
-            </div>
-            <div className="admin-pipeline-bar-group">
-              <span className="admin-pipeline-bar-value">{data.warning.toString().padStart(2, "0")}</span>
-              <div 
-                className="admin-pipeline-bar warning"
-                style={{ height: `${(data.warning / maxValue) * barHeight}rem` }}
+              <Typography
+                sx={{
+                  fontSize: '0.75rem',
+                  color: 'text.secondary',
+                  mt: 1.5,
+                }}
+              >
+                Errors
+              </Typography>
+            </Box>
+            <Box
+              sx={{
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+              }}
+            >
+              <Typography
+                sx={{
+                  fontSize: '0.875rem',
+                  fontWeight: 600,
+                  color: 'text.primary',
+                  mb: 1,
+                }}
+              >
+                {data.warning.toString().padStart(2, "0")}
+              </Typography>
+              <Box
+                sx={{
+                  width: '3rem',
+                  height: `${(data.warning / maxValue) * barHeight}rem`,
+                  borderRadius: '4px 4px 0 0',
+                  bgcolor: 'error.main',
+                  transition: 'height 0.3s ease',
+                }}
               />
-              <span className="admin-pipeline-bar-label">Warning</span>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
+              <Typography
+                sx={{
+                  fontSize: '0.75rem',
+                  color: 'text.secondary',
+                  mt: 1.5,
+                }}
+              >
+                Warning
+              </Typography>
+            </Box>
+          </Box>
+        </Box>
+      </Box>
+    </Box>
   );
 }
 

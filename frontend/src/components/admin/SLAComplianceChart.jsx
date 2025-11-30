@@ -1,6 +1,7 @@
-import { Typography } from "@mui/material";
+import { Typography, Box, Chip, useTheme } from "@mui/material";
 
 export function SLAComplianceChart({ data }) {
+  const theme = useTheme();
   const size = 180;
   const strokeWidth = 20;
   const radius = (size - strokeWidth) / 2;
@@ -15,34 +16,129 @@ export function SLAComplianceChart({ data }) {
     return { ...segment, dashLength, offset };
   });
 
+  const bgCircleColor = theme.palette.mode === 'dark' 
+    ? theme.palette.background.elevation2 
+    : theme.palette.background.elevation1;
+
   return (
-    <div className="admin-alerts-section">
-      <Typography className="admin-sla-title">SLA compliance(%)</Typography>
+    <Box
+      sx={{
+        bgcolor: 'background.elevation1',
+        p: 2.5,
+        display: 'flex',
+        flexDirection: 'column',
+        borderRadius: 2,
+        height: '100%',
+      }}
+    >
+      <Typography
+        variant="h6"
+        sx={{
+          fontSize: '1.25rem',
+          fontWeight: 700,
+          color: 'text.primary',
+          mb: 3,
+        }}
+      >
+        SLA compliance(%)
+      </Typography>
       
-      <div className="admin-sla-content">
-        <div className="admin-sla-stats">
+      <Box
+        sx={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: 4,
+          flex: 1,
+          flexDirection: { xs: 'column', md: 'row' },
+        }}
+      >
+        <Box
+          sx={{
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 2.5,
+          }}
+        >
           {data.stats.map((stat, idx) => (
-            <div key={idx} className="admin-sla-stat-row">
-              <div className="admin-sla-stat-indicator" style={{ backgroundColor: stat.color }}></div>
-              <span className="admin-sla-stat-label">{stat.label}</span>
-              <span className="admin-sla-stat-value">{stat.value}</span>
-              <span className="admin-sla-stat-change">
-                {stat.change}
-                <span className="admin-sla-stat-x">×</span>
-              </span>
-            </div>
+            <Box
+              key={idx}
+              sx={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 1.5,
+                py: 1,
+                borderBottom: '1px solid',
+                borderColor: 'divider',
+              }}
+            >
+              <Box
+                sx={{
+                  width: '0.25rem',
+                  height: '2rem',
+                  borderRadius: '2px',
+                  bgcolor: stat.color,
+                }}
+              />
+              <Typography
+                sx={{
+                  fontSize: '0.9375rem',
+                  color: 'text.primary',
+                  minWidth: '5rem',
+                }}
+              >
+                {stat.label}
+              </Typography>
+              <Typography
+                sx={{
+                  fontSize: '1.125rem',
+                  fontWeight: 600,
+                  color: 'text.primary',
+                  minWidth: '4rem',
+                }}
+              >
+                {stat.value}
+              </Typography>
+              <Chip
+                label={`${stat.change}×`}
+                size="small"
+                color="success"
+                variant="soft"
+                sx={{
+                  fontSize: '0.75rem',
+                  fontWeight: 500,
+                  height: 'auto',
+                  py: 0.5,
+                }}
+              />
+            </Box>
           ))}
-        </div>
+        </Box>
         
-        <div className="admin-sla-donut">
-          <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
+        <Box
+          sx={{
+            position: 'relative',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          <Box
+            component="svg"
+            width={size}
+            height={size}
+            viewBox={`0 0 ${size} ${size}`}
+            sx={{
+              transform: 'rotate(0deg)',
+            }}
+          >
             {/* Background circle */}
             <circle
               cx={size / 2}
               cy={size / 2}
               r={radius}
               fill="none"
-              stroke="#f3f4f6"
+              stroke={bgCircleColor}
               strokeWidth={strokeWidth}
             />
             
@@ -62,14 +158,42 @@ export function SLAComplianceChart({ data }) {
                 strokeLinecap="round"
               />
             ))}
-          </svg>
-          <div className="admin-sla-donut-center">
-            <span className="admin-sla-donut-value">{data.overall}%</span>
-            <span className="admin-sla-donut-label">SLA Compliance Insight</span>
-          </div>
-        </div>
-      </div>
-    </div>
+          </Box>
+          <Box
+            sx={{
+              position: 'absolute',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+              textAlign: 'center',
+            }}
+          >
+            <Typography
+              sx={{
+                fontSize: '2.5rem',
+                fontWeight: 700,
+                color: 'text.primary',
+                lineHeight: 1,
+              }}
+            >
+              {data.overall}%
+            </Typography>
+            <Typography
+              sx={{
+                fontSize: '0.75rem',
+                color: 'text.secondary',
+                maxWidth: '6rem',
+                textAlign: 'center',
+                mt: 0.25,
+              }}
+            >
+              SLA Compliance Insight
+            </Typography>
+          </Box>
+        </Box>
+      </Box>
+    </Box>
   );
 }
 

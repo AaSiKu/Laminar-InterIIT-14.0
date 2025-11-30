@@ -1,6 +1,7 @@
-import { Typography } from "@mui/material";
+import { Typography, Box, useTheme } from "@mui/material";
 
 export function MTTRChart({ data }) {
+  const theme = useTheme();
   const maxValue = 60;
   const minValue = 0;
   const chartHeight = 200;
@@ -24,14 +25,68 @@ export function MTTRChart({ data }) {
     }).join(' ');
   };
 
+  const dividerColor = theme.palette.divider;
+  const textSecondaryColor = theme.palette.text.secondary;
+
   return (
-    <div className="admin-alerts-section">
-      <div className="admin-mttr-chart">
-        <Typography className="admin-mttr-title">MTTR</Typography>
-        <Typography className="admin-mttr-subtitle">Total profit gained</Typography>
+    <Box
+      sx={{
+        bgcolor: 'background.elevation1',
+        p: 2.5,
+        display: 'flex',
+        flexDirection: 'column',
+        border: '1px solid',
+        borderColor: 'divider',
+        borderRadius: 2,
+        height: '100%',
+      }}
+    >
+      <Box
+        sx={{
+          height: '100%',
+          display: 'flex',
+          flexDirection: 'column',
+        }}
+      >
+        <Typography
+          variant="h6"
+          sx={{
+            fontSize: '1.25rem',
+            fontWeight: 700,
+            color: 'text.primary',
+            mb: 0.25,
+          }}
+        >
+          MTTR
+        </Typography>
+        <Typography
+          variant="body2"
+          sx={{
+            fontSize: '0.875rem',
+            color: 'text.secondary',
+            mb: 2,
+          }}
+        >
+          Total profit gained
+        </Typography>
         
-        <div className="admin-mttr-chart-container">
-          <svg viewBox={`0 0 ${chartWidth} ${chartHeight}`} className="admin-mttr-svg">
+        <Box
+          sx={{
+            flex: 1,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          <Box
+            component="svg"
+            viewBox={`0 0 ${chartWidth} ${chartHeight}`}
+            sx={{
+              width: '100%',
+              height: 'auto',
+              maxHeight: '15rem',
+            }}
+          >
             {/* Grid lines */}
             {[60, 45, 30, 15].map((val) => (
               <g key={val}>
@@ -40,13 +95,13 @@ export function MTTRChart({ data }) {
                   y1={getY(val)}
                   x2={chartWidth - padding.right}
                   y2={getY(val)}
-                  stroke="#e5e7eb"
+                  stroke={dividerColor}
                   strokeWidth="1"
                 />
                 <text
                   x={padding.left - 10}
                   y={getY(val) + 4}
-                  fill="#9ca3af"
+                  fill={textSecondaryColor}
                   fontSize="10"
                   textAnchor="end"
                 >
@@ -63,7 +118,7 @@ export function MTTRChart({ data }) {
                 y1={padding.top}
                 x2={padding.left + i * xStep}
                 y2={chartHeight - padding.bottom}
-                stroke="#e5e7eb"
+                stroke={dividerColor}
                 strokeWidth="1"
               />
             ))}
@@ -75,7 +130,7 @@ export function MTTRChart({ data }) {
               width={innerWidth}
               height={innerHeight}
               fill="none"
-              stroke="#e5e7eb"
+              stroke={dividerColor}
               strokeWidth="1"
             />
             
@@ -96,17 +151,17 @@ export function MTTRChart({ data }) {
                 key={i}
                 x={padding.left + i * xStep}
                 y={chartHeight - 10}
-                fill="#6b7280"
+                fill={textSecondaryColor}
                 fontSize="9"
                 textAnchor="middle"
               >
                 {label}
               </text>
             ))}
-          </svg>
-        </div>
-      </div>
-    </div>
+          </Box>
+        </Box>
+      </Box>
+    </Box>
   );
 }
 
