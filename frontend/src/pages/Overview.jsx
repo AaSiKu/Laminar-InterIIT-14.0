@@ -1,9 +1,10 @@
 import { useState, useEffect } from "react";
-import { Typography, IconButton, Drawer, Fab } from "@mui/material";
+import { Typography, IconButton, Drawer, Fab, Grid, Box, Divider } from "@mui/material";
 import OverviewSection from "../components/dashboard/OverviewSection";
 import KPICard from "../components/dashboard/KPICard";
 import RecentWorkflowCard from "../components/dashboard/RecentWorkflowCard";
 import HighlightsPanel from "../components/dashboard/HighlightsPanel";
+import ThemeToggler from "../components/ThemeToggler";
 import {
   fetchWorkflows,
   fetchNotifications,
@@ -66,51 +67,63 @@ export default function OverviewPage() {
   console.log();
   return (
     <>
-      <div className="overview-container">
-        <div className="overview-main">
-          <div className="overview-topbar">
-            <div className="overview-topbar-left">
-              <input
-                type="text"
-                placeholder="Search"
-                className="overview-search-input"
-              />
-            </div>
-            <div className="overview-topbar-right">
-              <div className="overview-user-avatar">U</div>
-            </div>
+    <div className="below-sidebar-container">
+      <div className="overview-main">
+        <Box
+          className="overview-topbar"
+          sx={{
+            borderBottom: '1px solid',
+            borderColor: 'divider',
+          }}
+        >
+          <div className="overview-topbar-left">
+            <input
+              type="text"
+              placeholder="Search"
+              className="overview-search-input"
+            />
           </div>
+          <div className="overview-topbar-right">
+            <ThemeToggler type="slim" />
+            <div className="overview-user-avatar">U</div>
+          </div>
+        </Box>
 
-          <div className="overview-content-wrapper">
-            <div className="overview-left-content">
-              {overviewData && (
-                <div className="overview-overview-kpi-row">
-                  <div className="overview-overview-wrapper">
-                    {overviewData["pie_chart"] && (
-                      <OverviewSection data={overviewData["pie_chart"]} />
-                    )}
-                  </div>
+        <div className="overview-content-wrapper">
+          <div className="overview-left-content">
+            <Box sx={{ 
+              mx: { xs: '-16px', md: '-32px' },
+              mt: { xs: '-16px', md: '-32px' },
+              width: { xs: 'calc(100% + 32px)', md: 'calc(100% + 64px)' },
+            }}>
+              {overviewData && <Grid container spacing={0}>
+                <Grid size={{ xs: 12, md: 6, xl: 7 }}>
+                  {overviewData["pie_chart"] && <OverviewSection data={overviewData["pie_chart"]} />}
+                </Grid>
 
-                  <div className="overview-vertical-divider" />
-
-                  <div className="overview-kpi-grid">
-                    {overviewData["kpi"] && overviewData["kpi"].map((kpi) => {
-                      const IconComponent = getIconComponent(kpi.iconType);
-                      return (
-                        <div key={kpi.id} className="overview-kpi-item">
-                          <KPICard
-                            title={kpi.title}
-                            value={kpi.value}
-                            subtitle={kpi.subtitle}
-                            icon={IconComponent}
-                            iconColor={kpi.iconColor}
-                          />
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
+                <Grid container size={{ xs: 12, md: 6, xl: 5 }} spacing={0}>
+                  {overviewData["kpi"] && overviewData["kpi"].map((kpi, index) => {
+                    const IconComponent = getIconComponent(kpi.iconType);
+                    const totalKpis = overviewData["kpi"].length;
+                    const isFirstRow = index < Math.ceil(totalKpis / 2);
+                    const isLastRow = index >= totalKpis - Math.ceil(totalKpis / 2);
+                    return (
+                      <Grid size={{ xs: 6, sm: 4, md: 6, xl: 4 }} key={kpi.id}>
+                        <KPICard
+                          title={kpi.title}
+                          value={kpi.value}
+                          subtitle={kpi.subtitle}
+                          icon={IconComponent}
+                          iconColor={kpi.iconColor}
+                          isFirstRow={isFirstRow}
+                          isLastRow={isLastRow}
+                        />
+                      </Grid>
+                    );
+                  })}
+                </Grid>
+              </Grid>}
+            </Box>
 
               <div className="overview-horizontal-divider" />
 
