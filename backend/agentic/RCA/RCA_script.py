@@ -10,7 +10,10 @@ from langchain_core.tools import tool
 from langchain_community.docstore.in_memory import InMemoryDocstore
 from langchain_community.vectorstores.faiss import FAISS
 from langchain_core.documents import Document
-from langchain_google_genai import GoogleGenerativeAIEmbeddings
+from langchain_google_genai import GoogleGenerativeAIEmbeddings, ChatGoogleGenerativeAI
+from langchain_community.tools.tavily_search import TavilySearchResults
+from langchain_core.messages import HumanMessage, SystemMessage
+from langgraph.prebuilt import create_react_agent
 import numpy as np
 import litellm
 from litellm import acompletion
@@ -158,6 +161,61 @@ def get_api_health_from_monitoring(url: str) -> dict:
     # with psycopg2.connect(DB_CONNECTION_PARAMS) as conn:
     #     ...
     return {"status": "healthy", "avg_latency_ms": 800}
+
+def analyze_financial_impact(
+    question: str,
+):
+    llm = ChatGoogleGenerativeAI(
+        model='gemini-2.5-pro',
+        temperature=0.2,
+        google_api_version="v1",
+    )
+
+    tavily = TavilySearchResults(max_results=3)
+    agent = create_react_agent(llm, [tavily])
+
+    SYSTEM_PROMPT = f"""You are a Senior Business Analyst and Cloud Economist, tasked with providing a financial impact assessment for a technical service disruption. Your audience is a non-technical executive team, so your analysis must be clear, concise, and focused on business outcomes.
+
+Based on the incident details provided in the user's question, generate a professional business report.
+
+**Your report must include the following sections using Markdown:**
+
+1.  **Executive Summary:**
+    *   Start with a one-paragraph, high-level overview of the incident and its most significant financial consequences.
+
+2.  **Estimated Direct Financial Costs:**
+    *   Quantify the immediate, measurable financial losses.
+    *   Use your web search tool to find industry benchmarks for metrics like:
+        *   Cost of IT downtime per hour for the relevant industry (e.g., e-commerce, SaaS, finance).
+        *   Typical SLA (Service Level Agreement) penalty calculations.
+        *   Estimated lost revenue from failed transactions or user activity during the outage.
+    *   Clearly state your assumptions (e.g., "Assuming 1,000 transactions per hour at an average value of $50...").
+
+3.  **Indirect Business Impact:**
+    *   Analyze the less tangible, but often more significant, long-term costs.
+    *   Consider factors such as:
+        *   Damage to customer trust and brand reputation.
+        *   Potential for customer churn and impact on user retention.
+        *   Cost of engineering and operational team time spent on investigation and remediation (use industry-average salaries for estimation if needed).
+
+4.  **Strategic Recommendations:**
+    *   Suggest 1-2 high-level, business-focused actions to mitigate future risks.
+    *   Frame these recommendations in terms of ROI (Return on Investment), such as "Investing in an automated batch-processing solution could prevent an estimated $X in future losses."
+
+**Crucial Instructions:**
+*   **Be Quantitative:** Use numbers and estimates wherever possible.
+*   **Cite Your Sources:** When you use data from your web search, mention it (e.g., "According to a 2024 Gartner report...").
+*   **State Assumptions:** Clearly articulate any assumptions made during your calculations."""
+    result = agent.invoke({
+        "messages": [
+            SystemMessage(content=SYSTEM_PROMPT),
+            HumanMessage(content=question)
+        ]
+    })
+
+    return result["messages"][-1].content
+
+    
 
 class VectorStore:
     def __init__(self, file_path: str = "rca_vector_store.faiss"):
