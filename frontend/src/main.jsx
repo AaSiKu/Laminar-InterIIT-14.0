@@ -1,7 +1,7 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import './index.css'
-import './i18n' // Initialize i18n before other imports
+import './i18n' 
 import App from './App.jsx'
 import { GlobalContextProvider } from "./context/GlobalContext.jsx";
 import { ReactFlowProvider } from "@xyflow/react";
@@ -9,10 +9,12 @@ import { BrowserRouter } from 'react-router-dom'
 import { AuthProvider } from './context/AuthContext.jsx'
 import SettingsProvider from './providers/SettingsProvider.jsx';
 import ThemeProvider from './providers/ThemeProvider.jsx';
+import MobileViewBlocker from "./components/MobileViewBlocker.jsx";
 
-const container = document.getElementById('root')
 
-const root = createRoot(container)
+const container = document.getElementById("root");
+
+const root = createRoot(container);
 root.render(
   <StrictMode>
     <SettingsProvider>
@@ -21,7 +23,9 @@ root.render(
           <BrowserRouter>
             <AuthProvider>
               <GlobalContextProvider>
-                <App />
+                <MobileViewBlocker>
+                  <App />
+                </MobileViewBlocker>
               </GlobalContextProvider>
             </AuthProvider>
           </BrowserRouter>
@@ -30,5 +34,3 @@ root.render(
     </SettingsProvider>
   </StrictMode>
 );
-
-;

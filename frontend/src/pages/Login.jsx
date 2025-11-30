@@ -1,87 +1,73 @@
 import React, { useState, useContext, useEffect } from "react";
 import {
   Box,
-  Container,
   TextField,
   Button,
   Typography,
   Alert,
   Paper,
 } from "@mui/material";
-import { AuthContext } from "../context/AuthContext";
-import PersonAddIcon from "@mui/icons-material/PersonAdd";
+import { useGlobalContext } from "../context/GlobalContext";
 import EmailIcon from "@mui/icons-material/Email";
 import LockIcon from "@mui/icons-material/Lock";
-import PersonIcon from "@mui/icons-material/Person";
-import { useNavigate } from "react-router-dom";
+import LoginIcon from "@mui/icons-material/Login"; 
+import { Navigate } from "react-router-dom";
 
-export default function SignupPage() {
-  const { login, isAuthenticated } = useContext(AuthContext);
+export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [fullName, setFullName] = useState("");
   const [error, setError] = useState("");
-  const navigate = useNavigate();
-  const API_SERVER = import.meta.env.VITE_API_SERVER;
-  useEffect(() => {
-    if (isAuthenticated) navigate("/developer-dashboard");
-  }, [isAuthenticated]);
+  const [isLoading, setIsLoading] = useState(false);
+  const { login, isAuthenticated } = useGlobalContext();
 
-const handleSubmit = async (e) => {
-  e.preventDefault();
-  setError("");
-  try {
-    // 1. Signup → backend sets cookies
-    const res = await fetch(`${API_SERVER}/auth/signup`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, password, full_name: fullName }),
-      credentials: "include",
-    });
-
-    if (!res.ok) {
-      const data = await res.json();
-      throw new Error(data.detail || "Signup failed");
-    }
-
-    // 2. Fetch user info
-    const userRes = await fetch(`${API_SERVER}/auth/me`, {
-      method: "GET",
-      credentials: "include",
-    });
-
-    if (!userRes.ok) throw new Error("Failed to fetch user info");
-    const userData = await userRes.json();
-
-    // 3. Update AuthProvider state → triggers redirect automatically
-    login(userData);
-  } catch (err) {
-    setError(err.message);
+ if (isAuthenticated) {
+    return <Navigate to="/overview" replace />;
   }
-};
 
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setError("");
+    setIsLoading(true);
 
+    try {
+      const res = await fetch(`${import.meta.env.VITE_API_SERVER}/auth/login`, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: new URLSearchParams({ username: email, password }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.detail || "Login failed");
+      }
+
+      const userRes = await fetch(`${import.meta.env.VITE_API_SERVER}/auth/me`, {
+        method: "GET",
+        credentials: "include",
+      });
+
+      if (!userRes.ok) throw new Error("Failed to fetch user info");
+
+      const userData = await userRes.json();
+      login(userData); // triggers redirect
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setIsLoading(false);
+    }
+  };
   return (
     <Box
       sx={{
         minHeight: "100vh",
-        minWidth: "100vw",
+        minWidth: "100vw", 
         display: "flex",
         justifyContent: "center",
         alignItems: "center",
-        background: "#f0f2f5", // Changed to a light grey background
+        background: "#f0f2f5",
         position: "relative",
         overflow: "hidden",
-        "&::before": {
-          content: '""',
-          position: "absolute",
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          background: "none", // Removed radial gradients
-          pointerEvents: "none",
-        },
         p: 2,
       }}
     >
@@ -122,7 +108,7 @@ const handleSubmit = async (e) => {
               boxShadow: "0 8px 20px rgba(59, 130, 246, 0.4)",
             }}
           >
-            <PersonAddIcon sx={{ fontSize: 32, color: "white" }} />
+            <LoginIcon sx={{ fontSize: 32, color: "white" }} />
           </Box>
           <Typography
             component="h1"
@@ -134,7 +120,7 @@ const handleSubmit = async (e) => {
               letterSpacing: "-0.5px",
             }}
           >
-            Create Account
+            Sign In
           </Typography>
           <Typography
             variant="body2"
@@ -144,7 +130,7 @@ const handleSubmit = async (e) => {
               mt: 1,
             }}
           >
-            Sign up to get started with your account
+            Welcome back! Please sign in to your account.
           </Typography>
         </Box>
 
@@ -164,45 +150,6 @@ const handleSubmit = async (e) => {
         )}
 
         <Box component="form" onSubmit={handleSubmit}>
-          {/* Full Name Field */}
-          <Box sx={{ mb: 2.5 }}>
-            <Typography
-              variant="body2"
-              sx={{ mb: 1, fontWeight: 600, color: "text.secondary" }}
-            >
-              Full Name
-            </Typography>
-            <TextField
-              required
-              fullWidth
-              placeholder="Enter your full name"
-              value={fullName}
-              onChange={(e) => setFullName(e.target.value)}
-              InputProps={{
-                startAdornment: (
-                  <PersonIcon
-                    sx={{ mr: 1, color: "text.secondary", fontSize: 20 }}
-                  />
-                ),
-              }}
-              sx={{
-                "& .MuiOutlinedInput-root": {
-                  borderRadius: "12px",
-                  background: "rgba(248, 250, 252, 0.8)",
-                  transition: "all 0.3s ease",
-                  "&:hover": {
-                    background: "rgba(255, 255, 255, 1)",
-                    boxShadow: "0 4px 12px rgba(59, 130, 246, 0.08)",
-                  },
-                  "&.Mui-focused": {
-                    background: "rgba(255, 255, 255, 1)",
-                    boxShadow: "0 4px 12px rgba(59, 130, 246, 0.15)",
-                  },
-                },
-              }}
-            />
-          </Box>
-
           {/* Email Field */}
           <Box sx={{ mb: 2.5 }}>
             <Typography
@@ -255,7 +202,7 @@ const handleSubmit = async (e) => {
               required
               fullWidth
               type="password"
-              placeholder="Create a strong password"
+              placeholder="Enter your password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               InputProps={{
@@ -322,11 +269,11 @@ const handleSubmit = async (e) => {
               },
             }}
           >
-            Create Account
+            {isLoading ? "Signing In..." : "Sign In"}
           </Button>
         </Box>
 
-        {/* Sign In Link */}
+        {/* Sign Up Link */}
         <Box sx={{ mt: 4, pt: 3, borderTop: "1px solid rgba(0, 0, 0, 0.06)" }}>
           <Typography
             sx={{
@@ -335,9 +282,9 @@ const handleSubmit = async (e) => {
               fontSize: "0.95rem",
             }}
           >
-            Already have an account?{" "}
+            Don't have an account?{" "}
             <a
-              href="/auth/login"
+              href="/signup"
               style={{
                 color: "#3b82f6",
                 textDecoration: "none",
@@ -347,7 +294,7 @@ const handleSubmit = async (e) => {
               onMouseEnter={(e) => (e.target.style.color = "#2563eb")}
               onMouseLeave={(e) => (e.target.style.color = "#3b82f6")}
             >
-              Sign In
+              Sign Up
             </a>
           </Typography>
         </Box>

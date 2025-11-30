@@ -1,22 +1,28 @@
-from pydantic import Field, field_validator
-from typing import Optional, Dict, Any, List, Literal, Tuple
+from pydantic import Field, field_validator, BaseModel
+from typing import Optional, Dict, Any, List, Literal, Annotated
 import pathway as pw
 from .node import Node
 import json
 
+# TODO: Add descriptions for the fields for user help on the UI, the description will be rendered as md
+
+# NOTE: Instead of using tuple, using this special type to ensure correct rending mechanism on frontend
+PairOfStrings = Annotated[List[str], Field(min_length=2, max_length=2)]
+class ColumnType(BaseModel):
+    key: str = Field(..., title="Column Name", description="e.g. Name")
+    value: str = Field(..., title="Type", description="string")
 class IONode(Node):
     category: Literal['io']
     name: Optional[str] = Field(default="None")
-    
 
 class InputNode(IONode):
     n_inputs : Literal[0] = 0
-    table_schema: Any
-    datetime_columns: Optional[List[Tuple[str, str]]] = Field(
+    table_schema: List[ColumnType]
+    datetime_columns: Optional[List[PairOfStrings]] = Field(
         default=None,
-        description="List of tuples (column_name, format_string) to convert string columns to datetime. "
-                    "Format strings follow strptime conventions (e.g., '%Y-%m-%d %H:%M:%S'). "
-                    "Use 'unix_seconds', 'unix_milliseconds', or 'unix_microseconds' for Unix timestamps."
+        description =( "List of tuples **[column_name, format_string]** to convert string columns to datetime. "
+                    "Format strings follow strptime conventions `(e.g., '%Y-%m-%d %H:%M:%S')`. "
+                    "Use 'unix_seconds', 'unix_milliseconds', or 'unix_microseconds' for Unix timestamps.")
     )
 
     @field_validator("table_schema", mode="before")
@@ -52,6 +58,7 @@ class InputNode(IONode):
 
 class OutputNode(IONode):
     n_inputs: Literal[1] = 1
+
 # ============ INPUT CONNECTORS ============
 
 class KafkaNode(InputNode):
@@ -84,7 +91,9 @@ class JsonLinesNode(InputNode):
 
 class AirbyteNode(InputNode):
     config_file_path: str
-    streams: List[str]
+    streams: List[str] = Field(
+        description="**Define the streams** from where you want to take input from"
+    )
     node_id: Literal["airbyte"]
     env_vars: Optional[Dict[str, str]] = None
     enforce_method: Optional[str] = None

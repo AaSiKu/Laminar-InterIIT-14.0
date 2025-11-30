@@ -18,92 +18,17 @@ import TrendingUpIcon from "@mui/icons-material/TrendingUp";
 import PipelineIcon from "@mui/icons-material/AccountTree";
 import TimerIcon from "@mui/icons-material/Timer";
 import NotificationsIcon from "@mui/icons-material/Notifications";
+import { fetchAdminKpiData, fetchAdminPipelines } from "../utils/admin.api";
 
-// --- Data Fetching Functions (Unchanged) ---
-const fetchKpiData = async () => {
-  return [
-    {
-      title: "Pipelines Running",
-      value: "3",
-      description: "Currently active pipelines",
-      icon: PipelineIcon,
-      color: "#3b82f6",
-    },
-    {
-      title: "Total Pipelines",
-      value: "6",
-      description: "Total deployed pipeline instances",
-      icon: TrendingUpIcon,
-      color: "#3b82f6",
-    },
-    {
-      title: "Average Runtime",
-      value: "3.2 hrs",
-      description: "Mean duration per pipeline",
-      icon: TimerIcon,
-      color: "#3b82f6",
-    },
-    {
-      title: "Alerts Today",
-      value: "5",
-      description: "Total alerts generated today",
-      icon: NotificationsIcon,
-      color: "#3b82f6",
-    },
-  ];
-};
-
-const fetchPipelines = async () => {
-  return [
-    {
-      id: 1,
-      name: "Pipeline A",
-      status: "Running",
-      breachReason: "Disk I/O saturation",
-      lastBreachTime: "10:30 AM",
-      owner: "Team Alpha",
-    },
-    {
-      id: 2,
-      name: "Pipeline B",
-      status: "Completed",
-      breachReason: "-",
-      lastBreachTime: "9:00 AM",
-      owner: "Team Beta",
-    },
-    {
-      id: 3,
-      name: "Pipeline C",
-      status: "Failed",
-      breachReason: "Network timeout",
-      lastBreachTime: "11:15 AM",
-      owner: "Team Gamma",
-    },
-    {
-      id: 4,
-      name: "Pipeline D",
-      status: "Running",
-      breachReason: "Input data skew",
-      lastBreachTime: "12:05 PM",
-      owner: "Team Delta",
-    },
-    {
-      id: 5,
-      name: "Pipeline E",
-      status: "Running",
-      breachReason: "Memory pressure",
-      lastBreachTime: "1:20 PM",
-      owner: "Team Alpha",
-    },
-    {
-      id: 6,
-      name: "Pipeline F",
-      status: "Completed",
-      breachReason: "-",
-      lastBreachTime: "8:45 AM",
-      owner: "Team Beta",
-    },
-  ];
+// Icon mapping utility
+const getAdminIconComponent = (iconType) => {
+  const iconMap = {
+    pipeline: PipelineIcon,
+    "trending-up": TrendingUpIcon,
+    timer: TimerIcon,
+    notifications: NotificationsIcon,
+  };
+  return iconMap[iconType] || PipelineIcon;
 };
 
 // --- KPI Card Component with Glassy Effect ---
@@ -379,14 +304,14 @@ function PipelineTable({ pipelines }) {
 }
 
 // --- Main Leadership Dashboard Component ---
-export function LeadershipDashboard() {
+export function AdminPage() {
   const [kpiData, setKpiData] = useState([]);
   const [pipelines, setPipelines] = useState([]);
 
   useEffect(() => {
     const loadData = async () => {
-      const kpi = await fetchKpiData();
-      const pipelineData = await fetchPipelines();
+      const kpi = await fetchAdminKpiData();
+      const pipelineData = await fetchAdminPipelines();
       setKpiData(kpi);
       setPipelines(pipelineData);
     };
@@ -434,17 +359,20 @@ export function LeadershipDashboard() {
               width: "100%",
             }}
           >
-            {kpiData.map((kpi, index) => (
-              <Box key={index}>
-                <KpiCard
-                  title={kpi.title}
-                  value={kpi.value}
-                  description={kpi.description}
-                  icon={kpi.icon}
-                  color={kpi.color}
-                />
-              </Box>
-            ))}
+            {kpiData.map((kpi, index) => {
+              const IconComponent = getAdminIconComponent(kpi.iconType);
+              return (
+                <Box key={index}>
+                  <KpiCard
+                    title={kpi.title}
+                    value={kpi.value}
+                    description={kpi.description}
+                    icon={IconComponent}
+                    color={kpi.color}
+                  />
+                </Box>
+              );
+            })}
           </Box>
         </Box>
 

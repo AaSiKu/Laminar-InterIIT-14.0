@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import Markdown from 'react-markdown';
 import {
   Drawer,
   Box,
@@ -8,31 +9,46 @@ import {
   Stack,
   Alert,
   Snackbar,
+  TextField,
+  IconButton,
+  InputAdornment,
+  Select,
+  MenuItem,
+  FormControl,
+  InputLabel,
+  Chip,
 } from "@mui/material";
+import {
+  Close as CloseIcon,
+  AccessTime as AccessTimeIcon,
+  CalendarToday as CalendarTodayIcon,
+} from "@mui/icons-material";
 import { PropertyInput } from "./PropertyInput";
+import Form from "@rjsf/mui";
+import validator from "@rjsf/validator-ajv8";
+import "../css/PropertyBar.css";
 
 const stringifyJsonProperties = (properties) =>
   properties.map((prop) => {
     if (prop.type === "json" && typeof prop.value === "object") {
-      return { ...prop, value: JSON.stringify(prop.value, null, 2) };
-    }
-    else if(prop.type == "array"){
-      return {...prop, value: prop.value.join(',')}
+      return { ...prop, value: JSON.stringify(prop?.value, null, 2) };
+    } else if (prop.type == "array") {
+      return { ...prop, value: prop?.value?.split(",") };
     }
     return prop;
   });
 
-const parseProperties = (properties) =>
-  properties.map((prop) => {
-    if (prop.type === "json") {
-      return { ...prop, value: JSON.parse(prop.value) };
-    }
-    else if (prop.type === "array") {
-      console.log(prop.value.toString().split(","))
-      return {...prop, value: prop.value.toString().split(",")}
-    }
-    return prop;
-  });
+// const parseProperties = (properties) =>
+  // properties.map((prop) => {
+  //   if (prop.type === "json") {
+  //     return { ...prop, value: JSON.parse(prop.value) };
+  //   } else if (prop.type === "array") {
+  //     console.log(prop.value.toString().split(","));
+  //     return { ...prop, value: prop?.value?.toString().split(",") };
+  //   }
+  //   return prop;
+  // });
+
 
 export const PropertyBar = ({
   open,
@@ -40,52 +56,54 @@ export const PropertyBar = ({
   onClose,
   onUpdateProperties,
   anchor = "right",
-  drawerWidth = 350,
+  drawerWidth = 500,
   variant = "temporary",
 }) => {
-  const [properties, setProperties] = useState([]);
   const [snackbar, setSnackbar] = useState({
     open: false,
     message: "",
     severity: "success",
   });
 
-  useEffect(() => {
-    if (selectedNode?.data?.properties) {
-      setProperties(stringifyJsonProperties(selectedNode.data.properties));
-    } else {
-      setProperties([]);
+  // 1. Create the Custom Description Component
+  const MarkdownDescriptionField = ({ description, id }) => {
+    if (!description) {
+      return null;
     }
-  }, [selectedNode]);
 
-  const handleChange = (index, value) => {
-    const updated = [...properties];
-    updated[index].value = value;
-    setProperties(updated);
+    return (
+      <div id={id}>
+        {/* We use Typography so it matches your MUI theme font */}
+        <Typography component="div" variant="body2" color="textSecondary">
+          <Markdown>{description}</Markdown>
+        </Typography>
+      </div>
+    );
   };
 
-  const handleSave = () => {
+  console.log(selectedNode?.schema)
+
+  const handleSave = ({ formData }) => {
     if (!selectedNode) return;
 
-    const hasEmptyRequired = properties.some((prop) => {
-      if (prop.type === "json") {
-        return !prop.value || !prop.value.toString().trim();
-      }
-      return `${prop.value ?? ""}`.trim() === "";
-    });
+    // const hasEmptyRequired = properties.some((prop) => {
+    //   if (prop.type === "json") {
+    //     return !prop.value || !prop.value.toString().trim();
+    //   }
+    //   return `${prop.value ?? ""}`.trim() === "";
+    // });
 
-    if (hasEmptyRequired) {
-      setSnackbar({
-        open: true,
-        message: "Please complete all required properties before saving.",
-        severity: "error",
-      });
-      return;
-    }
+    // if (hasEmptyRequired) {
+    //   setSnackbar({
+    //     open: true,
+    //     message: "Please complete all required properties before saving.",
+    //     severity: "error",
+    //   });
+    //   return;
+    // }
 
     try {
-      const updatedProperties = parseProperties(properties);
-      onUpdateProperties(selectedNode.id, updatedProperties);
+      onUpdateProperties(selectedNode.id, formData);
       setSnackbar({
         open: true,
         message: "Properties saved successfully!",
@@ -101,10 +119,6 @@ export const PropertyBar = ({
     }
   };
 
-  const handleCancel = () => {
-    onClose();
-  };
-
   const handleCloseSnackbar = () => {
     setSnackbar({ ...snackbar, open: false });
   };
@@ -115,75 +129,211 @@ export const PropertyBar = ({
         anchor={anchor}
         open={open}
         onClose={onClose}
-        variant={variant}
+        variant="persistent"
+        className="property-bar-drawer"
+        hideBackdrop
+        ModalProps={{
+          keepMounted: true,
+        }}
         sx={{
           "& .MuiDrawer-paper": {
             width: drawerWidth,
-            p: 3,
-            bgcolor: "background.paper",
-            boxSizing: "border-box",
-            display: "flex",
-            flexDirection: "column",
-            gap: 2,
+            backgroundColor: "#ffffff",
+            boxShadow: "none",
+            border: "none",
+            zIndex: 1200,
+            top: "6vh",
+            height: "94vh",
+            transition: "transform 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
           },
         }}
       >
-        <Typography variant="h6" gutterBottom>
-          {selectedNode
-            ? `Properties for ${
-                selectedNode.data.label ||
-                selectedNode.data.ui?.label ||
-                selectedNode.id
-              }`
-            : "Node Properties"}
-        </Typography>
-        <Divider sx={{ mb: 2 }} />
-
         {!selectedNode ? (
-          <Alert severity="info">Select a node to view its properties.</Alert>
-        ) : properties.length === 0 ? (
-          <Box
-            sx={{
-              mt: 4,
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "center",
-              textAlign: "center",
-              color: "text.secondary",
-            }}
-          >
-            <Typography variant="body1" sx={{ mb: 1 }}>
-              No properties found for this node.
-            </Typography>
+          <Box sx={{ p: 3 }}>
+            <Alert severity="info" sx={{ borderRadius: 2 }}>
+              Select a node to view its properties.
+            </Alert>
           </Box>
         ) : (
-          <Stack
-            spacing={2}
-            component="form"
-            sx={{ flexGrow: 1, overflowY: "auto", pr: 1 }}
-          >
-            {properties.map((prop, index) => (
-              <PropertyInput
-                key={index}
-                property={prop}
-                onChange={(e) => handleChange(index, e.target.value)}
-              />
-            ))}
-
-            <Stack
-              direction="row"
-              spacing={1}
-              justifyContent="flex-end"
-              sx={{ mt: 2 }}
+          <Box sx={{ height: "100%", display: "flex", flexDirection: "column" }}>
+            {/* Header */}
+            <Box
+              sx={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                px: 3,
+                py: 3.5,
+                borderBottom: "1px solid #e0e0e0",
+              }}
             >
-              <Button variant="outlined" color="inherit" onClick={handleCancel}>
-                Cancel
-              </Button>
-              <Button variant="contained" color="primary" onClick={handleSave}>
-                Save
-              </Button>
-            </Stack>
-          </Stack>
+              <Typography variant="h6" sx={{ fontWeight: 600, fontSize: "1.125rem" }}>
+                Property Editor
+              </Typography>
+              <IconButton
+                onClick={onClose}
+                size="small"
+                sx={{
+                  color: "#616161",
+                  "&:hover": { backgroundColor: "#f5f5f5" },
+                }}
+              >
+                <CloseIcon fontSize="small" />
+              </IconButton>
+            </Box>
+
+            {/* Scrollable Content */}
+            <Box sx={{ flex: 1, overflowY: "auto", px: 3, py: 2.5 }}>
+              {/* Node Title */}
+              <Box sx={{ mb: 2.5 }}>
+                <Typography
+                  variant="caption"
+                  sx={{
+                    color: "#1976d2",
+                    fontWeight: 600,
+                    fontSize: "0.6875rem",
+                    textTransform: "uppercase",
+                    letterSpacing: "0.5px",
+                    mb: 0.75,
+                    display: "block",
+                  }}
+                >
+                  Title
+                </Typography>
+                <TextField
+                  fullWidth
+                  value={selectedNode?.data?.ui?.label || "Node"}
+                  variant="outlined"
+                  disabled
+                  size="small"
+                  sx={{
+                    "& .MuiOutlinedInput-root": {
+                      backgroundColor: "#EBF2F5",
+                      borderRadius: "6px",
+                      fontSize: "0.8125rem",
+                      "& fieldset": { borderColor: "#e0e0e0" },
+                      "& input": { 
+                        padding: "10px 12px",
+                        fontSize: "0.8125rem"
+                      },
+                    },
+                  }}
+                />
+              </Box>
+
+              {/* Category Chip */}
+              <Box sx={{ mb: 2.5 }}>
+                <Typography
+                  variant="caption"
+                  sx={{
+                    color: "#616161",
+                    fontWeight: 600,
+                    fontSize: "0.6875rem",
+                    textTransform: "uppercase",
+                    letterSpacing: "0.5px",
+                    mb: 0.75,
+                    display: "block",
+                  }}
+                >
+                  Category
+                </Typography>
+                <Chip
+                  label={selectedNode?.data?.properties?.category || "General"}
+                  sx={{
+                    backgroundColor: "#e3f2fd",
+                    color: "#1976d2",
+                    fontWeight: 500,
+                    borderRadius: "6px",
+                    height: "26px",
+                    fontSize: "0.75rem",
+                  }}
+                />
+              </Box>
+
+              <Divider sx={{ my: 2.5 }} />
+
+              {/* Properties Form */}
+              <Box sx={{ mb: 2.5 }}>
+                <Typography
+                  variant="caption"
+                  sx={{
+                    color: "#616161",
+                    fontWeight: 600,
+                    fontSize: "0.6875rem",
+                    textTransform: "uppercase",
+                    letterSpacing: "0.5px",
+                    mb: 1.5,
+                    display: "block",
+                  }}
+                >
+                  Properties
+                </Typography>
+                <div className="property-bar-form-content">
+                  <Form
+                    schema={selectedNode?.schema}
+                    validator={validator}
+                    formData={selectedNode?.data?.properties}
+                    onSubmit={handleSave}
+                    templates={{
+                      DescriptionFieldTemplate: MarkdownDescriptionField,
+                    }}
+                  >
+                    {/* Custom Action Buttons */}
+                    <Box
+                      sx={{
+                        display: "flex",
+                        gap: 1.5,
+                        pt: 2.5,
+                        borderTop: "1px solid #e0e0e0",
+                        mt: 3,
+                      }}
+                    >
+                      <Button
+                        onClick={onClose}
+                        variant="outlined"
+                        fullWidth
+                        sx={{
+                          borderRadius: "6px",
+                          textTransform: "none",
+                          fontWeight: 500,
+                          fontSize: "0.8125rem",
+                          borderColor: "#e0e0e0",
+                          color: "#616161",
+                          py: 0.875,
+                          "&:hover": {
+                            borderColor: "#bdbdbd",
+                            backgroundColor: "#f5f5f5",
+                          },
+                        }}
+                      >
+                        Discard
+                      </Button>
+                      <Button
+                        type="submit"
+                        variant="contained"
+                        fullWidth
+                        sx={{
+                          borderRadius: "6px",
+                          textTransform: "none",
+                          fontWeight: 500,
+                          fontSize: "0.8125rem",
+                          backgroundColor: "#1976d2",
+                          py: 0.875,
+                          boxShadow: "none",
+                          "&:hover": {
+                            backgroundColor: "#1565c0",
+                            boxShadow: "0 2px 8px rgba(25, 118, 210, 0.3)",
+                          },
+                        }}
+                      >
+                        Save
+                      </Button>
+                    </Box>
+                  </Form>
+                </div>
+              </Box>
+            </Box>
+          </Box>
         )}
       </Drawer>
 
@@ -196,7 +346,7 @@ export const PropertyBar = ({
         <Alert
           onClose={handleCloseSnackbar}
           severity={snackbar.severity}
-          sx={{ width: "100%" }}
+          sx={{ width: "100%", borderRadius: 2 }}
         >
           {snackbar.message}
         </Alert>
