@@ -9,6 +9,7 @@ import Sidebar from "./components/sidebar.jsx";
 import OverviewPage from "./pages/Overview.jsx";
 import { AdminPage } from "./pages/Admin.jsx";
 import { DeveloperDashboardProject } from "./pages/DeveloperDashboardProject.jsx";
+import ThemeTestPage from "./pages/ThemeTestPage.jsx";
 import NotFoundPage from "./pages/NotFoundPage.jsx";
 import { Box } from "@mui/material";
 function AppContent() {
@@ -59,6 +60,14 @@ function AppContent() {
             </ProtectedRoute>
           }
         />
+          <Route
+            path="/theme-test"
+            element={
+              <ProtectedRoute>
+                <ThemeTestPage />
+              </ProtectedRoute>
+            }
+          />
         <Route path="*" element={<Navigate to="/404" />} />
       </Routes>
     </>

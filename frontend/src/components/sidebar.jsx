@@ -139,11 +139,14 @@ const Sidebar = () => {
             }}
           />
         )}
-
-        <IconButton
-          onClick={drawerOpen ? handleDrawerClose : handleDrawerOpen}
-          sx={{
-            color: "#1976d2",
+        
+        <IconButton 
+          onClick={drawerOpen ? handleDrawerClose : handleDrawerOpen} 
+          sx={{ 
+            color: '#1976d2',
+            '& svg': {
+              fontSize: '1.5rem', // Make menu/close icon larger
+            },
           }}
         >
           {drawerOpen ? <ChevronLeft /> : <MenuIcon />}
@@ -195,33 +198,34 @@ const Sidebar = () => {
                       return;
                     }
 
-                    if (item.path) navigate(item.path);
-                  }}
-                >
-                  <ListItemIcon
-                    sx={{
-                      minWidth: 0,
-                      mr: drawerOpen ? 3 : "auto",
-                      justifyContent: "center",
-                      color: isActive ? "#1976d2" : "#666",
-                      transition: theme.transitions.create("color", {
-                        easing: theme.transitions.easing.easeInOut,
-                        duration: theme.transitions.duration.short,
-                      }),
+                      if (item.path) navigate(item.path);
                     }}
                   >
-                    {item.icon}
-                  </ListItemIcon>
-                  <ListItemText
-                    primary={item.label}
-                    primaryTypographyProps={{
-                      sx: {
-                        color: isActive ? "#1976d2" : "#374151",
-                        fontWeight: isActive ? 600 : 400,
-                        fontSize: "0.875rem",
-                        transition: theme.transitions.create(
-                          ["color", "font-weight"],
-                          {
+                    <ListItemIcon
+                      sx={{
+                        minWidth: 0,
+                        mr: drawerOpen ? 3 : 'auto',
+                        justifyContent: 'center',
+                        color: isActive ? '#1976d2' : '#666',
+                        transition: theme.transitions.create('color', {
+                          easing: theme.transitions.easing.easeInOut,
+                          duration: theme.transitions.duration.short,
+                        }),
+                        '& svg': {
+                          fontSize: '1.5rem', // Make icons larger
+                        },
+                      }}
+                    >
+                      {item.icon}
+                    </ListItemIcon>
+                    <ListItemText
+                      primary={item.label}
+                      primaryTypographyProps={{
+                        sx: {
+                          color: isActive ? '#1976d2' : '#374151',
+                          fontWeight: isActive ? 600 : 400,
+                          fontSize: '0.875rem',
+                          transition: theme.transitions.create(['color', 'font-weight'], {
                             easing: theme.transitions.easing.easeInOut,
                             duration: theme.transitions.duration.short,
                           }
