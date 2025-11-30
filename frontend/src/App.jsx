@@ -14,7 +14,8 @@ import Sidebar, { SIDEBAR_WIDTH } from "./components/sidebar.jsx";
 import DashboardSidebar from "./components/DashboardSidebar.jsx";
 import DeveloperDashboard from "./pages/DeveloperDashboard.jsx";
 import { LeadershipDashboard } from "./pages/leadershipPage.jsx";
-import { DeveloperDashboardProject } from "./pages/DeveloperDashboardProject.jsx";  
+import { DeveloperDashboardProject } from "./pages/DeveloperDashboardProject.jsx";
+import ThemeTestPage from "./pages/ThemeTestPage.jsx";
 import { useGlobalContext } from "./context/GlobalContext";
 const theme = createTheme({
   palette: {
@@ -101,6 +102,14 @@ function AppContent() {
             element={
               <ProtectedRoute>
                 <LeadershipDashboard />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/theme-test"
+            element={
+              <ProtectedRoute>
+                <ThemeTestPage />
               </ProtectedRoute>
             }
           />
