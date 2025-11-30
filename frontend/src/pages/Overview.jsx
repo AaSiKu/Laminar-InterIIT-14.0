@@ -1,18 +1,15 @@
-import { useState, useEffect, useCallback } from "react";
-import { Box, Typography, IconButton, Badge, Drawer } from "@mui/material";
-import TemplateSection from "../components/dashboard/TemplateSection";
-import WorkflowsTable from "../components/dashboard/WorkflowsTable";
-import NotificationsList from "../components/dashboard/NotificationsList";
+import { useState, useEffect } from "react";
+import { Typography, IconButton, Drawer, Fab, Grid, Box, Divider } from "@mui/material";
 import OverviewSection from "../components/dashboard/OverviewSection";
 import KPICard from "../components/dashboard/KPICard";
 import RecentWorkflowCard from "../components/dashboard/RecentWorkflowCard";
 import HighlightsPanel from "../components/dashboard/HighlightsPanel";
+import ThemeToggler from "../components/ThemeToggler";
 import {
   fetchWorkflows,
   fetchNotifications,
   fetchOverviewData,
   fetchKPIData,
-  fetchTemplates,
 } from "../utils/developerDashboard.api";
 import { useNavigate } from "react-router-dom";
 import "../css/overview.css";
@@ -21,8 +18,10 @@ import AccessTimeIcon from "@mui/icons-material/AccessTime";
 import ErrorOutlineIcon from "@mui/icons-material/ErrorOutline";
 import SpeedIcon from "@mui/icons-material/Speed";
 import MoreHorizIcon from "@mui/icons-material/MoreHoriz";
+import HighlightIcon from "@mui/icons-material/Highlight";
+import CloseIcon from "@mui/icons-material/Close";
 
-// Move this to theme
+// Icon mapping utility
 const getIconComponent = (iconType) => {
   const iconMap = {
     timeline: TimelineIcon,
@@ -33,39 +32,16 @@ const getIconComponent = (iconType) => {
   return iconMap[iconType] || TimelineIcon;
 };
 
-const workflowBlueprint = {};
-
-// TODO: here is it, do i need it or its from mui/lab
-const TabPanel = (props) => {
-  const { children, value, index, ...other } = props;
-  return (
-    <div
-      role="tabpanel"
-      hidden={value !== index}
-      id={`tabpanel-${index}`}
-      aria-labelledby={`tab-${index}`}
-      {...other}
-    >
-      {value === index && <Box sx={{ p: 3 }}>{children}</Box>}
-    </div>
-  );
-};
-
 export default function OverviewPage() {
   const navigate = useNavigate();
-  const [templates, setTemplates] = useState([]);
   const [workflows, setWorkflows] = useState([]);
   const [notifications, setNotifications] = useState([]);
-  const [notificationCount, setNotificationCount] = useState(0);
-  const [currentTab, setCurrentTab] = useState(0);
   const [kpiData, setKpiData] = useState([]);
   const [overviewData, setOverviewData] = useState(null);
+  const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false);
 
   useEffect(() => {
     const loadData = async () => {
-      const templateData = await fetchTemplates();
-      setTemplates(templateData);
-
       const workflowData = await fetchWorkflows();
       setWorkflows(workflowData);
 
@@ -75,10 +51,8 @@ export default function OverviewPage() {
       const kpis = await fetchKPIData();
       setKpiData(kpis);
 
-      // TODO: Extra may
-      const { items, count } = await fetchNotifications();
+      const { items } = await fetchNotifications();
       setNotifications(items);
-      setNotificationCount(count);
     };
 
     loadData();
@@ -95,9 +69,16 @@ export default function OverviewPage() {
   };
 
   return (
+    <>
     <div className="overview-container">
       <div className="overview-main">
-        <div className="overview-topbar">
+        <Box
+          className="overview-topbar"
+          sx={{
+            borderBottom: '1px solid',
+            borderColor: 'divider',
+          }}
+        >
           <div className="overview-topbar-left">
             <input
               type="text"
@@ -106,36 +87,46 @@ export default function OverviewPage() {
             />
           </div>
           <div className="overview-topbar-right">
+            <ThemeToggler type="slim" />
             <div className="overview-user-avatar">U</div>
           </div>
-        </div>
+        </Box>
 
         <div className="overview-content-wrapper">
           <div className="overview-left-content">
-            <div className="overview-overview-kpi-row">
-              <div className="overview-overview-wrapper">
-                {overviewData && <OverviewSection data={overviewData} />}
-              </div>
+            <Box sx={{ 
+              mx: { xs: '-16px', md: '-32px' },
+              mt: { xs: '-16px', md: '-32px' },
+              width: { xs: 'calc(100% + 32px)', md: 'calc(100% + 64px)' },
+            }}>
+              <Grid container spacing={0}>
+                <Grid size={{ xs: 12, md: 6, xl: 7 }}>
+                  {overviewData && <OverviewSection data={overviewData} />}
+                </Grid>
 
-              <div className="overview-vertical-divider" />
-
-              <div className="overview-kpi-grid">
-                {kpiData.map((kpi) => {
-                  const IconComponent = getIconComponent(kpi.iconType);
-                  return (
-                    <div key={kpi.id} className="overview-kpi-item">
-                      <KPICard
-                        title={kpi.title}
-                        value={kpi.value}
-                        subtitle={kpi.subtitle}
-                        icon={IconComponent}
-                        iconColor={kpi.iconColor}
-                      />
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
+                <Grid container size={{ xs: 12, md: 6, xl: 5 }} spacing={0}>
+                  {kpiData.map((kpi, index) => {
+                    const IconComponent = getIconComponent(kpi.iconType);
+                    const totalKpis = kpiData.length;
+                    const isFirstRow = index < Math.ceil(totalKpis / 2);
+                    const isLastRow = index >= totalKpis - Math.ceil(totalKpis / 2);
+                    return (
+                      <Grid size={{ xs: 6, sm: 4, md: 6, xl: 4 }} key={kpi.id}>
+                        <KPICard
+                          title={kpi.title}
+                          value={kpi.value}
+                          subtitle={kpi.subtitle}
+                          icon={IconComponent}
+                          iconColor={kpi.iconColor}
+                          isFirstRow={isFirstRow}
+                          isLastRow={isLastRow}
+                        />
+                      </Grid>
+                    );
+                  })}
+                </Grid>
+              </Grid>
+            </Box>
 
             <div className="overview-horizontal-divider" />
 
@@ -166,5 +157,33 @@ export default function OverviewPage() {
         </div>
       </div>
     </div>
+
+      {/* Floating Action Button for Mobile/Tablet */}
+      <Fab
+        className="overview-highlights-fab"
+        onClick={() => setMobileDrawerOpen(true)}
+        aria-label="highlights"
+      >
+        <HighlightIcon />
+      </Fab>
+
+      {/* Mobile/Tablet Drawer for Highlights */}
+      <Drawer
+        anchor="right"
+        open={mobileDrawerOpen}
+        onClose={() => setMobileDrawerOpen(false)}
+        className="overview-drawer"
+      >
+        <div className="overview-drawer-header">
+          <Typography variant="h6" className="overview-drawer-title">
+            Highlights
+          </Typography>
+          <IconButton onClick={() => setMobileDrawerOpen(false)}>
+            <CloseIcon />
+          </IconButton>
+        </div>
+        <HighlightsPanel notifications={notifications} />
+      </Drawer>
+    </>
   );
 }
