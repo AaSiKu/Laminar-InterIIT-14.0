@@ -34,10 +34,7 @@ const Sidebar = () => {
   const theme = useTheme();
   const { logout, isAuthenticated } = useContext(AuthContext);
   const location = useLocation();
-  const {
-    sidebarOpen,
-    setSideBarOpen,
-  } = useGlobalContext();
+  const { sidebarOpen, setSideBarOpen } = useGlobalContext();
   const [drawerOpen, setDrawerOpen] = useState(false);
 
   useEffect(() => {
@@ -79,22 +76,31 @@ const Sidebar = () => {
   const drawerWidth = drawerOpen ? DRAWER_WIDTH : SIDEBAR_WIDTH;
 
   return (
-    <Drawer
-      variant="permanent"
-      open={drawerOpen}
-      sx={{
-        width: drawerWidth,
-        flexShrink: 0,
-        whiteSpace: "nowrap",
-        boxSizing: "border-box",
-        transition: theme.transitions.create("width", {
-          easing: theme.transitions.easing.sharp,
-          duration: drawerOpen
-            ? theme.transitions.duration.enteringScreen
-            : theme.transitions.duration.leavingScreen,
-        }),
-        [`& .${drawerClasses.paper}`]: {
+    <>
+      {/* Backdrop when drawer is open */}
+      {drawerOpen && (
+        <Box
+          onClick={handleDrawerClose}
+          sx={{
+            position: "fixed",
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: "rgba(0, 0, 0, 0.5)",
+            zIndex: 2499,
+          }}
+        />
+      )}
+
+      <Drawer
+        variant="permanent"
+        open={drawerOpen}
+        sx={{
           width: drawerWidth,
+          flexShrink: 0,
+          whiteSpace: "nowrap",
+          boxSizing: "border-box",
           transition: theme.transitions.create("width", {
             easing: theme.transitions.easing.sharp,
             duration: drawerOpen
@@ -141,7 +147,20 @@ const Sidebar = () => {
         />
       </Box>
 
-      <Divider />
+          <IconButton
+            onClick={drawerOpen ? handleDrawerClose : handleDrawerOpen}
+            sx={{
+              color: "primary.main",
+              "& svg": {
+                fontSize: "1.5rem", // Make menu/close icon larger
+              },
+            }}
+          >
+            {drawerOpen ? <ChevronLeft /> : <MenuIcon />}
+          </IconButton>
+        </Box>
+
+        <Divider />
 
       <List sx={{ flex: 1 }}>
         {menuItems.map((item, index) => {
@@ -169,22 +188,12 @@ const Sidebar = () => {
                         easing: theme.transitions.easing.easeInOut,
                         duration: theme.transitions.duration.short,
                       }
-                    ),
-                    "&:hover": {
-                      backgroundColor: isActive ? 'action.hover' : 'action.hover',
-                    },
-                  }}
-                  onClick={() => {
-                    if (!isAuthenticated && item.path !== "/") {
-                      navigate("/login");
-                      return;
-                    }
 
-                    if (item.onClickExtra) item.onClickExtra();
-                    if (item.onClick) {
-                      item.onClick();
-                      return;
-                    }
+                      if (item.onClickExtra) item.onClickExtra();
+                      if (item.onClick) {
+                        item.onClick();
+                        return;
+                      }
 
                       if (item.path) navigate(item.path);
                     }}
@@ -192,10 +201,10 @@ const Sidebar = () => {
                     <ListItemIcon
                       sx={{
                         minWidth: 0,
-                        mr: drawerOpen ? 3 : 'auto',
-                        justifyContent: 'center',
-                        color: isActive ? 'primary.main' : 'text.secondary',
-                        transition: theme.transitions.create('color', {
+                        mr: drawerOpen ? 3 : "auto",
+                        justifyContent: "center",
+                        color: isActive ? "primary.main" : "text.secondary",
+                        transition: theme.transitions.create("color", {
                           easing: theme.transitions.easing.easeInOut,
                           duration: theme.transitions.duration.short,
                         }),
@@ -210,7 +219,7 @@ const Sidebar = () => {
                       primary={item.label}
                       primaryTypographyProps={{
                         sx: {
-                          color: isActive ? 'primary.main' : 'text.primary',
+                          color: isActive ? "primary.main" : "text.primary",
                           fontWeight: isActive ? 600 : 400,
                           fontSize: '0.875rem',
                           transition: theme.transitions.create(['color', 'font-weight'], {
