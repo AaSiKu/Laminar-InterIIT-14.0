@@ -122,8 +122,6 @@ const Sidebar = () => {
           justifyContent: "center",
           padding: theme.spacing(1, drawerOpen ? 2.4 : 1),
           minHeight: 64,
-          borderBottom: '1px solid',
-          borderColor: 'divider',
         }}
       >
         <Box
@@ -141,8 +139,6 @@ const Sidebar = () => {
           }}
         />
       </Box>
-
-      <Divider />
 
       <List sx={{ flex: 1 }}>
         {menuItems.map((item, index) => {
