@@ -41,6 +41,8 @@ def apply_datetime_conversions(table: pw.Table, datetime_columns: Optional[List[
             conversions[col_name] = col.dt.from_timestamp(unit="ms")
         elif fmt == "unix_microseconds":
             conversions[col_name] = col.dt.from_timestamp(unit="us")
+        elif fmt == "unix_nanoseconds":
+            conversions[col_name] = col.dt.from_timestamp(unit="ns")
         else:
             # Handle strptime format strings
             conversions[col_name] = col.dt.strptime(fmt=fmt)
