@@ -19,3 +19,5 @@ class Graph(Flowchart):
     parsing_order: List[int]
     dependencies: defaultdict[int, List[int]]
     nodes: List[Node]
+    metric_node_descriptions: Dict[int,str]
+    
