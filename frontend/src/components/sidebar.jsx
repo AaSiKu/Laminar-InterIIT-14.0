@@ -18,13 +18,14 @@ import {
   TerminalRounded,
   WorkspacePremiumRounded,
   LogoutRounded,
-  Menu as MenuIcon,
   ChevronLeft,
+  ChevronRight,
 } from "@mui/icons-material";
 import { useNavigate, useLocation } from "react-router-dom";
 import { AuthContext } from "../context/AuthContext";
 import { useGlobalContext } from "../context/GlobalContext";
-import Logo from "../assets/logo.svg";
+import LogoExpanded from "../assets/logo.svg";
+import LogoCollapsed from "../../assets/logo.svg";
 export const SIDEBAR_WIDTH = 64;
 const DRAWER_WIDTH = 240;
 
@@ -56,15 +57,15 @@ const Sidebar = () => {
   };
 
   const menuItems = [
-    { icon: <TerminalRounded />, label: "Overview", path: "/overview" },
+    { icon: <TerminalRounded sx={{ fontSize: '1.5rem' }} />, label: "Overview", path: "/overview" },
     {
-      icon: <AccountTreeRounded />,
+      icon: <AccountTreeRounded sx={{ fontSize: '1.5rem' }} />,
       label: "Workflows",
       path: "/workflow",
     },
-    { icon: <WorkspacePremiumRounded />, label: "Admin", path: "/admin" },
+    { icon: <WorkspacePremiumRounded sx={{ fontSize: '1.5rem' }} />, label: "Admin", path: "/admin" },
     {
-      icon: <LogoutRounded color="error" />,
+      icon: <LogoutRounded color="error" sx={{ fontSize: '1.5rem' }} />,
       label: "Logout",
       onClick: logout,
     },
@@ -106,55 +107,45 @@ const Sidebar = () => {
               ? theme.transitions.duration.enteringScreen
               : theme.transitions.duration.leavingScreen,
           }),
-          [`& .${drawerClasses.paper}`]: {
-            width: drawerWidth,
-            transition: theme.transitions.create("width", {
-              easing: theme.transitions.easing.sharp,
-              duration: drawerOpen
-                ? theme.transitions.duration.enteringScreen
-                : theme.transitions.duration.leavingScreen,
-            }),
-            overflowX: "hidden",
-            position: "fixed",
-            backgroundColor: drawerOpen
-              ? "background.elevation1"
-              : "background.paper",
-            borderRight: "1px solid",
-            borderColor: "divider",
-            zIndex: 2500,
-            boxShadow: drawerOpen ? theme.shadows[4] : theme.shadows[1],
-          },
+          overflow: "visible",
+          position: "fixed",
+          backgroundColor: drawerOpen ? 'background.elevation1' : 'background.paper',
+          borderRight: '1px solid',
+          borderColor: 'divider',
+          zIndex: 2500,
+          boxShadow: drawerOpen
+            ? theme.shadows[4]
+            : theme.shadows[1],
+        },
+      }}
+    >
+      {/* Header with logo */}
+      <Box
+        sx={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          padding: theme.spacing(1, drawerOpen ? 2.4 : 1),
+          minHeight: 64,
+          borderBottom: '1px solid',
+          borderColor: 'divider',
         }}
       >
-        {/* Header with logo and menu/close button */}
         <Box
+          component="img"
+          src={drawerOpen ? LogoExpanded : LogoCollapsed}
+          alt="Logo"
           sx={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: drawerOpen ? "space-between" : "center",
-            padding: theme.spacing(1, 2.4),
-            minHeight: 64,
-            borderBottom: drawerOpen ? "1px solid" : "none",
-            borderColor: "divider",
+            height: drawerOpen ? 24 : 32,
+            width: "auto",
+            objectFit: "contain",
+            transition: theme.transitions.create(["opacity", "transform", "height"], {
+              easing: theme.transitions.easing.sharp,
+              duration: theme.transitions.duration.enteringScreen,
+            }),
           }}
-        >
-          {/* Logo - visible when expanded */}
-          {drawerOpen && (
-            <Box
-              component="img"
-              src={Logo}
-              alt="Logo"
-              sx={{
-                height: 24,
-                width: "auto",
-                objectFit: "contain",
-                transition: theme.transitions.create(["opacity", "transform"], {
-                  easing: theme.transitions.easing.sharp,
-                  duration: theme.transitions.duration.enteringScreen,
-                }),
-              }}
-            />
-          )}
+        />
+      </Box>
 
           <IconButton
             onClick={drawerOpen ? handleDrawerClose : handleDrawerOpen}
@@ -171,46 +162,31 @@ const Sidebar = () => {
 
         <Divider />
 
-        <List>
-          {menuItems.map((item, index) => {
-            const isActive =
-              item.path && location.pathname.startsWith(item.path);
-            return (
-              <ListItem key={index} disablePadding sx={{ display: "block" }}>
-                <Tooltip
-                  title={item.label}
-                  placement="right"
-                  arrow
-                  disableHoverListener={drawerOpen}
-                >
-                  <ListItemButton
-                    sx={{
-                      minHeight: 48,
-                      justifyContent: drawerOpen ? "initial" : "center",
-                      px: drawerOpen ? 3 : 2.5,
-                      my: 0.5,
-                      mx: 1,
-                      borderRadius: 1,
-                      backgroundColor: isActive
-                        ? "action.selected"
-                        : "transparent",
-                      transition: theme.transitions.create(
-                        ["background-color", "color"],
-                        {
-                          easing: theme.transitions.easing.easeInOut,
-                          duration: theme.transitions.duration.short,
-                        }
-                      ),
-                      "&:hover": {
-                        backgroundColor: isActive
-                          ? "action.hover"
-                          : "action.hover",
-                      },
-                    }}
-                    onClick={() => {
-                      if (!isAuthenticated && item.path !== "/") {
-                        navigate("/login");
-                        return;
+      <List sx={{ flex: 1 }}>
+        {menuItems.map((item, index) => {
+          const isActive = item.path && location.pathname.startsWith(item.path);
+          return (
+            <ListItem key={index} disablePadding sx={{ display: "block" }}>
+              <Tooltip
+                title={item.label}
+                placement="right"
+                arrow
+                disableHoverListener={drawerOpen}
+              >
+                <ListItemButton
+                  sx={{
+                    minHeight: 48,
+                    justifyContent: drawerOpen ? "initial" : "center",
+                    px: drawerOpen ? 3 : 2.5,
+                    my: 0.5,
+                    mx: 1,
+                    borderRadius: 1,
+                    backgroundColor: isActive ? 'action.selected' : 'transparent',
+                    transition: theme.transitions.create(
+                      ["background-color", "color"],
+                      {
+                        easing: theme.transitions.easing.easeInOut,
+                        duration: theme.transitions.duration.short,
                       }
 
                       if (item.onClickExtra) item.onClickExtra();
@@ -232,8 +208,8 @@ const Sidebar = () => {
                           easing: theme.transitions.easing.easeInOut,
                           duration: theme.transitions.duration.short,
                         }),
-                        "& svg": {
-                          fontSize: "1.5rem", // Make icons larger
+                        '& .MuiSvgIcon-root': {
+                          fontSize: '1.5rem !important',
                         },
                       }}
                     >
@@ -245,34 +221,57 @@ const Sidebar = () => {
                         sx: {
                           color: isActive ? "primary.main" : "text.primary",
                           fontWeight: isActive ? 600 : 400,
-                          fontSize: "0.875rem",
-                          transition: theme.transitions.create(
-                            ["color", "font-weight"],
-                            {
-                              easing: theme.transitions.easing.easeInOut,
-                              duration: theme.transitions.duration.short,
-                            }
-                          ),
-                        },
-                      }}
-                      sx={{
-                        opacity: drawerOpen ? 1 : 0,
-                        transition: theme.transitions.create("opacity", {
-                          easing: theme.transitions.easing.sharp,
-                          duration: drawerOpen
-                            ? theme.transitions.duration.enteringScreen
-                            : theme.transitions.duration.leavingScreen,
-                        }),
-                      }}
-                    />
-                  </ListItemButton>
-                </Tooltip>
-              </ListItem>
-            );
-          })}
-        </List>
-      </Drawer>
-    </>
+                          fontSize: '0.875rem',
+                          transition: theme.transitions.create(['color', 'font-weight'], {
+                            easing: theme.transitions.easing.easeInOut,
+                            duration: theme.transitions.duration.short,
+                          }
+                        ),
+                      },
+                    }}
+                    sx={{
+                      opacity: drawerOpen ? 1 : 0,
+                      transition: theme.transitions.create("opacity", {
+                        easing: theme.transitions.easing.sharp,
+                        duration: drawerOpen
+                          ? theme.transitions.duration.enteringScreen
+                          : theme.transitions.duration.leavingScreen,
+                      }),
+                    }}
+                  />
+                </ListItemButton>
+              </Tooltip>
+            </ListItem>
+          );
+        })}
+      </List>
+
+      {/* Toggle Arrow Button - positioned at middle right edge */}
+      <IconButton
+        onClick={drawerOpen ? handleDrawerClose : handleDrawerOpen}
+        sx={{
+          position: 'absolute',
+          right: -16,
+          top: '50%',
+          transform: 'translateY(-50%)',
+          width: 32,
+          height: 32,
+          bgcolor: 'background.paper',
+          border: '1px solid',
+          borderColor: 'divider',
+          borderRadius: '50%',
+          zIndex: 9999,
+          '&:hover': {
+            bgcolor: 'action.hover',
+          },
+          '& .MuiSvgIcon-root': {
+            fontSize: '1.25rem',
+          },
+        }}
+      >
+        {drawerOpen ? <ChevronLeft /> : <ChevronRight />}
+      </IconButton>
+    </Drawer>
   );
 };
 

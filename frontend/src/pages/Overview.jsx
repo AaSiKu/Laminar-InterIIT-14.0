@@ -114,9 +114,6 @@ export default function OverviewPage() {
                   <Typography variant="h6" className="overview-workflows-title">
                     Recent Workflows
                   </Typography>
-                  <div className="overview-more-btn">
-                    <MoreHorizIcon className="overview-more-icon" />
-                  </div>
                 </div>
                 <div className="overview-workflows-list">
                   {workflows.map((workflow) => (

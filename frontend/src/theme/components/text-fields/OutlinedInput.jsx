@@ -22,8 +22,7 @@ const OutlinedInput = {
           props: { size: 'large' },
           style: {
             [`& .${outlinedInputClasses.input}`]: {
-              padding: '7px 20px',
-              height: '2.5rem',
+              padding: '12px 20px',
               fontSize: '16px',
             },
             [`& .${outlinedInputClasses.notchedOutline}`]: {
@@ -57,8 +56,10 @@ const OutlinedInput = {
     },
     input: () => ({
       padding: '8px 16px',
-      height: '2rem',
+      paddingTop: '-2px !important',
       fontSize: 14,
+      lineHeight: 1.5,
+      boxSizing: 'border-box',
     }),
     sizeSmall: {
       borderRadius: 4,
@@ -74,7 +75,6 @@ const OutlinedInput = {
     },
     inputSizeSmall: {
       padding: '8px 12px',
-      height: '1.625rem',
     },
     notchedOutline: ({ theme }) => ({
       borderStyle: 'solid',
