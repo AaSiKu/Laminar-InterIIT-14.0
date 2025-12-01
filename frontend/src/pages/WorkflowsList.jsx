@@ -27,6 +27,8 @@ import {
 import { useNavigate } from "react-router-dom";
 import { styles } from "../styles/WorkflowsList.styles";
 import { mockWorkflows, mockActionItems, mockLogs } from "../api/workflows.api";
+import NewProjectModal from "../components/NewProjectModal";
+import CreateWorkflowDrawer from "../components/CreateWorkflowDrawer";
 
 export const WorkflowsList = () => {
   const navigate = useNavigate();
@@ -34,18 +36,51 @@ export const WorkflowsList = () => {
   const [selectedWorkflow, setSelectedWorkflow] = useState(mockWorkflows[0]);
   const [searchQuery, setSearchQuery] = useState("");
   const [actionFilter, setActionFilter] = useState("critical"); // critical or low
+  const [newProjectModalOpen, setNewProjectModalOpen] = useState(false);
+  const [createWorkflowDrawerOpen, setCreateWorkflowDrawerOpen] = useState(false);
 
   const handleAddNew = () => {
-    // Create a new workflow with next available letter
+    setNewProjectModalOpen(true);
+  };
+
+  const handleSelectTemplate = (template) => {
+    // If blank template, open the create workflow drawer
+    if (template.id === "blank") {
+      setNewProjectModalOpen(false);
+      setCreateWorkflowDrawerOpen(true);
+      return;
+    }
+    
+    // Create a new workflow based on selected template
     const nextId = String.fromCharCode(97 + mockWorkflows.length);
     const newWorkflow = {
       id: nextId,
-      name: `Workflow ${nextId.toUpperCase()}`,
+      name: template.name,
+      category: "SLA",
+      location: "New",
+      team: ["#3b82f6", "#8b5cf6"],
+      status: "Active",
+      description: `New workflow created from ${template.name} template`,
+      avgRunningTime: "0 min",
+      avgChange: "0%",
+      alerts: "00",
+      alertsChange: "0%",
+    };
+    mockWorkflows.push(newWorkflow);
+    setSelectedWorkflow(newWorkflow);
+  };
+
+  const handleCreateWorkflowComplete = (formData) => {
+    // Create a new workflow with the form data
+    const nextId = String.fromCharCode(97 + mockWorkflows.length);
+    const newWorkflow = {
+      id: nextId,
+      name: formData.name || `Workflow ${nextId.toUpperCase()}`,
       category: "General",
       location: "New",
       team: ["#3b82f6", "#8b5cf6"],
       status: "Active",
-      description: "New workflow description",
+      description: formData.description || "New workflow description",
       avgRunningTime: "0 min",
       avgChange: "0%",
       alerts: "00",
@@ -663,6 +698,20 @@ export const WorkflowsList = () => {
           </Box>
         )}
       </Box>
+
+      {/* New Project Modal */}
+      <NewProjectModal
+        open={newProjectModalOpen}
+        onClose={() => setNewProjectModalOpen(false)}
+        onSelectTemplate={handleSelectTemplate}
+      />
+
+      {/* Create Workflow Drawer */}
+      <CreateWorkflowDrawer
+        open={createWorkflowDrawerOpen}
+        onClose={() => setCreateWorkflowDrawerOpen(false)}
+        onComplete={handleCreateWorkflowComplete}
+      />
     </Box>
   );
 };

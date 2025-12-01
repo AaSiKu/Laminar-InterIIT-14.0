@@ -83,7 +83,7 @@ const handleImageError = (nodeId) => {
   setImageErrors(prev => ({ ...prev, [nodeId]: true }));
 };
 
-export const NodeDrawer = ({ open, onClose, onAddNode, onDragStart: onDragStartProp }) => {
+export const NodeDrawer = ({ open, onClose, onAddNode, onDragStart: onDragStartProp, zIndex }) => {
   const [openSections, setOpenSections] = useState({});
   const [nodeCategories, setNodeCategories] = useState({});
   const [loading, setLoading] = useState(true);
@@ -367,12 +367,13 @@ export const NodeDrawer = ({ open, onClose, onAddNode, onDragStart: onDragStartP
       open={open}
       onClose={onClose}
       sx={{
+        zIndex: zIndex || 1200,
         "& .MuiDrawer-paper": {
           width: 400,
           boxSizing: "border-box",
           backgroundColor: "#ffffff",
-          top: "48px", // Below the topmost Laminar navbar
-          height: "calc(100vh - 48px)",
+          top: zIndex ? "0px" : "48px", // Full height when used in create workflow drawer
+          height: zIndex ? "100vh" : "calc(100vh - 48px)",
         },
       }}
     >

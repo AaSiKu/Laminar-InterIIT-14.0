@@ -36,6 +36,7 @@ export const PropertyBar = ({
   anchor = "right",
   drawerWidth = "25vw", // 25% of viewport width
   variant = "temporary",
+  zIndex,
 }) => {
   const [snackbar, setSnackbar] = useState({
     open: false,
@@ -98,14 +99,15 @@ export const PropertyBar = ({
           keepMounted: true,
         }}
         sx={{
+          zIndex: zIndex || 1200,
           "& .MuiDrawer-paper": {
             width: drawerWidth,
             backgroundColor: "#ffffff",
             boxShadow: "none",
             border: "none",
-            zIndex: 1200,
-            top: "6vh",
-            height: "94vh",
+            zIndex: zIndex || 1200,
+            top: zIndex ? "0" : "6vh",
+            height: zIndex ? "100vh" : "94vh",
             transition: "transform 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
           },
         }}

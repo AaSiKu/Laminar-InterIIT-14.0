@@ -88,12 +88,12 @@ export default function Pipeline() {
       {/* Top Bar */}
       <div className="pipeline-topbar">
         <div className="pipeline-topbar-left">
-          <input
-            type="text"
-            placeholder="Search"
+            <input
+              type="text"
+              placeholder="Search"
             className="pipeline-search-input"
-          />
-        </div>
+            />
+          </div>
         <div className="pipeline-topbar-right">
           <div className="pipeline-user-avatar">
             <img src="https://i.pravatar.cc/40" alt="User" className="pipeline-avatar-img" />
@@ -103,15 +103,15 @@ export default function Pipeline() {
 
       {/* Secondary Navigation Bar */}
       <div className="pipeline-secondary-nav">
-        <div className="pipeline-nav-left">
+          <div className="pipeline-nav-left">
           <IconButton onClick={handleBack} size="small" className="pipeline-back-btn">
             <KeyboardBackspaceIcon />
           </IconButton>
           <Typography variant="body2" className="pipeline-nav-title">
             Pipeline A
           </Typography>
-        </div>
-        <div className="pipeline-nav-right">
+          </div>
+          <div className="pipeline-nav-right">
           <IconButton size="small" className="pipeline-export-btn">
             <FileUploadOutlinedIcon />
           </IconButton>
@@ -258,10 +258,10 @@ export default function Pipeline() {
                   </div>
                 </div>
               ))}
-            </div>
           </div>
         </div>
-
+        </div>
+        
         {/* Bottom Row */}
         <div className="pipeline-grid-bottom">
           {/* Human Oversight Section */}
