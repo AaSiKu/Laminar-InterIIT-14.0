@@ -3,6 +3,7 @@ import pathway as pw
 from lib.tables import JoinNode, FilterNode
 from lib.tables.transforms import GroupByNode, SelectNode, RenameNode, WithoutNode
 from .helpers import MappingValues, get_col, get_this_col, select_for_join
+from .open_tel.prefix import open_tel_trace_id
 
 # Operator mapping for filter node
 _op_map = {
@@ -89,10 +90,14 @@ def group_by(inputs: List[pw.Table], node: GroupByNode):
     
     # Build the groupby columns
     group_cols = [get_col(table, col) for col in node.columns]
-    _reducers = [(red["col"], red["reducer"], red["new_col"]) for red in node.reducers]
+    _reducers = [(red["col"], red["reducer"], red["new_col"]) for red in node.reducers if red["col"].find(open_tel_trace_id) == -1]
     reducers = {
             new_col: getattr(pw.reducers, reducer)(get_this_col(prev_col)) for prev_col, reducer, new_col in _reducers
     }
+    for col in table.column_names():
+        if col.find(open_tel_trace_id) != -1:
+            reducers[f"grouped_{col}"] = pw.reducers.ndarray(get_this_col(col))
+
     return table.groupby(*group_cols).reduce(*group_cols, **reducers)
 
 transform_mappings: dict[str, MappingValues] = {
@@ -116,9 +121,6 @@ transform_mappings: dict[str, MappingValues] = {
     },
     "select": {
         "node_fn": lambda inputs, node: inputs[0].select(*[get_this_col(col) for col in node.columns]),
-    },
-    "rename": {
-        "node_fn": lambda inputs, node: inputs[0].rename_by_dict({old: new for old, new in node.mapping}),
     },
     "without": {
         "node_fn": lambda inputs, node: inputs[0].without(*[get_this_col(col) for col in node.columns]),
