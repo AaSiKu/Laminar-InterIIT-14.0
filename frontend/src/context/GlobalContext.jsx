@@ -12,7 +12,8 @@ export function useGlobalContext() {
 export const GlobalContextProvider = ({ children }) => {
   const [roll, setRoll] = useState(null);
   const [currentPipelineId, setCurrentPipelineId] = useState("69138bfd2d5fe329d1dfe689");
-  const [currentPipelineStatus, setCurrentPipelineStatus] = useState(true);
+  const [currentPipelineStatus, setCurrentPipelineStatus] = useState("Stopped");
+  //TODO: Need to fix this for broken/etc
   const [currentNodes, setCurrentNodes] = useState([]);
   const [currentEdges, setCurrentEdges] = useState([]);
   const [rfInstance, setRfInstance] = useState(null);
@@ -20,10 +21,11 @@ export const GlobalContextProvider = ({ children }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [containerId, setContainerId] = useState();
-  const [dashboardSidebarOpen, setDashboardSidebarOpen] = useState(false);
   const { login, user, logout, isAuthenticated } = useContext(AuthContext);
   const [sidebarOpen, setSideBarOpen] = useState(false);
   const { fileStructure, setFileStructure } = useState({});
+  const [currentVersionId, setCurrentVersionId] = useState(null);
+  const [agentContainerId, setAgentContainerId]=useState(null);
 
   const globalContextValue = {
     user,
@@ -31,6 +33,8 @@ export const GlobalContextProvider = ({ children }) => {
     setRoll,
     currentPipelineId,
     setCurrentPipelineId,
+    currentVersionId,
+    setCurrentVersionId,
     currentPipelineStatus,
     setCurrentPipelineStatus,
     currentEdges,
@@ -46,8 +50,8 @@ export const GlobalContextProvider = ({ children }) => {
     setError,
     containerId,
     setContainerId,
-    dashboardSidebarOpen,
-    setDashboardSidebarOpen,
+    agentContainerId,
+    setAgentContainerId,
     login,
     isAuthenticated,
     sidebarOpen,
@@ -56,14 +60,6 @@ export const GlobalContextProvider = ({ children }) => {
     setFileStructure,
     logout,
   };
-
-  const location = useLocation();
-
-  useEffect(() => {
-    if (location.pathname !== "/workflow") {
-      setDashboardSidebarOpen(false);
-    }
-  }, [location.pathname]);
 
   return (
     <GlobalContext.Provider value={globalContextValue}>

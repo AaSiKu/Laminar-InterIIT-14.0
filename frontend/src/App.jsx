@@ -9,9 +9,9 @@ import Sidebar from "./components/sidebar.jsx";
 import OverviewPage from "./pages/Overview.jsx";
 import CreatePipeline from "./pages/CreatePipeline.jsx";
 import { AdminPage } from "./pages/Admin.jsx";
+import {WorkflowsList} from "./pages/WorkflowsList.jsx"
 import { DeveloperDashboardProject } from "./pages/DeveloperDashboardProject.jsx";
 import NotFoundPage from "./pages/NotFoundPage.jsx";
-import { Box } from "@mui/material";
 
 function AppContent() {
   const location = useLocation();
@@ -32,11 +32,18 @@ function AppContent() {
           path="/workflow"
           element={
             <ProtectedRoute>
+              <WorkflowsList />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/workflows/:pipelineId"
+          element={
+            <ProtectedRoute>
               <WorkflowPage />
             </ProtectedRoute>
           }
         />
-        {/* Default route */}
         <Route
           path="/overview"
           element={
