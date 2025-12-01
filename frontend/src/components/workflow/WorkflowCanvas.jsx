@@ -1,6 +1,6 @@
 import { Box } from "@mui/material";
 import { ReactFlow, Background, Controls } from "@xyflow/react";
-import { useTheme } from "@mui/material/styles";
+import { useTheme, useColorScheme } from "@mui/material/styles";
 
 const WorkflowCanvas = ({
   nodes,
@@ -17,6 +17,8 @@ const WorkflowCanvas = ({
   onCanvasClick,
 }) => {
   const theme = useTheme();
+  const { mode, systemMode } = useColorScheme();
+  const resolvedMode = (mode === 'system' ? systemMode : mode) || theme.palette.mode;
 
   return (
     <Box
@@ -49,6 +51,7 @@ const WorkflowCanvas = ({
         defaultViewport={{ x: 0, y: 0, zoom: 0.5 }}
         fitView
         fitViewOptions={{ maxZoom: 0.9 }}
+        colorMode={resolvedMode}
       >
         <Controls position="top-right" />
         <Background 

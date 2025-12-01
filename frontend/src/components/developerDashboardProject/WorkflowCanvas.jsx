@@ -1,5 +1,6 @@
 import { memo } from "react";
-import { Box, Paper } from "@mui/material";
+import { Box, Paper, useTheme } from "@mui/material";
+import { useColorScheme } from "@mui/material/styles";
 import {
   ReactFlow,
   Background,
@@ -15,7 +16,12 @@ const WorkflowCanvas = ({
   onEdgesChange,
   onConnect,
   onNodeClick,
-}) => (
+}) => {
+  const theme = useTheme();
+  const { mode, systemMode } = useColorScheme();
+  const resolvedMode = (mode === 'system' ? systemMode : mode) || theme.palette.mode;
+  
+  return (
   <Paper
     elevation={0}
     sx={{
@@ -54,6 +60,7 @@ const WorkflowCanvas = ({
         onNodeClick={onNodeClick}
         fitView
         style={{ width: "100%", height: "100%" }}
+        colorMode={resolvedMode}
       >
         <Background gap={22} color="#e5e7eb" />
         <MiniMap
@@ -70,7 +77,8 @@ const WorkflowCanvas = ({
       </ReactFlow>
     </Box>
   </Paper>
-);
+  );
+};
 
 export default memo(WorkflowCanvas);
 

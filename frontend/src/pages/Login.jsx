@@ -29,7 +29,7 @@ export default function LoginPage() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setError("");
+    setError(false);
     setIsLoading(true);
 
     try {
