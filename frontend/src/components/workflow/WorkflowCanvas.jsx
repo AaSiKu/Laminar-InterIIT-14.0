@@ -1,6 +1,9 @@
 import { Box } from "@mui/material";
-import { ReactFlow, Background, Controls } from "@xyflow/react";
+import { ReactFlow, Background, Controls, ControlButton } from "@xyflow/react";
 import { useTheme } from "@mui/material/styles";
+import OpenInFullIcon from "@mui/icons-material/OpenInFull";
+import LockOpenIcon from "@mui/icons-material/LockOpen";
+import LockIcon from "@mui/icons-material/Lock";
 
 const WorkflowCanvas = ({
   nodes,
@@ -10,11 +13,18 @@ const WorkflowCanvas = ({
   onEdgesChange,
   onConnect,
   onNodeClick,
+  onEdgeClick,
   onInit,
   onDrop,
   onDragOver,
   onPaneClick,
   onCanvasClick,
+  nodesDraggable = true,
+  nodesConnectable = true,
+  elementsSelectable = true,
+  onFullscreenClick,
+  isLocked = false,
+  onLockToggle,
 }) => {
   const theme = useTheme();
 
@@ -23,11 +33,9 @@ const WorkflowCanvas = ({
       sx={{
         flex: 1,
         bgcolor: 'background.elevation1',
-        borderRadius: "8px",
+        borderRadius: 0,
         overflow: "hidden",
-        border: "1px solid",
-        borderColor: 'divider',
-        boxShadow: theme.shadows[1],
+        border: "none",
         width: "100%",
         height: "100%",
         minHeight: 0,
@@ -40,17 +48,32 @@ const WorkflowCanvas = ({
         nodeTypes={nodeTypes}
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}
-        onConnect={onConnect}
+        onConnect={isLocked ? undefined : onConnect}
         onNodeClick={onNodeClick}
+        onEdgeClick={onEdgeClick}
         onInit={onInit}
-        onDrop={onDrop}
-        onDragOver={onDragOver}
+        onDrop={isLocked ? undefined : onDrop}
+        onDragOver={isLocked ? undefined : onDragOver}
         onPaneClick={onPaneClick}
+        nodesDraggable={!isLocked}
+        nodesConnectable={!isLocked}
+        elementsSelectable={!isLocked}
         defaultViewport={{ x: 0, y: 0, zoom: 0.5 }}
         fitView
         fitViewOptions={{ maxZoom: 0.9 }}
       >
-        <Controls position="top-right" />
+        <Controls position="top-right" showInteractive={false}>
+          {onLockToggle && (
+            <ControlButton onClick={onLockToggle} title={isLocked ? "Unlock" : "Lock"}>
+              {isLocked ? <LockIcon /> : <LockOpenIcon />}
+            </ControlButton>
+          )}
+          {onFullscreenClick && (
+            <ControlButton onClick={onFullscreenClick} title="Enter Fullscreen">
+              <OpenInFullIcon />
+            </ControlButton>
+          )}
+        </Controls>
         <Background 
           color={theme.palette.mode === 'dark' ? theme.palette.divider : '#DBE6EB'} 
           gap={16} 

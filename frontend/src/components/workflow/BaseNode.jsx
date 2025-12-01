@@ -104,6 +104,8 @@ export const BaseNode = memo(
     const dataTableTimeoutRef = useRef(null);
     const hideTableTimeoutRef = useRef(null);
     const nodeRef = useRef(null);
+    const [isHoveringHandle, setIsHoveringHandle] = useState(false);
+    const [hoveredHandleId, setHoveredHandleId] = useState(null);
 
     // Property hover handlers
     const handlePropertyMouseEnter = (propKey, propValue) => {
@@ -149,7 +151,17 @@ export const BaseNode = memo(
     ];
 
     // Data table hover handlers
-    const handleNodeMouseEnter = () => {
+    const handleNodeMouseEnter = (e) => {
+      // Check if hovering over a handle (connection point)
+      const target = e.target;
+      const isHandle = target.classList.contains('react-flow__handle') || 
+                      target.closest('.react-flow__handle');
+      
+      if (isHandle) {
+        setIsHoveringHandle(true);
+        return; // Don't show data table when hovering over handles
+      }
+      
       setIsHovered(true);
       
       // Clear any pending hide timeout
@@ -158,8 +170,8 @@ export const BaseNode = memo(
         hideTableTimeoutRef.current = null;
       }
       
-      // Only set show timeout if table is not already visible
-      if (!showDataTable && !dataTableTimeoutRef.current) {
+      // Only set show timeout if table is not already visible and not hovering over handle
+      if (!showDataTable && !dataTableTimeoutRef.current && !isHoveringHandle) {
         // Show data table after 800ms hover
         dataTableTimeoutRef.current = setTimeout(() => {
           setShowDataTable(true);
@@ -379,44 +391,82 @@ export const BaseNode = memo(
         </div>
 
         {/* INPUT HANDLES */}
-        {inputs.map((input, i) => (
-          <Handle
-            key={`in-${i}`}
-            type="target"
-            position={input.position || Position.Left}
-            id={input.id || `in-${i}`}
-            style={{
-              background: theme.palette.background.paper,
-              top: input.top || `${((i + 1) / (inputs.length + 1)) * 100}%`,
-              left: "-5px",
-              width: 10,
-              height: 10,
-              borderRadius: "50%",
-              border: `2px solid ${theme.palette.divider}`,
-              boxShadow: "none",
-            }}
-          />
-        ))}
+        {inputs.map((input, i) => {
+          const handleId = input.id || `in-${i}`;
+          const isHovered = hoveredHandleId === handleId;
+          return (
+            <Handle
+              key={`in-${i}`}
+              type="target"
+              position={input.position || Position.Left}
+              id={handleId}
+              onMouseEnter={() => {
+                setHoveredHandleId(handleId);
+                setIsHoveringHandle(true);
+                // Cancel data table timeout
+                if (dataTableTimeoutRef.current) {
+                  clearTimeout(dataTableTimeoutRef.current);
+                  dataTableTimeoutRef.current = null;
+                }
+              }}
+              onMouseLeave={() => {
+                setHoveredHandleId(null);
+                setIsHoveringHandle(false);
+              }}
+              style={{
+                background: isHovered ? "#4CAF50" : theme.palette.background.paper,
+                top: input.top || `${((i + 1) / (inputs.length + 1)) * 100}%`,
+                left: "-5px",
+                width: isHovered ? 14 : 10,
+                height: isHovered ? 14 : 10,
+                borderRadius: "50%",
+                border: isHovered ? "3px solid #2E7D32" : `2px solid ${theme.palette.divider}`,
+                boxShadow: isHovered ? "0 0 8px rgba(76, 175, 80, 0.6)" : "none",
+                transition: "all 0.2s ease",
+                zIndex: isHovered ? 100 : 1,
+              }}
+            />
+          );
+        })}
 
         {/* OUTPUT HANDLES */}
-        {outputs.map((output, i) => (
-          <Handle
-            key={`out-${i}`}
-            type="source"
-            position={output.position || Position.Right}
-            id={output.id || `out-${i}`}
-            style={{
-              background: theme.palette.background.paper,
-              top: output.top || `${((i + 1) / (outputs.length + 1)) * 100}%`,
-              right: "-5px",
-              width: 10,
-              height: 10,
-              borderRadius: "50%",
-              border: `2px solid ${theme.palette.divider}`,
-              boxShadow: "none",
-            }}
-          />
-        ))}
+        {outputs.map((output, i) => {
+          const handleId = output.id || `out-${i}`;
+          const isHovered = hoveredHandleId === handleId;
+          return (
+            <Handle
+              key={`out-${i}`}
+              type="source"
+              position={output.position || Position.Right}
+              id={handleId}
+              onMouseEnter={() => {
+                setHoveredHandleId(handleId);
+                setIsHoveringHandle(true);
+                // Cancel data table timeout
+                if (dataTableTimeoutRef.current) {
+                  clearTimeout(dataTableTimeoutRef.current);
+                  dataTableTimeoutRef.current = null;
+                }
+              }}
+              onMouseLeave={() => {
+                setHoveredHandleId(null);
+                setIsHoveringHandle(false);
+              }}
+              style={{
+                background: isHovered ? "#2196F3" : theme.palette.background.paper,
+                top: output.top || `${((i + 1) / (outputs.length + 1)) * 100}%`,
+                right: "-5px",
+                width: isHovered ? 14 : 10,
+                height: isHovered ? 14 : 10,
+                borderRadius: "50%",
+                border: isHovered ? "3px solid #1565C0" : `2px solid ${theme.palette.divider}`,
+                boxShadow: isHovered ? "0 0 8px rgba(33, 150, 243, 0.6)" : "none",
+                transition: "all 0.2s ease",
+                zIndex: isHovered ? 100 : 1,
+              }}
+            />
+          );
+        })}
       </Paper>
       
       {/* Node Data Table - shown on hover */}

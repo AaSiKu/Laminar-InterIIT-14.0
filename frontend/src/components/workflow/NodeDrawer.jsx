@@ -24,8 +24,9 @@ import {
   Extension,
   Close as CloseIcon,
   Search as SearchIcon,
-  Login as InputIcon,
-  Autorenew as TransformIcon,
+  Input as InputIcon,
+  Transform as TransformIcon,
+  ControlCamera as ControlCameraIcon,
   Launch as OutputIcon,
   ViewList as ViewListIcon,
   ArrowForward as ArrowForwardIcon,
@@ -57,34 +58,32 @@ const getCategoryIcon = (category, theme) => {
 };
 
 /**
- * Get image for individual node based on category
+ * Get icon component for individual node based on category
  */
-const getNodeImage = (category) => {
-  switch (category.toLowerCase()) {
-    case 'input':
-    case 'output':
-    case 'io':
-      return inputIcon;
-    case 'agent':
-    case 'action':
-      return transformIcon;
-    case 'table':
-    case 'temporal':
-    case 'transform':
-      return jointIcon;
-    default:
-      return inputIcon;
+const getNodeIcon = (category) => {
+  const iconProps = { sx: { fontSize: 50, color: "#77878F" } };
+  const categoryLower = (category || '').toLowerCase();
+  
+  // IO nodes
+  if (categoryLower.includes('io') || categoryLower.includes('input') || categoryLower.includes('output')) {
+    return <InputIcon {...iconProps} />;
   }
+  
+  // Agent nodes
+  if (categoryLower.includes('agent') || categoryLower.includes('action') || categoryLower.includes('logic')) {
+    return <ControlCameraIcon {...iconProps} />;
+  }
+  
+  // Table/Transform nodes
+  if (categoryLower.includes('table') || categoryLower.includes('temporal') || categoryLower.includes('transform')) {
+    return <TransformIcon {...iconProps} />;
+  }
+  
+  // Default fallback
+  return <ArrowForwardIcon {...iconProps} />;
 };
 
-/**
- * Handle image load errors
- */
-const handleImageError = (nodeId) => {
-  setImageErrors(prev => ({ ...prev, [nodeId]: true }));
-};
-
-export const NodeDrawer = ({ open, onClose, onAddNode, onDragStart: onDragStartProp }) => {
+export const NodeDrawer = ({ open, onClose, onAddNode, onDragStart: onDragStartProp, currentNodes = [], undoDeque = [] }) => {
   const theme = useTheme();
   const [openSections, setOpenSections] = useState({});
   const [nodeCategories, setNodeCategories] = useState({});
@@ -92,8 +91,31 @@ export const NodeDrawer = ({ open, onClose, onAddNode, onDragStart: onDragStartP
   const [clickedNode, setClickedNode] = useState(null);
   const [activeTab, setActiveTab] = useState(1); // Default to "All Files" tab
   const [searchQuery, setSearchQuery] = useState("");
-  const [recentNodes, setRecentNodes] = useState([]);
   const [imageErrors, setImageErrors] = useState({});
+
+  // Compute recent nodes from current workspace and undo deque
+  const recentNodes = React.useMemo(() => {
+    const nodeSet = new Set();
+    
+    // Add nodes from current workspace
+    currentNodes.forEach(node => {
+      if (node.data?.ui?.label) {
+        nodeSet.add(node.data.ui.label);
+      }
+    });
+    
+    // Add nodes from undo deque (actions involving nodes)
+    undoDeque.forEach(action => {
+      if (action.type === 'ADD_NODE' && action.node?.data?.ui?.label) {
+        nodeSet.add(action.node.data.ui.label);
+      } else if (action.type === 'REMOVE_NODE' && action.node?.data?.ui?.label) {
+        nodeSet.add(action.node.data.ui.label);
+      }
+    });
+    
+    // Convert to array and limit to 10 most recent
+    return Array.from(nodeSet).slice(0, 10);
+  }, [currentNodes, undoDeque]);
 
   // Fetch all node categories dynamically from backend
   useEffect(() => {
@@ -127,12 +149,6 @@ export const NodeDrawer = ({ open, onClose, onAddNode, onDragStart: onDragStartP
     // Show drag and drop popup
     setClickedNode(nodeName);
     
-    // Add to recent nodes
-    setRecentNodes((prev) => {
-      const filtered = prev.filter(n => n !== nodeName);
-      return [nodeName, ...filtered].slice(0, 10); // Keep last 10
-    });
-    
     // Hide popup after 2 seconds
     setTimeout(() => {
       setClickedNode(null);
@@ -150,6 +166,16 @@ export const NodeDrawer = ({ open, onClose, onAddNode, onDragStart: onDragStartP
     if (onDragStartProp) {
       onDragStartProp(nodeName);
     }
+  };
+
+  // Helper to get category for a node name
+  const getCategoryForNode = (nodeName) => {
+    for (const [category, nodes] of Object.entries(nodeCategories)) {
+      if (nodes.includes(nodeName)) {
+        return category;
+      }
+    }
+    return 'default';
   };
 
   const renderCategory = (key, nodes = []) => {
@@ -274,30 +300,7 @@ export const NodeDrawer = ({ open, onClose, onAddNode, onDragStart: onDragStartP
                     },
                   }}
                 >
-                        {imageErrors[nodeName] ? (
-                <Typography
-                  sx={{
-                              fontSize: "2rem",
-                              fontWeight: 600,
-                              color: "text.secondary",
-                    pointerEvents: "none",
-                  }}
-                >
-                            →
-                </Typography>
-                        ) : (
-                          <img
-                            src={getNodeImage(key)}
-                            alt={nodeName}
-                            onError={() => handleImageError(nodeName)}
-                            style={{
-                              width: "50px",
-                              height: "50px",
-                              objectFit: "contain",
-                              pointerEvents: "none",
-                            }}
-                          />
-                        )}
+                  {getNodeIcon(key)}
                 
                 {/* Drag and Drop Popup */}
                 {clickedNode === nodeName && (
@@ -528,41 +531,19 @@ export const NodeDrawer = ({ open, onClose, onAddNode, onDragStart: onDragStartP
                           alignItems: "center",
                           justifyContent: "center",
                           borderRadius: 2,
-                          bgcolor: "#F7FAFC",
-                          border: "1px solid #e5e7eb",
+                          bgcolor: 'background.elevation1',
+                          border: "1px solid",
+                          borderColor: 'divider',
                           transition: "all 0.2s ease",
                           mb: 1,
                           "&:hover": {
                             transform: "translateY(-2px)",
-                            boxShadow: "0 4px 12px rgba(0, 0, 0, 0.08)",
-                            borderColor: "#d1d5db",
+                            boxShadow: theme.shadows[2],
+                            borderColor: 'divider',
                           },
                         }}
                       >
-                        {imageErrors[`recent-${nodeName}`] ? (
-                          <Typography
-                            sx={{
-                              fontSize: "2rem",
-                              fontWeight: 600,
-                              color: "text.secondary",
-                              pointerEvents: "none",
-                            }}
-                          >
-                            →
-                          </Typography>
-                        ) : (
-                          <img
-                            src={inputIcon}
-                            alt={nodeName}
-                            onError={() => handleImageError(`recent-${nodeName}`)}
-                            style={{
-                              width: "50px",
-                              height: "50px",
-                              objectFit: "contain",
-                              pointerEvents: "none",
-                            }}
-                          />
-                        )}
+                        {getNodeIcon(getCategoryForNode(nodeName))}
                       </Paper>
                       
                       {/* Text Outside Gray Background */}

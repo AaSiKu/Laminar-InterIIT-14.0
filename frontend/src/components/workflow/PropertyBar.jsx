@@ -37,6 +37,7 @@ export const PropertyBar = ({
   anchor = "right",
   drawerWidth = "25vw", // 25% of viewport width
   variant = "temporary",
+  readOnly = false,
 }) => {
   const theme = useTheme();
   const [snackbar, setSnackbar] = useState({
@@ -247,6 +248,7 @@ export const PropertyBar = ({
                     formData={selectedNode?.data?.properties}
                     onSubmit={handleSave}
                     onClose={onClose}
+                    disabled={readOnly}
                     templates={{
                       DescriptionFieldTemplate: MarkdownDescriptionField,
                     }}

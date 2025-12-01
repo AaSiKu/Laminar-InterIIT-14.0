@@ -135,7 +135,6 @@ const NodeDataTable = ({ nodeId, isVisible, nodeRef, onMouseEnter, onMouseLeave 
 
     const nodeRect = nodeRef.current.getBoundingClientRect();
     const tableWidth = 640; // 40rem approximate
-    const tableHeight = 400; // Approximate table height
     
     const viewportWidth = window.innerWidth;
     const viewportHeight = window.innerHeight;
@@ -143,8 +142,6 @@ const NodeDataTable = ({ nodeId, isVisible, nodeRef, onMouseEnter, onMouseLeave 
     // Calculate available space in each direction
     const spaceRight = viewportWidth - nodeRect.right;
     const spaceLeft = nodeRect.left;
-    const spaceBelow = viewportHeight - nodeRect.bottom;
-    const spaceAbove = nodeRect.top;
     
     // Calculate which quadrant the node is in
     const isLeftHalf = nodeRect.left < viewportWidth / 2;
@@ -152,43 +149,25 @@ const NodeDataTable = ({ nodeId, isVisible, nodeRef, onMouseEnter, onMouseLeave 
     
     let newPosition = {};
     
-    // Priority: Try horizontal placement first (left or right of node)
-    if (spaceRight >= tableWidth && (isLeftHalf || spaceRight > spaceLeft)) {
-      // Place on RIGHT side of node
+    // ALWAYS place table horizontally (left or right of node), never on top or bottom
+    // Prefer right side if node is in left half, prefer left side if node is in right half
+    if (isLeftHalf) {
+      // Node is on left side of screen -> place table on RIGHT side of node
       newPosition.left = '100%';
       newPosition.right = 'auto';
-      // Align bottom edges if node is in bottom half
-      if (!isTopHalf) {
-        newPosition.bottom = '0';
-        newPosition.top = 'auto';
-      } else {
-        newPosition.top = '0';
-        newPosition.bottom = 'auto';
-      }
-    } else if (spaceLeft >= tableWidth && (!isLeftHalf || spaceLeft > spaceRight)) {
-      // Place on LEFT side of node
+    } else {
+      // Node is on right side of screen -> place table on LEFT side of node
       newPosition.right = '100%';
       newPosition.left = 'auto';
-      // Align bottom edges if node is in bottom half
-      if (!isTopHalf) {
-        newPosition.bottom = '0';
-        newPosition.top = 'auto';
-      } else {
-        newPosition.top = '0';
-        newPosition.bottom = 'auto';
-      }
-    } else if (spaceBelow >= tableHeight && (isTopHalf || spaceBelow > spaceAbove)) {
-      // Place BELOW node (table top touches node bottom)
-      newPosition.top = '100%';
+    }
+    
+    // Vertical alignment: align top edges if node is in top half, bottom edges if in bottom half
+    if (isTopHalf) {
+      newPosition.top = '0';
       newPosition.bottom = 'auto';
-      newPosition.left = '0';
-      newPosition.right = 'auto';
     } else {
-      // Place ABOVE node (table bottom touches node top)
-      newPosition.bottom = '100%';
+      newPosition.bottom = '0';
       newPosition.top = 'auto';
-      newPosition.left = '0';
-      newPosition.right = 'auto';
     }
     
     setPosition(newPosition);
