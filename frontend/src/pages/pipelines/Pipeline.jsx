@@ -25,6 +25,7 @@ import TrendingUpIcon from "@mui/icons-material/TrendingUp";
 import TrendingDownIcon from "@mui/icons-material/TrendingDown";
 import OpenInNewIcon from "@mui/icons-material/OpenInNew";
 import "../../css/pipeline.css";
+import Group29Svg from "../../assets/Group 29.svg";
 
 // Mock data for run history table
 const runHistoryData = [
@@ -167,7 +168,7 @@ export default function Pipeline() {
               </div>
             </div>
             <div className="pipeline-promo-diagram">
-              <img src="/assets/Group 29.svg" alt="Pipeline Diagram" />
+              <img src={Group29Svg} alt="Pipeline Diagram" />
             </div>
           </div>
 
