@@ -158,9 +158,9 @@ def read_spans(_, node: OpenTelSpansNode):
     spans_table = kafka_spans.select(
         flattened=pw.apply(flatten_spans, pw.this.data)
     ).flatten(pw.this.flattened).select(
-        _laminar_trace_id=pw.unwrap(pw.this.flattened["trace_id"].as_str()),
-        span_id=pw.unwrap(pw.this.flattened["span_id"].as_str()),
-        parent_span_id=pw.unwrap(pw.this.flattened["parent_span_id"].as_str()),
+        _open_tel_trace_id=pw.unwrap(pw.this.flattened["trace_id"].as_str()),
+        _open_tel_span_id=pw.unwrap(pw.this.flattened["span_id"].as_str()),
+        _open_tel_parent_span_id=pw.unwrap(pw.this.flattened["parent_span_id"].as_str()),
         name=pw.unwrap(pw.this.flattened["name"].as_str()),
         kind=pw.unwrap(pw.this.flattened["kind"].as_int()),
         start_time_unix_nano=pw.unwrap(pw.this.flattened["start_time_unix_nano"].as_str()),
