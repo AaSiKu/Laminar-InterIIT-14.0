@@ -243,7 +243,7 @@ export default function WorkflowPage() {
           onShareClick={handleShareClick}
           onShareClose={handleShareClose}
           onSave={() =>
-            savePipelineAPI(
+            savePipelineAPI( 
               rfInstance,
               currentPipelineId,
               setCurrentPipelineId,
