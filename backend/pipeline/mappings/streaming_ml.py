@@ -87,11 +87,25 @@ def _create_predict_udf(model_wrapper: ModelWrapper, all_columns: List[str]):
     def predict_udf(*args) -> pw.Json:
         kwargs = {all_columns[i]: args[i] for i in range(len(all_columns))}
         result = model_wrapper.invoke(**kwargs) # kwargs is whole row, numerical, string, anything
+        
+        # Clean up output for JSON serialization
+        prediction = result.get("model_prediction", None)
+        if prediction is not None and hasattr(prediction, 'tolist'):
+            prediction = prediction.tolist()  # Convert numpy array to list
+        
         error = result.get("model_error", None)
         if error is not None:
             error = float(error) if not np.isinf(error) else None
         
-        return pw.Json(result)
+        latency = result.get("model_latency", 0)
+        ram = result.get("model_ram_usage", 0)
+        
+        return pw.Json({
+            "prediction": prediction,
+            "latency_ms": float(latency) * 1000 if latency else 0.0,
+            "ram_mb": float(ram) if ram else 0.0,
+            "error": error
+        })
     
     return predict_udf
 
