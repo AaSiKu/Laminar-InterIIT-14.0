@@ -63,8 +63,6 @@ export function AlertsChart({ data }) {
         p: 2.5,
         display: 'flex',
         flexDirection: 'column',
-        border: '1px solid',
-        borderColor: 'divider',
         borderRadius: 2,
         height: '100%',
       }}

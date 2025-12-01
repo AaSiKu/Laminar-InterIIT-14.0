@@ -10,16 +10,19 @@ const WorkflowCard = ({ workflow, isSelected, onClick }) => {
       onClick={onClick}
       sx={{
         cursor: "pointer",
-        borderRadius: "24px",
+        borderRadius: '0.75rem',
         bgcolor: isSelected ? 'action.selected' : 'background.elevation1',
         boxShadow: "none",
         outline: "none",
-        transition: "all 0.2s ease",
+        transition: 'background-color 0.2s ease',
         width: "100%",
         maxWidth: "492px",
         minHeight: "139px",
         "&:hover": {
-          bgcolor: 'action.hover',
+          bgcolor: isSelected ? 'action.selected' : 'action.hover',
+        },
+        "&:active": {
+          bgcolor: 'action.selected',
         },
       }}
     >

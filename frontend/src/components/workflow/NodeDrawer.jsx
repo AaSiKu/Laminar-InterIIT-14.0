@@ -195,7 +195,7 @@ export const NodeDrawer = ({ open, onClose, onAddNode, onDragStart: onDragStartP
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
-            cursor: "pointer",
+          cursor: "pointer",
             px: 2,
             py: 1.5,
           borderRadius: 1,
@@ -374,17 +374,17 @@ export const NodeDrawer = ({ open, onClose, onAddNode, onDragStart: onDragStartP
       anchor="right"
       open={open}
       onClose={onClose}
-        sx={{
-          "& .MuiDrawer-paper": {
-            width: 400,
-            boxSizing: "border-box",
+      sx={{
+        "& .MuiDrawer-paper": {
+          width: 400,
+          boxSizing: "border-box",
             bgcolor: 'background.paper',
-            top: "48px", // Below the topmost Laminar navbar
-            height: "calc(100vh - 48px)",
+          top: "48px", // Below the topmost Laminar navbar
+          height: "calc(100vh - 48px)",
             borderLeft: '1px solid',
             borderColor: 'divider',
-          },
-        }}
+        },
+      }}
     >
       {/* Header */}
       <Box
@@ -481,15 +481,15 @@ export const NodeDrawer = ({ open, onClose, onAddNode, onDragStart: onDragStartP
           // Recent Tab
           <Box sx={{ px: 1 }}>
             {recentNodes.length === 0 ? (
-            <Typography
-              variant="body2"
-              sx={{ 
-                textAlign: "center", 
+              <Typography
+                variant="body2"
+                sx={{ 
+                  textAlign: "center", 
                 color: "text.secondary",
-                fontSize: "0.8125rem",
-                py: 4
-              }}
-            >
+                  fontSize: "0.8125rem",
+                  py: 4
+                }}
+              >
                 No recent nodes
               </Typography>
             ) : (
@@ -586,15 +586,15 @@ export const NodeDrawer = ({ open, onClose, onAddNode, onDragStart: onDragStartP
           // All Files Tab
           <Box>
         {Object.keys(nodeCategories).length === 0 && !loading ? (
-            <Typography
-              variant="body2"
-              sx={{ 
-                textAlign: "center", 
+          <Typography
+            variant="body2"
+            sx={{ 
+              textAlign: "center", 
                 color: "text.secondary",
-                fontSize: "0.8125rem",
-                py: 4
-              }}
-            >
+                  fontSize: "0.8125rem",
+                  py: 4
+            }}
+          >
             No node categories found.
           </Typography>
         ) : (

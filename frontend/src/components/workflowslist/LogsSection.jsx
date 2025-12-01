@@ -70,7 +70,6 @@ const LogsSection = ({ logs }) => {
       <Box 
         sx={{ 
           flex: 1, 
-          overflowY: "auto", 
           p: 2,
           pb: 3,
         }}
