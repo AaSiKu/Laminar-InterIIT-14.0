@@ -7,26 +7,44 @@ const PipelinePreview = ({ workflowId }) => {
   const navigate = useNavigate();
 
   return (
-    <Box sx={{ bgcolor: 'background.paper', border: "1px solid", borderColor: 'divider', borderRadius: 0, p: 2 }}>
+    <Box 
+      onClick={() => navigate(`/workflows/${workflowId}`)}
+      sx={{ 
+        bgcolor: 'background.paper', 
+        border: "1px solid", 
+        borderColor: 'divider', 
+        borderRadius: 0, 
+        p: 2,
+        background: 'linear-gradient(to bottom, rgba(135, 206, 250, 0.02) 0%, rgba(135, 206, 250, 0.05) 50%, rgba(135, 206, 250, 0.15) 100%)',
+        cursor: "pointer",
+        transition: "all 0.2s ease",
+        "&:hover": {
+          borderColor: "primary.main",
+          background: 'linear-gradient(to bottom, rgba(135, 206, 250, 0.05) 0%, rgba(135, 206, 250, 0.1) 50%, rgba(135, 206, 250, 0.2) 100%)',
+        },
+      }}
+    >
       <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 1.5 }}>
         <Typography variant="h6" sx={{ fontWeight: 600, fontSize: "0.9375rem", color: "text.primary" }}>
           Pipeline
         </Typography>
         <Button
           variant="text"
+          size="small"
           endIcon={<ArrowForwardIcon sx={{ fontSize: 14 }} />}
-          onClick={() => navigate(`/workflows/${workflowId}`)}
+          onClick={(e) => {
+            e.stopPropagation();
+            navigate(`/workflows/${workflowId}`);
+          }}
           sx={{
-            textTransform: "none",
-            color: "primary.main",
-            fontSize: "0.8125rem",
-            fontWeight: 500,
             minWidth: "auto",
-            px: 1,
+            color: 'primary.main',
+            bgcolor: 'rgba(25, 118, 210, 0.08)',
+            px: 1.5,
             py: 0.5,
-            borderRadius: "4px",
-            "&:hover": { 
-              bgcolor: "rgba(25, 118, 210, 0.08)",
+            borderRadius: "6px",
+            '&:hover': {
+              bgcolor: 'rgba(25, 118, 210, 0.16)',
             },
           }}
         >
@@ -34,21 +52,10 @@ const PipelinePreview = ({ workflowId }) => {
         </Button>
       </Box>
       <Box
-        onClick={() => navigate(`/workflows/${workflowId}`)}
         sx={{
-          height: 120,
-          background: 'linear-gradient(to bottom, rgba(135, 206, 250, 0.02) 0%, rgba(135, 206, 250, 0.05) 50%, rgba(135, 206, 250, 0.15) 100%)',
-          border: "1px solid",
-          borderColor: 'divider',
-          borderRadius: "4px",
+          height: 150,
           overflow: "hidden",
-          cursor: "pointer",
-          transition: "all 0.2s ease",
-          position: "relative",
-          "&:hover": {
-            borderColor: "primary.main",
-            background: 'linear-gradient(to bottom, rgba(135, 206, 250, 0.05) 0%, rgba(135, 206, 250, 0.1) 50%, rgba(135, 206, 250, 0.2) 100%)',
-          },
+          borderRadius: "4px",
         }}
       >
         <img 

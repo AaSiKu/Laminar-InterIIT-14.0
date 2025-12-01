@@ -80,7 +80,7 @@ export default function Pipeline() {
   const [historyFilter, setHistoryFilter] = useState("weekly");
 
   const handleBack = () => {
-    navigate(-1);
+    navigate('/workflows');
   };
 
   return (
@@ -108,7 +108,7 @@ export default function Pipeline() {
             <KeyboardBackspaceIcon />
           </IconButton>
           <Typography variant="body2" className="pipeline-nav-title">
-            Pipeline A
+            pipeline {pipelineId ? pipelineId.toLowerCase() : 'a'}
           </Typography>
         </div>
         <div className="pipeline-nav-right">
@@ -150,7 +150,7 @@ export default function Pipeline() {
             <div className="pipeline-promo-header">
               <div className="pipeline-promo-left">
                 <Typography variant="h3" className="pipeline-promo-title">
-                  Pipeline A
+                  pipeline {pipelineId ? pipelineId.toLowerCase() : 'a'}
                 </Typography>
                 <Button variant="contained" className="pipeline-promo-btn" startIcon={<OpenInNewIcon />}>
                   Open

@@ -65,7 +65,7 @@ export const WorkflowsList = () => {
       {/* Main Content Area */}
       <Box sx={{ ...styles.mainContentArea, bgcolor: 'background.default' }}>
         {/* Main Content - Workflows List */}
-        <Box sx={{ ...styles.workflowsListSection, bgcolor: 'background.paper', borderRight: { xs: "none", lg: "1px solid" }, borderBottom: { xs: "1px solid", lg: "none" }, borderColor: 'divider' }}>
+        <Box sx={{ ...styles.workflowsListSection, bgcolor: 'background.paper', borderRight: "none", borderBottom: "none" }}>
           <WorkflowHeader
             onAddNew={handleAddNew}
             selectedTab={selectedTab}
@@ -79,6 +79,7 @@ export const WorkflowsList = () => {
             overflowY: "auto",
             px: 2,
             pt: 2,
+            pb: 3,
           }}>
             <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>
           {filteredWorkflows.map((workflow) => (

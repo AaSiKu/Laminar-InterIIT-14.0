@@ -1,5 +1,5 @@
 import { Box, Typography, Button, Paper, IconButton } from "@mui/material";
-import { MoreHoriz as MoreHorizIcon } from "@mui/icons-material";
+import AutoAwesomeOutlinedIcon from '@mui/icons-material/AutoAwesomeOutlined';
 
 const ActionRequired = ({ actionFilter, onFilterChange, actionItems }) => {
   return (
@@ -22,19 +22,14 @@ const ActionRequired = ({ actionFilter, onFilterChange, actionItems }) => {
         <Box sx={{ flex: 1 }} />
         <Button
           size="small"
+          variant={actionFilter === "critical" ? "soft" : "text"}
+          color="neutral"
           onClick={() => onFilterChange("critical")}
           sx={{
-            textTransform: "none",
-            bgcolor: actionFilter === "critical" ? 'action.selected' : "transparent",
-            color: actionFilter === "critical" ? "primary.dark" : "text.secondary",
-            fontSize: "0.75rem",
-            fontWeight: 500,
-            px: 1.5,
-            py: 0.5,
             minWidth: "auto",
-            borderRadius: "4px",
-            "&:hover": {
-              bgcolor: actionFilter === "critical" ? 'action.selected' : 'action.hover',
+            border: "none",
+            '&:hover': {
+              border: "none",
             },
           }}
         >
@@ -42,23 +37,33 @@ const ActionRequired = ({ actionFilter, onFilterChange, actionItems }) => {
         </Button>
         <Button
           size="small"
+          variant={actionFilter === "low" ? "soft" : "text"}
+          color="neutral"
           onClick={() => onFilterChange("low")}
           sx={{
-            textTransform: "none",
-            bgcolor: actionFilter === "low" ? 'action.selected' : "transparent",
-            color: actionFilter === "low" ? "primary.dark" : "text.secondary",
-            fontSize: "0.75rem",
-            fontWeight: 500,
-            px: 1.5,
-            py: 0.5,
             minWidth: "auto",
-            borderRadius: "4px",
-            "&:hover": {
-              bgcolor: actionFilter === "low" ? 'action.selected' : 'action.hover',
+            border: "none",
+            '&:hover': {
+              border: "none",
             },
           }}
         >
           Low
+        </Button>
+        <Button
+          size="small"
+          variant={actionFilter === "history" ? "soft" : "text"}
+          color="neutral"
+          onClick={() => onFilterChange("history")}
+          sx={{
+            minWidth: "auto",
+            border: "none",
+            '&:hover': {
+              border: "none",
+            },
+          }}
+        >
+          History
         </Button>
       </Box>
       <Box 
@@ -66,6 +71,7 @@ const ActionRequired = ({ actionFilter, onFilterChange, actionItems }) => {
           flex: 1, 
           overflowY: "auto", 
           p: 2,
+          pb: 3,
         }}
       >
         <Typography variant="caption" sx={{ color: "text.secondary", fontSize: "0.75rem", mb: 1.5, display: "block", textTransform: "capitalize" }}>
@@ -78,21 +84,34 @@ const ActionRequired = ({ actionFilter, onFilterChange, actionItems }) => {
               elevation={0}
               sx={{
                 p: 1.5,
-                bgcolor: 'background.elevation1',
-                border: "1px solid",
-                borderColor: 'divider',
-                borderRadius: "4px",
+                bgcolor: 'rgba(25, 118, 210, 0.04)',
+                borderRadius: "8px",
                 cursor: "pointer",
                 transition: "all 0.2s ease",
-                "&:hover": { borderColor: "primary.main", bgcolor: 'action.hover' },
+                "&:hover": { bgcolor: 'rgba(25, 118, 210, 0.08)' },
+                boxShadow: "none",
+                border: '1px solid rgba(25, 118, 210, 0.12)',
               }}
             >
               <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", mb: 0.75 }}>
                 <Typography variant="body2" sx={{ fontWeight: 600, fontSize: "0.8125rem", color: "text.primary", flex: 1 }}>
                   {item.title}
                 </Typography>
-                <IconButton size="small" sx={{ ml: 1, p: 0.5 }}>
-                  <MoreHorizIcon sx={{ fontSize: 16, color: "text.secondary" }} />
+                <IconButton 
+                  size="small" 
+                  sx={{ 
+                    ml: 1, 
+                    p: 0.5,
+                    color: 'primary.main',
+                    bgcolor: 'rgba(25, 118, 210, 0.08)',
+                    width: 28,
+                    height: 28,
+                    '&:hover': {
+                      bgcolor: 'rgba(25, 118, 210, 0.16)',
+                    },
+                  }}
+                >
+                  <AutoAwesomeOutlinedIcon sx={{ fontSize: 16 }} />
                 </IconButton>
               </Box>
               {item.email && (
@@ -103,29 +122,39 @@ const ActionRequired = ({ actionFilter, onFilterChange, actionItems }) => {
               <Typography variant="caption" sx={{ color: "text.secondary", fontSize: "0.6875rem", display: "block", mb: 1 }}>
                 {item.assignee || item.time}
               </Typography>
-              <Box sx={{ display: "flex", gap: 0.75 }}>
+              <Box sx={{ display: "flex", gap: 1.5 }}>
                 <Button 
-                  size="small" 
+                  size="small"
+                  variant="text"
                   sx={{ 
-                    textTransform: "none", 
-                    color: "primary.main", 
-                    fontSize: "0.75rem", 
-                    fontWeight: 500,
                     minWidth: "auto",
-                    p: 0,
+                    px: 0,
+                    py: 0,
+                    color: "primary.main",
+                    fontSize: "0.75rem",
+                    fontWeight: 500,
+                    textTransform: "none",
+                    '&:hover': {
+                      bgcolor: 'transparent',
+                    },
                   }}
                 >
                   Approve
                 </Button>
                 <Button 
-                  size="small" 
+                  size="small"
+                  variant="text"
                   sx={{ 
-                    textTransform: "none", 
-                    color: "error.main", 
-                    fontSize: "0.75rem", 
-                    fontWeight: 500,
                     minWidth: "auto",
-                    p: 0,
+                    px: 0,
+                    py: 0,
+                    color: "error.main",
+                    fontSize: "0.75rem",
+                    fontWeight: 500,
+                    textTransform: "none",
+                    '&:hover': {
+                      bgcolor: 'transparent',
+                    },
                   }}
                 >
                   Reject

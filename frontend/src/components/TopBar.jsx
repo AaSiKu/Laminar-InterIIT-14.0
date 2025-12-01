@@ -67,11 +67,11 @@ const TopBar = ({
             value={searchValue}
             onChange={(e) => onSearchChange && onSearchChange(e.target.value)}
             sx={{
-              minWidth: { xs: 180, sm: 250, md: 350 },
+              minWidth: { xs: 150, sm: 200, md: 280 },
               '& .MuiOutlinedInput-root': {
-                borderRadius: '100px',
+                borderRadius: '20px',
                 bgcolor: 'background.elevation1',
-                height: '32px',
+                height: '28px',
                 '& fieldset': {
                   borderColor: 'divider',
                 },
@@ -83,14 +83,14 @@ const TopBar = ({
                 },
               },
               '& .MuiInputBase-input': {
-                padding: '6px 14px',
-                fontSize: '0.8125rem',
+                padding: '4px 12px',
+                fontSize: '0.75rem',
               },
             }}
             InputProps={{
               startAdornment: (
                 <InputAdornment position="start">
-                  <SearchIcon sx={{ fontSize: '0.95rem', color: 'text.secondary' }} />
+                  <SearchIcon sx={{ fontSize: '0.875rem', color: 'text.secondary' }} />
                 </InputAdornment>
               ),
             }}

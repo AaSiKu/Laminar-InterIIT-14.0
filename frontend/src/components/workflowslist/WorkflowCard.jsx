@@ -10,27 +10,29 @@ const WorkflowCard = ({ workflow, isSelected, onClick }) => {
       onClick={onClick}
       sx={{
         cursor: "pointer",
-        borderRadius: "12px",
+        borderRadius: "24px",
         bgcolor: isSelected ? 'action.selected' : 'background.elevation1',
-        border: "1px solid",
-        borderColor: 'divider',
         boxShadow: "none",
+        outline: "none",
         transition: "all 0.2s ease",
+        width: "100%",
+        maxWidth: "492px",
+        minHeight: "139px",
         "&:hover": {
           bgcolor: 'action.hover',
         },
       }}
     >
-      <CardContent sx={{ p: 2, "&:last-child": { pb: 2 } }}>
+      <CardContent sx={{ p: 3, "&:last-child": { pb: 3 } }}>
         <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
           <Box sx={{ flex: 1 }}>
             <Typography variant="h6" sx={{ fontWeight: 600, fontSize: "0.9375rem", mb: 0.5, color: "text.primary" }}>
               {workflow.name}
             </Typography>
-            <Typography variant="body2" sx={{ color: "text.secondary", fontSize: "0.8125rem", mb: 1.5 }}>
+            <Typography variant="body2" sx={{ color: "text.secondary", fontSize: "0.8125rem", mb: 2 }}>
               {workflow.category} · {workflow.location}
             </Typography>
-            <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 1 }}>
               <AvatarGroup max={5} sx={{ "& .MuiAvatar-root": { width: 24, height: 24, fontSize: "0.625rem", border: `2px solid ${theme.palette.background.paper}` } }}>
                 {workflow.team.map((member, index) => (
                   <Avatar 

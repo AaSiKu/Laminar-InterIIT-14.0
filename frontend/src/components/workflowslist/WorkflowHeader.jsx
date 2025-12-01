@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Box, Typography, Button, IconButton, Menu, MenuItem, ListItemIcon, ListItemText } from "@mui/material";
-import { Add as AddIcon, FilterList as FilterListIcon, Loop as LoopIcon, Warning as WarningIcon, Flag as FlagIcon, Save as SaveIcon } from "@mui/icons-material";
+import { Add as AddIcon, FilterListOutlined as FilterListOutlinedIcon, LoopOutlined as LoopOutlinedIcon, WarningAmberOutlined as WarningAmberOutlinedIcon, FlagOutlined as FlagOutlinedIcon, SaveOutlined as SaveOutlinedIcon } from "@mui/icons-material";
 
 const WorkflowHeader = ({ onAddNew, selectedTab, onTabChange }) => {
   const [filterAnchorEl, setFilterAnchorEl] = useState(null);
@@ -29,64 +29,31 @@ const WorkflowHeader = ({ onAddNew, selectedTab, onTabChange }) => {
           </Typography>
           <Button
             variant="contained"
+            color="primary"
             startIcon={<AddIcon sx={{ fontSize: 16 }} />}
             onClick={onAddNew}
           >
             Add new
           </Button>
         </Box>
-        <Typography variant="body2" sx={{ color: "text.secondary", fontSize: "0.8125rem", mb: 2 }}>
+        <Typography variant="body2" sx={{ color: "text.secondary", fontSize: "0.8125rem", mb: 2, mt: 1 }}>
           Recruitment involvement across roles
         </Typography>
       </Box>
 
-      {/* Tabs and Filter */}
-      <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 2 }}>
-        <Box sx={{ display: "flex", gap: 1 }}>
-          <Button
-            variant={selectedTab === 0 ? "soft" : "text"}
-            color={selectedTab === 0 ? "primary" : "neutral"}
-            onClick={() => onTabChange(null, 0)}
-            sx={{
-              minWidth: "auto",
-            }}
-          >
-            My Projects
-          </Button>
-          <Button
-            variant={selectedTab === 1 ? "soft" : "text"}
-            color={selectedTab === 1 ? "primary" : "neutral"}
-            onClick={() => onTabChange(null, 1)}
-            sx={{
-              minWidth: "auto",
-            }}
-          >
-            Recent
-          </Button>
-          <Button
-            variant={selectedTab === 2 ? "soft" : "text"}
-            color={selectedTab === 2 ? "primary" : "neutral"}
-            onClick={() => onTabChange(null, 2)}
-            sx={{
-              minWidth: "auto",
-            }}
-          >
-            Drafts
-          </Button>
-        </Box>
-
+      {/* Filter */}
+      <Box sx={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 2 }}>
         <IconButton
           onClick={handleFilterClick}
           sx={{
-            border: "1px solid",
-            borderColor: 'divider',
-            borderRadius: "6px",
+            bgcolor: 'background.elevation1',
+            borderRadius: "8px",
             width: 36,
             height: 36,
             "&:hover": { bgcolor: 'action.hover' },
           }}
         >
-          <FilterListIcon sx={{ fontSize: 20, color: "text.secondary" }} />
+          <FilterListOutlinedIcon sx={{ fontSize: 20, color: "text.secondary" }} />
         </IconButton>
 
         <Menu
@@ -114,27 +81,67 @@ const WorkflowHeader = ({ onAddNew, selectedTab, onTabChange }) => {
             },
           }}
         >
-          <MenuItem onClick={() => handleFilterOption("inProgress")}>
-            <ListItemIcon>
-              <LoopIcon sx={{ fontSize: 20 }} />
+          <MenuItem onClick={() => handleFilterOption("inProgress")} sx={{ py: 1.5 }}>
+            <ListItemIcon sx={{ mr: 2 }}>
+              <Box sx={{ 
+                bgcolor: 'background.elevation1', 
+                borderRadius: '6px', 
+                width: 32, 
+                height: 32, 
+                display: 'flex', 
+                alignItems: 'center', 
+                justifyContent: 'center' 
+              }}>
+                <LoopOutlinedIcon sx={{ fontSize: 18, color: "text.secondary" }} />
+              </Box>
             </ListItemIcon>
             <ListItemText>In Progress</ListItemText>
           </MenuItem>
-          <MenuItem onClick={() => handleFilterOption("critical")}>
-            <ListItemIcon>
-              <WarningIcon sx={{ fontSize: 20 }} />
+          <MenuItem onClick={() => handleFilterOption("critical")} sx={{ py: 1.5 }}>
+            <ListItemIcon sx={{ mr: 2 }}>
+              <Box sx={{ 
+                bgcolor: 'background.elevation1', 
+                borderRadius: '6px', 
+                width: 32, 
+                height: 32, 
+                display: 'flex', 
+                alignItems: 'center', 
+                justifyContent: 'center' 
+              }}>
+                <WarningAmberOutlinedIcon sx={{ fontSize: 18, color: "text.secondary" }} />
+              </Box>
             </ListItemIcon>
             <ListItemText>Critical</ListItemText>
           </MenuItem>
-          <MenuItem onClick={() => handleFilterOption("flagged")}>
-            <ListItemIcon>
-              <FlagIcon sx={{ fontSize: 20 }} />
+          <MenuItem onClick={() => handleFilterOption("flagged")} sx={{ py: 1.5 }}>
+            <ListItemIcon sx={{ mr: 2 }}>
+              <Box sx={{ 
+                bgcolor: 'background.elevation1', 
+                borderRadius: '6px', 
+                width: 32, 
+                height: 32, 
+                display: 'flex', 
+                alignItems: 'center', 
+                justifyContent: 'center' 
+              }}>
+                <FlagOutlinedIcon sx={{ fontSize: 18, color: "text.secondary" }} />
+              </Box>
             </ListItemIcon>
             <ListItemText>Flagged</ListItemText>
           </MenuItem>
-          <MenuItem onClick={() => handleFilterOption("save")}>
-            <ListItemIcon>
-              <SaveIcon sx={{ fontSize: 20 }} />
+          <MenuItem onClick={() => handleFilterOption("save")} sx={{ py: 1.5 }}>
+            <ListItemIcon sx={{ mr: 2 }}>
+              <Box sx={{ 
+                bgcolor: 'background.elevation1', 
+                borderRadius: '6px', 
+                width: 32, 
+                height: 32, 
+                display: 'flex', 
+                alignItems: 'center', 
+                justifyContent: 'center' 
+              }}>
+                <SaveOutlinedIcon sx={{ fontSize: 18, color: "text.secondary" }} />
+              </Box>
             </ListItemIcon>
             <ListItemText>Save</ListItemText>
           </MenuItem>

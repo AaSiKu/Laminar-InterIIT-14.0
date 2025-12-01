@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import {
   applyNodeChanges,
   applyEdgeChanges,
@@ -37,6 +37,7 @@ export default function WorkflowPage() {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [shareAnchorEl, setShareAnchorEl] = useState(null);
   const navigate = useNavigate();
+  const { pipelineId } = useParams();
 
   const {
     currentEdges,
@@ -236,7 +237,7 @@ export default function WorkflowPage() {
 
         <PipelineNavBar
           onBackClick={handleBackClick}
-          pipelineName="Pipeline A"
+          pipelineName={`Pipeline ${pipelineId ? pipelineId.toLowerCase() : 'a'}`}
           loading={loading}
           shareAnchorEl={shareAnchorEl}
           onShareClick={handleShareClick}

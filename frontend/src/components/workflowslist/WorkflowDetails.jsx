@@ -1,5 +1,6 @@
-import { Box, Typography, AvatarGroup, Avatar, IconButton } from "@mui/material";
-import { Settings as SettingsIcon, MoreHoriz as MoreHorizIcon } from "@mui/icons-material";
+import { Box, Typography, AvatarGroup, Avatar, IconButton, Button } from "@mui/material";
+import EditIcon from '@mui/icons-material/Edit';
+import FileCopyIcon from '@mui/icons-material/FileCopy';
 import PipelinePreview from "./PipelinePreview";
 import MetricCard from "./MetricCard";
 import ActionRequired from "./ActionRequired";
@@ -15,16 +16,47 @@ const WorkflowDetails = ({ workflow, actionFilter, onActionFilterChange, actionI
         overflow: "auto",
         display: "flex",
         flexDirection: "column",
-        p: 3,
+        px: 3,
+        pb: 3,
       }}
     >
-      {/* Header */}
-      <Box sx={{ mb: 3 }}>
+      {/* Header Box */}
+      <Box sx={{ 
+        bgcolor: 'background.paper', 
+        border: "1px solid", 
+        borderColor: 'divider', 
+        borderRadius: 0, 
+        p: 2,
+        mb: 0,
+        mx: -3,
+        mt: 0,
+        borderTop: "none",
+      }}>
         <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", mb: 2 }}>
           <Typography variant="h5" sx={{ fontWeight: 600, color: "text.primary", fontSize: "1.125rem" }}>
             {workflow.name}
           </Typography>
-          <Box sx={{ display: "flex", gap: 1, alignItems: "center" }}>
+          <Box sx={{ display: "flex", gap: 1.5, alignItems: "center" }}>
+            <Button
+              variant="text"
+              size="small"
+              startIcon={<FileCopyIcon sx={{ fontSize: 16 }} />}
+              sx={{
+                color: 'primary.main',
+                bgcolor: 'rgba(25, 118, 210, 0.08)',
+                px: 1.5,
+                py: 0.5,
+                borderRadius: "6px",
+                fontSize: "0.75rem",
+                fontWeight: 500,
+                textTransform: "none",
+                '&:hover': {
+                  bgcolor: 'rgba(25, 118, 210, 0.16)',
+                },
+              }}
+            >
+              Get Report
+            </Button>
             <AvatarGroup max={3} sx={{ "& .MuiAvatar-root": { width: 32, height: 32, fontSize: "0.75rem" } }}>
               {workflow.team.map((member, index) => (
                 <Avatar 
@@ -39,11 +71,17 @@ const WorkflowDetails = ({ workflow, actionFilter, onActionFilterChange, actionI
                 />
               ))}
             </AvatarGroup>
-            <IconButton size="small" sx={{ color: "text.secondary" }}>
-              <SettingsIcon sx={{ fontSize: 20 }} />
-            </IconButton>
-            <IconButton size="small" sx={{ color: "text.secondary" }}>
-              <MoreHorizIcon sx={{ fontSize: 20 }} />
+            <IconButton 
+              size="small" 
+              sx={{ 
+                color: 'primary.main',
+                bgcolor: 'rgba(25, 118, 210, 0.08)',
+                '&:hover': {
+                  bgcolor: 'rgba(25, 118, 210, 0.16)',
+                },
+              }}
+            >
+              <EditIcon sx={{ fontSize: 18 }} />
             </IconButton>
           </Box>
         </Box>
