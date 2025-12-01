@@ -23,12 +23,12 @@ class GroupByNode(TableNode):
     reducers: List[ReducerDict]
     n_inputs: Literal[1] = 1
 
-# class SelectNode(TableNode):
-#     node_id: Literal["select"]
-#     columns: List[str]
-#     n_inputs: Literal[1] = 1
+class SelectNode(TableNode):
+    node_id: Literal["select"]
+    columns: List[str]
+    n_inputs: Literal[1] = 1
 
-# class WithoutNode(TableNode):
-#     node_id: Literal["without"]
-#     columns: List[str]
-#     n_inputs: Literal[1] = 1
+class WithoutNode(TableNode):
+    node_id: Literal["without"]
+    columns: List[str]
+    n_inputs: Literal[1] = 1

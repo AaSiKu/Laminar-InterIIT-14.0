@@ -17,6 +17,3 @@ class AsofNowJoinNode(_Join):
     node_id: Literal['asof_now_join']
     join_id: Optional[Literal["self", "other"]]
 
-class ConcatNode(TableNode):
-    node_id: Literal["concat"]
-    n_inputs: Literal[2] = 2

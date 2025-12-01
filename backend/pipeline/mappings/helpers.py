@@ -4,7 +4,8 @@ import pathway as pw
 from lib.io_nodes import PairOfStrings, ColumnType
 from lib.tables.joins import JoinMode
 class MappingValues(TypedDict):
-    node_fn: Callable[[list[pw.Table], Any], pw.Table]
+    node_fn: Callable
+    stringify: Optional[Callable[[Any, List[int]], str]]  # Add this line
 
 # Helper functions
 get_col = lambda table, col_name: getattr(table, col_name)

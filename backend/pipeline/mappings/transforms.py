@@ -102,27 +102,28 @@ def group_by(inputs: List[pw.Table], node: GroupByNode):
 
 transform_mappings: dict[str, MappingValues] = {
     "filter": {
-        "node_fn": filter
+        "node_fn": filter,
+        "stringify": lambda node, inputs: f"Filters input {inputs[0]} where '{' and '.join([f"{filter.col} {filter.op} {filter.value}" for filter in node.filters])}'",
     },
-    "sort": {
-        "node_fn": lambda inputs, node: inputs[0].sort(key=get_this_col(node.col)),
-    },
-    "concat": {
-        "node_fn": lambda inputs, node: inputs[0].concat(inputs[1]),
-    },
+
     "join": {
         "node_fn": join,
+        "stringify": lambda node, inputs: f"{node.how.upper()} Joins input {inputs[0]} with {inputs[1]} on {' AND '.join([f'{left}=={right}' for left, right in node.on])}",
     },
     "asof_now_join": {
         "node_fn": asof_now_join,
+        "stringify": lambda node,inputs : f"{node.how.upper()} ASOF Now Joins input {inputs[0]} with {inputs[1]} on {' AND '.join([f'{left}=={right}' for left, right in node.on])}",
     },
     "group_by": {
         "node_fn": group_by,
+        "stringify": lambda node, inputs: f"Groups input {inputs[0]} by {', '.join(node.columns)} and reduces with {', '.join([f"{reducer.new_col} = {reducer.reducer}({reducer.col})" for reducer in node.reducers])}",
     },
     "select": {
         "node_fn": lambda inputs, node: inputs[0].select(*[get_this_col(col) for col in node.columns]),
+        "stringify": lambda node, inputs: f"Selects columns {', '.join(node.columns)} from input {inputs[0]}",
     },
     "without": {
         "node_fn": lambda inputs, node: inputs[0].without(*[get_this_col(col) for col in node.columns]),
+        "stringify": lambda node, inputs: f"Returns a table without columns {', '.join(node.columns)} from input {inputs[0]}",
     },
 }

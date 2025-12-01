@@ -4,6 +4,7 @@ from lib.tables import AsofJoinNode, IntervalJoinNode, WindowJoinNode, WindowByN
 from .helpers import MappingValues, get_col, get_this_col, select_for_join
 from .transforms import _join
 from .open_tel.prefix import open_tel_trace_id
+import json
 
 def asof_join(inputs: List[pw.Table], node: AsofJoinNode):
     params = _join(inputs, node)
@@ -93,15 +94,19 @@ def window_by(inputs: List[pw.Table], node: WindowByNode):
 
 temporal_mappings: dict[str, MappingValues] = {
     "window_by": {
-        "node_fn": window_by
+        "node_fn": window_by,
+        "stringify": lambda node, inputs: f"Groups {inputs[0]} by {json.dumps(node.window)} window on {node.time_col}{'' if node.instance_col is None else f' with instance column {node.instance_col}'} and reduces with {', '.join([f"{reducer.new_col} = {reducer.reducer}({reducer.col})" for reducer in node.reducers])}"
     },
     "asof_join": {
         "node_fn": asof_join,
+        "stringify": lambda node, inputs: f"{node.how.upper()} ASOF Joins {inputs[0]} with {inputs[1]} on time columns {node.time_col1} and {node.time_col2} (direction: {node.direction})",
     },
     "interval_join": {
         "node_fn": interval_join,
+        "stringify": lambda node, inputs: f"{node.how.upper()} Interval Joins {inputs[0]} with {inputs[1]} on {node.time_col1} and {node.time_col2} within bounds [{node.lower_bound}, {node.upper_bound}]",
     },
     "window_join": {
         "node_fn": window_join,
+        "stringify": lambda node, inputs: f"{node.how.upper()} Window Joins {inputs[0]} with {inputs[1]} on {node.time_col1} and {node.time_col2} using {json.dumps(node.window)} window",
     },
 }
