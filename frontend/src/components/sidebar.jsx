@@ -65,7 +65,7 @@ const Sidebar = () => {
     {
       icon: <AccountTreeRounded sx={{ fontSize: '1.5rem' }} />,
       label: "Workflows",
-      path: "/workflow",
+      path: "/workflows",
     },
     { icon: <WorkspacePremiumRounded sx={{ fontSize: '1.5rem' }} />, label: "Admin", path: "/admin" },
     {
