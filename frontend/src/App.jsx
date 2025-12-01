@@ -31,49 +31,49 @@ function AppContent() {
         <Route
           path="/workflow"
           element={
-            <ProtectedRoute>
+            // <ProtectedRoute>
               <WorkflowsList />
-            </ProtectedRoute>
+            // </ProtectedRoute>
           }
         />
         <Route
           path="/workflows/:pipelineId"
           element={
-            <ProtectedRoute>
+            // <ProtectedRoute>
               <WorkflowPage />
-            </ProtectedRoute>
+            //  </ProtectedRoute> 
           }
         />
         <Route
           path="/overview"
           element={
-            <ProtectedRoute>
+            // <ProtectedRoute>
               <OverviewPage />
-            </ProtectedRoute>
+          // </ProtectedRoute> 
           }
         />
          <Route
           path="/create-pipeline"
           element={
-            <ProtectedRoute>
+            // <ProtectedRoute>
               <CreatePipeline />
-            </ProtectedRoute>
+            //</ProtectedRoute> 
           }
         />
         <Route
           path="/overview/:projectId"
           element={
-            <ProtectedRoute>
+            // <ProtectedRoute>
               <DeveloperDashboardProject />
-            </ProtectedRoute>
+            // </ProtectedRoute>
           }
         />
         <Route
           path="/admin"
           element={
-            <ProtectedRoute>
+            // <ProtectedRoute>
               <AdminPage />
-            </ProtectedRoute>
+            //</ProtectedRoute> 
           }
         />
         <Route path="*" element={<Navigate to="/404" />} />
