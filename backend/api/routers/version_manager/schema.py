@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import List, Optional, Any
 from pydantic import BaseModel
 
@@ -31,6 +31,9 @@ class Graph(BaseModel):
     notification: List[Notification]
     host_port: str
     host_ip: str
+    last_started: datetime
+    runtime_seconds: int
+
 
 class Version(BaseModel):
     version_id: str
