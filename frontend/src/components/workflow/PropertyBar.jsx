@@ -17,6 +17,7 @@ import {
   FormControl,
   InputLabel,
   Chip,
+  useTheme,
 } from "@mui/material";
 import {
   Close as CloseIcon,
@@ -25,7 +26,7 @@ import {
 } from "@mui/icons-material";
 import Form from "@rjsf/mui";
 import validator from "@rjsf/validator-ajv8";
-import "../css/PropertyBar.css";
+import "../../css/PropertyBar.css";
 
 
 export const PropertyBar = ({
@@ -37,6 +38,7 @@ export const PropertyBar = ({
   drawerWidth = "25vw", // 25% of viewport width
   variant = "temporary",
 }) => {
+  const theme = useTheme();
   const [snackbar, setSnackbar] = useState({
     open: false,
     message: "",
@@ -100,12 +102,14 @@ export const PropertyBar = ({
         sx={{
           "& .MuiDrawer-paper": {
             width: drawerWidth,
-            backgroundColor: "#ffffff",
-            boxShadow: "none",
-            border: "none",
-            zIndex: 1200,
-            top: "6vh",
-            height: "94vh",
+            backgroundColor: 'background.paper',
+            boxShadow: theme.shadows[4],
+            border: "1px solid",
+            borderColor: 'divider',
+            borderLeft: "none",
+            zIndex: 1400,
+            top: "48px",
+            height: "calc(100vh - 48px)",
             transition: "transform 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
           },
         }}
@@ -128,12 +132,13 @@ export const PropertyBar = ({
                 justifyContent: "space-between",
                 px: 3,
                 py: 3.5,
-                borderBottom: "1px solid #e0e0e0",
+                borderBottom: "1px solid",
+                borderColor: 'divider',
               }}
             >
               <Typography
                 variant="h6"
-                sx={{ fontWeight: 600, fontSize: "1.125rem" }}
+                sx={{ fontWeight: 600, fontSize: "1.125rem", color: "text.primary" }}
               >
                 Property Editor
               </Typography>
@@ -141,8 +146,8 @@ export const PropertyBar = ({
                 onClick={onClose}
                 size="small"
                 sx={{
-                  color: "#616161",
-                  "&:hover": { backgroundColor: "#f5f5f5" },
+                  color: "text.secondary",
+                  "&:hover": { backgroundColor: 'action.hover' },
                 }}
               >
                 <CloseIcon fontSize="small" />
@@ -156,7 +161,7 @@ export const PropertyBar = ({
                 <Typography
                   variant="caption"
                   sx={{
-                    color: "#1976d2",
+                    color: "primary.main",
                     fontWeight: 600,
                     fontSize: "0.6875rem",
                     textTransform: "uppercase",
@@ -175,10 +180,10 @@ export const PropertyBar = ({
                   size="small"
                   sx={{
                     "& .MuiOutlinedInput-root": {
-                      backgroundColor: "#EBF2F5",
+                      backgroundColor: 'background.elevation1',
                       borderRadius: "6px",
                       fontSize: "0.8125rem",
-                      "& fieldset": { borderColor: "#e0e0e0" },
+                      "& fieldset": { borderColor: 'divider' },
                       "& input": {
                         padding: "10px 12px",
                         fontSize: "0.8125rem",
@@ -193,7 +198,7 @@ export const PropertyBar = ({
                 <Typography
                   variant="caption"
                   sx={{
-                    color: "#616161",
+                    color: "text.secondary",
                     fontWeight: 600,
                     fontSize: "0.6875rem",
                     textTransform: "uppercase",
@@ -206,9 +211,9 @@ export const PropertyBar = ({
                 </Typography>
                 <Chip
                   label={selectedNode?.data?.properties?.category || "General"}
+                  color="primary"
+                  variant="soft"
                   sx={{
-                    backgroundColor: "#e3f2fd",
-                    color: "#1976d2",
                     fontWeight: 500,
                     borderRadius: "6px",
                     height: "26px",
@@ -224,7 +229,7 @@ export const PropertyBar = ({
                 <Typography
                   variant="caption"
                   sx={{
-                    color: "#616161",
+                    color: "text.secondary",
                     fontWeight: 600,
                     fontSize: "0.6875rem",
                     textTransform: "uppercase",

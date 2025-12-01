@@ -7,10 +7,11 @@ import {
   IconButton,
   Tooltip,
   Box,
+  useTheme,
 } from "@mui/material";
 import { ContentCopy, ContentCut, Delete, FileCopy, Extension } from "@mui/icons-material";
 import NodeDataTable from "./NodeDataTable";
-import "../css/BaseNode.css";
+import "../../css/BaseNode.css";
 
 export const BaseNode = memo(
   ({
@@ -23,6 +24,7 @@ export const BaseNode = memo(
     styles = {},
     contextMenu = [],
   }) => {
+    const theme = useTheme();
     const { setNodes, getNode } = useReactFlow();
 
     // Convert properties to array and get top 3
@@ -263,7 +265,16 @@ export const BaseNode = memo(
           sx={{
             minWidth: styles.minWidth || 200,
             minHeight: styles.minHeight || 100,
-            border: selected ? `2px solid ${styles.borderColor || "#1976d2"}` : `1px solid #e0e0e0`,
+            bgcolor: 'background.paper',
+            border: selected ? `2px solid ${styles.borderColor || theme.palette.primary.main}` : `1px solid`,
+            borderColor: selected ? (styles.borderColor || theme.palette.primary.main) : 'divider',
+            boxShadow: theme.shadows[2],
+            '&:hover': {
+              boxShadow: theme.shadows[4],
+            },
+            '&.selected': {
+              boxShadow: theme.shadows[6],
+            },
           }}
         >
         {/* Node Header (Colored) - Icon + Title */}
@@ -312,7 +323,7 @@ export const BaseNode = memo(
                       <div 
                         className="base-node-property-value-text"
                         style={{ 
-                          color: isEmpty ? '#9e9e9e' : 'inherit',
+                          color: isEmpty ? theme.palette.text.disabled : 'inherit',
                           fontStyle: isEmpty ? 'italic' : 'normal'
                         }}
                       >
@@ -328,14 +339,16 @@ export const BaseNode = memo(
                             left: 0,
                             marginTop: '8px',
                             padding: '8px 12px',
-                            backgroundColor: 'rgba(0, 0, 0, 0.9)',
-                            color: 'white',
+                            bgcolor: 'background.paper',
+                            color: 'text.primary',
+                            border: '1px solid',
+                            borderColor: 'divider',
                             borderRadius: '6px',
                             fontSize: '0.75rem',
                             maxWidth: '300px',
                             wordBreak: 'break-word',
                             zIndex: 9000,
-                            boxShadow: '0 4px 12px rgba(0, 0, 0, 0.3)',
+                            boxShadow: theme.shadows[4],
                             animation: 'fadeIn 0.2s ease-in',
                             pointerEvents: 'none',
                             whiteSpace: 'pre-wrap',
@@ -353,7 +366,7 @@ export const BaseNode = memo(
             <Typography 
               variant="caption" 
               sx={{ 
-                color: '#9e9e9e',
+                color: 'text.disabled',
                 fontStyle: 'italic',
                 textAlign: 'left',
                 display: 'block',
@@ -373,13 +386,13 @@ export const BaseNode = memo(
             position={input.position || Position.Left}
             id={input.id || `in-${i}`}
             style={{
-              background: "#fff",
+              background: theme.palette.background.paper,
               top: input.top || `${((i + 1) / (inputs.length + 1)) * 100}%`,
               left: "-5px",
               width: 10,
               height: 10,
               borderRadius: "50%",
-              border: "2px solid #9e9e9e",
+              border: `2px solid ${theme.palette.divider}`,
               boxShadow: "none",
             }}
           />
@@ -393,13 +406,13 @@ export const BaseNode = memo(
             position={output.position || Position.Right}
             id={output.id || `out-${i}`}
             style={{
-              background: "#fff",
+              background: theme.palette.background.paper,
               top: output.top || `${((i + 1) / (outputs.length + 1)) * 100}%`,
               right: "-5px",
               width: 10,
               height: 10,
               borderRadius: "50%",
-              border: "2px solid #9e9e9e",
+              border: `2px solid ${theme.palette.divider}`,
               boxShadow: "none",
             }}
           />

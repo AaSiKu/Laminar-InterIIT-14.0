@@ -16,6 +16,7 @@ import {
   Tab,
   TextField,
   InputAdornment,
+  useTheme,
 } from "@mui/material";
 import {
   ExpandMore,
@@ -29,17 +30,17 @@ import {
   ViewList as ViewListIcon,
   ArrowForward as ArrowForwardIcon,
 } from "@mui/icons-material";
-import { fetchNodeTypes, fetchNodeSchema } from "../utils/dashboard.api";
-import "../css/NodeDrawer.css";
-import inputIcon from "../assets/input.png";
-import transformIcon from "../assets/Transform.png";
-import jointIcon from "../assets/joint.png";
+import { fetchNodeTypes, fetchNodeSchema } from "../../utils/dashboard.api";
+import "../../css/NodeDrawer.css";
+import inputIcon from "../../assets/input.png";
+import transformIcon from "../../assets/Transform.png";
+import jointIcon from "../../assets/joint.png";
 
 /**
  * Get icon for category type
  */
-const getCategoryIcon = (category) => {
-  const iconProps = { sx: { fontSize: 20, color: "#77878F" } };
+const getCategoryIcon = (category, theme) => {
+  const iconProps = { sx: { fontSize: 20, color: theme.palette.text.secondary } };
   
   switch (category.toLowerCase()) {
     case 'input':
@@ -84,6 +85,7 @@ const handleImageError = (nodeId) => {
 };
 
 export const NodeDrawer = ({ open, onClose, onAddNode, onDragStart: onDragStartProp }) => {
+  const theme = useTheme();
   const [openSections, setOpenSections] = useState({});
   const [nodeCategories, setNodeCategories] = useState({});
   const [loading, setLoading] = useState(true);
@@ -167,27 +169,27 @@ export const NodeDrawer = ({ open, onClose, onAddNode, onDragStart: onDragStartP
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
-          cursor: "pointer",
+            cursor: "pointer",
             px: 2,
             py: 1.5,
           borderRadius: 1,
-            "&:hover": { bgcolor: "#f9fafb" },
+            "&:hover": { bgcolor: 'action.hover' },
         }}
       >
           <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
-            {getCategoryIcon(key)}
+            {getCategoryIcon(key, theme)}
           <Typography 
             variant="subtitle1" 
             fontWeight={600}
               sx={{ 
                 fontSize: "0.875rem",
-                color: "#374151"
+                color: "text.primary"
               }}
           >
             {key.charAt(0).toUpperCase() + key.slice(1)}
           </Typography>
         </Box>
-          <IconButton size="small" sx={{ color: "#77878F" }}>
+          <IconButton size="small" sx={{ color: "text.secondary" }}>
           {openSections[key] ? <ExpandLess fontSize="small" /> : <ExpandMore fontSize="small" />}
         </IconButton>
       </Box>
@@ -260,14 +262,15 @@ export const NodeDrawer = ({ open, onClose, onAddNode, onDragStart: onDragStartP
                     alignItems: "center",
                     justifyContent: "center",
                     borderRadius: 2,
-                    bgcolor: "#F7FAFC",
-                    border: "1px solid #e5e7eb",
+                    bgcolor: 'background.elevation1',
+                    border: "1px solid",
+                    borderColor: 'divider',
                     transition: "all 0.2s ease",
                     mb: 1,
                     "&:hover": {
                       transform: "translateY(-2px)",
-                      boxShadow: "0 4px 12px rgba(0, 0, 0, 0.08)",
-                      borderColor: "#d1d5db",
+                      boxShadow: theme.shadows[2],
+                      borderColor: 'divider',
                     },
                   }}
                 >
@@ -276,7 +279,7 @@ export const NodeDrawer = ({ open, onClose, onAddNode, onDragStart: onDragStartP
                   sx={{
                               fontSize: "2rem",
                               fontWeight: 600,
-                              color: "#77878F",
+                              color: "text.secondary",
                     pointerEvents: "none",
                   }}
                 >
@@ -304,8 +307,10 @@ export const NodeDrawer = ({ open, onClose, onAddNode, onDragStart: onDragStartP
                       top: '50%',
                       left: '50%',
                       transform: 'translate(-50%, -50%)',
-                      bgcolor: 'rgba(0, 0, 0, 0.85)',
-                      color: 'white',
+                      bgcolor: 'background.paper',
+                      color: 'text.primary',
+                      border: '1px solid',
+                      borderColor: 'divider',
                       padding: '6px 12px',
                         borderRadius: '6px',
                         fontSize: "0.6875rem",
@@ -366,15 +371,17 @@ export const NodeDrawer = ({ open, onClose, onAddNode, onDragStart: onDragStartP
       anchor="right"
       open={open}
       onClose={onClose}
-      sx={{
-        "& .MuiDrawer-paper": {
-          width: 400,
-          boxSizing: "border-box",
-          backgroundColor: "#ffffff",
-          top: "48px", // Below the topmost Laminar navbar
-          height: "calc(100vh - 48px)",
-        },
-      }}
+        sx={{
+          "& .MuiDrawer-paper": {
+            width: 400,
+            boxSizing: "border-box",
+            bgcolor: 'background.paper',
+            top: "48px", // Below the topmost Laminar navbar
+            height: "calc(100vh - 48px)",
+            borderLeft: '1px solid',
+            borderColor: 'divider',
+          },
+        }}
     >
       {/* Header */}
       <Box
@@ -384,18 +391,19 @@ export const NodeDrawer = ({ open, onClose, onAddNode, onDragStart: onDragStartP
           justifyContent: "space-between",
           px: 3,
           py: 2.5,
-          borderBottom: "1px solid #e5e7eb",
+          borderBottom: "1px solid",
+          borderColor: 'divider',
         }}
       >
-        <Typography variant="h6" sx={{ fontWeight: 700, fontSize: "1rem", color: "#1f2937" }}>
+        <Typography variant="h6" sx={{ fontWeight: 700, fontSize: "1rem", color: "text.primary" }}>
           All Nodes
         </Typography>
         <IconButton
           onClick={onClose}
           size="small"
           sx={{
-            color: "#77878F",
-            "&:hover": { backgroundColor: "#f3f4f6" },
+            color: "text.secondary",
+            "&:hover": { bgcolor: 'action.hover' },
           }}
         >
           <CloseIcon fontSize="small" />
@@ -403,7 +411,7 @@ export const NodeDrawer = ({ open, onClose, onAddNode, onDragStart: onDragStartP
       </Box>
 
       {/* Tabs */}
-      <Box sx={{ borderBottom: "1px solid #e5e7eb" }}>
+      <Box sx={{ borderBottom: "1px solid", borderColor: 'divider' }}>
         <Tabs
           value={activeTab}
           onChange={(e, newValue) => setActiveTab(newValue)}
@@ -415,13 +423,13 @@ export const NodeDrawer = ({ open, onClose, onAddNode, onDragStart: onDragStartP
               textTransform: "none",
               fontWeight: 500,
               fontSize: "0.875rem",
-              color: "#6b7280",
+              color: "text.secondary",
               "&.Mui-selected": {
-                color: "#1f2937",
+                color: "text.primary",
               },
             },
             "& .MuiTabs-indicator": {
-              backgroundColor: "#3b82f6",
+              bgcolor: "primary.main",
             },
           }}
         >
@@ -441,23 +449,23 @@ export const NodeDrawer = ({ open, onClose, onAddNode, onDragStart: onDragStartP
           InputProps={{
             startAdornment: (
               <InputAdornment position="start">
-                <SearchIcon sx={{ fontSize: 20, color: "#9ca3af" }} />
+                <SearchIcon sx={{ fontSize: 20, color: "text.secondary" }} />
               </InputAdornment>
             ),
           }}
           sx={{
             "& .MuiOutlinedInput-root": {
               borderRadius: 2,
-              bgcolor: "#f9fafb",
+              bgcolor: 'background.elevation1',
               fontSize: "0.875rem",
               "& fieldset": {
-                borderColor: "#e5e7eb",
+                borderColor: 'divider',
               },
               "&:hover fieldset": {
-                borderColor: "#d1d5db",
+                borderColor: 'divider',
               },
               "&.Mui-focused fieldset": {
-                borderColor: "#3b82f6",
+                borderColor: 'primary.main',
               },
             },
           }}
@@ -470,15 +478,15 @@ export const NodeDrawer = ({ open, onClose, onAddNode, onDragStart: onDragStartP
           // Recent Tab
           <Box sx={{ px: 1 }}>
             {recentNodes.length === 0 ? (
-              <Typography
-                variant="body2"
-                sx={{ 
-                  textAlign: "center", 
-                  color: "#9ca3af",
-                  fontSize: "0.8125rem",
-                  py: 4
-                }}
-              >
+            <Typography
+              variant="body2"
+              sx={{ 
+                textAlign: "center", 
+                color: "text.secondary",
+                fontSize: "0.8125rem",
+                py: 4
+              }}
+            >
                 No recent nodes
               </Typography>
             ) : (
@@ -536,7 +544,7 @@ export const NodeDrawer = ({ open, onClose, onAddNode, onDragStart: onDragStartP
                             sx={{
                               fontSize: "2rem",
                               fontWeight: 600,
-                              color: "#77878F",
+                              color: "text.secondary",
                               pointerEvents: "none",
                             }}
                           >
@@ -565,7 +573,7 @@ export const NodeDrawer = ({ open, onClose, onAddNode, onDragStart: onDragStartP
                           wordBreak: "break-word",
                           fontSize: "0.75rem",
                           fontWeight: 700,
-                          color: "#374151",
+                          color: "text.primary",
                           width: "100%",
                           px: 1,
                           pointerEvents: "none",
@@ -581,7 +589,7 @@ export const NodeDrawer = ({ open, onClose, onAddNode, onDragStart: onDragStartP
                           textAlign: "center",
                           fontSize: "0.6875rem",
                           fontWeight: 400,
-                          color: "#9ca3af",
+                          color: "text.secondary",
                           pointerEvents: "none",
                         }}
                       >
@@ -597,15 +605,15 @@ export const NodeDrawer = ({ open, onClose, onAddNode, onDragStart: onDragStartP
           // All Files Tab
           <Box>
         {Object.keys(nodeCategories).length === 0 && !loading ? (
-          <Typography
-            variant="body2"
-            sx={{ 
-              textAlign: "center", 
-                  color: "#9ca3af",
-                  fontSize: "0.8125rem",
-                  py: 4
-            }}
-          >
+            <Typography
+              variant="body2"
+              sx={{ 
+                textAlign: "center", 
+                color: "text.secondary",
+                fontSize: "0.8125rem",
+                py: 4
+              }}
+            >
             No node categories found.
           </Typography>
         ) : (

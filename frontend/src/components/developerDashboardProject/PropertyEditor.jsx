@@ -1,5 +1,5 @@
 import { Alert, Box, Button, Divider, Paper, Stack, Typography } from "@mui/material";
-import { PropertyInput } from "../PropertyInput";
+import { PropertyInput } from "./PropertyInput";
 
 const PropertyEditor = ({
   selectedNode,

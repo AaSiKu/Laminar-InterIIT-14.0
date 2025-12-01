@@ -13,6 +13,7 @@ import {
   CircularProgress,
   Tooltip,
   Switch,
+  useTheme,
 } from '@mui/material';
 import RefreshIcon from '@mui/icons-material/Refresh';
 import NavigateNextIcon from '@mui/icons-material/NavigateNext';
@@ -20,6 +21,7 @@ import NavigateBeforeIcon from '@mui/icons-material/NavigateBefore';
 import AutorenewIcon from '@mui/icons-material/Autorenew';
 
 const NodeDataTable = ({ nodeId, isVisible, nodeRef, onMouseEnter, onMouseLeave }) => {
+  const theme = useTheme();
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -307,9 +309,11 @@ const NodeDataTable = ({ nodeId, isVisible, nodeRef, onMouseEnter, onMouseLeave 
           minWidth: '40rem',
           maxWidth: '60rem',
           zIndex: 9999,
-          backgroundColor: '#fff',
+          bgcolor: 'background.paper',
           borderRadius: '0.5rem',
-          boxShadow: '0 0.5rem 2rem rgba(0,0,0,0.15)',
+          boxShadow: theme.shadows[8],
+          border: '1px solid',
+          borderColor: 'divider',
         }}
       >
       {/* Header */}
@@ -330,20 +334,12 @@ const NodeDataTable = ({ nodeId, isVisible, nodeRef, onMouseEnter, onMouseLeave 
               sx={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}
               onClick={(e) => e.stopPropagation()}
             >
-              <AutorenewIcon sx={{ fontSize: '1rem', color: autoRefresh ? '#3b82f6' : '#9e9e9e' }} />
+              <AutorenewIcon sx={{ fontSize: '1rem', color: autoRefresh ? 'primary.main' : 'text.disabled' }} />
               <Switch
                 checked={autoRefresh}
                 onChange={handleAutoRefreshToggle}
                 onClick={(e) => e.stopPropagation()}
                 size="small"
-                sx={{
-                  '& .MuiSwitch-switchBase.Mui-checked': {
-                    color: '#3b82f6',
-                  },
-                  '& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track': {
-                    backgroundColor: '#3b82f6',
-                  },
-                }}
               />
             </Box>
           </Tooltip>
@@ -365,21 +361,6 @@ const NodeDataTable = ({ nodeId, isVisible, nodeRef, onMouseEnter, onMouseLeave 
         mb: '1rem', 
         overflowX: 'scroll',
         overflowY: 'auto',
-        '&::-webkit-scrollbar': {
-          height: '0.375rem',
-          width: '0.375rem',
-        },
-        '&::-webkit-scrollbar-track': {
-          backgroundColor: '#f5f5f5',
-          borderRadius: '0.25rem',
-        },
-        '&::-webkit-scrollbar-thumb': {
-          backgroundColor: '#d1d5db',
-          borderRadius: '0.25rem',
-          '&:hover': {
-            backgroundColor: '#9ca3af',
-          },
-        },
       }}>
         {loading && data.length === 0 ? (
           <Box sx={{ display: 'flex', justifyContent: 'center', p: '2rem' }}>
@@ -398,7 +379,7 @@ const NodeDataTable = ({ nodeId, isVisible, nodeRef, onMouseEnter, onMouseLeave 
             <TableHead>
               <TableRow>
                 {columns.map((col) => (
-                  <TableCell key={col} sx={{ fontWeight: 600, fontSize: '0.75rem', backgroundColor: '#f5f5f5' }}>
+                  <TableCell key={col} sx={{ fontWeight: 600, fontSize: '0.75rem', bgcolor: 'background.elevation1' }}>
                     {col}
                   </TableCell>
                 ))}
@@ -443,12 +424,12 @@ const NodeDataTable = ({ nodeId, isVisible, nodeRef, onMouseEnter, onMouseLeave 
                 height: '1.75rem',
                 minWidth: '5.5rem',
                 borderRadius: '0.25rem',
-                border: '1px solid #e5e7eb',
+                border: `1px solid ${theme.palette.divider}`,
                 padding: '0 0.5rem',
-                backgroundColor: '#fff',
+                backgroundColor: theme.palette.background.paper,
                 cursor: 'pointer',
                 fontFamily: 'inherit',
-                color: '#374151',
+                color: theme.palette.text.primary,
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'space-between',
@@ -466,10 +447,10 @@ const NodeDataTable = ({ nodeId, isVisible, nodeRef, onMouseEnter, onMouseLeave 
                   left: 0,
                   marginBottom: '0.25rem',
                   minWidth: '5.5rem',
-                  backgroundColor: '#fff',
-                  border: '1px solid #e5e7eb',
+                  backgroundColor: theme.palette.background.paper,
+                  border: `1px solid ${theme.palette.divider}`,
                   borderRadius: '0.25rem',
-                  boxShadow: '0 0.25rem 0.5rem rgba(0,0,0,0.1)',
+                  boxShadow: theme.shadows[4],
                   zIndex: 10000,
                   maxHeight: '12rem',
                   overflowY: 'auto',
@@ -483,16 +464,18 @@ const NodeDataTable = ({ nodeId, isVisible, nodeRef, onMouseEnter, onMouseLeave 
                       fontSize: '0.75rem',
                       padding: '0.5rem',
                       cursor: 'pointer',
-                      backgroundColor: rowsPerPage === option ? '#f3f4f6' : '#fff',
-                      color: '#374151',
+                      backgroundColor: rowsPerPage === option ? theme.palette.action.selected : theme.palette.background.paper,
+                      color: theme.palette.text.primary,
                       userSelect: 'none',
                     }}
                     onMouseEnter={(e) => {
-                      e.currentTarget.style.backgroundColor = '#f3f4f6';
+                      e.currentTarget.style.backgroundColor = theme.palette.action.hover;
                     }}
                     onMouseLeave={(e) => {
                       if (rowsPerPage !== option) {
-                        e.currentTarget.style.backgroundColor = '#fff';
+                        e.currentTarget.style.backgroundColor = theme.palette.background.paper;
+                      } else {
+                        e.currentTarget.style.backgroundColor = theme.palette.action.selected;
                       }
                     }}
                   >
@@ -511,7 +494,8 @@ const NodeDataTable = ({ nodeId, isVisible, nodeRef, onMouseEnter, onMouseLeave 
                 disabled={currentPage === 0 || loading || rowsPerPage >= totalRows}
                 size="small"
                 sx={{
-                  border: '0.0625rem solid #e5e7eb',
+                  border: '0.0625rem solid',
+                  borderColor: 'divider',
                   borderRadius: '0.375rem',
                 }}
               >
@@ -526,7 +510,8 @@ const NodeDataTable = ({ nodeId, isVisible, nodeRef, onMouseEnter, onMouseLeave 
                 disabled={!hasMore || loading || rowsPerPage >= totalRows}
                 size="small"
                 sx={{
-                  border: '0.0625rem solid #e5e7eb',
+                  border: '0.0625rem solid',
+                  borderColor: 'divider',
                   borderRadius: '0.375rem',
                 }}
               >
