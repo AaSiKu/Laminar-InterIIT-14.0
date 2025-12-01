@@ -23,40 +23,38 @@ const WorkflowHeader = ({ onAddNew, selectedTab, onTabChange }) => {
     <Box sx={{ flexShrink: 0, pb: 2, borderBottom: { xs: `1px solid`, lg: "none" }, borderColor: 'divider' }}>
       {/* Header */}
       <Box sx={{ mb: 2 }}>
-        <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 1 }}>
+        <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <Typography variant="h6" sx={{ fontWeight: 600, color: "text.primary", fontSize: "1.125rem" }}>
             Workflows
           </Typography>
-          <Button
-            variant="contained"
-            color="primary"
-            startIcon={<AddIcon sx={{ fontSize: 16 }} />}
-            onClick={onAddNew}
-          >
-            Add new
-          </Button>
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+            <Button
+              variant="contained"
+              color="primary"
+              startIcon={<AddIcon sx={{ fontSize: 16 }} />}
+              onClick={onAddNew}
+            >
+              Add new
+            </Button>
+            {/* Filter */}
+            <IconButton
+              onClick={handleFilterClick}
+              sx={{
+                bgcolor: 'background.elevation1',
+                borderRadius: "8px",
+                width: 36,
+                height: 36,
+                "&:hover": { bgcolor: 'action.hover' },
+              }}
+            >
+              <FilterListOutlinedIcon sx={{ fontSize: 20, color: "text.secondary" }} />
+            </IconButton>
+          </Box>
         </Box>
-        <Typography variant="body2" sx={{ color: "text.secondary", fontSize: "0.8125rem", mb: 2, mt: 1 }}>
-          Recruitment involvement across roles
-        </Typography>
       </Box>
 
-      {/* Filter */}
-      <Box sx={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 2 }}>
-        <IconButton
-          onClick={handleFilterClick}
-          sx={{
-            bgcolor: 'background.elevation1',
-            borderRadius: "8px",
-            width: 36,
-            height: 36,
-            "&:hover": { bgcolor: 'action.hover' },
-          }}
-        >
-          <FilterListOutlinedIcon sx={{ fontSize: 20, color: "text.secondary" }} />
-        </IconButton>
-
-        <Menu
+      {/* Filter Menu */}
+      <Menu
           anchorEl={filterAnchorEl}
           open={filterOpen}
           onClose={handleFilterClose}
@@ -146,7 +144,6 @@ const WorkflowHeader = ({ onAddNew, selectedTab, onTabChange }) => {
             <ListItemText>Save</ListItemText>
           </MenuItem>
         </Menu>
-      </Box>
     </Box>
   );
 };

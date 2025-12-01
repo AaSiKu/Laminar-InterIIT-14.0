@@ -1,7 +1,8 @@
-import { Box, Typography, Button, Paper, IconButton } from "@mui/material";
+import { Box, Typography, Button, IconButton, useTheme } from "@mui/material";
 import AutoAwesomeOutlinedIcon from '@mui/icons-material/AutoAwesomeOutlined';
 
 const ActionRequired = ({ actionFilter, onFilterChange, actionItems }) => {
+  const theme = useTheme();
   return (
     <Box 
       sx={{ 
@@ -69,28 +70,26 @@ const ActionRequired = ({ actionFilter, onFilterChange, actionItems }) => {
       <Box 
         sx={{ 
           flex: 1, 
-          overflowY: "auto", 
-          p: 2,
+          px: 2,
+          pt: 1,
           pb: 3,
         }}
       >
-        <Typography variant="caption" sx={{ color: "text.secondary", fontSize: "0.75rem", mb: 1.5, display: "block", textTransform: "capitalize" }}>
+        <Typography variant="caption" sx={{ color: "text.secondary", fontSize: "0.75rem", mb: 0.5, display: "block", textTransform: "capitalize" }}>
           {actionFilter}
         </Typography>
         <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>
           {actionItems.map((item, index) => (
-            <Paper
+            <Box
               key={index}
-              elevation={0}
               sx={{
-                p: 1.5,
-                bgcolor: 'rgba(25, 118, 210, 0.04)',
-                borderRadius: "8px",
-                cursor: "pointer",
-                transition: "all 0.2s ease",
-                "&:hover": { bgcolor: 'rgba(25, 118, 210, 0.08)' },
-                boxShadow: "none",
-                border: '1px solid rgba(25, 118, 210, 0.12)',
+                p: "1rem",
+                borderRadius: 2,
+                bgcolor: "background.elevation1",
+                transition: "all 0.2s",
+                "&:hover": {
+                  bgcolor: "action.hover",
+                },
               }}
             >
               <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", mb: 0.75 }}>
@@ -128,14 +127,14 @@ const ActionRequired = ({ actionFilter, onFilterChange, actionItems }) => {
                   variant="text"
                   sx={{ 
                     minWidth: "auto",
-                    px: 0,
-                    py: 0,
+                    px: 1.5,
+                    py: 0.5,
                     color: "primary.main",
                     fontSize: "0.75rem",
                     fontWeight: 500,
                     textTransform: "none",
                     '&:hover': {
-                      bgcolor: 'transparent',
+                      bgcolor: 'action.hover',
                     },
                   }}
                 >
@@ -146,21 +145,23 @@ const ActionRequired = ({ actionFilter, onFilterChange, actionItems }) => {
                   variant="text"
                   sx={{ 
                     minWidth: "auto",
-                    px: 0,
-                    py: 0,
+                    px: 1.5,
+                    py: 0.5,
                     color: "error.main",
                     fontSize: "0.75rem",
                     fontWeight: 500,
                     textTransform: "none",
                     '&:hover': {
-                      bgcolor: 'transparent',
+                      bgcolor: theme.palette.mode === 'dark' 
+                        ? 'rgba(211, 47, 47, 0.16)' 
+                        : 'rgba(211, 47, 47, 0.08)',
                     },
                   }}
                 >
                   Reject
                 </Button>
               </Box>
-            </Paper>
+            </Box>
           ))}
         </Box>
       </Box>

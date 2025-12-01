@@ -11,7 +11,7 @@ const WorkflowDetails = ({ workflow, actionFilter, onActionFilterChange, actionI
     <Box
       sx={{
         flex: 1,
-        height: { xs: "60vh", lg: "100vh" },
+        minHeight: 0,
         bgcolor: 'background.paper',
         overflow: "auto",
         display: "flex",
@@ -125,7 +125,6 @@ const WorkflowDetails = ({ workflow, actionFilter, onActionFilterChange, actionI
           gridTemplateColumns: "1fr 1fr",
           gap: 0,
           flex: 1,
-          overflow: "hidden",
           mx: -3,
         }}
       >

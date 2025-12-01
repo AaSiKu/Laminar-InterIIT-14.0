@@ -1,9 +1,11 @@
-import { useState } from 'react';
+import { useState, useContext } from 'react';
 import { Box, TextField, InputAdornment, Avatar, Menu, MenuItem, ListItemIcon, ListItemText, Divider, Switch, Typography } from '@mui/material';
 import SearchIcon from '@mui/icons-material/Search';
 import LogoutIcon from '@mui/icons-material/Logout';
 import DarkModeIcon from '@mui/icons-material/DarkMode';
+import LightModeIcon from '@mui/icons-material/LightMode';
 import { useColorScheme } from '@mui/material/styles';
+import { AuthContext } from '../context/AuthContext';
 
 const TopBar = ({ 
   showSearch = true, 
@@ -16,6 +18,7 @@ const TopBar = ({
   const [anchorEl, setAnchorEl] = useState(null);
   const open = Boolean(anchorEl);
   const { mode, setMode } = useColorScheme();
+  const { logout: authLogout } = useContext(AuthContext);
 
   const handleAvatarClick = (event) => {
     setAnchorEl(event.currentTarget);
@@ -33,6 +36,8 @@ const TopBar = ({
     handleClose();
     if (onLogout) {
       onLogout();
+    } else if (authLogout) {
+      authLogout();
     }
   };
 
@@ -169,7 +174,11 @@ const TopBar = ({
             }}
           >
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-              <DarkModeIcon fontSize="small" sx={{ color: 'text.secondary' }} />
+              {mode === 'dark' ? (
+                <DarkModeIcon fontSize="small" sx={{ color: 'text.secondary' }} />
+              ) : (
+                <LightModeIcon fontSize="small" sx={{ color: 'text.secondary' }} />
+              )}
               <Typography variant="body2" sx={{ color: 'text.primary' }}>
                 Dark Mode
               </Typography>

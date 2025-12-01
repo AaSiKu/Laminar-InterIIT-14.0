@@ -61,11 +61,24 @@ export const WorkflowsList = () => {
         onLogout={handleLogout}
       />
 
-      <Box sx={{ ...styles.mainContainer, bgcolor: 'background.default', flex: 1, overflow: 'hidden' }}>
+      <Box sx={{ ...styles.mainContainer, bgcolor: 'background.default', flex: 1, overflow: 'hidden', minHeight: 0 }}>
       {/* Main Content Area */}
-      <Box sx={{ ...styles.mainContentArea, bgcolor: 'background.default' }}>
+      <Box sx={{ ...styles.mainContentArea, bgcolor: 'background.default', height: '100%', minHeight: 0 }}>
         {/* Main Content - Workflows List */}
-        <Box sx={{ ...styles.workflowsListSection, bgcolor: 'background.paper', borderRight: "none", borderBottom: "none" }}>
+        <Box sx={{ 
+          width: { xs: "100%", lg: "33%" },
+          minWidth: { lg: 350 },
+          maxWidth: { lg: 500 },
+          bgcolor: 'background.paper', 
+          borderRight: "none", 
+          borderBottom: "none",
+          height: '100%',
+          minHeight: 0,
+          display: 'flex',
+          flexDirection: 'column',
+          overflow: 'hidden',
+          p: 3,
+        }}>
           <WorkflowHeader
             onAddNew={handleAddNew}
             selectedTab={selectedTab}
@@ -112,4 +125,3 @@ export const WorkflowsList = () => {
 
 export default WorkflowsList;
 
- 
