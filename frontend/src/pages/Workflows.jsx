@@ -715,7 +715,7 @@ export default function WorkflowPage() {
             bottom: 12,
             right: 12,
             display: "flex",
-            gap: 0.5,
+            gap: 0.5, 
             bgcolor: "#C3D3DB",
             borderRadius: "8px",
             padding: "4px 8px",
