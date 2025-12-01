@@ -50,8 +50,8 @@ def validate_nodes(node_data_list: List[Dict[str, Any]]) -> List[Node]:
 
         # Convert the input_schema received from frontend (as a list of ColumnType)
         # in to table_schema (dist of str) for assigning into the scheme parameter of nodes for pathway.
-        # if "input_schema" in parsed_node_data:
-        #     parsed_node_data["table_schema"] = parse_table_schema(parsed_node_data["input_schema"])
+        if "input_schema" in parsed_node_data:
+            parsed_node_data["table_schema"] = parse_table_schema(parsed_node_data["input_schema"])
         
         try:
             validated = node_class(**parsed_node_data)

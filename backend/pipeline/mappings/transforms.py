@@ -1,7 +1,7 @@
 from typing import List, Dict, Any
 import pathway as pw
 from lib.tables import JoinNode, FilterNode
-from lib.tables.transforms import GroupByNode, SelectNode, RenameNode, WithoutNode
+from lib.tables.transforms import GroupByNode, SelectNode, WithoutNode
 from .helpers import MappingValues, get_col, get_this_col, select_for_join
 from .open_tel.prefix import open_tel_trace_id
 
@@ -103,7 +103,7 @@ def group_by(inputs: List[pw.Table], node: GroupByNode):
 transform_mappings: dict[str, MappingValues] = {
     "filter": {
         "node_fn": filter,
-        "stringify": lambda node, inputs: f"Filters input {inputs[0]} where '{' and '.join([f"{filter.col} {filter.op} {filter.value}" for filter in node.filters])}'",
+        "stringify": lambda node, inputs: f"Filters input {inputs[0]} where '{' and '.join([f"{filter["col"]} {filter["op"]} {filter["value"]}" for filter in node.filters])}'",
     },
 
     "join": {
@@ -116,7 +116,7 @@ transform_mappings: dict[str, MappingValues] = {
     },
     "group_by": {
         "node_fn": group_by,
-        "stringify": lambda node, inputs: f"Groups input {inputs[0]} by {', '.join(node.columns)} and reduces with {', '.join([f"{reducer.new_col} = {reducer.reducer}({reducer.col})" for reducer in node.reducers])}",
+        "stringify": lambda node, inputs: f"Groups input {inputs[0]} by {', '.join(node.columns)} and reduces with {', '.join([f"{reducer["new_col"]} = {reducer["reducer"]}({reducer["col"]})" for reducer in node.reducers])}",
     },
     "select": {
         "node_fn": lambda inputs, node: inputs[0].select(*[get_this_col(col) for col in node.columns]),

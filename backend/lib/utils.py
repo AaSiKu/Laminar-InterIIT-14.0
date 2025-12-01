@@ -4,6 +4,7 @@ from pydantic import BaseModel
 from . import io_nodes
 from . import tables
 from . import agents
+from . import trigger_rca
 
 def get_node_class_map():
     """
@@ -15,7 +16,8 @@ def get_node_class_map():
     modules = [
         io_nodes,
         tables,
-        agents
+        agents,
+        trigger_rca
     ]
 
     for module in modules:

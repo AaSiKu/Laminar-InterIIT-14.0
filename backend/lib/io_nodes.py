@@ -18,8 +18,8 @@ class IONode(Node):
 class InputNode(IONode):
     n_inputs : Literal[0] = 0
     # input_schema will be sent to frontend and will be converted in to the table_schema at backend for parsing
-    input_schema: Optional[List[ColumnType]] = Field(
-        description="List of columns names and types (eg. `str`, `float`, `int` for more details refer [here](https://pathway.com/developers/user-guide/connect/schema/))"
+    input_schema: List[ColumnType] = Field(
+        description="List of columns names and types (eg. `str`, `float`, `int` for more details refer [here](https://pathway.com/developers/user-guide/connect/schema/))",
     )
     table_schema: SkipJsonSchema[Any]
     datetime_columns: Optional[List[PairOfStrings]] = Field(

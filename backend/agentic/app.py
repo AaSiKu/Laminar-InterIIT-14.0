@@ -49,6 +49,13 @@ class Prompt(BaseModel):
     role: str
     content: str
 
+class InitRCA(BaseModel):
+    trace_ids : List[str]
+    
+@app.post("/rca")
+async def rca(init_rca_request: InitRCA):
+    pass
+
 
 @app.post("/infer")
 async def infer(prompt: Prompt):

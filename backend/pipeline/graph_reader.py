@@ -149,7 +149,7 @@ def build_parent_graph_description(
         else:
             # Create input variable references ($1, $2, etc.)
             parent_indices = dependencies[idx]
-            input_vars[idx] = [f"${i+1}" for i in range(len(parent_indices))]
+            input_vars[idx] = [f"${ordered_ancestors.index(i)+1}" for i in parent_indices]
     
     # Generate description lines
     description_lines = []
@@ -162,10 +162,10 @@ def build_parent_graph_description(
         if (stringify := node_mapping.get("stringify")):
             node_desc = stringify(node,inputs)
         else:
-            # Fallback: use node_id and category
-            node_desc = f"{node.node_id} node"
-            if inputs:
-                node_desc += f" on {', '.join(inputs)}"
+            data = node.model_dump()
+            if data.get("table_schema"):
+                data.pop("table_schema")
+            node_desc = f"{node.node_id} node {json.dumps(data)}"
         
         description_lines.append(f"{position}. {node_desc}")
     
