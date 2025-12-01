@@ -2,7 +2,7 @@ from typing import Callable, Any, List, Optional, Dict
 from typing_extensions import TypedDict
 import pathway as pw
 from lib.io_nodes import PairOfStrings, ColumnType
-
+from lib.tables.joins import JoinMode
 class MappingValues(TypedDict):
     node_fn: Callable[[list[pw.Table], Any], pw.Table]
 
@@ -47,11 +47,18 @@ def apply_datetime_conversions(table: pw.Table, datetime_columns: Optional[List[
 
     return table.with_columns(**conversions)
 
-def select_for_join(left: pw.Table, right: pw.Table, without1: List[str], without2: List[str], other_columns: List):
+def select_for_join(left: pw.Table, right: pw.Table, same_joined_on: List[str], mode : JoinMode):
     """Helper function to select columns for join operations."""
-    columns_1 = [get_col(left, col_name) for col_name in left.column_names() if col_name not in without1]
-    columns_2 = [get_col(right, col_name) for col_name in right.column_names() if col_name not in without2]
-    return columns_1 + columns_2 + other_columns
+    if mode != "inner":
+        same_joined_columns = []
+    columns_1 = {f"left_{col_name}": get_col(left, col_name) for col_name in left.column_names() if col_name not in same_joined_on}
+    columns_2 = {f"right_{col_name}": get_col(right, col_name) for col_name in right.column_names() if col_name not in same_joined_on}
+    same_joined_columns = { col_name : get_col(left,col_name) for col_name in same_joined_on }
+    return {
+        **columns_1,
+        **columns_2,
+        **same_joined_columns
+    }
 
 
 def parse_table_schema(schema: List[ColumnType]) -> Dict[str, str]:

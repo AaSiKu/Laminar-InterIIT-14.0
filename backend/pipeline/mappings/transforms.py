@@ -14,35 +14,22 @@ _op_map = {
     "<=": "__le__",
 }
 
-# BUG: Cannot handle the case where the two tables each have one or more columns with the same name
-# POSSIBLE FIX: When this error arises, ask the user to rename one of the conflicting columns
 def _join(inputs: List[pw.Table], node: JoinNode) -> Dict[str, Any]:
     left, right = inputs
     expression = []
+    same_joined = []
     for col1, col2 in node.on:
+        if col1 == col2:
+            same_joined.append(col1)
         col1 = get_col(left, col1)
         col2 = get_col(right, col2)
         expression.append(col1 == col2)
     how_map = {key: getattr(pw.JoinMode, key.upper()) for key in ["left", "right", "inner", "outer"]}
-    
-    without1 = [col1 for col1, _ in node.on]
-    without2 = [col2 for _, col2 in node.on]
 
-    other_columns = []
-
-    for col1, col2 in node.on:
-        if col1 == col2:
-            other_columns.append(get_col(left, col1))
-        else:
-            other_columns.append(get_col(left, col1))
-            other_columns.append(get_col(right, col2))
-    
     return {
         'how_map': how_map,
         "expression": expression,
-        "without1": without1,
-        "without2": without2,
-        "other_columns": other_columns
+        "same_joined_on":  same_joined
     }
 
 def asof_now_join(inputs: List[pw.Table], node):
@@ -55,13 +42,12 @@ def asof_now_join(inputs: List[pw.Table], node):
         how=params["how_map"][node.how],
         id=join_id
     ).select(
-        *select_for_join(
+        **select_for_join(
             left,
             right,
-            params["without1"],
-            params["without2"],
-            params["other_columns"]
-        )
+            params["same_joined_on"],
+            node.how
+        ),
     )
 
 def join(inputs: List[pw.Table], node: JoinNode):
@@ -72,13 +58,12 @@ def join(inputs: List[pw.Table], node: JoinNode):
         *params["expression"],
         how=params["how_map"][node.how],
     ).select(
-        *select_for_join(
+        **select_for_join(
             left,
             right,
-            params["without1"],
-            params["without2"],
-            params["other_columns"]
-        )
+            params["same_joined_on"],
+            node.how
+        ),
     )
 
 def filter(inputs: List[pw.Table], node: FilterNode):

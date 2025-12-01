@@ -14,14 +14,12 @@ def asof_join(inputs: List[pw.Table], node: AsofJoinNode):
         *params["expression"],
         how=params["how_map"][node.how],
     ).select(
-        *select_for_join(
+        **select_for_join(
             left,
             right,
-            params["without1"] + [node.time_col1],
-            params["without2"] + [node.time_col2],
-            params["other_columns"]
-        ),
-        *([get_col(left, node.time_col1)] if node.time_col1 == node.time_col2 else [get_col(left, node.time_col1), get_col(right, node.time_col2)])
+            params["same_joined_on"] + [node.time_col1] if node.time_col1 == node.time_col2 else [],
+            node.how
+        )
     )
 
 def interval_join(inputs: List[pw.Table], node: IntervalJoinNode):
@@ -35,14 +33,12 @@ def interval_join(inputs: List[pw.Table], node: IntervalJoinNode):
         *params["expression"],
         how=params["how_map"][node.how],
     ).select(
-        *select_for_join(
+        **select_for_join(
             left,
             right,
-            params["without1"] + [node.time_col1],
-            params["without2"] + [node.time_col2],
-            params["other_columns"]
-        ),
-        *([get_col(left, node.time_col1)] if node.time_col1 == node.time_col2 else [get_col(left, node.time_col1), get_col(right, node.time_col2)])
+            params["same_joined_on"] + [node.time_col1] if node.time_col1 == node.time_col2 else [],
+            node.how
+        )
     )
 
 def window_join(inputs: List[pw.Table], node: WindowJoinNode):
@@ -59,14 +55,12 @@ def window_join(inputs: List[pw.Table], node: WindowJoinNode):
         *params["expression"],
         how=params["how_map"][node.how],
     ).select(
-        *select_for_join(
+        **select_for_join(
             left,
             right,
-            params["without1"] + [node.time_col1],
-            params["without2"] + [node.time_col2],
-            params["other_columns"]
-        ),
-        *([get_col(left, node.time_col1)] if node.time_col1 == node.time_col2 else [get_col(left, node.time_col1), get_col(right, node.time_col2)])
+            params["same_joined_on"] + [node.time_col1] if node.time_col1 == node.time_col2 else [],
+            node.how
+        )
     )
 
 def window_by(inputs: List[pw.Table], node: WindowByNode):
