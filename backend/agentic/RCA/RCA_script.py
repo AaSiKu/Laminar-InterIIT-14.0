@@ -1,3 +1,5 @@
+### NOTE: using log correlation and detect logs from trace_id accordingly
+
 import asyncio
 import json
 import os
@@ -14,6 +16,7 @@ from langchain_google_genai import GoogleGenerativeAIEmbeddings, ChatGoogleGener
 from langchain_community.tools.tavily_search import TavilySearchResults
 from langchain_core.messages import HumanMessage, SystemMessage
 from langgraph.prebuilt import create_react_agent
+from langchain_community.vectorstores import PathwayVectorClient
 from langchain_core.prompts import ChatPromptTemplate
 from langchain.agents import AgentExecutor, create_tool_calling_agent
 import numpy as np
@@ -184,19 +187,15 @@ def analyze_financial_impact(question: str, system_prompt: str):
     Analyzes financial impact using Google Gemini and Tavily Search.
     Uses a Tool-Calling Agent pattern to ensure actual search occurs.
     """
-    # 1. Initialize LLM
     llm = ChatGoogleGenerativeAI(
-        model='gemini-1.5-pro', # Upgraded to 1.5-pro for better tool adherence
-        temperature=0.0,        # Lower temperature to reduce hallucination
+        model='gemini-1.5-pro', 
+        temperature=0.0,        
         google_api_version="v1",
     )
 
-    # 2. Define Tools
     tavily = TavilySearchResults(max_results=3)
     tools = [tavily]
 
-    # 3. Create a Strict Prompt Template
-    # This forces the LLM to understand its role and available tools.
     prompt = ChatPromptTemplate.from_messages([
         ("system", "{system_prompt}"),
         ("placeholder", "{chat_history}"),
@@ -204,14 +203,9 @@ def analyze_financial_impact(question: str, system_prompt: str):
         ("placeholder", "{agent_scratchpad}"),
     ])
 
-    # 4. Construct the Agent
-    # create_tool_calling_agent is more robust for modern LLMs than create_react_agent
     agent = create_tool_calling_agent(llm, tools, prompt)
-    
-    # 5. Create Executor
     agent_executor = AgentExecutor(agent=agent, tools=tools, verbose=True)
 
-    # 6. Invoke
     try:
         result = agent_executor.invoke({
             "input": question,
@@ -223,46 +217,41 @@ def analyze_financial_impact(question: str, system_prompt: str):
 
 
 class VectorStore:
-    """
-    The vectorstore is supposed to have two kinds of data
-    1. Structured company SLA rulebook
-    2. Unstructured Previous or past use-cases or actions on particular workflows
-    """
-    def __init__(self, file_path: str = "rca_vector_store.faiss"):
-        self.file_path = file_path
+    def __init__(self, url: str = "http://127.0.0.1:8000"):
+        self.url = url
         try:
-            self.embeddings = GoogleGenerativeAIEmbeddings(model="models/embedding-001")
-            if os.path.exists(self.file_path):
-                self.index = FAISS.load_local(self.file_path, self.embeddings, allow_dangerous_deserialization=True)
-                print(f"VectorStore loaded from {self.file_path}.")
-            else:
-                self.index = FAISS(
-                    embedding_function=self.embeddings,
-                    index=np.zeros((0, 768), dtype=np.float32),
-                    docstore=InMemoryDocstore(),
-                    index_to_docstore_id={}
-                )
-                print("New VectorStore initialized.")
+            self.client = PathwayVectorClient(url=url)
+            print(f"Connected to Pathway Vector Index at {url}")
         except Exception as e:
-            print(f"FATAL: Failed to initialize FAISS/Google embeddings: {e}.")
-            self.index = None
+            print(f"FATAL: Could not connect to Pathway Vector Index: {e}")
+            self.client = None
 
     def add_remediation_cases(self, cases: List[Document]):
-        if self.index is None: return
-        self.index.add_documents(cases)
-        self.index.save_local(self.file_path)
-        print(f"Added {len(cases)} cases and saved to {self.file_path}.")
+        import time, json, os
+        os.makedirs("./knowledge_base", exist_ok=True)
+        for i, doc in enumerate(cases):
+            filename = f"./knowledge_base/case_{int(time.time())}_{i}.json"
+            with open(filename, "w") as f:
+                json.dump({"text": doc.page_content, "metadata": doc.metadata}, f)
+        print(f"Pushed {len(cases)} cases into ./knowledge_base")
 
     def find_similar_cases(self, query: str, k: int = 2) -> List[PlausibleAction]:
-        if self.index is None: return []
-        results = self.index.similarity_search_with_score(query, k=k)
-        return [
-            PlausibleAction(
-                action_description=doc.metadata.get("action", "No action specified."),
-                source_case_id=doc.metadata.get("case_id", "N/A"),
-                confidence_score=1 - score
-            ) for doc, score in results
-        ]
+        if self.client is None:
+            return []
+
+        results = self.client.similarity_search_with_score(query, k=k)
+
+        actions = []
+        for doc, score in results:
+            meta = doc.metadata.get("metadata", {})
+            actions.append(
+                PlausibleAction(
+                    action_description=meta.get("action", "See documentation"),
+                    source_case_id=meta.get("case_id", "Unknown"),
+                    confidence_score=score,
+                )
+            )
+        return actions
 
 @tool
 def inspect_payload_size(
@@ -283,7 +272,6 @@ def check_external_api_health(
     """
     return json.dumps(get_api_health_from_monitoring(url))
 
-# --- 4. Core Agent Nodes ---
 
 def context_builder_node(
         state: RCAState
@@ -416,7 +404,6 @@ def quick_action_node(
     alert = state['sla_alert']
     query = f"SLA breach for workflow {alert.workflow_id}. Breach magnitude: {alert.breach_magnitude}. Error: {alert.error_message or 'N/A'}"
     
-    # Query for both company SLA rules and past similar cases
     similar_cases = vector_store.find_similar_cases(query, k=3)
         
     return {"quick_actions": similar_cases}
@@ -513,7 +500,7 @@ Based on the incident details provided in the user's question, generate a profes
 *   **Cite Your Sources:** When you use data from your web search, mention it (e.g., "According to a 2024 Gartner report...").
 *   **State Assumptions:** Clearly articulate any assumptions made during your calculations."""
     
-    impact_analysis = analyze_financial_impact(question= question,
+    impact_analysis = analyze_financial_impact(question = question,
                                                system_prompt=SYSTEM_PROMPT
                                                )
     
@@ -522,7 +509,6 @@ Based on the incident details provided in the user's question, generate a profes
 def join_node(
     state: RCAState
 ) -> Dict:
-    # A synchronization point.
     return {}
 
 def build_graph() -> StateGraph:
@@ -555,8 +541,8 @@ def build_graph() -> StateGraph:
         "ValidationAgent",
         supervisor_edge,
         {
-            "AnalysisAgent": "AnalysisAgent",          # Loop back
-            "FinalReportGenerator": "FinalReportGenerator" # Break out
+            "AnalysisAgent": "AnalysisAgent",          
+            "FinalReportGenerator": "FinalReportGenerator" 
         }
     )
     
@@ -588,22 +574,22 @@ def handle_incoming_alert(
 
     asyncio.run(run_agent())
 
-if __name__ == "__main__":
-    # This block now simulates an external system calling our handler
-    # with data for a specific SLA breach.
-    alert_payload = {
-        "workflow_id": "wf_abc_123",
-        "execution_id": "exec_xyz_789",
-        "trigger_node": "start",
-        "breach_magnitude": "500% over p95 baseline",
-        "trace_timings": {
-            "start": 0.1,
-            "fetch_data": 30.0,
-            "process_data": 0.0,
-            "save_results": 0.0
-        },
-        "has_error": True,
-        "error_node": "fetch_data",
-        "error_message": "Request timed out after 30 seconds."
-    }
-    handle_incoming_alert(alert_payload)
+# if __name__ == "__main__":
+#     # This block now simulates an external system calling our handler
+#     # with data for a specific SLA breach.
+#     alert_payload = {
+#         "workflow_id": "wf_abc_123",
+#         "execution_id": "exec_xyz_789",
+#         "trigger_node": "start",
+#         "breach_magnitude": "500% over p95 baseline",
+#         "trace_timings": {
+#             "start": 0.1,
+#             "fetch_data": 30.0,
+#             "process_data": 0.0,
+#             "save_results": 0.0
+#         },
+#         "has_error": True,
+#         "error_node": "fetch_data",
+#         "error_message": "Request timed out after 30 seconds."
+#     }
+#     handle_incoming_alert(alert_payload)
