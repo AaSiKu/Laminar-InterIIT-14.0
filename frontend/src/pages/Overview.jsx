@@ -19,6 +19,8 @@ import SpeedIcon from "@mui/icons-material/Speed";
 import MoreHorizIcon from "@mui/icons-material/MoreHoriz";
 import HighlightIcon from "@mui/icons-material/Highlight";
 import CloseIcon from "@mui/icons-material/Close";
+import NotificationsActiveOutlinedIcon from "@mui/icons-material/NotificationsActiveOutlined";
+import NoDataImage from "../assets/no-data.svg";
 
 // Icon mapping utility
 const getIconComponent = (iconType) => {
@@ -27,6 +29,7 @@ const getIconComponent = (iconType) => {
     "access-time": AccessTimeIcon,
     "error-outline": ErrorOutlineIcon,
     speed: SpeedIcon,
+    notifications: NotificationsActiveOutlinedIcon,
   };
   return iconMap[iconType] || TimelineIcon;
 };
@@ -80,12 +83,15 @@ export default function OverviewPage() {
             }}>
               {overviewData && <Grid container spacing={0}>
                 <Grid size={{ xs: 12, md: 6, xl: 7 }}>
-                  {overviewData["pie_chart"] && <OverviewSection data={overviewData["pie_chart"]} />}
+                  {overviewData["pie_chart"] && <OverviewSection data={overviewData["pie_chart"]} kpiData={overviewData["kpi"]} />}
                 </Grid>
 
                 <Grid container size={{ xs: 12, md: 6, xl: 5 }} spacing={0}>
                   {overviewData["kpi"] && overviewData["kpi"].map((kpi, index) => {
-                    const IconComponent = getIconComponent(kpi.iconType);
+                    // Use notifications icon for the fourth card (index 3)
+                    const IconComponent = index === 3 
+                      ? getIconComponent("notifications") 
+                      : getIconComponent(kpi.iconType);
                     const totalKpis = overviewData["kpi"].length;
                     const isFirstRow = index < Math.ceil(totalKpis / 2);
                     const isLastRow = index >= totalKpis - Math.ceil(totalKpis / 2);
@@ -116,13 +122,22 @@ export default function OverviewPage() {
                   </Typography>
                 </div>
                 <div className="overview-workflows-list">
-                  {workflows.map((workflow) => (
-                    <RecentWorkflowCard
-                      key={workflow.id}
-                      workflow={workflow}
-                      onClick={() => handleSelectTemplate(workflow.id)}
-                    />
-                  ))}
+                  {workflows.length === 0 ? (
+                    <Box sx={{ textAlign: "center", py: "3rem", display: "flex", flexDirection: "column", alignItems: "center", gap: "1rem", width: "100%" }}>
+                      <img src={NoDataImage} alt="No data" style={{ width: "10rem", height: "auto", opacity: 0.7 }} />
+                      <Typography color="text.secondary" sx={{ fontSize: "0.875rem" }}>
+                        No recent workflows
+                      </Typography>
+                    </Box>
+                  ) : (
+                    workflows.map((workflow) => (
+                      <RecentWorkflowCard
+                        key={workflow.id}
+                        workflow={workflow}
+                        onClick={() => handleSelectTemplate(workflow.id)}
+                      />
+                    ))
+                  )}
                 </div>
               </div>
             </div>

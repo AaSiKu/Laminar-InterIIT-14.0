@@ -1,9 +1,41 @@
-import React from "react";
-import { Box, Typography, Paper, colors } from "@mui/material";
+import React, { useState } from "react";
+import { Box, Typography, Paper, Menu, MenuItem, IconButton } from "@mui/material";
 import { PieChart, Pie, Cell, ResponsiveContainer } from "recharts";
 import MoreHorizIcon from "@mui/icons-material/MoreHoriz";
+import ContentCopyIcon from "@mui/icons-material/ContentCopy";
 
-const OverviewSection = ({ data }) => {
+const OverviewSection = ({ data, kpiData }) => {
+  const [anchorEl, setAnchorEl] = useState(null);
+  const open = Boolean(anchorEl);
+
+  const handleMenuClick = (event) => {
+    setAnchorEl(event.currentTarget);
+  };
+
+  const handleMenuClose = () => {
+    setAnchorEl(null);
+  };
+
+  const handleCopyJson = () => {
+    // Combine overview data and KPI cards data for complete snapshot
+    const snapshotData = {
+      timestamp: new Date().toISOString(),
+      overview: {
+        total: data?.total,
+        running: data?.running,
+        broken: data?.broken,
+        stopped: data?.stopped,
+      },
+      kpiCards: kpiData || [],
+    };
+    const jsonData = JSON.stringify(snapshotData, null, 2);
+    navigator.clipboard.writeText(jsonData).then(() => {
+      console.log("Dashboard data copied to clipboard");
+    }).catch(err => {
+      console.error("Failed to copy: ", err);
+    });
+    handleMenuClose();
+  };
   // Chart data - all segments with uniform thickness
   console.log("car", data);
   const chartData = [
@@ -66,22 +98,37 @@ const OverviewSection = ({ data }) => {
             Current state of workflows
           </Typography>
         </Box>
-        <Box
+        <IconButton
+          onClick={handleMenuClick}
           sx={{
             width: '2.25rem',
             height: '2.25rem',
             borderRadius: 0,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            cursor: 'pointer',
             '&:hover': { bgcolor: 'action.hover' },
           }}
         >
           <MoreHorizIcon
             sx={{ fontSize: "1.25rem", color: "text.secondary" }}
           />
-        </Box>
+        </IconButton>
+        <Menu
+          anchorEl={anchorEl}
+          open={open}
+          onClose={handleMenuClose}
+          anchorOrigin={{
+            vertical: 'bottom',
+            horizontal: 'right',
+          }}
+          transformOrigin={{
+            vertical: 'top',
+            horizontal: 'right',
+          }}
+        >
+          <MenuItem onClick={handleCopyJson} sx={{ gap: 1 }}>
+            <ContentCopyIcon sx={{ fontSize: '1rem' }} />
+            Copy JSON
+          </MenuItem>
+        </Menu>
       </Box>
 
       {/* Semicircle Donut Chart - Top 40% */}

@@ -13,6 +13,7 @@ import ErrorOutlineIcon from "@mui/icons-material/ErrorOutline";
 import WarningAmberIcon from "@mui/icons-material/WarningAmber";
 import IconifyIcon from "components/base/IconifyIcon";
 import ArrowDropDownIcon from "@mui/icons-material/ArrowDropDown";
+import NoDataImage from "../../assets/no-data.svg";
 
 const HighlightsPanel = ({ notifications }) => {
   const [anchorEl, setAnchorEl] = useState(null);
@@ -210,7 +211,8 @@ const HighlightsPanel = ({ notifications }) => {
 
       <Box sx={{ flex: 1, overflowY: "auto", p: "1rem" }}>
         {enhancedNotifications.length === 0 ? (
-          <Box sx={{ textAlign: "center", py: "4rem" }}>
+          <Box sx={{ textAlign: "center", py: "2rem", display: "flex", flexDirection: "column", alignItems: "center", gap: "1rem" }}>
+            <img src={NoDataImage} alt="No data" style={{ width: "8rem", height: "auto", opacity: 0.7 }} />
             <Typography color="text.secondary" sx={{ fontSize: "0.875rem" }}>
               No highlights to show
             </Typography>
