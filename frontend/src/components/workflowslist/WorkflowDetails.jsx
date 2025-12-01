@@ -26,8 +26,17 @@ const WorkflowDetails = ({ workflow, actionFilter, onActionFilterChange, actionI
           </Typography>
           <Box sx={{ display: "flex", gap: 1, alignItems: "center" }}>
             <AvatarGroup max={3} sx={{ "& .MuiAvatar-root": { width: 32, height: 32, fontSize: "0.75rem" } }}>
-              {workflow.team.map((color, index) => (
-                <Avatar key={index} sx={{ bgcolor: color, width: 32, height: 32 }} />
+              {workflow.team.map((member, index) => (
+                <Avatar 
+                  key={index}
+                  src={member.avatar}
+                  alt={member.name}
+                  sx={{ 
+                    width: 32, 
+                    height: 32,
+                  }}
+                  title={member.name}
+                />
               ))}
             </AvatarGroup>
             <IconButton size="small" sx={{ color: "text.secondary" }}>
@@ -51,8 +60,9 @@ const WorkflowDetails = ({ workflow, actionFilter, onActionFilterChange, actionI
         sx={{ 
           display: "grid", 
           gridTemplateColumns: "1fr 1fr 1fr",
-          gap: 2,
-          mb: 3,
+          gap: 0,
+          mb: 0,
+          mx: -3,
         }}
       >
         <PipelinePreview workflowId={workflow.id} />
@@ -75,9 +85,10 @@ const WorkflowDetails = ({ workflow, actionFilter, onActionFilterChange, actionI
         sx={{ 
           display: "grid",
           gridTemplateColumns: "1fr 1fr",
-          gap: 2,
+          gap: 0,
           flex: 1,
           overflow: "hidden",
+          mx: -3,
         }}
       >
         <ActionRequired

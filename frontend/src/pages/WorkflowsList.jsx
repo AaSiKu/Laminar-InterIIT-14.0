@@ -6,11 +6,16 @@ import WorkflowHeader from "../components/workflowslist/WorkflowHeader";
 import WorkflowCard from "../components/workflowslist/WorkflowCard";
 import WorkflowDetails from "../components/workflowslist/WorkflowDetails";
 import TopBar from "../components/TopBar";
+
 export const WorkflowsList = () => {
   const [selectedTab, setSelectedTab] = useState(0);
   const [selectedWorkflow, setSelectedWorkflow] = useState(mockWorkflows[0]);
-  const [searchQuery, setSearchQuery] = useState("");
   const [actionFilter, setActionFilter] = useState("critical"); // critical or low
+  const [globalSearchQuery, setGlobalSearchQuery] = useState("");
+
+  const handleLogout = () => {
+    // Add logout logic here
+  };
 
   const handleAddNew = () => {
     // Create a new workflow with next available letter
@@ -20,7 +25,10 @@ export const WorkflowsList = () => {
       name: `Workflow ${nextId.toUpperCase()}`,
       category: "General",
       location: "New",
-      team: ["#3b82f6", "#8b5cf6"],
+      team: [
+        { name: "User A", initials: "UA", avatar: "https://i.pravatar.cc/150?img=60" },
+        { name: "User B", initials: "UB", avatar: "https://i.pravatar.cc/150?img=47" },
+      ],
       status: "Active",
       description: "New workflow description",
       avgRunningTime: "0 min",
@@ -33,8 +41,8 @@ export const WorkflowsList = () => {
   };
 
   const filteredWorkflows = mockWorkflows.filter((workflow) => {
-    const matchesSearch = workflow.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         workflow.category.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesSearch = workflow.name.toLowerCase().includes(globalSearchQuery.toLowerCase()) ||
+                         workflow.category.toLowerCase().includes(globalSearchQuery.toLowerCase());
     if (selectedTab === 0) return matchesSearch;
     if (selectedTab === 1) return matchesSearch;
     if (selectedTab === 2) return matchesSearch && workflow.status === "Closed";
@@ -42,14 +50,23 @@ export const WorkflowsList = () => {
   });
 
   return (
-    <Box sx={{ ...styles.mainContainer, ml: '64px', bgcolor: 'background.default' }}>
+    <Box sx={{ display: 'flex', flexDirection: 'column', height: '100vh', ml: '64px' }}>
+      {/* TopBar */}
+      <TopBar 
+        showSearch={true}
+        userAvatar="https://i.pravatar.cc/150?img=1"
+        searchPlaceholder="Search workflows, projects, or users..."
+        searchValue={globalSearchQuery}
+        onSearchChange={setGlobalSearchQuery}
+        onLogout={handleLogout}
+      />
+
+      <Box sx={{ ...styles.mainContainer, bgcolor: 'background.default', flex: 1, overflow: 'hidden' }}>
       {/* Main Content Area */}
       <Box sx={{ ...styles.mainContentArea, bgcolor: 'background.default' }}>
         {/* Main Content - Workflows List */}
         <Box sx={{ ...styles.workflowsListSection, bgcolor: 'background.paper', borderRight: { xs: "none", lg: "1px solid" }, borderBottom: { xs: "1px solid", lg: "none" }, borderColor: 'divider' }}>
           <WorkflowHeader
-            searchQuery={searchQuery}
-            onSearchChange={setSearchQuery}
             onAddNew={handleAddNew}
             selectedTab={selectedTab}
             onTabChange={setSelectedTab}
@@ -60,6 +77,7 @@ export const WorkflowsList = () => {
             flex: 1,
             minHeight: 0,
             overflowY: "auto",
+            px: 2,
             pt: 2,
           }}>
             <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>
@@ -85,6 +103,7 @@ export const WorkflowsList = () => {
             logs={mockLogs}
           />
         )}
+        </Box>
       </Box>
     </Box>
   );

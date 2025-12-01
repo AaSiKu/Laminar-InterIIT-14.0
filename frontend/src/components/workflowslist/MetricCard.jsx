@@ -7,7 +7,7 @@ const MetricCard = ({ title, subtitle, value, change }) => {
   const isNegative = change?.startsWith("-");
 
   return (
-    <Box sx={{ bgcolor: 'background.paper', border: "1px solid", borderColor: 'divider', borderRadius: "8px", p: 2 }}>
+    <Box sx={{ bgcolor: 'background.paper', border: "1px solid", borderColor: 'divider', borderRadius: 0, borderLeft: "none", p: 2 }}>
       <Typography variant="h6" sx={{ fontWeight: 600, fontSize: "0.9375rem", color: "text.primary", mb: 0.5 }}>
         {title}
       </Typography>
@@ -27,7 +27,7 @@ const MetricCard = ({ title, subtitle, value, change }) => {
             bgcolor: isPositive ? "success.lighter" : isNegative ? "error.lighter" : 'background.elevation1',
             px: 0.75,
             py: 0.25,
-            borderRadius: "4px",
+            borderRadius: "2px",
           }}
         >
           {change}

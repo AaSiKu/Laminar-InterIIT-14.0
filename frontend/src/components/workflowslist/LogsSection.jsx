@@ -1,5 +1,5 @@
 import { Box, Typography, IconButton } from "@mui/material";
-import { KeyboardArrowRight as KeyboardArrowRightIcon } from "@mui/icons-material";
+import { KeyboardArrowRight as KeyboardArrowRightIcon, Key as KeyIcon } from "@mui/icons-material";
 
 const LogsSection = ({ logs }) => {
   return (
@@ -10,11 +10,13 @@ const LogsSection = ({ logs }) => {
         bgcolor: 'background.paper',
         border: "1px solid",
         borderColor: 'divider',
-        borderRadius: "8px",
+        borderRadius: 0,
+        borderTop: "none",
+        borderLeft: "none",
         overflow: "hidden",
       }}
     >
-      <Box sx={{ p: 2, borderBottom: "1px solid", borderColor: 'divider', display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+      <Box sx={{ p: 2, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
         <Typography variant="h6" sx={{ fontWeight: 600, fontSize: "0.9375rem", color: "text.primary" }}>
           Logs
         </Typography>
@@ -41,7 +43,7 @@ const LogsSection = ({ logs }) => {
                 sx={{
                   width: 20,
                   height: 20,
-                  borderRadius: "4px",
+                  borderRadius: "2px",
                   bgcolor: 'background.elevation1',
                   display: "flex",
                   alignItems: "center",
@@ -50,7 +52,7 @@ const LogsSection = ({ logs }) => {
                   mt: 0.25,
                 }}
               >
-                <Typography sx={{ fontSize: "0.75rem" }}>🔑</Typography>
+                <KeyIcon sx={{ fontSize: "0.75rem", color: "text.secondary" }} />
               </Box>
               <Box sx={{ flex: 1 }}>
                 <Typography variant="body2" sx={{ fontSize: "0.8125rem", color: "text.primary", mb: 0.5, lineHeight: 1.5 }}>

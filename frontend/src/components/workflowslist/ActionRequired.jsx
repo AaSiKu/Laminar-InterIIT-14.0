@@ -10,11 +10,12 @@ const ActionRequired = ({ actionFilter, onFilterChange, actionItems }) => {
         bgcolor: 'background.paper',
         border: "1px solid",
         borderColor: 'divider',
-        borderRadius: "8px",
+        borderRadius: 0,
+        borderTop: "none",
         overflow: "hidden",
       }}
     >
-      <Box sx={{ p: 2, borderBottom: "1px solid", borderColor: 'divider', display: "flex", alignItems: "center", gap: 1 }}>
+      <Box sx={{ p: 2, display: "flex", alignItems: "center", gap: 1 }}>
         <Typography variant="h6" sx={{ fontWeight: 600, fontSize: "0.9375rem", color: "text.primary" }}>
           Action Required
         </Typography>
@@ -31,7 +32,7 @@ const ActionRequired = ({ actionFilter, onFilterChange, actionItems }) => {
             px: 1.5,
             py: 0.5,
             minWidth: "auto",
-            borderRadius: "6px",
+            borderRadius: "4px",
             "&:hover": {
               bgcolor: actionFilter === "critical" ? 'action.selected' : 'action.hover',
             },
@@ -51,7 +52,7 @@ const ActionRequired = ({ actionFilter, onFilterChange, actionItems }) => {
             px: 1.5,
             py: 0.5,
             minWidth: "auto",
-            borderRadius: "6px",
+            borderRadius: "4px",
             "&:hover": {
               bgcolor: actionFilter === "low" ? 'action.selected' : 'action.hover',
             },
@@ -80,7 +81,7 @@ const ActionRequired = ({ actionFilter, onFilterChange, actionItems }) => {
                 bgcolor: 'background.elevation1',
                 border: "1px solid",
                 borderColor: 'divider',
-                borderRadius: "6px",
+                borderRadius: "4px",
                 cursor: "pointer",
                 transition: "all 0.2s ease",
                 "&:hover": { borderColor: "primary.main", bgcolor: 'action.hover' },

@@ -1,9 +1,23 @@
-import { Box, Typography, Button, TextField, InputAdornment, IconButton, Tabs, Tab } from "@mui/material";
-import { Search as SearchIcon, Add as AddIcon, FilterList as FilterListIcon } from "@mui/icons-material";
-import { useTheme } from "@mui/material/styles";
+import { useState } from "react";
+import { Box, Typography, Button, IconButton, Menu, MenuItem, ListItemIcon, ListItemText } from "@mui/material";
+import { Add as AddIcon, FilterList as FilterListIcon, Loop as LoopIcon, Warning as WarningIcon, Flag as FlagIcon, Save as SaveIcon } from "@mui/icons-material";
 
-const WorkflowHeader = ({ searchQuery, onSearchChange, onAddNew, selectedTab, onTabChange }) => {
-  const theme = useTheme();
+const WorkflowHeader = ({ onAddNew, selectedTab, onTabChange }) => {
+  const [filterAnchorEl, setFilterAnchorEl] = useState(null);
+  const filterOpen = Boolean(filterAnchorEl);
+
+  const handleFilterClick = (event) => {
+    setFilterAnchorEl(event.currentTarget);
+  };
+
+  const handleFilterClose = () => {
+    setFilterAnchorEl(null);
+  };
+
+  const handleFilterOption = (option) => {
+    console.log("Filter option selected:", option);
+    handleFilterClose();
+  };
 
   return (
     <Box sx={{ flexShrink: 0, pb: 2, borderBottom: { xs: `1px solid`, lg: "none" }, borderColor: 'divider' }}>
@@ -17,16 +31,6 @@ const WorkflowHeader = ({ searchQuery, onSearchChange, onAddNew, selectedTab, on
             variant="contained"
             startIcon={<AddIcon sx={{ fontSize: 16 }} />}
             onClick={onAddNew}
-            sx={{
-              textTransform: "none",
-              borderRadius: "6px",
-              px: 2,
-              py: 0.5,
-              fontWeight: 500,
-              fontSize: "0.8125rem",
-              boxShadow: "none",
-              minWidth: "auto",
-            }}
           >
             Add new
           </Button>
@@ -34,69 +38,108 @@ const WorkflowHeader = ({ searchQuery, onSearchChange, onAddNew, selectedTab, on
         <Typography variant="body2" sx={{ color: "text.secondary", fontSize: "0.8125rem", mb: 2 }}>
           Recruitment involvement across roles
         </Typography>
-        
-        {/* Search Bar */}
-        <Box sx={{ display: "flex", gap: 1, alignItems: "center" }}>
-          <TextField
-            fullWidth
-            size="small"
-            placeholder="Search workflows..."
-            value={searchQuery}
-            onChange={(e) => onSearchChange(e.target.value)}
-            InputProps={{
-              startAdornment: (
-                <InputAdornment position="start">
-                  <SearchIcon sx={{ color: "text.secondary", fontSize: 18 }} />
-                </InputAdornment>
-              ),
-              sx: {
-                bgcolor: 'background.elevation1',
-                borderRadius: "6px",
-                fontSize: "0.8125rem",
-                "& fieldset": { borderColor: 'divider' },
-                "& input": { padding: "8px 12px" },
-              },
-            }}
-          />
-          <IconButton
-            size="small"
-            sx={{
-              bgcolor: 'background.elevation1',
-              border: "1px solid",
-              borderColor: 'divider',
-              borderRadius: "6px",
-              "&:hover": { bgcolor: 'action.hover' },
-            }}
-          >
-            <FilterListIcon sx={{ fontSize: 18, color: "text.secondary" }} />
-          </IconButton>
-        </Box>
       </Box>
 
-      {/* Tabs */}
-      <Tabs
-        value={selectedTab}
-        onChange={(e, newValue) => onTabChange(newValue)}
-        sx={{
-          mb: 0,
-          minHeight: "36px",
-          "& .MuiTab-root": {
-            textTransform: "none",
-            fontWeight: 500,
-            fontSize: "0.8125rem",
-            color: "text.secondary",
-            minHeight: "36px",
-            py: 0.5,
-            px: 2,
-            "&.Mui-selected": { color: "text.primary" },
-          },
-          "& .MuiTabs-indicator": { bgcolor: "primary.main", height: "2px" },
-        }}
-      >
-        <Tab label="My Projects" />
-        <Tab label="Recent" />
-        <Tab label="Drafts" />
-      </Tabs>
+      {/* Tabs and Filter */}
+      <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 2 }}>
+        <Box sx={{ display: "flex", gap: 1 }}>
+          <Button
+            variant={selectedTab === 0 ? "soft" : "text"}
+            color={selectedTab === 0 ? "primary" : "neutral"}
+            onClick={() => onTabChange(null, 0)}
+            sx={{
+              minWidth: "auto",
+            }}
+          >
+            My Projects
+          </Button>
+          <Button
+            variant={selectedTab === 1 ? "soft" : "text"}
+            color={selectedTab === 1 ? "primary" : "neutral"}
+            onClick={() => onTabChange(null, 1)}
+            sx={{
+              minWidth: "auto",
+            }}
+          >
+            Recent
+          </Button>
+          <Button
+            variant={selectedTab === 2 ? "soft" : "text"}
+            color={selectedTab === 2 ? "primary" : "neutral"}
+            onClick={() => onTabChange(null, 2)}
+            sx={{
+              minWidth: "auto",
+            }}
+          >
+            Drafts
+          </Button>
+        </Box>
+
+        <IconButton
+          onClick={handleFilterClick}
+          sx={{
+            border: "1px solid",
+            borderColor: 'divider',
+            borderRadius: "6px",
+            width: 36,
+            height: 36,
+            "&:hover": { bgcolor: 'action.hover' },
+          }}
+        >
+          <FilterListIcon sx={{ fontSize: 20, color: "text.secondary" }} />
+        </IconButton>
+
+        <Menu
+          anchorEl={filterAnchorEl}
+          open={filterOpen}
+          onClose={handleFilterClose}
+          anchorOrigin={{
+            vertical: 'bottom',
+            horizontal: 'right',
+          }}
+          transformOrigin={{
+            vertical: 'top',
+            horizontal: 'right',
+          }}
+          slotProps={{
+            paper: {
+              elevation: 3,
+              sx: {
+                mt: 1,
+                minWidth: 200,
+                borderRadius: 2,
+                border: "1px solid",
+                borderColor: 'divider',
+              },
+            },
+          }}
+        >
+          <MenuItem onClick={() => handleFilterOption("inProgress")}>
+            <ListItemIcon>
+              <LoopIcon sx={{ fontSize: 20 }} />
+            </ListItemIcon>
+            <ListItemText>In Progress</ListItemText>
+          </MenuItem>
+          <MenuItem onClick={() => handleFilterOption("critical")}>
+            <ListItemIcon>
+              <WarningIcon sx={{ fontSize: 20 }} />
+            </ListItemIcon>
+            <ListItemText>Critical</ListItemText>
+          </MenuItem>
+          <MenuItem onClick={() => handleFilterOption("flagged")}>
+            <ListItemIcon>
+              <FlagIcon sx={{ fontSize: 20 }} />
+            </ListItemIcon>
+            <ListItemText>Flagged</ListItemText>
+          </MenuItem>
+          <MenuItem onClick={() => handleFilterOption("save")}>
+            <ListItemIcon>
+              <SaveIcon sx={{ fontSize: 20 }} />
+            </ListItemIcon>
+            <ListItemText>Save</ListItemText>
+          </MenuItem>
+        </Menu>
+      </Box>
     </Box>
   );
 };

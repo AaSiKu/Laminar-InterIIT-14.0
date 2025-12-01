@@ -29,7 +29,7 @@ function AppContent() {
 
         {/* Protected routes */}
         <Route
-          path="/workflow"
+          path="/workflows"
           element={
             // <ProtectedRoute>
               <WorkflowsList />

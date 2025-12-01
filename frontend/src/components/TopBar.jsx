@@ -9,7 +9,9 @@ const TopBar = ({
   showSearch = true, 
   userAvatar,
   searchPlaceholder = "Search",
-  onLogout
+  onLogout,
+  searchValue = "",
+  onSearchChange
 }) => {
   const [anchorEl, setAnchorEl] = useState(null);
   const open = Boolean(anchorEl);
@@ -38,7 +40,7 @@ const TopBar = ({
     <Box
       className="overview-topbar"
       sx={{
-        padding: { xs: '16px', md: '16px 32px' },
+        padding: { xs: '8px 16px', md: '8px 24px' },
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
@@ -62,11 +64,14 @@ const TopBar = ({
           <TextField
             placeholder={searchPlaceholder}
             size="small"
+            value={searchValue}
+            onChange={(e) => onSearchChange && onSearchChange(e.target.value)}
             sx={{
-              width: { xs: 150, sm: 250, md: 300 },
+              minWidth: { xs: 180, sm: 250, md: 350 },
               '& .MuiOutlinedInput-root': {
-                borderRadius: 2,
+                borderRadius: '100px',
                 bgcolor: 'background.elevation1',
+                height: '32px',
                 '& fieldset': {
                   borderColor: 'divider',
                 },
@@ -77,11 +82,15 @@ const TopBar = ({
                   borderColor: 'primary.main',
                 },
               },
+              '& .MuiInputBase-input': {
+                padding: '6px 14px',
+                fontSize: '0.8125rem',
+              },
             }}
             InputProps={{
               startAdornment: (
                 <InputAdornment position="start">
-                  <SearchIcon sx={{ fontSize: '1.25rem', color: 'text.secondary' }} />
+                  <SearchIcon sx={{ fontSize: '0.95rem', color: 'text.secondary' }} />
                 </InputAdornment>
               ),
             }}
@@ -103,10 +112,11 @@ const TopBar = ({
           alt="User"
           onClick={handleAvatarClick}
           sx={{
-            width: 40,
-            height: 40,
+            width: 28,
+            height: 28,
             bgcolor: userAvatar ? 'transparent' : 'primary.main',
             cursor: 'pointer',
+            fontSize: '0.75rem',
             transition: 'transform 0.2s ease, box-shadow 0.2s ease',
             '&:hover': {
               transform: 'scale(1.05)',

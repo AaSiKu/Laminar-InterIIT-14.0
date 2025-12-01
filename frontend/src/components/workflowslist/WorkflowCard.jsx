@@ -10,9 +10,10 @@ const WorkflowCard = ({ workflow, isSelected, onClick }) => {
       onClick={onClick}
       sx={{
         cursor: "pointer",
-        borderRadius: "8px",
+        borderRadius: "12px",
         bgcolor: isSelected ? 'action.selected' : 'background.elevation1',
-        border: "none",
+        border: "1px solid",
+        borderColor: 'divider',
         boxShadow: "none",
         transition: "all 0.2s ease",
         "&:hover": {
@@ -31,8 +32,17 @@ const WorkflowCard = ({ workflow, isSelected, onClick }) => {
             </Typography>
             <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               <AvatarGroup max={5} sx={{ "& .MuiAvatar-root": { width: 24, height: 24, fontSize: "0.625rem", border: `2px solid ${theme.palette.background.paper}` } }}>
-                {workflow.team.map((color, index) => (
-                  <Avatar key={index} sx={{ bgcolor: color, width: 24, height: 24 }} />
+                {workflow.team.map((member, index) => (
+                  <Avatar 
+                    key={index}
+                    src={member.avatar}
+                    alt={member.name}
+                    sx={{ 
+                      width: 24, 
+                      height: 24,
+                    }}
+                    title={member.name}
+                  />
                 ))}
               </AvatarGroup>
               <Chip
@@ -44,7 +54,7 @@ const WorkflowCard = ({ workflow, isSelected, onClick }) => {
                   fontWeight: 500,
                   fontSize: "0.6875rem",
                   height: "22px",
-                  borderRadius: "4px",
+                  borderRadius: "2px",
                 }}
               />
             </Box>
