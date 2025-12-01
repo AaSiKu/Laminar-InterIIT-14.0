@@ -5,20 +5,16 @@ import warnings
 import time
 import psutil
 import os
-from stream_ml.model import BaseModel as StreamBaseModel
+from stream_ml.model import BaseModel as StreamBaseModel, BaseModelConfig
 from numpy.typing import NDArray
 from abc import ABC, abstractmethod
 from pydantic import BaseModel as PydanticBaseModel, Field
 warnings.filterwarnings('ignore')
 
 
-class ArfConfig(PydanticBaseModel):
-    in_features: int = Field(..., gt=0)
-    out_features: int = Field(..., gt=0)
-    horizon: int = Field(1, gt=0)
-    lookback: int = Field(5, gt=0)
+class ArfConfig(BaseModelConfig):
     n_models: int = Field(10, gt=0)
-    max_depth: Optional[int] = None
+    max_depth: int = Field(15, gt=0)
     seed: Optional[int] = 42
 
 
@@ -34,7 +30,9 @@ class ArfRegressor(StreamBaseModel):
         horizon: int = 1,
         lookback: int = 5,
         n_models: int = 10,
-        max_depth: Optional[int] = 15,
+        max_depth: int = 15,
+        epochs: int = 1, # for compatibility
+        batch_size: int = 32, # for compatibility
         seed: Optional[int] = 42
     ):
         self.horizon = horizon

@@ -10,18 +10,12 @@ import os
 from sklearn.metrics import mean_squared_error
 from typing import List, Optional, Tuple
 from numpy.typing import NDArray
-from stream_ml.model import BaseModel as StreamBaseModel
+from stream_ml.model import BaseModel as StreamBaseModel, BaseModelConfig
 from pydantic import BaseModel as PydanticBaseModel, Field
 
 
-class TiDEConfig(PydanticBaseModel):
-    in_features: int = Field(..., gt=0)
-    out_features: int = Field(..., gt=0)
-    horizon: int = Field(..., gt=0)
-    lookback: int = Field(..., gt=0)
+class TiDEConfig(BaseModelConfig):
     hidden_dim: int = Field(32, gt=0)
-    batch_size: int = Field(32, gt=0)
-    epochs: int = Field(1)
     optimizer: str = Field('adam')
     learning_rate: float = Field(0.001)
     clipnorm: Optional[float] = Field(None)

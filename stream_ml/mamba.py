@@ -4,7 +4,7 @@ import torch.optim as optim
 import numpy as np
 import time
 import math
-from stream_ml.model import BaseModel as StreamBaseModel
+from stream_ml.model import BaseModel as StreamBaseModel, BaseModelConfig
 from numpy.typing import NDArray
 import psutil
 import os
@@ -13,19 +13,13 @@ from typing import Tuple, Any, List, Optional
 from pydantic import BaseModel as PydanticBaseModel, Field
 
 
-class MambaConfig(PydanticBaseModel):
-    in_features: int = Field(..., gt=0)
-    out_features: int = Field(..., gt=0)
-    horizon: int = Field(1, gt=0)
-    lookback: int = Field(20, gt=0)
+class MambaConfig(BaseModelConfig):
     d_model: int = Field(64, gt=0)
     num_layers: int = Field(2, gt=0)
     d_state: int = Field(16, gt=0)
     d_conv: int = Field(4, gt=0)
     expand: int = Field(2, gt=0)
     learning_rate: float = Field(0.001, gt=0)
-    epochs: int = Field(1, ge=1)
-    batch_size: int = Field(32, gt=0)
 
 
 class MambaBlock(nn.Module):

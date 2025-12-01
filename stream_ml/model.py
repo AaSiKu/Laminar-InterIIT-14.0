@@ -2,13 +2,19 @@ from abc import ABC, abstractmethod
 from typing import Tuple, List, Any
 from numpy.typing import NDArray
 import numpy as np
+from pydantic import Field, BaseModel as PydanticBaseModel
 
+class BaseModelConfig(PydanticBaseModel):
+    
+    in_features: int = Field(..., gt=0)
+    out_features: int = Field(..., gt=0)
+    horizon: int = Field(..., gt=0)
+    lookback: int = Field(..., gt=0)
+    batch_size: int = Field(32, gt=0)
+    epochs: int = Field(1)
+    
 
 class BaseModel(ABC):
-    """
-    Abstract base class for time-series or sequence-based models
-    supporting initialization, training (run), and prediction.
-    """
 
     @abstractmethod
     def train(
@@ -39,7 +45,7 @@ class BaseModel(ABC):
             RAM usage,
             Latency,
             Error (based on provided single truth),
-            Predictions for full horizon: [Horizon]
+            Predictions for full horizon: [Horizon * Out Features]
         Notes:
             - Implementation may internally maintain history, errors, etc.
             - Should update internal context for next-step predictions.
