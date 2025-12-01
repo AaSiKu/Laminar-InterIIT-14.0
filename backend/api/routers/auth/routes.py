@@ -39,11 +39,11 @@ async def signup(request: Request, response: Response, data: UserCreate, db: Asy
 
 
     access_token = utils.create_access_token(
-        data={"sub": user.email, "user_id": str(user.id)},
+        data={"sub": user.email, "user_id": str(user.id), "role":user.role},
         expires_delta=access_token_expires
     )
     refresh_token = utils.create_access_token(
-        data={"sub": user.email, "type": "refresh"},
+        data={"sub": user.email, "type": "refresh", "role":user.role},
         expires_delta=refresh_token_expires
     )
 
@@ -82,11 +82,11 @@ async def login(request: Request, response: Response, form_data: OAuth2PasswordR
     refresh_token_expires = timedelta(minutes=request.app.state.refresh_token_expire_minutes)
 
     access_token = utils.create_access_token(
-        data={"sub": user.email, "user_id": str(user.id)},
+        data={"sub": user.email, "user_id": str(user.id), "role": user.role},
         expires_delta=access_token_expires
     )
     refresh_token = utils.create_access_token(
-        data={"sub": user.email, "type": "refresh"},
+        data={"sub": user.email, "type": "refresh", "role": user.role},
         expires_delta=refresh_token_expires
     )
 
@@ -109,7 +109,7 @@ async def login(request: Request, response: Response, form_data: OAuth2PasswordR
         path="/",
     )
 
-    return {"message": "Login successful", "access_token": access_token, "refresh_token": refresh_token}
+    return {"message": "Login successful", "access_token": access_token, "refresh_token": refresh_token, "role":user.role}
 
 
 # ------------------ LOGOUT ------------------ #
@@ -225,7 +225,7 @@ async def refresh_token(request: Request, response: Response, db: AsyncSession =
             raise HTTPException(status_code=404, detail="User not found")
 
         new_access_token = utils.create_access_token(
-            data={"sub": user.email, "user_id": str(user.id)},
+            data={"sub": user.email, "user_id": str(user.id), "role": user.role},
             expires_delta=timedelta(minutes=request.app.state.access_token_expire_minutes),
         )
 

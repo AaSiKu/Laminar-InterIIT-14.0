@@ -5,7 +5,6 @@ from pydantic import BaseModel
 # ------- User Actions on Workflow --------- #
 
 class Notification(BaseModel):
-    notification_id: str
     user_id:str
     pipeline_id:str
     notification_message: str
@@ -19,9 +18,9 @@ class Notification(BaseModel):
     action_executed_by:str
 
 
-class Graph(BaseModel):
-    pipeline_id: Optional[str] = None
-    user_id: str
+class Workflow(BaseModel):
+    owner_ids: List[str]
+    viewer_ids: List[str]
     current_version_id: str
     versions: List[str]
     start_Date: datetime
@@ -35,17 +34,17 @@ class Graph(BaseModel):
     host_ip: str
 
 class Version(BaseModel):
-    version_id: str
+    user_id: str
     version_description: str
     version_created_at: datetime
     version_updated_at: datetime
     pipeline: Any
 
-class save_graph_payload(BaseModel):
+class save_workflow_payload(BaseModel):
     version_updated_at: datetime
     version_description: str
     current_version_id: str
-    pipeline_id: str
+    workflow_id: str
     pipeline: Any
 
 class save_draft_payload(BaseModel):
@@ -54,5 +53,5 @@ class save_draft_payload(BaseModel):
     version_description:Optional[str]
 
 class retrieve_payload(BaseModel):
-    pipeline_id: str
+    workflow_id: str
     version_id: str

@@ -114,7 +114,7 @@ async def run_pipeline_endpoint(request_obj: Request, request: PipelineIdRequest
             response.raise_for_status()
             await workflow_collection.update_one(
                 {'_id': ObjectId(request.pipeline_id)},
-                {'$set': {'status': "Runnign"}}
+                {'$set': {'status': "Running"}}
             )
             return response.json()
         except httpx.RequestError as exc:
@@ -141,7 +141,7 @@ async def stop_pipeline_endpoint(request_obj: Request, request: PipelineIdReques
             response.raise_for_status()
             await workflow_collection.update_one(
                 {'_id': ObjectId(request.pipeline_id)},
-                {'$set': {'status': False}}
+                {'$set': {'status': "Stopped"}}
             )
             return response.json()
         except httpx.RequestError as exc:
