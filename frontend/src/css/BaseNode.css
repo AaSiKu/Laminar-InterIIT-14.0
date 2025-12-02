@@ -75,18 +75,10 @@
   position: relative;
   transition: all 0.2s ease !important;
   overflow: visible !important;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08) !important;
-  background: #ffffff !important;
 }
 
 .base-node-wrapper:hover .base-node-paper {
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12) !important;
   border-top-right-radius: 0 !important;
-}
-
-.base-node-paper.selected {
-  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.15) !important;
-  border: 2px solid rgba(59, 130, 246, 0.5) !important;
 }
 
 /* Node Header Section (Colored) - Icon + Title */

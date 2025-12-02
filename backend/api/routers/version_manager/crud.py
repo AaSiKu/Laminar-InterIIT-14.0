@@ -32,7 +32,8 @@ async def create_workflow(user_identifier,version_collection,workflow_collection
                 "db_host_port":"",
                 "host_ip": "",
                 "versions": [],
-                "last_updated": datetime.now()
+                "last_started": None,
+                "runtime": 0
             }
 
     async with await mongo_client.start_session() as session:

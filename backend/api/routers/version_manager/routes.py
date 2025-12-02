@@ -122,7 +122,7 @@ async def save_workflow(
                     session=session
                 )
 
-                if new_version.inserted_count == 0:
+                if not new_version.inserted_id:
                     raise HTTPException(
                         status_code=status.HTTP_403_FORBIDDEN,
                         detail="Error updating Workflow"

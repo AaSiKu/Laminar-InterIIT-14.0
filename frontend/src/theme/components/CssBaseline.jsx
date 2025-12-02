@@ -20,6 +20,27 @@ const CssBaseline = {
   styleOverrides: (theme) => ({
     '*': {
       scrollbarWidth: 'thin',
+      '&::-webkit-scrollbar': {
+        width: '8px',
+        height: '8px',
+      },
+      '&::-webkit-scrollbar-track': {
+        background: 'transparent',
+      },
+      '&::-webkit-scrollbar-thumb': {
+        background: 'transparent',
+        borderRadius: '4px',
+      },
+      '&:hover::-webkit-scrollbar-thumb': {
+        background: theme.palette.mode === 'dark' 
+          ? 'rgba(255, 255, 255, 0.2)' 
+          : '#cbd5e0',
+      },
+      '&::-webkit-scrollbar-thumb:hover': {
+        background: theme.palette.mode === 'dark' 
+          ? 'rgba(255, 255, 255, 0.3)' 
+          : '#a0aec0',
+      },
     },
     'input:-webkit-autofill': {
       WebkitBoxShadow: `0 0 0px 40rem ${theme.vars.palette.background.elevation2} inset !important`,

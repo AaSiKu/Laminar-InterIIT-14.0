@@ -1,3 +1,4 @@
+import { useState } from "react";
 import {
   Typography,
   Button,
@@ -17,6 +18,33 @@ import { AvatarStack } from "./AvatarStack";
 import { StatusChip } from "./StatusChip";
 
 export function WorkflowsTable({ data }) {
+  const [currentPage, setCurrentPage] = useState(1);
+  const [showAll, setShowAll] = useState(false);
+  const itemsPerPage = 5;
+
+  const totalItems = data.length;
+  const totalPages = Math.ceil(totalItems / itemsPerPage);
+
+  // Get current page data
+  const getCurrentPageData = () => {
+    if (showAll) return data;
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    const endIndex = startIndex + itemsPerPage;
+    return data.slice(startIndex, endIndex);
+  };
+
+  const displayedData = getCurrentPageData();
+  
+  // Calculate empty rows needed to maintain consistent height
+  const emptyRows = showAll ? 0 : itemsPerPage - displayedData.length;
+
+  const handlePrevPage = () => setCurrentPage((prev) => Math.max(1, prev - 1));
+  const handleNextPage = () => setCurrentPage((prev) => Math.min(totalPages, prev + 1));
+  const handleShowAll = () => {
+    setShowAll(!showAll);
+    setCurrentPage(1);
+  };
+
   return (
     <Box
       className="admin-workflows-section"
@@ -53,7 +81,7 @@ export function WorkflowsTable({ data }) {
               mt: 0.125,
             }}
           >
-            Total No. of Pipeline running 35
+            Total No. of Pipeline running {totalItems}
           </Typography>
         </Box>
         <IconButton size="small" sx={{ color: 'text.secondary' }}>
@@ -127,7 +155,7 @@ export function WorkflowsTable({ data }) {
             </TableRow>
           </TableHead>
           <TableBody>
-            {data.map((workflow) => (
+            {displayedData.map((workflow) => (
               <TableRow
                 key={workflow.id}
                 sx={{
@@ -194,6 +222,21 @@ export function WorkflowsTable({ data }) {
                 </TableCell>
               </TableRow>
             ))}
+            {/* Empty rows to maintain consistent table height */}
+            {emptyRows > 0 && Array.from({ length: emptyRows }).map((_, index) => (
+              <TableRow
+                key={`empty-${index}`}
+                sx={{
+                  '& .MuiTableCell-root': {
+                    borderBottom: 'none',
+                    bgcolor: 'transparent',
+                    py: 1.75,
+                  },
+                }}
+              >
+                <TableCell colSpan={4} sx={{ height: '3.5rem' }} />
+              </TableRow>
+            ))}
           </TableBody>
         </Table>
       </TableContainer>
@@ -215,9 +258,15 @@ export function WorkflowsTable({ data }) {
             color: 'text.secondary',
           }}
         >
-          <span>Showing <strong>5 out of 12</strong> items</span>
+          <span>
+            {showAll 
+              ? <>Showing <strong>all {totalItems} items</strong></>
+              : <>Showing <strong>page {currentPage} out of {totalPages}</strong></>
+            }
+          </span>
           <Button
             size="small"
+            onClick={handleShowAll}
             sx={{
               color: 'primary.main',
               textTransform: 'none',
@@ -226,42 +275,46 @@ export function WorkflowsTable({ data }) {
               minWidth: 'auto',
             }}
           >
-            Show all
+            {showAll ? 'Show less' : 'Show all'}
           </Button>
         </Box>
-        <Box
-          sx={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 0.5,
-          }}
-        >
-          <Button
-            size="small"
-            disabled
+        {!showAll && (
+          <Box
             sx={{
-              textTransform: 'none',
-              fontSize: '0.75rem',
-              color: 'text.secondary',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 0.5,
             }}
           >
-            <ChevronLeftIcon sx={{ fontSize: "1rem" }} />
-            Previous
-          </Button>
-          <Button
-            size="small"
-            sx={{
-              textTransform: 'none',
-              fontSize: '0.75rem',
-              color: 'primary.main',
-            }}
-          >
-            Next
-            <ChevronRightIcon sx={{ fontSize: "1rem" }} />
-          </Button>
-        </Box>
+            <Button
+              size="small"
+              onClick={handlePrevPage}
+              disabled={currentPage === 1}
+              sx={{
+                textTransform: 'none',
+                fontSize: '0.75rem',
+                color: currentPage === 1 ? 'text.disabled' : 'text.secondary',
+              }}
+            >
+              <ChevronLeftIcon sx={{ fontSize: "1rem" }} />
+              Previous
+            </Button>
+            <Button
+              size="small"
+              onClick={handleNextPage}
+              disabled={currentPage === totalPages}
+              sx={{
+                textTransform: 'none',
+                fontSize: '0.75rem',
+                color: currentPage === totalPages ? 'text.disabled' : 'primary.main',
+              }}
+            >
+              Next
+              <ChevronRightIcon sx={{ fontSize: "1rem" }} />
+            </Button>
+          </Box>
+        )}
       </Box>
     </Box>
   );
 }
-
