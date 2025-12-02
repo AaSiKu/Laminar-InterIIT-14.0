@@ -1,11 +1,11 @@
 import React, { useState } from "react";
 import { Box } from "@mui/material";
 import { styles } from "../styles/WorkflowsList.styles";
-import { mockWorkflows, mockActionItems, mockLogs } from "../api/workflows.api";
+import { mockWorkflows, mockActionItems, mockLogs } from "../utils/workflows.api";
 import WorkflowHeader from "../components/workflowslist/WorkflowHeader";
 import WorkflowCard from "../components/workflowslist/WorkflowCard";
 import WorkflowDetails from "../components/workflowslist/WorkflowDetails";
-import TopBar from "../components/TopBar";
+import TopBar from "../components/common/TopBar";
 
 export const WorkflowsList = () => {
   const [selectedTab, setSelectedTab] = useState(0);

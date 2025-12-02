@@ -1,6 +1,6 @@
 import { Box } from "@mui/material";
 import { ReactFlow, Background, Controls, ControlButton } from "@xyflow/react";
-import { useTheme } from "@mui/material/styles";
+import { useTheme, useColorScheme } from "@mui/material/styles";
 import OpenInFullIcon from "@mui/icons-material/OpenInFull";
 import LockOpenIcon from "@mui/icons-material/LockOpen";
 import LockIcon from "@mui/icons-material/Lock";
@@ -27,6 +27,8 @@ const WorkflowCanvas = ({
   onLockToggle,
 }) => {
   const theme = useTheme();
+  const { mode, systemMode } = useColorScheme();
+  const resolvedMode = (mode === 'system' ? systemMode : mode) || theme.palette.mode;
 
   return (
     <Box
@@ -61,6 +63,7 @@ const WorkflowCanvas = ({
         defaultViewport={{ x: 0, y: 0, zoom: 0.5 }}
         fitView
         fitViewOptions={{ maxZoom: 0.9 }}
+        colorMode={resolvedMode}
       >
         <Controls position="top-right" showInteractive={false}>
           {onLockToggle && (

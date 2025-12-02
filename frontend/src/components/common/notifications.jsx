@@ -3,7 +3,7 @@ import { toast, ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import { Box, IconButton, Badge, Menu, Typography, Divider, List, ListItem, ListItemText, ListItemIcon, MenuItem, useTheme } from '@mui/material';
 import NotificationsIcon from '@mui/icons-material/Notifications';
-import { useGlobalContext } from '../context/GlobalContext';
+import { useGlobalContext } from '../../context/GlobalContext';
 
 // Notification Context
 const NotificationContext = createContext();

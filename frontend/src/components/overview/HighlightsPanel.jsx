@@ -13,7 +13,7 @@ import ErrorOutlineIcon from "@mui/icons-material/ErrorOutline";
 import WarningAmberIcon from "@mui/icons-material/WarningAmber";
 import IconifyIcon from "components/base/IconifyIcon";
 import ArrowDropDownIcon from "@mui/icons-material/ArrowDropDown";
-import NoDataImage from "../../assets/no-data.svg";
+import NoDataImage from "../../assets/noData.svg";
 
 const HighlightsPanel = ({ notifications }) => {
   const [anchorEl, setAnchorEl] = useState(null);

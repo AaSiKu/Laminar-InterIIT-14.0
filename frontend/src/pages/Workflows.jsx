@@ -1,23 +1,16 @@
 import { useState, useCallback, useEffect, useRef } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import {
-  applyNodeChanges,
-  applyEdgeChanges,
-  addEdge,
-} from "@xyflow/react";
+import { applyNodeChanges, applyEdgeChanges, addEdge } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
-import {
-  Box,
-  Alert,
-  Snackbar,
-  IconButton,
-  Typography,
-} from "@mui/material";
-import BackspaceIcon from "@mui/icons-material/Backspace";
+import { Box, Alert, Snackbar, IconButton } from "@mui/material";
 import OpenInFullIcon from "@mui/icons-material/OpenInFull";
 import FullscreenExitIcon from "@mui/icons-material/FullscreenExit";
-import LockOpenIcon from "@mui/icons-material/LockOpen";
 import { PropertyBar } from "../components/workflow/PropertyBar";
+import {
+  LockMessageHelper,
+  ToolbarButtonHelper,
+  DeleteEdgeHelper,
+} from "../components/workflow/ToolbarHelpers";
 import { NodeDrawer } from "../components/workflow/NodeDrawer";
 import { nodeTypes, generateNode } from "../utils/dashboard.utils";
 import { useGlobalContext } from "../context/GlobalContext";
@@ -29,7 +22,6 @@ import {
   saveDraftsAPI,
 } from "../utils/pipelineUtils";
 import { fetchNodeSchema } from "../utils/dashboard.api";
-import TopBar from "../components/TopBar";
 import PipelineNavBar from "../components/workflow/PipelineNavBar";
 import BottomToolbar from "../components/workflow/BottomToolbar";
 import WorkflowCanvas from "../components/workflow/WorkflowCanvas";
@@ -48,7 +40,7 @@ export default function WorkflowPage() {
   const [hoveredToolbarButton, setHoveredToolbarButton] = useState(null);
   const navigate = useNavigate();
   const { pipelineId } = useParams();
-  
+
   // Deque-Based Undo/Redo System
   // Deque = array where:
   // - Left side (index 0) = oldest action (trash chute)
@@ -57,10 +49,10 @@ export default function WorkflowPage() {
   const [redoDeque, setRedoDeque] = useState([]);
   const isApplyingAction = useRef(false);
   const currentPipelineIdRef = useRef(null);
-  
+
   // Maximum undo history limit
   const MAX_UNDO_LIMIT = 10;
-  
+
   // Track node positions for move detection
   const nodePositionsRef = useRef({});
 
@@ -115,16 +107,19 @@ export default function WorkflowPage() {
 
   // Clear deques when pipeline changes
   useEffect(() => {
-    if (currentPipelineIdRef.current !== null && currentPipelineIdRef.current !== pipelineId) {
-      console.log('Pipeline changed - clearing undo/redo deques');
+    if (
+      currentPipelineIdRef.current !== null &&
+      currentPipelineIdRef.current !== pipelineId
+    ) {
+      console.log("Pipeline changed - clearing undo/redo deques");
       setUndoDeque([]);
       setRedoDeque([]);
       nodePositionsRef.current = {};
     }
     currentPipelineIdRef.current = pipelineId;
-    
+
     return () => {
-      console.log('Component unmounting - clearing deques');
+      console.log("Component unmounting - clearing deques");
       setUndoDeque([]);
       setRedoDeque([]);
       nodePositionsRef.current = {};
@@ -134,7 +129,7 @@ export default function WorkflowPage() {
   // Initialize node positions tracking
   useEffect(() => {
     const positions = {};
-    currentNodes.forEach(node => {
+    currentNodes.forEach((node) => {
       positions[node.id] = { x: node.position.x, y: node.position.y };
     });
     nodePositionsRef.current = positions;
@@ -144,177 +139,212 @@ export default function WorkflowPage() {
   // When limit is exceeded, remove from left side (oldest action)
   const addAction = useCallback((action) => {
     if (isApplyingAction.current) return;
-    
-    setUndoDeque(prev => {
+
+    setUndoDeque((prev) => {
       // Push new action to the RIGHT side (end of array)
       const newDeque = [...prev, action];
-      
+
       // If deque exceeds limit, remove from LEFT side (oldest action)
       if (newDeque.length > MAX_UNDO_LIMIT) {
         const removedAction = newDeque.shift(); // Remove oldest from left
-        console.log(`Undo limit reached. Removing oldest action: ${removedAction.type}`);
+        console.log(
+          `Undo limit reached. Removing oldest action: ${removedAction.type}`
+        );
       }
-      
-      console.log(`Action added to RIGHT: ${action.type} | Deque size: ${newDeque.length}/${MAX_UNDO_LIMIT}`);
+
+      console.log(
+        `Action added to RIGHT: ${action.type} | Deque size: ${newDeque.length}/${MAX_UNDO_LIMIT}`
+      );
       return newDeque;
     });
-    
+
     // Clear redo deque when new action is performed (breaks redo timeline)
     setRedoDeque([]);
-    
   }, []);
 
   // Execute an action (for redo)
-  const executeAction = useCallback((action) => {
-    isApplyingAction.current = true;
-    
-    switch (action.type) {
-      case 'ADD_NODE':
-        setCurrentNodes(prev => [...prev, action.node]);
-        break;
-        
-      case 'REMOVE_NODE':
-        setCurrentNodes(prev => prev.filter(n => n.id !== action.nodeId));
-        setCurrentEdges(prev => prev.filter(e => 
-          e.source !== action.nodeId && e.target !== action.nodeId
-        ));
-        break;
-        
-      case 'ADD_EDGE':
-        setCurrentEdges(prev => [...prev, action.edge]);
-        break;
-        
-      case 'REMOVE_EDGE':
-        setCurrentEdges(prev => prev.filter(e => e.id !== action.edgeId));
-        break;
-        
-      case 'MOVE_NODE':
-        setCurrentNodes(prev => prev.map(n => 
-          n.id === action.nodeId 
-            ? { ...n, position: action.newPosition }
-            : n
-        ));
-        nodePositionsRef.current[action.nodeId] = action.newPosition;
-        break;
-        
-      case 'UPDATE_PROPERTIES':
-        setCurrentNodes(prev => prev.map(n => 
-          n.id === action.nodeId 
-            ? { ...n, data: { ...n.data, properties: action.newProperties } }
-            : n
-        ));
-        break;
-        
-      default:
-        console.warn('Unknown action type:', action.type);
-    }
-    
-    setTimeout(() => {
-      isApplyingAction.current = false;
-    }, 50);
-  }, [setCurrentNodes, setCurrentEdges]);
+  const executeAction = useCallback(
+    (action) => {
+      isApplyingAction.current = true;
+
+      switch (action.type) {
+        case "ADD_NODE":
+          setCurrentNodes((prev) => [...prev, action.node]);
+          break;
+
+        case "REMOVE_NODE":
+          setCurrentNodes((prev) => prev.filter((n) => n.id !== action.nodeId));
+          setCurrentEdges((prev) =>
+            prev.filter(
+              (e) => e.source !== action.nodeId && e.target !== action.nodeId
+            )
+          );
+          break;
+
+        case "ADD_EDGE":
+          setCurrentEdges((prev) => [...prev, action.edge]);
+          break;
+
+        case "REMOVE_EDGE":
+          setCurrentEdges((prev) => prev.filter((e) => e.id !== action.edgeId));
+          break;
+
+        case "MOVE_NODE":
+          setCurrentNodes((prev) =>
+            prev.map((n) =>
+              n.id === action.nodeId
+                ? { ...n, position: action.newPosition }
+                : n
+            )
+          );
+          nodePositionsRef.current[action.nodeId] = action.newPosition;
+          break;
+
+        case "UPDATE_PROPERTIES":
+          setCurrentNodes((prev) =>
+            prev.map((n) =>
+              n.id === action.nodeId
+                ? {
+                    ...n,
+                    data: { ...n.data, properties: action.newProperties },
+                  }
+                : n
+            )
+          );
+          break;
+
+        default:
+          console.warn("Unknown action type:", action.type);
+      }
+
+      setTimeout(() => {
+        isApplyingAction.current = false;
+      }, 50);
+    },
+    [setCurrentNodes, setCurrentEdges]
+  );
 
   // Reverse an action (for undo)
-  const reverseAction = useCallback((action) => {
-    isApplyingAction.current = true;
-    
-    switch (action.type) {
-      case 'ADD_NODE':
-        // Reverse: Remove the node
-        setCurrentNodes(prev => prev.filter(n => n.id !== action.node.id));
-        // Also remove any edges connected to this node
-        setCurrentEdges(prev => prev.filter(e => 
-          e.source !== action.node.id && e.target !== action.node.id
-        ));
-        break;
-        
-      case 'REMOVE_NODE':
-        // Reverse: Add the node back
-        setCurrentNodes(prev => [...prev, action.node]);
-        // Restore edges connected to this node
-        if (action.connectedEdges && action.connectedEdges.length > 0) {
-          setCurrentEdges(prev => [...prev, ...action.connectedEdges]);
-        }
-        break;
-        
-      case 'ADD_EDGE':
-        // Reverse: Remove the edge
-        setCurrentEdges(prev => prev.filter(e => e.id !== action.edge.id));
-        break;
-        
-      case 'REMOVE_EDGE':
-        // Reverse: Add the edge back
-        setCurrentEdges(prev => [...prev, action.edge]);
-        break;
-        
-      case 'MOVE_NODE':
-        // Reverse: Move back to old position
-        setCurrentNodes(prev => prev.map(n => 
-          n.id === action.nodeId 
-            ? { ...n, position: action.oldPosition }
-            : n
-        ));
-        nodePositionsRef.current[action.nodeId] = action.oldPosition;
-        break;
-        
-      case 'UPDATE_PROPERTIES':
-        // Reverse: Restore old properties
-        setCurrentNodes(prev => prev.map(n => 
-          n.id === action.nodeId 
-            ? { ...n, data: { ...n.data, properties: action.oldProperties } }
-            : n
-        ));
-        break;
-        
-      default:
-        console.warn('Unknown action type:', action.type);
-    }
-    
-    setTimeout(() => {
-      isApplyingAction.current = false;
-    }, 50);
-  }, [setCurrentNodes, setCurrentEdges]);
+  const reverseAction = useCallback(
+    (action) => {
+      isApplyingAction.current = true;
+
+      switch (action.type) {
+        case "ADD_NODE":
+          // Reverse: Remove the node
+          setCurrentNodes((prev) =>
+            prev.filter((n) => n.id !== action.node.id)
+          );
+          // Also remove any edges connected to this node
+          setCurrentEdges((prev) =>
+            prev.filter(
+              (e) => e.source !== action.node.id && e.target !== action.node.id
+            )
+          );
+          break;
+
+        case "REMOVE_NODE":
+          // Reverse: Add the node back
+          setCurrentNodes((prev) => [...prev, action.node]);
+          // Restore edges connected to this node
+          if (action.connectedEdges && action.connectedEdges.length > 0) {
+            setCurrentEdges((prev) => [...prev, ...action.connectedEdges]);
+          }
+          break;
+
+        case "ADD_EDGE":
+          // Reverse: Remove the edge
+          setCurrentEdges((prev) =>
+            prev.filter((e) => e.id !== action.edge.id)
+          );
+          break;
+
+        case "REMOVE_EDGE":
+          // Reverse: Add the edge back
+          setCurrentEdges((prev) => [...prev, action.edge]);
+          break;
+
+        case "MOVE_NODE":
+          // Reverse: Move back to old position
+          setCurrentNodes((prev) =>
+            prev.map((n) =>
+              n.id === action.nodeId
+                ? { ...n, position: action.oldPosition }
+                : n
+            )
+          );
+          nodePositionsRef.current[action.nodeId] = action.oldPosition;
+          break;
+
+        case "UPDATE_PROPERTIES":
+          // Reverse: Restore old properties
+          setCurrentNodes((prev) =>
+            prev.map((n) =>
+              n.id === action.nodeId
+                ? {
+                    ...n,
+                    data: { ...n.data, properties: action.oldProperties },
+                  }
+                : n
+            )
+          );
+          break;
+
+        default:
+          console.warn("Unknown action type:", action.type);
+      }
+
+      setTimeout(() => {
+        isApplyingAction.current = false;
+      }, 50);
+    },
+    [setCurrentNodes, setCurrentEdges]
+  );
 
   const onNodesChange = useCallback(
     (changes) => {
       if (!isApplyingAction.current) {
-        changes.forEach(change => {
-          if (change.type === 'position' && change.dragging === false) {
+        changes.forEach((change) => {
+          if (change.type === "position" && change.dragging === false) {
             // Node move completed - record action
             const oldPosition = nodePositionsRef.current[change.id];
             const newPosition = change.position;
-            
+
             // Only record if position actually changed
-            if (oldPosition && (oldPosition.x !== newPosition.x || oldPosition.y !== newPosition.y)) {
+            if (
+              oldPosition &&
+              (oldPosition.x !== newPosition.x ||
+                oldPosition.y !== newPosition.y)
+            ) {
               addAction({
-                type: 'MOVE_NODE',
+                type: "MOVE_NODE",
                 nodeId: change.id,
                 oldPosition: { ...oldPosition },
-                newPosition: { ...newPosition }
+                newPosition: { ...newPosition },
               });
-              
+
               // Update tracked position
               nodePositionsRef.current[change.id] = { ...newPosition };
             }
-          } else if (change.type === 'remove') {
+          } else if (change.type === "remove") {
             // Node removal - find the node and its connected edges
-            const nodeToRemove = currentNodes.find(n => n.id === change.id);
-            const connectedEdges = currentEdges.filter(e => 
-              e.source === change.id || e.target === change.id
+            const nodeToRemove = currentNodes.find((n) => n.id === change.id);
+            const connectedEdges = currentEdges.filter(
+              (e) => e.source === change.id || e.target === change.id
             );
-            
+
             if (nodeToRemove) {
               addAction({
-                type: 'REMOVE_NODE',
+                type: "REMOVE_NODE",
                 nodeId: change.id,
                 node: JSON.parse(JSON.stringify(nodeToRemove)),
-                connectedEdges: JSON.parse(JSON.stringify(connectedEdges))
+                connectedEdges: JSON.parse(JSON.stringify(connectedEdges)),
               });
             }
           }
         });
       }
-      
+
       setCurrentNodes((ns) => applyNodeChanges(changes, ns));
     },
     [setCurrentNodes, addAction, currentNodes, currentEdges]
@@ -323,19 +353,19 @@ export default function WorkflowPage() {
   const onEdgesChange = useCallback(
     (changes) => {
       if (!isApplyingAction.current) {
-        changes.forEach(change => {
-          if (change.type === 'remove') {
+        changes.forEach((change) => {
+          if (change.type === "remove") {
             // Edge removal - find and store the edge
-            const edgeToRemove = currentEdges.find(e => e.id === change.id);
-            
+            const edgeToRemove = currentEdges.find((e) => e.id === change.id);
+
             if (edgeToRemove) {
               addAction({
-                type: 'REMOVE_EDGE',
+                type: "REMOVE_EDGE",
                 edgeId: change.id,
-                edge: JSON.parse(JSON.stringify(edgeToRemove))
+                edge: JSON.parse(JSON.stringify(edgeToRemove)),
               });
             }
-            
+
             // Clear selection if this edge was selected
             if (selectedEdge && change.id === selectedEdge.id) {
               setSelectedEdge(null);
@@ -343,7 +373,7 @@ export default function WorkflowPage() {
           }
         });
       }
-      
+
       setCurrentEdges((es) => applyEdgeChanges(changes, es));
     },
     [setCurrentEdges, addAction, currentEdges, selectedEdge]
@@ -351,15 +381,19 @@ export default function WorkflowPage() {
 
   const onConnect = useCallback(
     (params) => {
-      const newEdge = { ...params, id: `${params.source}-${params.target}-${Date.now()}`, animated: true };
-      
+      const newEdge = {
+        ...params,
+        id: `${params.source}-${params.target}-${Date.now()}`,
+        animated: true,
+      };
+
       if (!isApplyingAction.current) {
         addAction({
-          type: 'ADD_EDGE',
-          edge: JSON.parse(JSON.stringify(newEdge))
+          type: "ADD_EDGE",
+          edge: JSON.parse(JSON.stringify(newEdge)),
         });
       }
-      
+
       setCurrentEdges((es) => [...es, newEdge]);
     },
     [setCurrentEdges, addAction]
@@ -367,67 +401,77 @@ export default function WorkflowPage() {
 
   const handleAddNode = (schema) => {
     const newNode = generateNode(schema, currentNodes);
-    
+
     if (!isApplyingAction.current) {
       addAction({
-        type: 'ADD_NODE',
-        node: JSON.parse(JSON.stringify(newNode))
+        type: "ADD_NODE",
+        node: JSON.parse(JSON.stringify(newNode)),
       });
-      
+
       // Track position
       nodePositionsRef.current[newNode.id] = { ...newNode.position };
     }
-    
+
     setCurrentNodes((prev) => [...prev, newNode]);
   };
 
   // Undo/Redo handlers using Deque
   const handleUndo = useCallback(() => {
     if (undoDeque.length === 0) {
-      console.log('Cannot undo: Undo deque is empty');
+      console.log("Cannot undo: Undo deque is empty");
       return;
     }
-    
+
     // Pop action from RIGHT side of undo deque (newest action)
     const action = undoDeque[undoDeque.length - 1];
-    setUndoDeque(prev => prev.slice(0, -1));
-    
+    setUndoDeque((prev) => prev.slice(0, -1));
+
     // Reverse the action
     reverseAction(action);
-    
+
     // Push action to RIGHT side of redo deque
-    setRedoDeque(prev => [...prev, action]);
-    
-    console.log(`UNDO: ${action.type} | Undo deque: ${undoDeque.length - 1} | Redo deque: ${redoDeque.length + 1}`);
+    setRedoDeque((prev) => [...prev, action]);
+
+    console.log(
+      `UNDO: ${action.type} | Undo deque: ${
+        undoDeque.length - 1
+      } | Redo deque: ${redoDeque.length + 1}`
+    );
   }, [undoDeque, redoDeque, reverseAction]);
 
   const handleRedo = useCallback(() => {
     if (redoDeque.length === 0) {
-      console.log('Cannot redo: Redo deque is empty');
+      console.log("Cannot redo: Redo deque is empty");
       return;
     }
-    
+
     // Pop action from RIGHT side of redo deque (most recent undo)
     const action = redoDeque[redoDeque.length - 1];
-    setRedoDeque(prev => prev.slice(0, -1));
-    
+    setRedoDeque((prev) => prev.slice(0, -1));
+
     // Execute the action
     executeAction(action);
-    
+
     // Push action to RIGHT side of undo deque
-    setUndoDeque(prev => {
+    setUndoDeque((prev) => {
       const newDeque = [...prev, action];
-      
+
       // Check if we exceed limit after redo
       if (newDeque.length > MAX_UNDO_LIMIT) {
         const removedAction = newDeque.shift(); // Remove oldest from left
-        console.log(`Undo limit reached during redo. Removing oldest action: ${removedAction.type}`);
+        console.log(
+          `Undo limit reached during redo. Removing oldest action: ${removedAction.type}`
+        );
       }
-      
+
       return newDeque;
     });
-    
-    console.log(`REDO: ${action.type} | Undo deque: ${undoDeque.length + 1} | Redo deque: ${redoDeque.length - 1}`);
+
+    console.log(
+      `REDO: ${action.type} | Undo deque: ${
+        undoDeque.length + 1
+      } | Redo deque: ${redoDeque.length - 1}`
+    );
   }, [undoDeque, redoDeque, executeAction]);
 
   const handleToggleStatus = async () => {
@@ -496,23 +540,25 @@ export default function WorkflowPage() {
   };
 
   const handleLockToggle = () => {
-    setIsLocked(prev => !prev);
+    setIsLocked((prev) => !prev);
   };
 
   const handleUpdateProperties = (nodeId, data) => {
     if (!isApplyingAction.current) {
       // Find current properties before update
-      const node = currentNodes.find(n => n.id === nodeId);
+      const node = currentNodes.find((n) => n.id === nodeId);
       if (node) {
         addAction({
-          type: 'UPDATE_PROPERTIES',
+          type: "UPDATE_PROPERTIES",
           nodeId,
-          oldProperties: JSON.parse(JSON.stringify(node.data?.properties || {})),
-          newProperties: JSON.parse(JSON.stringify(data))
+          oldProperties: JSON.parse(
+            JSON.stringify(node.data?.properties || {})
+          ),
+          newProperties: JSON.parse(JSON.stringify(data)),
         });
       }
     }
-    
+
     setCurrentNodes((nds) =>
       nds.map((n, idx) =>
         n.id === nodeId ? { ...n, data: { ...n.data, properties: data } } : n
@@ -552,10 +598,10 @@ export default function WorkflowPage() {
 
         if (!isApplyingAction.current) {
           addAction({
-            type: 'ADD_NODE',
-            node: JSON.parse(JSON.stringify(newNode))
+            type: "ADD_NODE",
+            node: JSON.parse(JSON.stringify(newNode)),
           });
-          
+
           // Track position
           nodePositionsRef.current[newNode.id] = { ...newNode.position };
         }
@@ -588,10 +634,21 @@ export default function WorkflowPage() {
   useEffect(() => {
     const handleKeyDown = (e) => {
       // Press A to toggle add node drawer (only if not in an input field, not locked, and no other sidebar open)
-      if ((e.key === 'a' || e.key === 'A') && !isLocked && !isFullscreen && !e.ctrlKey && !e.metaKey) {
+      if (
+        (e.key === "a" || e.key === "A") &&
+        !isLocked &&
+        !isFullscreen &&
+        !e.ctrlKey &&
+        !e.metaKey
+      ) {
         // Check if focus is not on an input element
         const activeElement = document.activeElement;
-        if (activeElement && (activeElement.tagName === 'INPUT' || activeElement.tagName === 'TEXTAREA' || activeElement.isContentEditable)) {
+        if (
+          activeElement &&
+          (activeElement.tagName === "INPUT" ||
+            activeElement.tagName === "TEXTAREA" ||
+            activeElement.isContentEditable)
+        ) {
           return;
         }
         // Don't toggle if property bar is open
@@ -600,77 +657,101 @@ export default function WorkflowPage() {
         }
         e.preventDefault();
         // Toggle the drawer
-        setDrawerOpen(prev => !prev);
+        setDrawerOpen((prev) => !prev);
       }
       // Ctrl+Z or Cmd+Z for undo
-      if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) {
+      if ((e.ctrlKey || e.metaKey) && e.key === "z" && !e.shiftKey) {
         e.preventDefault();
         handleUndo();
       }
       // Ctrl+Y or Cmd+Y or Ctrl+Shift+Z for redo
-      if ((e.ctrlKey || e.metaKey) && (e.key === 'y' || (e.shiftKey && e.key === 'z'))) {
+      if (
+        (e.ctrlKey || e.metaKey) &&
+        (e.key === "y" || (e.shiftKey && e.key === "z"))
+      ) {
         e.preventDefault();
         handleRedo();
       }
     };
 
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [handleUndo, handleRedo, isLocked, isFullscreen, drawerOpen, selectedNode]);
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [
+    handleUndo,
+    handleRedo,
+    isLocked,
+    isFullscreen,
+    drawerOpen,
+    selectedNode,
+  ]);
 
   // Backspace to delete selected edge
   useEffect(() => {
     const handleKeyDown = (e) => {
-      if (e.key === 'Backspace' && selectedEdge && !isFullscreen && !isLocked) {
+      if (e.key === "Backspace" && selectedEdge && !isFullscreen && !isLocked) {
         e.preventDefault();
-        
+
         // Find the edge to delete
-        const edgeToRemove = currentEdges.find(edge => edge.id === selectedEdge.id);
-        
+        const edgeToRemove = currentEdges.find(
+          (edge) => edge.id === selectedEdge.id
+        );
+
         if (edgeToRemove && !isApplyingAction.current) {
           addAction({
-            type: 'REMOVE_EDGE',
+            type: "REMOVE_EDGE",
             edgeId: selectedEdge.id,
-            edge: JSON.parse(JSON.stringify(edgeToRemove))
+            edge: JSON.parse(JSON.stringify(edgeToRemove)),
           });
         }
-        
-        setCurrentEdges((edges) => edges.filter((edge) => edge.id !== selectedEdge.id));
+
+        setCurrentEdges((edges) =>
+          edges.filter((edge) => edge.id !== selectedEdge.id)
+        );
         setSelectedEdge(null);
       }
     };
 
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [selectedEdge, isFullscreen, isLocked, setCurrentEdges, addAction, currentEdges]);
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [
+    selectedEdge,
+    isFullscreen,
+    isLocked,
+    setCurrentEdges,
+    addAction,
+    currentEdges,
+  ]);
 
   // ESC to exit fullscreen
   useEffect(() => {
     if (!isFullscreen) return;
-    
+
     const handleKeyDown = (e) => {
-      if (e.key === 'Escape') {
+      if (e.key === "Escape") {
         handleExitFullscreen();
       }
     };
-    
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
   }, [isFullscreen]);
 
   // Create styled edges with selection highlighting
   const styledEdges = currentEdges.map((edge) => ({
     ...edge,
     selected: selectedEdge?.id === edge.id,
-    style: selectedEdge?.id === edge.id ? {
-      stroke: '#2196F3',
-      strokeWidth: 2.5,
-      filter: 'drop-shadow(0 0 2px rgba(33, 150, 243, 0.4))',
-    } : {
-      ...edge.style,
-      stroke: edge.style?.stroke || '#b1b1b7',
-      strokeWidth: edge.style?.strokeWidth || 2,
-    },
+    style:
+      selectedEdge?.id === edge.id
+        ? {
+            stroke: "#2196F3",
+            strokeWidth: 2.5,
+            filter: "drop-shadow(0 0 2px rgba(33, 150, 243, 0.4))",
+          }
+        : {
+            ...edge.style,
+            stroke: edge.style?.stroke || "#b1b1b7",
+            strokeWidth: edge.style?.strokeWidth || 2,
+          },
     animated: selectedEdge?.id === edge.id ? true : edge.animated,
   }));
 
@@ -715,7 +796,7 @@ export default function WorkflowPage() {
             bottom: 12,
             right: 12,
             display: "flex",
-            gap: 0.5, 
+            gap: 0.5,
             bgcolor: "#C3D3DB",
             borderRadius: "8px",
             padding: "4px 8px",
@@ -755,17 +836,17 @@ export default function WorkflowPage() {
           overflow: "hidden",
         }}
       >
-        {/* <TopBar/> */}
-
         <PipelineNavBar
           onBackClick={handleBackClick}
-          pipelineName={`Pipeline ${pipelineId ? pipelineId.toLowerCase() : 'a'}`}
+          pipelineName={`Pipeline ${
+            pipelineId ? pipelineId.toLowerCase() : "a"
+          }`}
           loading={loading}
           shareAnchorEl={shareAnchorEl}
           onShareClick={handleShareClick}
           onShareClose={handleShareClose}
           onSave={() =>
-            savePipelineAPI( 
+            savePipelineAPI(
               rfInstance,
               currentPipelineId,
               setCurrentPipelineId,
@@ -827,98 +908,16 @@ export default function WorkflowPage() {
           />
 
           {/* Lock Message Helper */}
-          {isLocked && !hoveredToolbarButton && (
-            <Box
-              sx={{
-                position: "absolute",
-                bottom: 56,
-                left: "50%",
-                transform: "translateX(-50%)",
-                display: "flex",
-                alignItems: "center",
-                gap: 0.3,
-                zIndex: 1000,
-              }}
-            >
-              <Typography 
-                variant="caption" 
-                sx={{ 
-                  fontSize: "0.6rem",
-                  color: "#000000",
-                  textShadow: "1px 1px 2px rgba(255, 255, 255, 0.9), -1px -1px 2px rgba(255, 255, 255, 0.9), 0 0 3px rgba(255, 255, 255, 0.8)",
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 0.2,
-                  fontWeight: 500,
-                }}
-              >
-                Click <LockOpenIcon sx={{ fontSize: 11 }} /> to unlock and make changes
-              </Typography>
-            </Box>
-          )}
+          {isLocked && !hoveredToolbarButton && <LockMessageHelper />}
 
           {/* Toolbar Button Helper */}
           {hoveredToolbarButton && (
-            <Box
-              sx={{
-                position: "absolute",
-                bottom: 56,
-                left: "50%",
-                transform: "translateX(-50%)",
-                display: "flex",
-                alignItems: "center",
-                gap: 0.3,
-                zIndex: 1000,
-              }}
-            >
-              <Typography 
-                variant="caption" 
-                sx={{ 
-                  fontSize: "0.6rem",
-                  color: "#000000",
-                  textShadow: "1px 1px 2px rgba(255, 255, 255, 0.9), -1px -1px 2px rgba(255, 255, 255, 0.9), 0 0 3px rgba(255, 255, 255, 0.8)",
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 0.2,
-                  fontWeight: 500,
-                }}
-              >
-                {hoveredToolbarButton === 'add' && 'Add Node (Press A)'}
-                {hoveredToolbarButton === 'undo' && 'Undo (Ctrl + Z)'}
-                {hoveredToolbarButton === 'redo' && 'Redo (Ctrl + Shift + Z)'}
-              </Typography>
-            </Box>
+            <ToolbarButtonHelper hoveredButton={hoveredToolbarButton} />
           )}
 
           {/* Delete Edge Helper */}
           {selectedEdge && !isLocked && !hoveredToolbarButton && (
-            <Box
-              sx={{
-                position: "absolute",
-                bottom: 56,
-                left: "50%",
-                transform: "translateX(-50%)",
-                display: "flex",
-                alignItems: "center",
-                gap: 0.3,
-                zIndex: 1000,
-              }}
-            >
-              <Typography 
-                variant="caption" 
-                sx={{ 
-                  fontSize: "0.6rem",
-                  color: "#000000",
-                  textShadow: "1px 1px 2px rgba(255, 255, 255, 0.9), -1px -1px 2px rgba(255, 255, 255, 0.9), 0 0 3px rgba(255, 255, 255, 0.8)",
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 0.2,
-                  fontWeight: 500,
-                }}
-              >
-                Click <BackspaceIcon sx={{ fontSize: 11 }} /> to delete connection
-              </Typography>
-            </Box>
+            <DeleteEdgeHelper />
           )}
 
           <BottomToolbar
