@@ -15,7 +15,7 @@ node_outputs = build_computational_graph(
 
 for metric_node_idx in graph["metric_node_descriptions"].keys():
     graph["metric_node_descriptions"][metric_node_idx]["special_columns_source_indexes"] = {
-        col: find_special_column_sources(metric_node_idx,col,graph["nodes"],graph["edges"],graph["id2index_map"]) for col in node_outputs[metric_node_idx].column_names() if is_special_column(col)
+        col: find_special_column_sources(metric_node_idx,col,graph) for col in node_outputs[metric_node_idx].column_names() if is_special_column(col)
     }
 
 pretty_print_metric_nodes(graph["metric_node_descriptions"])

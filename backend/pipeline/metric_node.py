@@ -1,7 +1,7 @@
 from lib.node import Node
 from .mappings.open_tel.prefix import open_tel_trace_id
 from typing import Optional, Dict, List, Any
-from .types import MetricNodeDescription
+from .types import MetricNodeDescription, Graph
 from .mappings import mappings
 import json
 
@@ -86,24 +86,22 @@ def return_ordered_ancestors(
 def find_special_column_sources(
     current_node_idx: int,
     special_col: str,
-    nodes: Dict[int, Node],
-    edges: List[Dict[str,Any]],
-    id2index_map: Dict[str, int],
+    graph: Graph
 ) -> List[int]:
     """
-    For each special column in the current node, find the last node(s) that contained
+    For the special column in the current node, find the last node(s) that contained
     that column before any node other than (filter, json_select, flatten) was applied.
     
     Args:
-        metric_node_idx: Index of the metric node
-        nodes: Dictionary mapping node indices to Node instances
-        node_outputs: List of Pathway tables (node outputs)
-        edges: List of edge dictionaries with 'source' and 'target' keys
-        id2index_map: Mapping from node IDs to indices
-    
+        current_node_idx: Index of the current node
+        special_col: Name of the special column
+        graph: Graph
     Returns:
-        Dictionary mapping special column names (in metric node) to source node indices
+        List of semantic sources of special_col
     """
+    nodes = graph["nodes"]
+    edges= graph["edges"]
+    id2index_map = graph["id2index_map"]
     # Build adjacency list for backward traversal: target -> [(source, edge_order)]
     # edge_order determines left (0) vs right (1) for joins
     incoming_edges: Dict[int, List[tuple[int, int]]] = {}
@@ -143,14 +141,14 @@ def find_special_column_sources(
             if current_node.node_id.find("join") != -1:
                 # Check which side(s) the column came from based on prefix
                 if special_col.startswith("_pw_left_"):
-                    sources.extend(find_special_column_sources(incoming_edges[current_node_idx][0],original_col,nodes,edges,id2index_map))
+                    sources.extend(find_special_column_sources(incoming_edges[current_node_idx][0],original_col,graph))
                     break
                 elif special_col.startswith("_pw_right_"):
-                    sources.extend(find_special_column_sources(incoming_edges[current_node_idx][1],original_col,nodes,edges,id2index_map))
+                    sources.extend(find_special_column_sources(incoming_edges[current_node_idx][1],original_col,graph))
                     break
                 else:
                     for parent_idx in incoming_edges[current_node_idx]:
-                        sources.extend(find_special_column_sources(parent_idx,original_col,nodes,edges,id2index_map))
+                        sources.extend(find_special_column_sources(parent_idx,original_col,graph))
                     break
             else:
                 special_col = original_col
@@ -164,23 +162,23 @@ def find_special_column_sources(
 
 def build_parent_graph_description(
     metric_node_idx: int,
-    nodes: List[Node],
-    dependencies: Dict[int, List[int]],
-    parsing_order: List[int]
+    graph: Graph
 ) -> str:
     """
     Build a natural language description of the parent graph for a metric node.
     
     Args:
         metric_node_idx: Index of the metric node
-        nodes: List of validated node instances
-        dependencies: Mapping of node index to list of parent indices
-        parsing_order: Topologically sorted node indices
+        graph: Graph
     
     Returns:
-        Natural language description of the parent graph
+        {
+            description: Natural language description of the parent graph
+        }
     """
-    
+    dependencies = graph["dependencies"]
+    nodes = graph["nodes"]
+    parsing_order = graph["parsing_order"]
     ordered_ancestors = return_ordered_ancestors(metric_node_idx,dependencies,parsing_order)
 
     # Build input variable mapping for each node
@@ -220,26 +218,20 @@ def build_parent_graph_description(
 
 
 def identify_metric_nodes_with_descriptions(
-    nodes: List[Node],
-    edges: List[Dict[str,Any]],
-    id2index_map: Dict[str, int],
-    dependencies: Dict[int, List[int]],
-    parsing_order: List[int]
-) -> Dict[int, str]:
+    graph: Graph
+) -> Dict[int, MetricNodeDescription]:
     """
     Identify metric nodes (nodes connected to TriggerRCA) and generate
     natural language descriptions of their parent graphs.
     
     Args:
-        nodes: List of validated node instances
-        edges: List of edge dictionaries from flowchart
-        id2index_map: Mapping of node IDs to indices
-        dependencies: Mapping of node index to list of parent indices
-        parsing_order: Topologically sorted node indices
-    
+        graph: Graph
     Returns:
-        Dictionary mapping metric node index to its parent graph description
+        Dictionary mapping metric node index to its MetricNodeDescription
     """
+    nodes = graph["nodes"]
+    dependencies = graph["dependencies"]
+    parsing_order = graph["parsing_order"]
     metric_descriptions = {}
     
     # Find all TriggerRCA nodes
@@ -259,9 +251,7 @@ def identify_metric_nodes_with_descriptions(
                 # Generate description for this metric node
                 description, description_indexes_mapping = build_parent_graph_description(
                     metric_node_idx,
-                    nodes,
-                    dependencies,
-                    parsing_order
+                    graph
                 )
                 metric_descriptions[metric_node_idx] = {
                     "description": description,

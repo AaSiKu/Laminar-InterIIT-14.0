@@ -85,19 +85,17 @@ def read_and_validate_graph(filepath: str) -> Graph:
     parsing_order, dependencies = validate_graph_topology(
         nodes, data["edges"], id2index_map
     )
-    
-    # Identify metric nodes and generate descriptions
-    metric_node_descriptions = identify_metric_nodes_with_descriptions(
-        nodes, data["edges"], id2index_map, dependencies, parsing_order
-    )
-    
-    return {
+    graph = {
         **data,
         "parsing_order": parsing_order,
         "nodes": nodes,
         "dependencies": dependencies,
         "agents": agents,
-        "metric_node_descriptions": metric_node_descriptions,
         "id2index_map": id2index_map
     }
+    # Identify metric nodes and generate descriptions
+    metric_node_descriptions = identify_metric_nodes_with_descriptions(graph)
+    
+    graph["metric_node_descriptions"] = metric_node_descriptions
+    return graph
 
