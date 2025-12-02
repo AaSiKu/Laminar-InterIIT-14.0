@@ -131,11 +131,11 @@ export default function OverviewPage() {
                     </Box>
                   ) : (
                     workflows.map((workflow) => (
-                      <RecentWorkflowCard
-                        key={workflow.id}
-                        workflow={workflow}
-                        onClick={() => handleSelectTemplate(workflow.id)}
-                      />
+                    <RecentWorkflowCard
+                      key={workflow.id}
+                      workflow={workflow}
+                      onClick={() => handleSelectTemplate(workflow.id)}
+                    />
                     ))
                   )}
                 </div>

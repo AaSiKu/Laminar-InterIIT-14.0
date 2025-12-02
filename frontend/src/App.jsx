@@ -11,10 +11,11 @@ import { AdminPage } from "./pages/Admin.jsx";
 import {WorkflowsList} from "./pages/WorkflowsList.jsx"
 import { DeveloperDashboardProject } from "./pages/DeveloperDashboardProject.jsx";
 import NotFoundPage from "./pages/NotFoundPage.jsx";
+import TestPage from "./pages/Test.jsx";
 
 function AppContent() {
   const location = useLocation();
-  const isPublicRoute = ["/", "/login", "/signup", "/404"];
+  const isPublicRoute = ["/", "/login", "/signup", "/404", "/test"];
 
   return (
     <>
@@ -25,6 +26,7 @@ function AppContent() {
         <Route path="/signup" element={<SignupPage />} />
         <Route path="/" element={<Navigate to="/overview" />} />
         <Route path="/404" element={<NotFoundPage />} />
+        <Route path="/test" element={<TestPage />} />
 
         {/* Protected routes */}
         <Route
