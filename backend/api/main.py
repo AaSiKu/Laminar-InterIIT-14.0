@@ -1,15 +1,9 @@
 import os
-import logging
-import os
 import docker
 import asyncio
 from dotenv import load_dotenv
-from typing_extensions import Annotated
-from typing import Any, Dict, List, Union, Optional, Type
-from pydantic import BaseModel, Field
 from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware 
-from fastapi.security import OAuth2PasswordBearer
+from fastapi.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
 from contextlib import asynccontextmanager
 from backend.api.routers.auth.database import Base
@@ -78,7 +72,7 @@ async def lifespan(app: FastAPI):
     app.state.refresh_token_expire_minutes = int(os.getenv("REFRESH_TOKEN_EXPIRE_MINUTES", 43200))
     app.state.revoked_tokens = set()  # default 30 days
     app.state.docker_client = docker.from_env()
-    
+
     print(f"Connected to docker daemon")
 
     asyncio.create_task(watch_changes(notification_collection))
@@ -108,15 +102,13 @@ async def lifespan(app: FastAPI):
 app = FastAPI(title="Pipeline API", lifespan=lifespan)
 
 origins = [
-    # TODO: Add final domain, port here
-    "http://localhost:4173",
-    "http://localhost",
+    # TODO: Add final domain
     "http://localhost:5173",
     "http://localhost:8083"
 ]
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

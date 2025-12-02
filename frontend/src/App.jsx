@@ -8,10 +8,10 @@ import WorkflowPage from "./pages/Workflows.jsx";
 import Sidebar from "./components/sidebar.jsx";
 import OverviewPage from "./pages/Overview.jsx";
 import { AdminPage } from "./pages/Admin.jsx";
+import {WorkflowsList} from "./pages/WorkflowsList.jsx"
 import { DeveloperDashboardProject } from "./pages/DeveloperDashboardProject.jsx";
-import ThemeTestPage from "./pages/ThemeTestPage.jsx";
 import NotFoundPage from "./pages/NotFoundPage.jsx";
-import { Box } from "@mui/material";
+
 function AppContent() {
   const location = useLocation();
   const isPublicRoute = ["/", "/login", "/signup", "/404"];
@@ -31,11 +31,18 @@ function AppContent() {
           path="/workflow"
           element={
             <ProtectedRoute>
+              <WorkflowsList />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/workflows/:pipelineId"
+          element={
+            <ProtectedRoute>
               <WorkflowPage />
             </ProtectedRoute>
           }
         />
-        {/* Default route */}
         <Route
           path="/overview"
           element={
@@ -60,14 +67,6 @@ function AppContent() {
             </ProtectedRoute>
           }
         />
-          <Route
-            path="/theme-test"
-            element={
-              <ProtectedRoute>
-                <ThemeTestPage />
-              </ProtectedRoute>
-            }
-          />
         <Route path="*" element={<Navigate to="/404" />} />
       </Routes>
     </>

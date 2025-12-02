@@ -4,12 +4,11 @@ import OverviewSection from "../components/dashboard/OverviewSection";
 import KPICard from "../components/dashboard/KPICard";
 import RecentWorkflowCard from "../components/dashboard/RecentWorkflowCard";
 import HighlightsPanel from "../components/dashboard/HighlightsPanel";
-import ThemeToggler from "../components/ThemeToggler";
+import TopBar from "../components/TopBar";
 import {
   fetchWorkflows,
   fetchNotifications,
   fetchOverviewData,
-  fetchKPIData,
 } from "../utils/developerDashboard.api";
 import { useNavigate } from "react-router-dom";
 import "../css/overview.css";
@@ -36,7 +35,6 @@ export default function OverviewPage() {
   const navigate = useNavigate();
   const [workflows, setWorkflows] = useState([]);
   const [notifications, setNotifications] = useState([]);
-  const [kpiData, setKpiData] = useState([]);
   const [overviewData, setOverviewData] = useState(null);
   const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false);
 
@@ -48,13 +46,12 @@ export default function OverviewPage() {
       const overview = await fetchOverviewData();
       setOverviewData(overview);
 
-      const kpis = await fetchKPIData();
-      setKpiData(kpis);
-
-      const { items } = await fetchNotifications();
-      setNotifications(items);
+      const ws = await fetchNotifications();
+      ws.onmessage = (event) => {
+        const newNotification = JSON.parse(event.data);
+        setNotifications((prev) => [...prev, newNotification]);
+      };
     };
-
     loadData();
   }, []);
 
@@ -67,30 +64,12 @@ export default function OverviewPage() {
     const projectId = `${templateId}-${randomSuffix}`;
     navigate(`/workflow/${projectId}`);
   };
-
+  console.log();
   return (
     <>
-    <div className="overview-container">
+    <div className="below-sidebar-container">
       <div className="overview-main">
-        <Box
-          className="overview-topbar"
-          sx={{
-            borderBottom: '1px solid',
-            borderColor: 'divider',
-          }}
-        >
-          <div className="overview-topbar-left">
-            <input
-              type="text"
-              placeholder="Search"
-              className="overview-search-input"
-            />
-          </div>
-          <div className="overview-topbar-right">
-            <ThemeToggler type="slim" />
-            <div className="overview-user-avatar">U</div>
-          </div>
-        </Box>
+        <TopBar userAvatar="https://i.pravatar.cc/40" />
 
         <div className="overview-content-wrapper">
           <div className="overview-left-content">
@@ -99,15 +78,15 @@ export default function OverviewPage() {
               mt: { xs: '-16px', md: '-32px' },
               width: { xs: 'calc(100% + 32px)', md: 'calc(100% + 64px)' },
             }}>
-              <Grid container spacing={0}>
+              {overviewData && <Grid container spacing={0}>
                 <Grid size={{ xs: 12, md: 6, xl: 7 }}>
-                  {overviewData && <OverviewSection data={overviewData} />}
+                  {overviewData["pie_chart"] && <OverviewSection data={overviewData["pie_chart"]} />}
                 </Grid>
 
                 <Grid container size={{ xs: 12, md: 6, xl: 5 }} spacing={0}>
-                  {kpiData.map((kpi, index) => {
+                  {overviewData["kpi"] && overviewData["kpi"].map((kpi, index) => {
                     const IconComponent = getIconComponent(kpi.iconType);
-                    const totalKpis = kpiData.length;
+                    const totalKpis = overviewData["kpi"].length;
                     const isFirstRow = index < Math.ceil(totalKpis / 2);
                     const isLastRow = index >= totalKpis - Math.ceil(totalKpis / 2);
                     return (
@@ -125,38 +104,38 @@ export default function OverviewPage() {
                     );
                   })}
                 </Grid>
-              </Grid>
+              </Grid>}
             </Box>
 
-            <div className="overview-horizontal-divider" />
+              <div className="overview-horizontal-divider" />
 
-            <div className="overview-workflows-section">
-              <div className="overview-workflows-header">
-                <Typography variant="h6" className="overview-workflows-title">
-                  Recent Workflows
-                </Typography>
-                <div className="overview-more-btn">
-                  <MoreHorizIcon className="overview-more-icon" />
+              <div className="overview-workflows-section">
+                <div className="overview-workflows-header">
+                  <Typography variant="h6" className="overview-workflows-title">
+                    Recent Workflows
+                  </Typography>
+                  <div className="overview-more-btn">
+                    <MoreHorizIcon className="overview-more-icon" />
+                  </div>
+                </div>
+                <div className="overview-workflows-list">
+                  {workflows.map((workflow) => (
+                    <RecentWorkflowCard
+                      key={workflow.id}
+                      workflow={workflow}
+                      onClick={() => handleSelectTemplate(workflow.id)}
+                    />
+                  ))}
                 </div>
               </div>
-              <div className="overview-workflows-list">
-                {workflows.map((workflow) => (
-                  <RecentWorkflowCard
-                    key={workflow.id}
-                    workflow={workflow}
-                    onClick={() => handleSelectTemplate(workflow.id)}
-                  />
-                ))}
-              </div>
             </div>
-          </div>
 
-          <div className="overview-highlights-panel">
-            <HighlightsPanel notifications={notifications} />
+            <div className="overview-highlights-panel">
+              <HighlightsPanel notifications={notifications} />
+            </div>
           </div>
         </div>
       </div>
-    </div>
 
       {/* Floating Action Button for Mobile/Tablet */}
       <Fab

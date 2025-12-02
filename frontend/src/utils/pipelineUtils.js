@@ -112,7 +112,7 @@ const saveDraftsAPI = async (
   description = ""
 ) => {
   if (!version_id || !rfInstance) {
-    setError("Can not save draft");
+    setError("Can't save draft");
     setLoading(false);
     return null;
   }

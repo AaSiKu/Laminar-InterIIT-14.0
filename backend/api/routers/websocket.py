@@ -16,6 +16,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 load_dotenv()
+active_connections = set()
 
 router = APIRouter()
 

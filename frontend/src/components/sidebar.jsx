@@ -33,10 +33,7 @@ const Sidebar = () => {
   const theme = useTheme();
   const { logout, isAuthenticated } = useContext(AuthContext);
   const location = useLocation();
-  const {
-    sidebarOpen,
-    setSideBarOpen,
-  } = useGlobalContext();
+  const { sidebarOpen, setSideBarOpen } = useGlobalContext();
   const [drawerOpen, setDrawerOpen] = useState(false);
 
   useEffect(() => {
@@ -78,127 +75,149 @@ const Sidebar = () => {
   const drawerWidth = drawerOpen ? DRAWER_WIDTH : SIDEBAR_WIDTH;
 
   return (
-    <Drawer
-      variant="permanent"
-      open={drawerOpen}
-      sx={{
-        width: drawerWidth,
-        flexShrink: 0,
-        whiteSpace: "nowrap",
-        boxSizing: "border-box",
-        transition: theme.transitions.create("width", {
-          easing: theme.transitions.easing.sharp,
-          duration: drawerOpen
-            ? theme.transitions.duration.enteringScreen
-            : theme.transitions.duration.leavingScreen,
-        }),
-        [`& .${drawerClasses.paper}`]: {
+    <>
+      {/* Backdrop when drawer is open */}
+      {drawerOpen && (
+        <Box
+          onClick={handleDrawerClose}
+          sx={{
+            position: "fixed",
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: "rgba(0, 0, 0, 0.5)",
+            zIndex: 2499,
+          }}
+        />
+      )}
+
+      <Drawer
+        variant="permanent"
+        open={drawerOpen}
+        sx={{
           width: drawerWidth,
+          flexShrink: 0,
+          whiteSpace: "nowrap",
+          boxSizing: "border-box",
           transition: theme.transitions.create("width", {
             easing: theme.transitions.easing.sharp,
             duration: drawerOpen
               ? theme.transitions.duration.enteringScreen
               : theme.transitions.duration.leavingScreen,
           }),
-          overflowX: "hidden",
-          position: "fixed",
-          backgroundColor: drawerOpen ? 'background.elevation1' : 'background.paper',
-          borderRight: '1px solid',
-          borderColor: 'divider',
-          zIndex: 2500,
-          boxShadow: drawerOpen
-            ? theme.shadows[4]
-            : theme.shadows[1],
-        },
-      }}
-    >
-      {/* Header with logo and menu/close button */}
-      <Box
-        sx={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: drawerOpen ? "space-between" : "center",
-          padding: theme.spacing(1, 2.4),
-          minHeight: 64,
-          borderBottom: drawerOpen ? '1px solid' : 'none',
-          borderColor: 'divider',
+          [`& .${drawerClasses.paper}`]: {
+            width: drawerWidth,
+            transition: theme.transitions.create("width", {
+              easing: theme.transitions.easing.sharp,
+              duration: drawerOpen
+                ? theme.transitions.duration.enteringScreen
+                : theme.transitions.duration.leavingScreen,
+            }),
+            overflowX: "hidden",
+            position: "fixed",
+            backgroundColor: drawerOpen
+              ? "background.elevation1"
+              : "background.paper",
+            borderRight: "1px solid",
+            borderColor: "divider",
+            zIndex: 2500,
+            boxShadow: drawerOpen ? theme.shadows[4] : theme.shadows[1],
+          },
         }}
       >
-        {/* Logo - visible when expanded */}
-        {drawerOpen && (
-          <Box
-            component="img"
-            src={Logo}
-            alt="Logo"
-            sx={{
-              height: 24,
-              width: "auto",
-              objectFit: "contain",
-              transition: theme.transitions.create(["opacity", "transform"], {
-                easing: theme.transitions.easing.sharp,
-                duration: theme.transitions.duration.enteringScreen,
-              }),
-            }}
-          />
-        )}
-        
-        <IconButton 
-          onClick={drawerOpen ? handleDrawerClose : handleDrawerOpen} 
-          sx={{ 
-            color: 'primary.main',
-            '& svg': {
-              fontSize: '1.5rem', // Make menu/close icon larger
-            },
+        {/* Header with logo and menu/close button */}
+        <Box
+          sx={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: drawerOpen ? "space-between" : "center",
+            padding: theme.spacing(1, 2.4),
+            minHeight: 64,
+            borderBottom: drawerOpen ? "1px solid" : "none",
+            borderColor: "divider",
           }}
         >
-          {drawerOpen ? <ChevronLeft /> : <MenuIcon />}
-        </IconButton>
-      </Box>
+          {/* Logo - visible when expanded */}
+          {drawerOpen && (
+            <Box
+              component="img"
+              src={Logo}
+              alt="Logo"
+              sx={{
+                height: 24,
+                width: "auto",
+                objectFit: "contain",
+                transition: theme.transitions.create(["opacity", "transform"], {
+                  easing: theme.transitions.easing.sharp,
+                  duration: theme.transitions.duration.enteringScreen,
+                }),
+              }}
+            />
+          )}
 
-      <Divider />
+          <IconButton
+            onClick={drawerOpen ? handleDrawerClose : handleDrawerOpen}
+            sx={{
+              color: "primary.main",
+              "& svg": {
+                fontSize: "1.5rem", // Make menu/close icon larger
+              },
+            }}
+          >
+            {drawerOpen ? <ChevronLeft /> : <MenuIcon />}
+          </IconButton>
+        </Box>
 
-      <List>
-        {menuItems.map((item, index) => {
-          const isActive = item.path && location.pathname.startsWith(item.path);
-          return (
-            <ListItem key={index} disablePadding sx={{ display: "block" }}>
-              <Tooltip
-                title={item.label}
-                placement="right"
-                arrow
-                disableHoverListener={drawerOpen}
-              >
-                <ListItemButton
-                  sx={{
-                    minHeight: 48,
-                    justifyContent: drawerOpen ? "initial" : "center",
-                    px: drawerOpen ? 3 : 2.5,
-                    my: 0.5,
-                    mx: 1,
-                    borderRadius: 1,
-                    backgroundColor: isActive ? 'action.selected' : 'transparent',
-                    transition: theme.transitions.create(
-                      ["background-color", "color"],
-                      {
-                        easing: theme.transitions.easing.easeInOut,
-                        duration: theme.transitions.duration.short,
+        <Divider />
+
+        <List>
+          {menuItems.map((item, index) => {
+            const isActive =
+              item.path && location.pathname.startsWith(item.path);
+            return (
+              <ListItem key={index} disablePadding sx={{ display: "block" }}>
+                <Tooltip
+                  title={item.label}
+                  placement="right"
+                  arrow
+                  disableHoverListener={drawerOpen}
+                >
+                  <ListItemButton
+                    sx={{
+                      minHeight: 48,
+                      justifyContent: drawerOpen ? "initial" : "center",
+                      px: drawerOpen ? 3 : 2.5,
+                      my: 0.5,
+                      mx: 1,
+                      borderRadius: 1,
+                      backgroundColor: isActive
+                        ? "action.selected"
+                        : "transparent",
+                      transition: theme.transitions.create(
+                        ["background-color", "color"],
+                        {
+                          easing: theme.transitions.easing.easeInOut,
+                          duration: theme.transitions.duration.short,
+                        }
+                      ),
+                      "&:hover": {
+                        backgroundColor: isActive
+                          ? "action.hover"
+                          : "action.hover",
+                      },
+                    }}
+                    onClick={() => {
+                      if (!isAuthenticated && item.path !== "/") {
+                        navigate("/login");
+                        return;
                       }
-                    ),
-                    "&:hover": {
-                      backgroundColor: isActive ? 'action.hover' : 'action.hover',
-                    },
-                  }}
-                  onClick={() => {
-                    if (!isAuthenticated && item.path !== "/") {
-                      navigate("/login");
-                      return;
-                    }
 
-                    if (item.onClickExtra) item.onClickExtra();
-                    if (item.onClick) {
-                      item.onClick();
-                      return;
-                    }
+                      if (item.onClickExtra) item.onClickExtra();
+                      if (item.onClick) {
+                        item.onClick();
+                        return;
+                      }
 
                       if (item.path) navigate(item.path);
                     }}
@@ -206,15 +225,15 @@ const Sidebar = () => {
                     <ListItemIcon
                       sx={{
                         minWidth: 0,
-                        mr: drawerOpen ? 3 : 'auto',
-                        justifyContent: 'center',
-                        color: isActive ? 'primary.main' : 'text.secondary',
-                        transition: theme.transitions.create('color', {
+                        mr: drawerOpen ? 3 : "auto",
+                        justifyContent: "center",
+                        color: isActive ? "primary.main" : "text.secondary",
+                        transition: theme.transitions.create("color", {
                           easing: theme.transitions.easing.easeInOut,
                           duration: theme.transitions.duration.short,
                         }),
-                        '& svg': {
-                          fontSize: '1.5rem', // Make icons larger
+                        "& svg": {
+                          fontSize: "1.5rem", // Make icons larger
                         },
                       }}
                     >
@@ -224,33 +243,36 @@ const Sidebar = () => {
                       primary={item.label}
                       primaryTypographyProps={{
                         sx: {
-                          color: isActive ? 'primary.main' : 'text.primary',
+                          color: isActive ? "primary.main" : "text.primary",
                           fontWeight: isActive ? 600 : 400,
-                          fontSize: '0.875rem',
-                          transition: theme.transitions.create(['color', 'font-weight'], {
-                            easing: theme.transitions.easing.easeInOut,
-                            duration: theme.transitions.duration.short,
-                          }
-                        ),
-                      },
-                    }}
-                    sx={{
-                      opacity: drawerOpen ? 1 : 0,
-                      transition: theme.transitions.create("opacity", {
-                        easing: theme.transitions.easing.sharp,
-                        duration: drawerOpen
-                          ? theme.transitions.duration.enteringScreen
-                          : theme.transitions.duration.leavingScreen,
-                      }),
-                    }}
-                  />
-                </ListItemButton>
-              </Tooltip>
-            </ListItem>
-          );
-        })}
-      </List>
-    </Drawer>
+                          fontSize: "0.875rem",
+                          transition: theme.transitions.create(
+                            ["color", "font-weight"],
+                            {
+                              easing: theme.transitions.easing.easeInOut,
+                              duration: theme.transitions.duration.short,
+                            }
+                          ),
+                        },
+                      }}
+                      sx={{
+                        opacity: drawerOpen ? 1 : 0,
+                        transition: theme.transitions.create("opacity", {
+                          easing: theme.transitions.easing.sharp,
+                          duration: drawerOpen
+                            ? theme.transitions.duration.enteringScreen
+                            : theme.transitions.duration.leavingScreen,
+                        }),
+                      }}
+                    />
+                  </ListItemButton>
+                </Tooltip>
+              </ListItem>
+            );
+          })}
+        </List>
+      </Drawer>
+    </>
   );
 };
 

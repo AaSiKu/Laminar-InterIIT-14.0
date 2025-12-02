@@ -1,16 +1,15 @@
 /* Developer Dashboard Styles - Layout and Positioning Only */
 
 /* Main Container */
-.overview-container {
+.below-sidebar-container {
   height: 100vh;
   display: flex;
   overflow: hidden; /* Prevent scrolling at the top level */
   margin-left: 64px; /* Account for sidebar width */
 }
 
-/* Remove sidebar margin on very small screens if needed */
 @media (max-width: 600px) {
-  .overview-container {
+  .below-sidebar-container {
     margin-left: 64px; /* Keep sidebar margin even on mobile */
   }
 }
