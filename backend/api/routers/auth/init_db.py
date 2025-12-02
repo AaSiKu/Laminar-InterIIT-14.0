@@ -12,7 +12,7 @@ project_root = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(project_root))
 
 from dotenv import load_dotenv
-from .database import get_engine, Base
+from database import get_engine, Base
 
 load_dotenv()
 

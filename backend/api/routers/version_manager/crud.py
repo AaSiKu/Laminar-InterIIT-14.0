@@ -1,7 +1,7 @@
 
 from datetime import datetime
-async def create_pipeline(user_identifier,version_collection,workflow_collection,mongo_client):
-    graph_doc = {
+async def create_workflow(user_identifier,version_collection,workflow_collection,mongo_client):
+    pipeline_doc = {
                     "edges": [],
                     "nodes": [],
                     "viewport": {
@@ -15,11 +15,13 @@ async def create_pipeline(user_identifier,version_collection,workflow_collection
         "user_id": user_identifier,
         "version_created_at": datetime.now(),
         "version_updated_at": datetime.now(),
-        "pipeline": graph_doc
+        "pipeline": pipeline_doc
     }
-    pipeline_doc = {
-                "user_id": user_identifier,
-                "status": False,
+    workflow_doc = {
+                "owner_ids": [user_identifier],
+                "viewer_ids": [],
+                "start_Date": None,
+                "status": "Stopped",
                 "container_id": "",
                 "agent_container_id": "",
                 "agent_port": "",
@@ -36,14 +38,12 @@ async def create_pipeline(user_identifier,version_collection,workflow_collection
 
             version = await version_collection.insert_one(version_doc, session=session)
             version_doc["_id"] = version.inserted_id
-            pipeline_doc["versions"]=[str(version.inserted_id)]
-            pipeline_doc["version_id"] = str(version.inserted_id)
-
-            result = await workflow_collection.insert_one(pipeline_doc, session=session)
-            pipeline_doc["_id"] = result.inserted_id
-
+            workflow_doc["versions"]=[str(version.inserted_id)]
+            workflow_doc["current_version_id"] = str(version.inserted_id)
+            result = await workflow_collection.insert_one(workflow_doc, session=session)
+            workflow_doc["_id"] = result.inserted_id
             await session.commit_transaction()
-            return pipeline_doc
+            return workflow_doc
 
         except Exception as e:
             await session.abort_transaction()

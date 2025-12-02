@@ -13,11 +13,13 @@ import csv
 load_dotenv()
 MONGO_URI = os.getenv("MONGO_URI")
 MONGO_DB = os.getenv("MONGO_DB", "db")
-MONGO_COLLECTION = os.getenv("MONGO_COLLECTION", "pipelines")
+WORKFLOW_COLLECTION = os.getenv("WORKFLOW_COLLECTION", "workflows")
+VERSION_COLLECTION = os.getenv("VERSION_COLLECTION", "versions")
 
 mongo_client = None
 db = None
-collection = None
+workflow_collection = None
+version_collection = None
 
 PROMPTS_FILE = "prompts.csv"
 FLOWCHART_FILE = os.getenv("FLOWCHART_FILE", "flowchart.json")
@@ -29,7 +31,7 @@ def create_prompts_file():
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    global mongo_client, db, collection
+    global mongo_client, db, workflow_collection, version_collection
 
     # ---- STARTUP ----
     if not MONGO_URI:
@@ -37,7 +39,8 @@ async def lifespan(app: FastAPI):
 
     mongo_client = AsyncIOMotorClient(MONGO_URI)
     db = mongo_client[MONGO_DB]
-    collection = db[MONGO_COLLECTION]
+    workflow_collection = db[WORKFLOW_COLLECTION]
+    version_collection = db[VERSION_COLLECTION]
     print(f"Connected to MongoDB at {MONGO_URI}, DB: {MONGO_DB}", flush=True)
 
     # Hand over control to FastAPI runtime
@@ -93,15 +96,23 @@ async def trigger_pipeline(request: Request):
     create_prompts_file()
     if not pipeline_id:
         raise HTTPException(status_code=400, detail="PIPELINE_ID not set in environment")
+    
+    # Fetch workflow and version
+    workflow = await workflow_collection.find_one({"_id": ObjectId(pipeline_id)})
+    if not workflow:
+        raise HTTPException(status_code=404, detail=f"No workflow found with id={pipeline_id}")
+    
+    if "current_version_id" not in workflow:
+        raise HTTPException(status_code=404, detail=f"Workflow {pipeline_id} has no current_version_id")
+    
+    version = await version_collection.find_one({"_id": ObjectId(workflow["current_version_id"])})
+    if not version:
+        raise HTTPException(status_code=404, detail=f"No version found with id={workflow['current_version_id']}")
 
-    # Fetch record
-    record = await collection.find_one({"_id": ObjectId(pipeline_id)})
-    if not record:
-        raise HTTPException(status_code=404, detail=f"No pipeline found with id={pipeline_id}")
 
     # Write FLOWCHART_FILE
     with open(FLOWCHART_FILE, "w") as f:
-        json.dump(record["pipeline"], f, indent=2)
+        json.dump(version["pipeline"], f, indent=2)
 
     # Run pipeline
     run_pipeline()
