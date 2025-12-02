@@ -19,7 +19,7 @@ async def create_pipeline(user_identifier,version_collection,workflow_collection
     }
     pipeline_doc = {
                 "user_id": user_identifier,
-                "status": False,
+                "status": "Stopped",
                 "container_id": "",
                 "agent_container_id": "",
                 "agent_port": "",

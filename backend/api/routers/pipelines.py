@@ -7,6 +7,7 @@ import docker
 import httpx
 import logging
 from fastapi import Request
+from datetime import datetime, timedelta
 
 
 logger = logging.getLogger(__name__)
@@ -101,22 +102,22 @@ async def run_pipeline_endpoint(request_obj: Request, request: PipelineIdRequest
     client = request_obj.app.state.docker_client
     workflow_collection = request_obj.app.state.workflow_collection
     pipeline = await workflow_collection.find_one({'_id': ObjectId(request.pipeline_id)})
-    if not pipeline or not pipeline.get('pipeline_host_port'):
+    if not pipeline or not pipeline.get('host_port') or not pipeline.get("host_ip"):
         raise HTTPException(status_code=404, detail="Pipeline not found or not running")
 
-    port = pipeline['pipeline_host_port']
+    port = pipeline['host_port']
     ip = pipeline['host_ip']
     url = f"http://{ip}:{port}/trigger"
     
     async with httpx.AsyncClient() as client:
         try:
-            response = await client.post(url)
-            response.raise_for_status()
+            # response = await client.post(url)
+            # response.raise_for_status()
             await workflow_collection.update_one(
                 {'_id': ObjectId(request.pipeline_id)},
-                {'$set': {'status': True}}
+                {'$set': {'status': "Runnign", "last_started": datetime.now()}}
             )
-            return response.json()
+            # return response.json()
         except httpx.RequestError as exc:
             raise HTTPException(status_code=500, detail=f"Failed to trigger pipeline: {exc}")
 
@@ -128,22 +129,31 @@ async def stop_pipeline_endpoint(request_obj: Request, request: PipelineIdReques
     client = request_obj.app.state.docker_client
     workflow_collection = request_obj.app.state.workflow_collection
     pipeline = await workflow_collection.find_one({'_id': ObjectId(request.pipeline_id)})
-    if not pipeline or not pipeline.get('pipeline_host_port'):
+    if not pipeline or not pipeline.get('host_port') or not pipeline.get('host_ip'):
         raise HTTPException(status_code=404, detail="Pipeline not found or not running")
 
-    port = pipeline['pipeline_host_port']
+    port = pipeline['host_port']
     ip = pipeline['host_ip']
     url = f"http://{ip}:{port}/stop"
     
     async with httpx.AsyncClient() as client:
         try:
-            response = await client.post(url)
-            response.raise_for_status()
+            # response = await client.post(url)
+            # response.raise_for_status()
+            doc = await workflow_collection.find_one({'_id': ObjectId(request.pipeline_id)})
+            last_started = doc["last_started"]
+            print(type(last_started))
+            try:
+                prev_runtime = doc["runtime"]
+            except:
+                prev_runtime = 0
+            new_runtime = prev_runtime + (datetime.now() - last_started).total_seconds()
             await workflow_collection.update_one(
                 {'_id': ObjectId(request.pipeline_id)},
-                {'$set': {'status': False}}
+                {'$set': {'status': False, "runtime": new_runtime}}
             )
-            return response.json()
+            return {}
+            # return response.json()
         except httpx.RequestError as exc:
             raise HTTPException(status_code=500, detail=f"Failed to stop pipeline: {exc}")
 

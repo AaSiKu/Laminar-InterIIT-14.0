@@ -60,6 +60,6 @@ async def get_db():
         from fastapi import HTTPException, status
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail=f"Database connection failed: {str(e)}. Please ensure PostgreSQL is running and accessible."
+            detail=f"{str(e)}"
         )
 

@@ -1,4 +1,4 @@
-import { BaseNode } from "../components/BaseNode";
+import { BaseNode } from "../components/workflow/BaseNode";
 
 // TODO: As the nodeTypes is a in memory, it is lost when i leave the page for some time,
 // hence the ui resets to simple rectangle box
@@ -115,8 +115,8 @@ export const addNodeType = (schema) => {
     };
 
     const defaultStyles = {
-      bgColor: categoryColor + "20",
-      hoverBgColor: categoryColor + "35",
+      bgColor: categoryColor,
+      hoverBgColor: categoryColor,
       color: categoryColor,
       borderColor: categoryColor,
     };
@@ -130,9 +130,9 @@ export const addNodeType = (schema) => {
         data={data}
         selected={selected}
         styles={{
-          bgColor: categoryColor + "20", // translucent fill
-          hoverBgColor: categoryColor + "35",
-          color: categoryColor, // text color
+          bgColor: categoryColor, // solid color
+          hoverBgColor: categoryColor,
+          color: categoryColor,
           borderColor: categoryColor,
         }}
         inputs={
@@ -158,16 +158,25 @@ export const addNodeType = (schema) => {
 };
 
 const hashColor = (str) => {
-  let hash = 0;
-  for (let i = 0; i < str.length; i++) {
-    hash = str.charCodeAt(i) + ((hash << 5) - hash);
-  }
-  return `#${((hash >> 24) & 0xff).toString(16).padStart(2, "0")}${(
-    (hash >> 16) &
-    0xff
-  )
-    .toString(16)
-    .padStart(2, "0")}${((hash >> 8) & 0xff)
-    .toString(16)
-    .padStart(2, "0")}`.slice(0, 7);
+  // Category-based color mapping matching the image design
+  const categoryColors = {
+    // Input nodes (blue - matching image)
+    "input": "#93C5FD",  // Light blue
+    // Output nodes (pink - matching image)
+    "output": "#FDA4AF",  // Pink
+    // Table/transformation nodes (teal/green)
+    "table": "#86EFAC",  // Light green
+    // Windowing nodes (orange - matching image)
+    "temporal": "#FDB87E",  // Orange/peach
+    // Logic/control flow (purple - matching image)
+    "logic": "#C4B5FD",  // Lavender purple
+    // Agent nodes (purple)
+    "agent": "#C4B5FD",  // Lavender purple
+    // Action nodes (orange/peach)
+    "action": "#FDB87E",  // Orange/peach
+    // Default fallback
+    "default": "#94A3B8",  // Slate grey
+  };
+
+  return categoryColors[str] || categoryColors["default"];
 };

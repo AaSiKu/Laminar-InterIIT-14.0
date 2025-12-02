@@ -7,6 +7,8 @@ import {
   Typography,
   Alert,
   Paper,
+  useTheme,
+  Link,
 } from "@mui/material";
 import { AuthContext } from "../context/AuthContext";
 import PersonAddIcon from "@mui/icons-material/PersonAdd";
@@ -16,6 +18,7 @@ import PersonIcon from "@mui/icons-material/Person";
 import { useNavigate } from "react-router-dom";
 
 export default function SignupPage() {
+  const theme = useTheme();
   const { login, isAuthenticated } = useContext(AuthContext);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -24,7 +27,7 @@ export default function SignupPage() {
   const navigate = useNavigate();
   const API_SERVER = import.meta.env.VITE_API_SERVER;
   useEffect(() => {
-    if (isAuthenticated) navigate("/developer-dashboard");
+    if (isAuthenticated) navigate("/overview");
   }, [isAuthenticated]);
 
 const handleSubmit = async (e) => {
@@ -65,23 +68,13 @@ const handleSubmit = async (e) => {
     <Box
       sx={{
         minHeight: "100vh",
-        minWidth: "100vw",
+        maxWidth: "100vw",
         display: "flex",
         justifyContent: "center",
         alignItems: "center",
-        background: "#f0f2f5", // Changed to a light grey background
+        bgcolor: 'background.default',
         position: "relative",
         overflow: "hidden",
-        "&::before": {
-          content: '""',
-          position: "absolute",
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          background: "none", // Removed radial gradients
-          pointerEvents: "none",
-        },
         p: 2,
       }}
     >
@@ -92,10 +85,11 @@ const handleSubmit = async (e) => {
           maxWidth: 480,
           width: "100%",
           borderRadius: "24px",
-          background: "rgba(255, 255, 255, 0.95)",
+          bgcolor: 'background.paper',
           backdropFilter: "blur(10px)",
-          border: "1px solid rgba(255, 255, 255, 0.3)",
-          boxShadow: "0 8px 32px 0 rgba(31, 38, 135, 0.2)",
+          border: "1px solid",
+          borderColor: 'divider',
+          boxShadow: theme.shadows[8],
           position: "relative",
           zIndex: 1,
         }}
@@ -114,12 +108,12 @@ const handleSubmit = async (e) => {
               width: 64,
               height: 64,
               borderRadius: "16px",
-              background: "linear-gradient(135deg, #3b82f6, #2563eb)",
+              background: `linear-gradient(135deg, ${theme.palette.primary.main}, ${theme.palette.primary.dark})`,
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
               mb: 2,
-              boxShadow: "0 8px 20px rgba(59, 130, 246, 0.4)",
+              boxShadow: `0 8px 20px ${theme.palette.primary.main}40`,
             }}
           >
             <PersonAddIcon sx={{ fontSize: 32, color: "white" }} />
@@ -188,15 +182,15 @@ const handleSubmit = async (e) => {
               sx={{
                 "& .MuiOutlinedInput-root": {
                   borderRadius: "12px",
-                  background: "rgba(248, 250, 252, 0.8)",
+                  bgcolor: 'background.elevation1',
                   transition: "all 0.3s ease",
                   "&:hover": {
-                    background: "rgba(255, 255, 255, 1)",
-                    boxShadow: "0 4px 12px rgba(59, 130, 246, 0.08)",
+                    bgcolor: 'background.paper',
+                    boxShadow: `0 4px 12px ${theme.palette.primary.main}14`,
                   },
                   "&.Mui-focused": {
-                    background: "rgba(255, 255, 255, 1)",
-                    boxShadow: "0 4px 12px rgba(59, 130, 246, 0.15)",
+                    bgcolor: 'background.paper',
+                    boxShadow: `0 4px 12px ${theme.palette.primary.main}26`,
                   },
                 },
               }}
@@ -228,15 +222,15 @@ const handleSubmit = async (e) => {
               sx={{
                 "& .MuiOutlinedInput-root": {
                   borderRadius: "12px",
-                  background: "rgba(248, 250, 252, 0.8)",
+                  bgcolor: 'background.elevation1',
                   transition: "all 0.3s ease",
                   "&:hover": {
-                    background: "rgba(255, 255, 255, 1)",
-                    boxShadow: "0 4px 12px rgba(59, 130, 246, 0.08)",
+                    bgcolor: 'background.paper',
+                    boxShadow: `0 4px 12px ${theme.palette.primary.main}14`,
                   },
                   "&.Mui-focused": {
-                    background: "rgba(255, 255, 255, 1)",
-                    boxShadow: "0 4px 12px rgba(59, 130, 246, 0.15)",
+                    bgcolor: 'background.paper',
+                    boxShadow: `0 4px 12px ${theme.palette.primary.main}26`,
                   },
                 },
               }}
@@ -268,15 +262,15 @@ const handleSubmit = async (e) => {
               sx={{
                 "& .MuiOutlinedInput-root": {
                   borderRadius: "12px",
-                  background: "rgba(248, 250, 252, 0.8)",
+                  bgcolor: 'background.elevation1',
                   transition: "all 0.3s ease",
                   "&:hover": {
-                    background: "rgba(255, 255, 255, 1)",
-                    boxShadow: "0 4px 12px rgba(59, 130, 246, 0.08)",
+                    bgcolor: 'background.paper',
+                    boxShadow: `0 4px 12px ${theme.palette.primary.main}14`,
                   },
                   "&.Mui-focused": {
-                    background: "rgba(255, 255, 255, 1)",
-                    boxShadow: "0 4px 12px rgba(59, 130, 246, 0.15)",
+                    bgcolor: 'background.paper',
+                    boxShadow: `0 4px 12px ${theme.palette.primary.main}26`,
                   },
                 },
               }}
@@ -294,8 +288,8 @@ const handleSubmit = async (e) => {
               fontSize: 16,
               borderRadius: "12px",
               textTransform: "none",
-              background: "linear-gradient(135deg, #3b82f6, #2563eb)",
-              boxShadow: "0 8px 20px rgba(59, 130, 246, 0.35)",
+              background: `linear-gradient(135deg, ${theme.palette.primary.main}, ${theme.palette.primary.dark})`,
+              boxShadow: `0 8px 20px ${theme.palette.primary.main}59`,
               transition: "all 0.3s ease",
               position: "relative",
               overflow: "hidden",
@@ -312,7 +306,7 @@ const handleSubmit = async (e) => {
               },
               "&:hover": {
                 transform: "translateY(-2px)",
-                boxShadow: "0 12px 30px rgba(59, 130, 246, 0.5)",
+                boxShadow: `0 12px 30px ${theme.palette.primary.main}80`,
                 "&::before": {
                   left: "100%",
                 },
@@ -327,7 +321,7 @@ const handleSubmit = async (e) => {
         </Box>
 
         {/* Sign In Link */}
-        <Box sx={{ mt: 4, pt: 3, borderTop: "1px solid rgba(0, 0, 0, 0.06)" }}>
+        <Box sx={{ mt: 4, pt: 3, borderTop: "1px solid", borderColor: 'divider' }}>
           <Typography
             sx={{
               textAlign: "center",
@@ -336,19 +330,20 @@ const handleSubmit = async (e) => {
             }}
           >
             Already have an account?{" "}
-            <a
+            <Link
               href="/login"
-              style={{
-                color: "#3b82f6",
+              sx={{
+                color: "primary.main",
                 textDecoration: "none",
                 fontWeight: 600,
                 transition: "all 0.2s ease",
+                "&:hover": {
+                  color: "primary.dark",
+                },
               }}
-              onMouseEnter={(e) => (e.target.style.color = "#2563eb")}
-              onMouseLeave={(e) => (e.target.style.color = "#3b82f6")}
             >
               Sign In
-            </a>
+            </Link>
           </Typography>
         </Box>
       </Paper>

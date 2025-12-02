@@ -25,4 +25,5 @@ __all__ = [
     "alert_node_fn",
     "apply_datetime_conversions",
     "MappingValues",
+    "parse_table_schema",
 ]

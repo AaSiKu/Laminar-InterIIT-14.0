@@ -1,45 +1,39 @@
-import { useState, useCallback, useEffect } from "react";
-import { useNavigate } from "react-router-dom"; // Import useNavigate
-import {
-  ReactFlow,
-  Background,
-  Controls,
-  applyNodeChanges,
-  applyEdgeChanges,
-  addEdge,
-} from "@xyflow/react";
+import { useState, useEffect } from "react";
+import { useNavigate, useParams } from "react-router-dom";
 import "@xyflow/react/dist/style.css";
-import {
-  AppBar,
-  Toolbar,
-  Button,
-  Box,
-  useTheme,
-  useMediaQuery,
-  Alert,
-  Snackbar,
-  CircularProgress,
-} from "@mui/material";
-import { PropertyBar } from "../components/PropertyBar";
-import { NodeDrawer } from "../components/NodeDrawer";
-import { nodeTypes, generateNode } from "../utils/dashboard.utils";
+import { Box, Alert, Snackbar } from "@mui/material";
+
 import { useGlobalContext } from "../context/GlobalContext";
 import {
   savePipelineAPI,
   toggleStatus as togglePipelineStatus,
-  fetchAndSetPipeline,
   spinupPipeline,
   spindownPipeline,
-  create_pipeline,
   saveDraftsAPI,
-  deleteDrafts,
-  deletePipeline,
 } from "../utils/pipelineUtils";
+import PipelineNavBar from "../components/workflow/PipelineNavBar";
+import Playground from "../components/workflow/Playground";
 
+/**
+ * Toggle status logic helper
+ * TODO: need to fix this logic for setting status to Broken/Running/Stopped
+ */
+function toggleStatusLogic(variable) {
+  return variable;
+}
+
+/**
+ * WorkflowPage Component
+ *
+ * A page for editing and managing a specific pipeline workflow.
+ * Uses the Playground component for the visual node editor and handles
+ * pipeline-specific operations like save, run, spinup/spindown.
+ */
 export default function WorkflowPage() {
-  const [selectedNode, setSelectedNode] = useState(null);
-  const [drawerOpen, setDrawerOpen] = useState(false);
-  
+  const [shareAnchorEl, setShareAnchorEl] = useState(null);
+  const navigate = useNavigate();
+  const { pipelineId } = useParams();
+
   const {
     currentEdges,
     currentNodes,
@@ -52,7 +46,6 @@ export default function WorkflowPage() {
     currentPipelineId,
     rfInstance,
     setCurrentPipelineId,
-    dashboardSidebarOpen,
     loading,
     setLoading,
     error,
@@ -64,17 +57,18 @@ export default function WorkflowPage() {
     setCurrentVersionId,
   } = useGlobalContext();
 
+  // Auto-save drafts when pipeline changes, TODO: check for debounce
   useEffect(() => {
     if (currentPipelineId) {
       setLoading(true);
-        
-                  saveDraftsAPI(
-                    currentVersionId,
-                    rfInstance,
-                    setCurrentVersionId, 
-                    setLoading,
-                    setError,
-                )
+
+      saveDraftsAPI(
+        currentVersionId,
+        rfInstance,
+        setCurrentVersionId,
+        setLoading,
+        setError
+      )
         .catch((err) => setError(err.message))
         .finally(() => setLoading(false));
     }
@@ -90,26 +84,7 @@ export default function WorkflowPage() {
     setContainerId,
   ]);
 
-  const onNodesChange = useCallback(
-    (changes) => setCurrentNodes((ns) => applyNodeChanges(changes, ns)),
-    [setCurrentNodes]
-  );
-
-  const onEdgesChange = useCallback(
-    (changes) => setCurrentEdges((es) => applyEdgeChanges(changes, es)),
-    [setCurrentEdges]
-  );
-
-  const onConnect = useCallback(
-    (params) =>
-      setCurrentEdges((es) => addEdge({ ...params, animated: true }, es)),
-    [setCurrentEdges]
-  );
-
-  const handleAddNode = (schema) => {
-    setCurrentNodes((prev) => [...prev, generateNode(schema, currentNodes)]);
-  };
-
+  // Pipeline status toggle handler
   const handleToggleStatus = async () => {
     setLoading(true);
     setError(null);
@@ -118,9 +93,7 @@ export default function WorkflowPage() {
         currentPipelineId,
         currentPipelineStatus
       );
-      setCurrentPipelineStatus(
-        newStatus["status"] === "stopped" ? false : true
-      );
+      setCurrentPipelineStatus(toggleStatusLogic(newStatus["status"]));
     } catch (err) {
       setError(err.message);
     } finally {
@@ -128,6 +101,7 @@ export default function WorkflowPage() {
     }
   };
 
+  // Spin up pipeline container
   const handleSpinup = async () => {
     setLoading(true);
     setError(null);
@@ -137,11 +111,11 @@ export default function WorkflowPage() {
     } catch (err) {
       setError(err.message);
     } finally {
-      console.log(currentPipelineId);
       setLoading(false);
     }
   };
 
+  // Spin down pipeline container
   const handleSpindown = async () => {
     setLoading(true);
     setError(null);
@@ -155,22 +129,44 @@ export default function WorkflowPage() {
     }
   };
 
-  const onNodeClick = (event, node) => {
-    setSelectedNode(node);
-  };
-
-  const handleUpdateProperties = (nodeId, updatedProps) => {
-    setCurrentNodes((nds) =>
-      nds.map((n, idx) =>
-        n.id === nodeId
-          ? { ...n, data: { ...n.data, properties: updatedProps } }
-          : n
-      )
+  // Save pipeline handler
+  const handleSave = () => {
+    savePipelineAPI(
+      rfInstance,
+      currentPipelineId,
+      setCurrentPipelineId,
+      currentVersionId,
+      setCurrentVersionId,
+      setError,
+      setLoading
     );
-    setSelectedNode(null);
   };
 
-  const drawerWidth = 64 + (dashboardSidebarOpen ? 325 : 0);
+  // Share menu handlers
+  const handleShareClick = (event) => {
+    setShareAnchorEl(event.currentTarget);
+  };
+
+  const handleShareClose = () => {
+    setShareAnchorEl(null);
+  };
+
+  // Back navigation
+  const handleBackClick = () => {
+    navigate("/workflows");
+  };
+
+  // Handle nodes change from Playground
+  const handleNodesChange = (newNodes) => {
+    setCurrentNodes(newNodes);
+  };
+
+  // Handle edges change from Playground
+  const handleEdgesChange = (newEdges) => {
+    setCurrentEdges(newEdges);
+  };
+
+  const drawerWidth = 64;
 
   return (
     <>
@@ -182,110 +178,42 @@ export default function WorkflowPage() {
           width: `calc(100vw - ${drawerWidth}px)`,
           height: "100vh",
           bgcolor: "background.default",
+          overflow: "hidden",
         }}
       >
-        <AppBar
-          position="static"
-          color="inherit"
-          elevation={1}
-          sx={{
-            borderBottom: 1,
-            borderColor: "divider",
-            bgcolor: "background.paper",
-          }}
-        >
-          <Toolbar
-            sx={{
-              display: "flex",
-              height: "6vh",
-              justifyContent: "end",
-            }}
-          >
-            <Box
-              sx={{
-                display: "flex",
-                gap: 2,
-                justifyContent: "end",
-                alignContent: "center",
-              }}
-            >
-              {loading && <CircularProgress size={24} />}
+        {/* Pipeline Navigation Bar */}
+        <PipelineNavBar
+          onBackClick={handleBackClick}
+          pipelineName={`Pipeline ${
+            pipelineId ? pipelineId.toLowerCase() : "a"
+          }`}
+          loading={loading}
+          shareAnchorEl={shareAnchorEl}
+          onShareClick={handleShareClick}
+          onShareClose={handleShareClose}
+          onSave={handleSave}
+          onSpinup={handleSpinup}
+          onSpindown={handleSpindown}
+          onToggleStatus={handleToggleStatus}
+          currentPipelineStatus={currentPipelineStatus}
+          currentPipelineId={currentPipelineId}
+          containerId={containerId}
+        />
 
-              <Button
-                variant="outlined"
-                onClick={() =>
-                  savePipelineAPI(
-                    rfInstance,
-                    currentPipelineId,
-                    setCurrentPipelineId,
-                    currentVersionId,
-                    setCurrentVersionId,
-                  setError,
-                  setLoading
-                )}
-                disabled={loading}
-              >
-                Save
-              </Button>
-              <Button
-                variant="outlined"
-                onClick={handleSpinup}
-                disabled={loading || !currentPipelineId || !!containerId}
-              >
-                Spin Up
-              </Button>
-              <Button
-                variant="outlined"
-                onClick={handleToggleStatus}
-                disabled={loading || !currentPipelineId || !containerId}
-              >
-                {currentPipelineStatus ? "Stop" : "Run"}
-              </Button>
-              <Button
-                variant="outlined"
-                onClick={handleSpindown}
-                disabled={loading || !currentPipelineId || !containerId}
-              >
-                Spin Down
-              </Button>
-              <Button variant="contained" onClick={() => setDrawerOpen(true)}>
-                {" "}
-                + Add Node
-              </Button>
-            </Box>
-          </Toolbar>
-        </AppBar>
-
-        <Box sx={{ height: "87vh", bgcolor: "white" }}>
-          <ReactFlow
-            nodes={currentNodes}
-            edges={currentEdges}
-            nodeTypes={nodeTypes}
-            onNodesChange={onNodesChange}
-            onEdgesChange={onEdgesChange}
-            onConnect={onConnect}
-            onNodeClick={onNodeClick}
-            onInit={setRfInstance}
-            fitView
-          >
-            <Controls position="top-right" />
-            <Background color="#aaa" gap={16} />
-          </ReactFlow>
-        </Box>
+        {/* Playground - Visual Node Editor */}
+        <Playground
+          nodes={currentNodes}
+          edges={currentEdges}
+          onNodesChange={handleNodesChange}
+          onEdgesChange={handleEdgesChange}
+          onInit={setRfInstance}
+          height="calc(100vh - 48px)"
+          showToolbar={true}
+          showFullscreenButton={true}
+        />
       </Box>
 
-      <NodeDrawer
-        open={drawerOpen}
-        onClose={() => setDrawerOpen(false)}
-        onAddNode={handleAddNode}
-        setNodes={setCurrentNodes}
-      />
-      <PropertyBar
-        open={Boolean(selectedNode)}
-        selectedNode={selectedNode}
-        onClose={() => setSelectedNode(null)}
-        onUpdateProperties={handleUpdateProperties}
-      />
+      {/* Error Snackbar */}
       <Snackbar
         open={!!error}
         autoHideDuration={6000}

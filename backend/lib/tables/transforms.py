@@ -1,4 +1,5 @@
-from typing import Literal, List, Tuple, TypedDict
+from typing import Literal, List, Tuple
+from typing_extensions import TypedDict
 from .base import TableNode, ReducerDict
 
 ops = Literal["==", "<", "<=", ">=", ">", "!=", "startswith", "endswith", "find"]

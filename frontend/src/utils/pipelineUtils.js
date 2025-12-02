@@ -1,28 +1,34 @@
 import { addNodeType } from "./dashboard.utils.jsx";
 import { fetchNodeSchema } from "./dashboard.api";
 
-//Create a pipeline first to avoid the error of using a random id 
+//Create a pipeline first to avoid the error of using a random id
 //TODO: a user should only first create a piepline thn use these fucntion, useing currentPipelineId or version id uses random and undefined values
 //----------------------- Create Pipeline--------------------------------//
 
-const create_pipeline = async(
-    setCurrentPipelineId,
-    setCurrentVersionId,
-    setError,
-    setLoading,) => {
+const create_pipeline = async (
+  setCurrentPipelineId,
+  setCurrentVersionId,
+  setError,
+  setLoading
+) => {
   setLoading(true);
-  try{
-    const response = await fetch(`${import.meta.env.VITE_API_SERVER}/version/create_pipeline`, {
-      method: "POST",
-      credentials: "include",
-      headers: {
-        "Content-Type": "application/json",
-      },
-    });
+  try {
+    const response = await fetch(
+      `${import.meta.env.VITE_API_SERVER}/version/create_pipeline`,
+      {
+        method: "POST",
+        credentials: "include",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      }
+    );
 
     if (!response.ok) {
       const errText = await response.text();
-      throw new Error(`Failed to create pipeline: ${errText || response.status}`);
+      throw new Error(
+        `Failed to create pipeline: ${errText || response.status}`
+      );
     }
 
     const data = await response.json();
@@ -35,22 +41,20 @@ const create_pipeline = async(
   } finally {
     setLoading(false);
   }
-}
-
-
+};
 
 //----------------------- Save pipeline and Drafts---------------------------------------//
 
 const savePipelineAPI = async (
-    rfInstance,
-    currentPipelineId,
-    setCurrentPipelineId,
-    currentVersionId,
-    setCurrentVersionId,
-    setError,
-    setLoading,
-    versionDescription="") => {
-
+  rfInstance,
+  currentPipelineId,
+  setCurrentPipelineId,
+  currentVersionId,
+  setCurrentVersionId,
+  setError,
+  setLoading,
+  versionDescription = ""
+) => {
   if (!(currentPipelineId && currentVersionId && rfInstance)) {
     return;
   }
@@ -59,20 +63,23 @@ const savePipelineAPI = async (
   try {
     const flow = rfInstance.toObject();
 
-    const response = await fetch(`${import.meta.env.VITE_API_SERVER}/version/save`, {
-      method: "POST",
-      credentials: "include", 
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        pipeline_id: currentPipelineId,
-        current_version_id: currentVersionId,
-        version_description: versionDescription || "",
-        version_updated_at: new Date().toISOString(),
-        pipeline: flow,
-      }),
-    });
+    const response = await fetch(
+      `${import.meta.env.VITE_API_SERVER}/version/save`,
+      {
+        method: "POST",
+        credentials: "include",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          pipeline_id: currentPipelineId,
+          current_version_id: currentVersionId,
+          version_description: versionDescription || "",
+          version_updated_at: new Date().toISOString(),
+          pipeline: flow,
+        }),
+      }
+    );
 
     if (!response.ok) {
       const errText = await response.text();
@@ -96,27 +103,28 @@ const savePipelineAPI = async (
   }
 };
 
-
-const saveDraftsAPI=async( 
+const saveDraftsAPI = async (
   version_id,
   rfInstance,
-  setCurrentVersionId, 
+  setCurrentVersionId,
   setLoading,
   setError,
-  description="")=>{
+  description = ""
+) => {
+  if (!version_id || !rfInstance) {
+    setError("Can't save draft");
+    setLoading(false);
+    return null;
+  }
 
-    if (!version_id || !rfInstance) {
-      setError("Can not save draft");
-      setLoading(false);
-      return null;
-    }
-
-    setLoading(true)
-    try{
-      const flow = rfInstance.toObject();
-      const response = await fetch(`${import.meta.env.VITE_API_SERVER}/version/save_draft`, {
+  setLoading(true);
+  try {
+    const flow = rfInstance.toObject();
+    const response = await fetch(
+      `${import.meta.env.VITE_API_SERVER}/version/save_draft`,
+      {
         method: "POST",
-        credentials: "include", 
+        credentials: "include",
         headers: {
           "Content-Type": "application/json",
         },
@@ -125,7 +133,8 @@ const saveDraftsAPI=async(
           version_description: description || "",
           pipeline: flow,
         }),
-      });
+      }
+    );
     if (!response.ok) {
       const errText = await response.text();
       throw new Error(`Failed to save draft: ${errText || response.status}`);
@@ -142,11 +151,9 @@ const saveDraftsAPI=async(
   } finally {
     setLoading(false);
   }
-}
-
+};
 
 //-------------------------------- Retrieve Pipeline at a version---------------------------------//
-
 
 async function fetchAndSetPipeline(pipeline_id, version_id, setters) {
   const {
@@ -166,17 +173,20 @@ async function fetchAndSetPipeline(pipeline_id, version_id, setters) {
   }
 
   setLoading(true);
-  const res = await fetch(`${import.meta.env.VITE_API_SERVER}/version/retrieve_pipeline`, {
-    method: "POST",
-    credentials: "include",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      pipeline_id: pipeline_id,
-      version_id: version_id,
-    }),
-  });
+  const res = await fetch(
+    `${import.meta.env.VITE_API_SERVER}/version/retrieve_pipeline`,
+    {
+      method: "POST",
+      credentials: "include",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        pipeline_id: pipeline_id,
+        version_id: version_id,
+      }),
+    }
+  );
 
   if (!res.ok) {
     throw new Error(`Unable to fetch file, status: ${res.status}`);
@@ -184,15 +194,15 @@ async function fetchAndSetPipeline(pipeline_id, version_id, setters) {
   const result = await res.json();
   const pipeline = result["pipeline"];
   const version = result["version"];
-  
+
   if (!pipeline || !version) {
     setLoading(false);
     return null;
   }
-  
+
   // Extract pipeline data - the pipeline dict has a 'pipeline' key containing the actual flow data
   const pipelineData = pipeline?.pipeline;
-  
+
   // Get version_id from version object
   if (version) {
     const vid = version["_id"] || version["version_id"];
@@ -200,7 +210,7 @@ async function fetchAndSetPipeline(pipeline_id, version_id, setters) {
       setCurrentVersionId(String(vid));
     }
   }
-  
+
   // Get pipeline_id from pipeline object
   if (pipeline) {
     const pid = pipeline["_id"] || pipeline["pipeline_id"];
@@ -214,7 +224,7 @@ async function fetchAndSetPipeline(pipeline_id, version_id, setters) {
       setContainerId(pipeline["container_id"]);
     }
   }
-  
+
   if (pipelineData && typeof pipelineData === "object") {
     await add_to_node_types(pipelineData?.nodes || []);
     setCurrentEdges(pipelineData["edges"] || []);
@@ -223,14 +233,12 @@ async function fetchAndSetPipeline(pipeline_id, version_id, setters) {
       setViewport(pipelineData["viewport"]);
     }
   }
-  
+
   setLoading(false);
   return result;
 }
 
-
 //------------------------------Delete Pipeline and Drafts-----------------------------------//
-
 
 async function deletePipeline(
   pipeline_id,
@@ -244,28 +252,32 @@ async function deletePipeline(
   setCurrentPipelineStatus,
   setLoading,
   setError
-){
-  
+) {
   setLoading(true);
-  try{
+  try {
     if (!pipeline_id) {
       setError("Can not delte pipeline temporarily");
       return null;
     }
-    const res = await fetch(`${import.meta.env.VITE_API_SERVER}/version/delete_pipeline?pipeline_id=${pipeline_id}`, {
-      method: "POST",
-      credentials: "include",
-      headers: {
-        "Content-Type": "application/json",
-      },
-    });
+    const res = await fetch(
+      `${
+        import.meta.env.VITE_API_SERVER
+      }/version/delete_pipeline?pipeline_id=${pipeline_id}`,
+      {
+        method: "POST",
+        credentials: "include",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      }
+    );
 
     if (!res.ok) {
       throw new Error(`Unable to delete file, status: ${res.status}`);
     }
 
     const result = await res.json();
-    if(pipeline_id === currentPipelineId){
+    if (pipeline_id === currentPipelineId) {
       setCurrentPipelineId(null);
       setCurrentEdges([]);
       setCurrentNodes([]);
@@ -275,15 +287,13 @@ async function deletePipeline(
     setLoading(false);
     setContainerId(null);
     setAgentContainer(null);
-  }
-   catch (err) {
+  } catch (err) {
     console.error("delete failed:", err);
     setError(err.message);
   } finally {
     setLoading(false);
   }
 }
-
 
 async function deleteDrafts(
   pipeline_id,
@@ -294,39 +304,44 @@ async function deleteDrafts(
   setCurrentPipelineStatus,
   setLoading,
   setError
-){
+) {
   setLoading(true);
-  try{
+  try {
     if (!pipeline_id) {
       throw new Error("Pipeline ID is required");
     }
-    const res = await fetch(`${import.meta.env.VITE_API_SERVER}/version/delete_draft?pipeline_id=${pipeline_id}`, {
-      method: "POST",
-      credentials: "include",
-      headers: {
-        "Content-Type": "application/json",
+    const res = await fetch(
+      `${
+        import.meta.env.VITE_API_SERVER
+      }/version/delete_draft?pipeline_id=${pipeline_id}`,
+      {
+        method: "POST",
+        credentials: "include",
+        headers: {
+          "Content-Type": "application/json",
+        },
       }
-    });
+    );
 
     if (res.ok) {
-      if(pipeline_id === currentPipelineId){
+      if (pipeline_id === currentPipelineId) {
         const result = await res.json();
         const version = result["version"];
-        
+
         if (version) {
           const pipelineData = version?.pipeline;
-          
+
           if (result["version_id"]) {
             setCurrentVersionId(String(result["version_id"]));
           }
-          
+
           if (pipelineData && typeof pipelineData === "object") {
             await add_to_node_types(pipelineData?.nodes || []);
             setCurrentNodes(pipelineData["nodes"] || []);
             setCurrentEdges(pipelineData["edges"] || []);
           }
         }
-        
+
         setCurrentPipelineStatus(null);
       }
       setLoading(false);
@@ -334,8 +349,7 @@ async function deleteDrafts(
       const errText = await res.text();
       throw new Error(`Failed to delete draft: ${errText || res.status}`);
     }
-  }
-   catch (err) {
+  } catch (err) {
     console.error("delete failed:", err);
     setError(err.message);
   } finally {
@@ -346,12 +360,15 @@ async function deleteDrafts(
 //--------------------------pipeline docker APIs----------------------------------------------//
 
 async function toggleStatus(id, currentStatus) {
-  const endpoint = currentStatus ? 'stop' : 'run';
-  const res = await fetch(`${import.meta.env.VITE_API_SERVER}/pipeline/${endpoint}`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ pipeline_id: id }),
-  });
+  const endpoint = currentStatus ? "stop" : "run";
+  const res = await fetch(
+    `${import.meta.env.VITE_API_SERVER}/pipeline/${endpoint}`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ pipeline_id: id }),
+    }
+  );
   if (!res.ok) {
     throw new Error(`Unable to toggle status, status: ${res.status}`);
   }
@@ -359,11 +376,14 @@ async function toggleStatus(id, currentStatus) {
 }
 
 async function spinupPipeline(id) {
-  const res = await fetch(`${import.meta.env.VITE_API_SERVER}/pipeline/spinup`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ pipeline_id: id }),
-  });
+  const res = await fetch(
+    `${import.meta.env.VITE_API_SERVER}/pipeline/spinup`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ pipeline_id: id }),
+    }
+  );
   if (!res.ok) {
     throw new Error(`Unable to spin up pipeline, status: ${res.status}`);
   }
@@ -371,11 +391,14 @@ async function spinupPipeline(id) {
 }
 
 async function spindownPipeline(id) {
-  const res = await fetch(`${import.meta.env.VITE_API_SERVER}/pipeline/spindown`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ pipeline_id: id }),
-  });
+  const res = await fetch(
+    `${import.meta.env.VITE_API_SERVER}/pipeline/spindown`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ pipeline_id: id }),
+    }
+  );
   if (!res.ok) {
     throw new Error(`Unable to spin down pipeline, status: ${res.status}`);
   }
@@ -410,7 +433,6 @@ export {
   deleteDrafts,
   deletePipeline,
 };
-
 
 /**
                  <Button

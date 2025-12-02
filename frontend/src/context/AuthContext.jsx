@@ -1,5 +1,6 @@
 import React, { createContext, useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import Loading from "../components/common/Loading";
 
 export const AuthContext = createContext();
 
@@ -33,7 +34,7 @@ export const AuthProvider = ({ children }) => {
   // Login: just update state and redirect; backend sets HttpOnly cookies
   const login = (data) => {
     setUser(data);
-    navigate("/developer-dashboard");
+    navigate("/overview");
   };
 
   // Logout: call backend to delete cookies
@@ -54,7 +55,7 @@ export const AuthProvider = ({ children }) => {
   const isAuthenticated = !!user;
 
   if (loading) {
-    return <div>Loading...</div>; 
+    return <Loading />;
   }
 
   return (
