@@ -54,8 +54,8 @@ def select_for_join(left: pw.Table, right: pw.Table, same_joined_on: List[str], 
     """Helper function to select columns for join operations."""
     if mode != "inner":
         same_joined_columns = []
-    columns_1 = {f"left_{col_name}": get_col(left, col_name) for col_name in left.column_names() if col_name not in same_joined_on}
-    columns_2 = {f"right_{col_name}": get_col(right, col_name) for col_name in right.column_names() if col_name not in same_joined_on}
+    columns_1 = {f"_pw_left_{col_name}": get_col(left, col_name) for col_name in left.column_names() if col_name not in same_joined_on}
+    columns_2 = {f"_pw_right_{col_name}": get_col(right, col_name) for col_name in right.column_names() if col_name not in same_joined_on}
     same_joined_columns = { col_name : get_col(left,col_name) for col_name in same_joined_on }
     return {
         **columns_1,

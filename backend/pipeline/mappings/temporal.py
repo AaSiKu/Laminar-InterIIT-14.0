@@ -87,7 +87,7 @@ def window_by(inputs: List[pw.Table], node: WindowByNode):
             new_col: getattr(pw.reducers, reducer)(get_this_col(prev_col)) for prev_col, reducer, new_col in _reducers
         },
         **{
-            f"windowed_{col}" : pw.reducers.ndarray(get_this_col(col)) for col in inputs[0].column_names() if col.find(open_tel_trace_id) != -1
+            f"_pw_windowed_{col}" : pw.reducers.ndarray(get_this_col(col)) for col in inputs[0].column_names() if col != node.instance_col and col.find(open_tel_trace_id) != -1
         },
         **reduce_kwargs
     )

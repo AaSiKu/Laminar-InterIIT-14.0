@@ -14,7 +14,7 @@ from .agentic_setup import (
     persist_answers
 )
 from postgres_util import connection_string
-
+from .metric_node import find_special_column_sources, is_special_column
 
 # TODO: Fix setup tools deprecation warnings
 # TODO: Fix numpy v1 vs v2 conflicts warnings 
@@ -42,8 +42,13 @@ def main():
         graph["dependencies"]
     )
 
+    for metric_node_idx in graph["metric_node_descriptions"].keys():
+        graph["metric_node_descriptions"][metric_node_idx]["special_columns_source_indexes"] = {
+            col: find_special_column_sources(metric_node_idx,col,graph["nodes"],graph["edges"],graph["id2index_map"]) for col in node_outputs[metric_node_idx].column_names() if is_special_column(col)
+        }
     # Build agentic graph
     graph_name = graph.get("name", "")
+    
     supervisor = build_agentic_graph(
         graph["agents"],
         graph_name,
@@ -64,9 +69,6 @@ def main():
 
     # Persist to database
     persist_answers(all_answers, connection_string)
-
-    # TODO: Implement logging (appending) to a file output and error handling
-    # which will be stored/sent to the frontend for all cases
     pw.run()
 
 

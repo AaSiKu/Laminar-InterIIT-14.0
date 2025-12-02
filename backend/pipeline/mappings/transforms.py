@@ -95,8 +95,8 @@ def group_by(inputs: List[pw.Table], node: GroupByNode):
             new_col: getattr(pw.reducers, reducer)(get_this_col(prev_col)) for prev_col, reducer, new_col in _reducers
     }
     for col in table.column_names():
-        if col.find(open_tel_trace_id) != -1:
-            reducers[f"grouped_{col}"] = pw.reducers.ndarray(get_this_col(col))
+        if col not in node.columns and col.find(open_tel_trace_id) != -1:
+            reducers[f"_pw_grouped_{col}"] = pw.reducers.ndarray(get_this_col(col))
 
     return table.groupby(*group_cols).reduce(*group_cols, **reducers)
 
