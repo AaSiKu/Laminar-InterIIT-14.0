@@ -14,7 +14,7 @@ async def fetch_kpi(request: Request, current_user: User = Depends(get_current_u
     # broken: those with status="Broken"
     user_identifier = str(current_user.id)
     workflow_collection = request.app.state.workflow_collection
-    cursor = workflow_collection.find({"user_id": user_identifier})
+    cursor = workflow_collection.find({"owner_ids": user_identifier})
     all_pipelines = await cursor.to_list(length=None)
     running = []
     for pipeline in all_pipelines:

@@ -20,6 +20,7 @@ class Notification(BaseModel):
 
 class Workflow(BaseModel):
     owner_ids: List[str]
+    last_spin_up_down_run_stop_by: Optional[str] = None
     viewer_ids: List[str]
     current_version_id: str
     versions: List[str]
@@ -27,11 +28,12 @@ class Workflow(BaseModel):
     status: str
     container_id: str 
     agent_container_id: str
-    agent_port: str
+    agentic_host_port: str
     agent_ip: str
     notification: List[Notification]
-    host_port: str
+    pipeline_host_port: str
     host_ip: str
+    db_host_port: Optional[str] = None
 
 class Version(BaseModel):
     user_id: str

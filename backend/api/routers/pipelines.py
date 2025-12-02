@@ -1,5 +1,7 @@
 import socket
 from fastapi import APIRouter, HTTPException, status, Request, Depends
+from backend.api.routers.auth.routes import get_current_user
+from backend.api.routers.auth.models import User
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 from bson.objectid import ObjectId
@@ -20,7 +22,7 @@ class PipelineIdRequest(BaseModel):
     pipeline_id: str
     
 @router.post("/spinup")
-async def docker_spinup(request_obj: Request,request: PipelineIdRequest):
+async def docker_spinup(request_obj: Request,request: PipelineIdRequest, current_user: User= Depends(get_current_user)):
     """
     Spins up a container from the 'pathway_pipeline' image.
     - Expects JSON: `{"pipeline_id": "..."`}
@@ -28,6 +30,12 @@ async def docker_spinup(request_obj: Request,request: PipelineIdRequest):
     """
     client = request_obj.app.state.docker_client
     workflow_collection = request_obj.app.state.workflow_collection
+    current_user_id= current_user.id
+    workflow = await workflow_collection.find_one({'_id': ObjectId(request.pipeline_id)})
+    if not workflow:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Workflow not found")
+    if current_user_id not in workflow.get('owner_ids', []) and current_user.role != "admin":
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="You are not allowed to spin up this workflow")
 
     if not client:
         raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Docker client not available")
@@ -44,12 +52,13 @@ async def docker_spinup(request_obj: Request,request: PipelineIdRequest):
             {'_id': ObjectId(request.pipeline_id)},
             {
                 '$set':{
+                    'last_spin_up_down_run_stop_by': current_user_id,
                     'container_id': result['pipeline_container_id'],
                     'pipeline_host_port': result['pipeline_host_port'],
                     'agentic_host_port': result['agentic_host_port'],
                     'db_host_port': result['db_host_port'],
                     'host_ip': host_ip,
-                    'status': False, # the status is of pipeline, it will be toggled from the docker container
+                    'status': "Stopped", # the status is of pipeline, it will be toggled from the docker container
                 }
             }
         )
@@ -62,13 +71,20 @@ async def docker_spinup(request_obj: Request,request: PipelineIdRequest):
 
 
 @router.post("/spindown")
-async def docker_spindown(request_obj: Request, request: PipelineIdRequest):
+async def docker_spindown(request_obj: Request, request: PipelineIdRequest, current_user: User= Depends(get_current_user)):
     """
     Stops and removes the container identified by its name (pipeline_id).
     - Expects JSON: `{"pipeline_id": "..."}`
     """
     client = request_obj.app.state.docker_client
     workflow_collection = request_obj.app.state.workflow_collection
+    current_user_id= current_user.id
+
+    workflow = await workflow_collection.find_one({'_id': ObjectId(request.pipeline_id)})
+    if not workflow:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Workflow not found")
+    if current_user_id not in workflow.get('owner_ids', []) and current_user.role != "admin":
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="You are not allowed to spin down this workflow")
     if not client:
         raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Docker client not available")
 
@@ -78,10 +94,13 @@ async def docker_spindown(request_obj: Request, request: PipelineIdRequest):
                 {'_id': ObjectId(request.pipeline_id)},
                 {
                     '$set':{
+                        'last_spin_up_down_run_stop_by': current_user_id,
                         'container_id': "",
-                        'host_port': "",
+                        'pipeline_host_port': "",
+                        'agentic_host_port': "",
+                        'db_host_port': "",
                         'host_ip': "",
-                        'status': False,
+                        'status': "Stopped",
                     }
                 }
         )
@@ -93,19 +112,23 @@ async def docker_spindown(request_obj: Request, request: PipelineIdRequest):
         return JSONResponse({"error": str(exc)}, status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 @router.post("/run")
-async def run_pipeline_endpoint(request_obj: Request, request: PipelineIdRequest):
+async def run_pipeline_endpoint(request_obj: Request, request: PipelineIdRequest, current_user: User= Depends(get_current_user)):
     """
     Triggers a pipeline to run in its container.
     """
 
     client = request_obj.app.state.docker_client
     workflow_collection = request_obj.app.state.workflow_collection
-    pipeline = await workflow_collection.find_one({'_id': ObjectId(request.pipeline_id)})
-    if not pipeline or not pipeline.get('pipeline_host_port'):
-        raise HTTPException(status_code=404, detail="Pipeline not found or not running")
+    current_user_id= current_user.id
+    workflow = await workflow_collection.find_one({'_id': ObjectId(request.pipeline_id)})
 
-    port = pipeline['pipeline_host_port']
-    ip = pipeline['host_ip']
+    if not workflow or not workflow.get('pipeline_host_port'):
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Workflow not found or not spinned up")
+    if current_user_id not in workflow.get('owner_ids', []) and current_user.role != "admin":
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="You are not allowed to run this workflow")
+        
+    port = workflow['pipeline_host_port']
+    ip = workflow['host_ip']
     url = f"http://{ip}:{port}/trigger"
     
     async with httpx.AsyncClient() as client:
@@ -114,25 +137,35 @@ async def run_pipeline_endpoint(request_obj: Request, request: PipelineIdRequest
             response.raise_for_status()
             await workflow_collection.update_one(
                 {'_id': ObjectId(request.pipeline_id)},
-                {'$set': {'status': "Running"}}
+                {'$set': 
+                    {
+                        'status': "Running",
+                        'last_spin_up_down_run_stop_by': current_user_id
+                    }
+                }
             )
             return response.json()
         except httpx.RequestError as exc:
             raise HTTPException(status_code=500, detail=f"Failed to trigger pipeline: {exc}")
 
 @router.post("/stop")
-async def stop_pipeline_endpoint(request_obj: Request, request: PipelineIdRequest):
+async def stop_pipeline_endpoint(request_obj: Request, request: PipelineIdRequest, current_user: User= Depends(get_current_user)):
     """
     Stops a running pipeline in its container.
     """
     client = request_obj.app.state.docker_client
     workflow_collection = request_obj.app.state.workflow_collection
-    pipeline = await workflow_collection.find_one({'_id': ObjectId(request.pipeline_id)})
-    if not pipeline or not pipeline.get('pipeline_host_port'):
-        raise HTTPException(status_code=404, detail="Pipeline not found or not running")
+    current_user_id= current_user.id
+    workflow = await workflow_collection.find_one({'_id': ObjectId(request.pipeline_id)})
+    if not workflow:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Workflow not found")
+    if current_user_id not in workflow.get('owner_ids', []) and current_user.role != "admin":
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="You are not allowed to stop this workflow")
+    if not workflow.get('pipeline_host_port'):
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Workflow not found or not running")
 
-    port = pipeline['pipeline_host_port']
-    ip = pipeline['host_ip']
+    port = workflow['pipeline_host_port']
+    ip = workflow['host_ip']
     url = f"http://{ip}:{port}/stop"
     
     async with httpx.AsyncClient() as client:
@@ -141,7 +174,11 @@ async def stop_pipeline_endpoint(request_obj: Request, request: PipelineIdReques
             response.raise_for_status()
             await workflow_collection.update_one(
                 {'_id': ObjectId(request.pipeline_id)},
-                {'$set': {'status': "Stopped"}}
+                {
+                    "$set": {'status': "Stopped",
+                             'last_spin_up_down_run_stop_by': current_user_id
+                    }
+                }
             )
             return response.json()
         except httpx.RequestError as exc:

@@ -169,7 +169,7 @@ async def websocket_endpoint(
 
             if pipeline_id != "All":
                 pipeline = await workflow_collection.find_one({
-                    "user_id": user_identifier,
+                    "owner_ids": {"$in":user_identifier},
                     "_id": ObjectId(pipeline_id),
                     "status": "Running"
                 })
