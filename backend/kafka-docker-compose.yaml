@@ -3,7 +3,7 @@ services:
   kafka:
     image: confluentinc/cp-kafka:latest
     hostname: kafka
-    container_name: kafka
+    container_name: main_kafka
     ports:
       - "9092:9092" # External client port
       - "9094:9094" # External pipeline port
