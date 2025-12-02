@@ -268,6 +268,42 @@ async def retrieve_workflow(
 
 #retrieve version was redundant as retrieve workflow uses version id and i can get the draft version from current version id and the workflow to be used form the workflow collection
 
+@router.get("/retrieve_all")
+async def retrieve_all(
+    request: Request,
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Retrieve all workflows and drafts for the current user
+    """
+    workflow_collection = request.app.state.workflow_collection
+
+    if current_user.role == "admin":
+        print("admin")
+        workflows = await workflow_collection.find().to_list(length=5)
+        return serialize_mongo({
+            "status": "success",
+            "count": len(workflows),
+            "data": workflows
+        })
+
+
+    user_identifier = str(current_user.id)
+    print(user_identifier)
+    workflows = await workflow_collection.find(
+        {"owner_ids": user_identifier}
+    ).to_list(length=5)
+
+    if not workflows:
+        raise HTTPException(status_code=404, detail="No workflows found")
+
+    print(workflows)
+    
+    return serialize_mongo({
+        "status": "success",
+        "count": len(workflows),
+        "data": workflows
+    }) 
 
 
 #---------------------------- Delete workflow and Drafts--------------------------#
