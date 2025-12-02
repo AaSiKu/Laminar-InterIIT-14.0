@@ -27,26 +27,24 @@ async def create_workflow(user_identifier,version_collection,workflow_collection
                 "agent_port": "",
                 "agent_ip": "",
                 "notification": [],
-                "host_port": "",
+                "pipeline_host_port": "",
+                "agentic_host_port":"",
+                "db_host_port":"",
                 "host_ip": "",
-                "versions": []
+                "versions": [],
+                "last_started": None,
+                "runtime": 0
             }
 
-    async with await mongo_client.start_session() as session:
-        try:
-            session.start_transaction()
-
+    async with mongo_client.start_session() as session:
+        async with session.start_transaction():
             version = await version_collection.insert_one(version_doc, session=session)
             version_doc["_id"] = version.inserted_id
             workflow_doc["versions"]=[str(version.inserted_id)]
             workflow_doc["current_version_id"] = str(version.inserted_id)
+            workflow_doc["last_updated"] = datetime.now()
             result = await workflow_collection.insert_one(workflow_doc, session=session)
             workflow_doc["_id"] = result.inserted_id
-            await session.commit_transaction()
             return workflow_doc
-
-        except Exception as e:
-            await session.abort_transaction()
-            raise e
 
         

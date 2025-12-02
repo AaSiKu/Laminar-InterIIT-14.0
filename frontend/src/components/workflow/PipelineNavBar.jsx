@@ -26,9 +26,10 @@ const PipelineNavBar = ({
       elevation={0}
       sx={{
         borderBottom: "1px solid",
+        padding: { xs: '8px 0', md: '8px 0' },
         borderColor: 'divider',
         bgcolor: 'background.elevation1',
-        zIndex: 1300,
+        zIndex: 10,
         position: "relative",
       }}
     >

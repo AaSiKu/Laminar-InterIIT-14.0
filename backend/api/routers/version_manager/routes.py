@@ -91,7 +91,7 @@ async def save_workflow(
         if not existing_version or not existing_workflow:
             raise HTTPException(status_code=404, detail="Version or workflow not found")
 
-        async with await mongo_client.start_session() as session:
+        async with mongo_client.start_session() as session:
             async with session.start_transaction():
                 update_result = await version_collection.update_one(
                     version_query,
@@ -122,7 +122,7 @@ async def save_workflow(
                     session=session
                 )
 
-                if new_version.inserted_count == 0:
+                if not new_version.inserted_id:
                     raise HTTPException(
                         status_code=status.HTTP_403_FORBIDDEN,
                         detail="Error updating Workflow"
@@ -268,6 +268,42 @@ async def retrieve_workflow(
 
 #retrieve version was redundant as retrieve workflow uses version id and i can get the draft version from current version id and the workflow to be used form the workflow collection
 
+@router.get("/retrieve_all")
+async def retrieve_all(
+    request: Request,
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Retrieve all workflows and drafts for the current user
+    """
+    workflow_collection = request.app.state.workflow_collection
+
+    if current_user.role == "admin":
+        print("admin")
+        workflows = await workflow_collection.find().to_list(length=5)
+        return serialize_mongo({
+            "status": "success",
+            "count": len(workflows),
+            "data": workflows
+        })
+
+
+    user_identifier = str(current_user.id)
+    print(user_identifier)
+    workflows = await workflow_collection.find(
+        {"owner_ids": user_identifier}
+    ).to_list(length=5)
+
+    if not workflows:
+        raise HTTPException(status_code=404, detail="No workflows found")
+
+    print(workflows)
+    
+    return serialize_mongo({
+        "status": "success",
+        "count": len(workflows),
+        "data": workflows
+    }) 
 
 
 #---------------------------- Delete workflow and Drafts--------------------------#
@@ -307,7 +343,7 @@ async def delete_workflow(
         if existing_workflow.get("container_id"):
             raise HTTPException(status_code=409, detail="workflow running, Stop and Spin down the workflow to delete the Workflow")
         
-        async with await mongo_client.start_session() as session:
+        async with mongo_client.start_session() as session:
             async with session.start_transaction(): 
 
                 for version_id in existing_workflow.get('versions', []):
@@ -360,7 +396,7 @@ async def delete_draft(
         if current_user.role != "admin":
             workflow_query["owner_ids"] = {"$in": [user_identifier]}
         
-        async with await mongo_client.start_session() as session:
+        async with mongo_client.start_session() as session:
             async with session.start_transaction():
                 pipeline={
                     "edges": [],

@@ -28,7 +28,6 @@ import Form from "@rjsf/mui";
 import validator from "@rjsf/validator-ajv8";
 import "../../css/PropertyBar.css";
 
-
 export const PropertyBar = ({
   open,
   selectedNode,
@@ -38,6 +37,7 @@ export const PropertyBar = ({
   drawerWidth = "25vw", // 25% of viewport width
   variant = "temporary",
   readOnly = false,
+  zIndex,
 }) => {
   const theme = useTheme();
   const [snackbar, setSnackbar] = useState({
@@ -101,16 +101,17 @@ export const PropertyBar = ({
           keepMounted: true,
         }}
         sx={{
+          zIndex: zIndex || 1200,
           "& .MuiDrawer-paper": {
             width: drawerWidth,
-            backgroundColor: 'background.paper',
+            backgroundColor: "background.paper",
             boxShadow: theme.shadows[4],
             border: "1px solid",
-            borderColor: 'divider',
+            borderColor: "divider",
             borderLeft: "none",
-            zIndex: 1400,
-            top: "48px",
-            height: "calc(100vh - 48px)",
+            zIndex: zIndex || 1400,
+            // top: zIndex ? "0" : "48px",
+            // height: zIndex ? "100vh" : "calc(100vh - 48px)",
             transition: "transform 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
           },
         }}
@@ -128,18 +129,21 @@ export const PropertyBar = ({
             {/* Header */}
             <Box
               sx={{
+                padding: { xs: "16px 16px", md: "16px 24px" },
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "space-between",
-                px: 3,
-                py: 3.5,
                 borderBottom: "1px solid",
-                borderColor: 'divider',
+                borderColor: "divider",
               }}
             >
               <Typography
                 variant="h6"
-                sx={{ fontWeight: 600, fontSize: "1.125rem", color: "text.primary" }}
+                sx={{
+                  fontWeight: 600,
+                  fontSize: "1.125rem",
+                  color: "text.primary",
+                }}
               >
                 Property Editor
               </Typography>
@@ -148,7 +152,7 @@ export const PropertyBar = ({
                 size="small"
                 sx={{
                   color: "text.secondary",
-                  "&:hover": { backgroundColor: 'action.hover' },
+                  "&:hover": { backgroundColor: "action.hover" },
                 }}
               >
                 <CloseIcon fontSize="small" />
@@ -181,10 +185,10 @@ export const PropertyBar = ({
                   size="small"
                   sx={{
                     "& .MuiOutlinedInput-root": {
-                      backgroundColor: 'background.elevation1',
+                      backgroundColor: "background.elevation1",
                       borderRadius: "6px",
                       fontSize: "0.8125rem",
-                      "& fieldset": { borderColor: 'divider' },
+                      "& fieldset": { borderColor: "divider" },
                       "& input": {
                         padding: "10px 12px",
                         fontSize: "0.8125rem",

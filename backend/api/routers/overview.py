@@ -101,12 +101,10 @@ async def workflow_data(request: Request, skip: int = 0, limit: int = 10, curren
     return data
 
 @router.get("/total_runtime")
-async def total_runtime(request: Request, skip: int = 0, limit: int = 10, current_user: User = Depends(get_current_user)):
-    cursor = request.app.state.workflow_collection.find({"user_id": str(current_user.id)})
+async def total_runtime(request: Request, current_user: User = Depends(get_current_user)):
+    cursor = request.app.state.workflow_collection.find({"owner_ids": str(current_user.id)})
     total_runtime = 0
-    print(str(current_user.id))
     async for doc in cursor:
-        print(doc)
         try:
             total_runtime += doc["runtime"]
         except:

@@ -1,4 +1,4 @@
-//TODO: Add the use notification hook for the 
+//TODO: Add the use notification hook for the
 import { Routes, Route, Navigate, useLocation } from "react-router-dom";
 import ProtectedRoute from "./pages/ProtectedRoute";
 import LoginPage from "./pages/Login.jsx";
@@ -6,9 +6,8 @@ import SignupPage from "./pages/Signup.jsx";
 import WorkflowPage from "./pages/Workflows.jsx";
 import Sidebar from "./components/common/sidebar.jsx";
 import OverviewPage from "./pages/Overview.jsx";
-import CreatePipeline from "./pages/CreatePipeline.jsx";
 import { AdminPage } from "./pages/Admin.jsx";
-import {WorkflowsList} from "./pages/WorkflowsList.jsx"
+import { WorkflowsList } from "./pages/WorkflowsList.jsx";
 import NotFoundPage from "./pages/NotFoundPage.jsx";
 
 function AppContent() {
@@ -39,7 +38,7 @@ function AppContent() {
           element={
             <ProtectedRoute>
               <WorkflowPage />
-            </ProtectedRoute> 
+            </ProtectedRoute>
           }
         />
         <Route
@@ -47,15 +46,7 @@ function AppContent() {
           element={
             <ProtectedRoute>
               <OverviewPage />
-          </ProtectedRoute> 
-          }
-        />
-         <Route
-          path="/create-pipeline"
-          element={
-            <ProtectedRoute>
-              <CreatePipeline />
-            </ProtectedRoute> 
+            </ProtectedRoute>
           }
         />
         <Route
@@ -63,7 +54,7 @@ function AppContent() {
           element={
             <ProtectedRoute>
               <AdminPage />
-            </ProtectedRoute> 
+            </ProtectedRoute>
           }
         />
         <Route path="*" element={<Navigate to="/404" />} />

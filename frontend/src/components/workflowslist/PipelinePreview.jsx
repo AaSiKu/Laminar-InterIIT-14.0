@@ -1,7 +1,7 @@
 import { Box, Typography, Button } from "@mui/material";
 import { ArrowForward as ArrowForwardIcon } from "@mui/icons-material";
 import { useNavigate } from "react-router-dom";
-import pipelineImage from "../../assets/workflowimage.png";
+import pipelineImage from "../../assets/workflowImage.png";
 
 const PipelinePreview = ({ workflowId }) => {
   const navigate = useNavigate();

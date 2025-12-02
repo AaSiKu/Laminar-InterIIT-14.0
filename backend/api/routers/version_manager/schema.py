@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+from datetime import datetime
 from typing import List, Optional, Any
 from pydantic import BaseModel
 
@@ -17,10 +17,10 @@ class Notification(BaseModel):
     desc: str
     action: str
     alert: Optional[Alert] = None
-    type:str
-    timestamp: datetime
-    notification_role: List[str]
-    notification_status:str
+    type:str  #type of notification (alert, notification)
+    timestamp: Optional[datetime] = datetime.now()
+    notification_role: List[str] #roles of users who will receive the notification
+    notification_status:str #status of notification (pending, resolved, ignored)
 
 
 class Workflow(BaseModel):
@@ -40,7 +40,7 @@ class Workflow(BaseModel):
     host_ip: str
     db_host_port: Optional[str] = None
     last_started: datetime
-    runtime_seconds: int
+    runtime: int
 
 
 class Version(BaseModel):

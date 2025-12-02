@@ -9,7 +9,7 @@ const BottomToolbar = ({ onAddClick, onUndoClick, onRedoClick, addDisabled = fal
     <Box
       sx={{
         position: "absolute",
-        bottom: 12,
+        bottom: 52,
         left: "50%",
         transform: "translateX(-50%)",
         display: "flex",

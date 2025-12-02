@@ -9,7 +9,7 @@ import docker
 import httpx
 import logging
 from fastapi import Request
-from datetime import datetime, timedelta
+from datetime import datetime
 
 
 logger = logging.getLogger(__name__)
@@ -123,7 +123,7 @@ async def run_pipeline_endpoint(request_obj: Request, request: PipelineIdRequest
     current_user_id= current_user.id
     workflow = await workflow_collection.find_one({'_id': ObjectId(request.pipeline_id)})
 
-    if not workflow or not workflow.get('pipeline_host_port') or not pipeline.get("host_ip"):
+    if not workflow or not workflow.get('pipeline_host_port') or not workflow.get("host_ip"):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Workflow not found or not spinned up")
     if current_user_id not in workflow.get('owner_ids', []) and current_user.role != "admin":
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="You are not allowed to run this workflow")
@@ -176,7 +176,6 @@ async def stop_pipeline_endpoint(request_obj: Request, request: PipelineIdReques
             # response.raise_for_status()
             doc = await workflow_collection.find_one({'_id': ObjectId(request.pipeline_id)})
             last_started = doc["last_started"]
-            print(type(last_started))
             try:
                 prev_runtime = doc["runtime"]
             except:
@@ -187,7 +186,8 @@ async def stop_pipeline_endpoint(request_obj: Request, request: PipelineIdReques
                 {
                     "$set": {'status': "Stopped",
                              'last_spin_up_down_run_stop_by': current_user_id,
-                             "runtime": new_runtime
+                             "runtime": new_runtime,
+                             "last_started":datetime.now()
                     }
                 }
             )

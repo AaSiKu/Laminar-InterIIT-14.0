@@ -56,10 +56,11 @@ app = FastAPI(title="Pipeline API", lifespan=lifespan)
 
 # ============ Pipeline Process Handling ============
 pipeline_process: subprocess.Popen | None = None
+pipeline_log_file = None
 
 
 def stop_pipeline():
-    global pipeline_process
+    global pipeline_process, pipeline_log_file
     if pipeline_process and pipeline_process.poll() is None:
         print("Stopping running pipeline...")
         pipeline_process.terminate()
@@ -68,14 +69,26 @@ def stop_pipeline():
         except subprocess.TimeoutExpired:
             pipeline_process.kill()
         print("Pipeline stopped.")
-        pipeline_process = None
+    if pipeline_log_file:
+        try:
+            pipeline_log_file.close()
+        except Exception:
+            pass
+        pipeline_log_file = None
+    
+    pipeline_process = None
 
 
 def run_pipeline():
-    global pipeline_process
+    global pipeline_process, pipeline_log_file
     stop_pipeline()
     print("Starting new pipeline...")
-    pipeline_process = subprocess.Popen(["python3", "-m", "pipeline"], stdout=open("pipeline.log", "w"), stderr=subprocess.STDOUT)
+    pipeline_log_file = open("pipeline.log", "w")
+    pipeline_process = subprocess.Popen(
+        ["python3", "-m", "pipeline"], 
+        stdout=pipeline_log_file, 
+        stderr=subprocess.STDOUT
+    )
 
 
 # ============ API Endpoints ============
