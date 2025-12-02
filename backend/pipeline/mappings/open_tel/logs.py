@@ -24,8 +24,8 @@ class Log(pw.Schema):
     dropped_attributes_count: int  # Default 0
     
     # Optional trace correlation
-    trace_id: str  # Optional - for correlation
-    span_id: str  # Optional - for correlation
+    _open_tel_trace_id: str  # Optional - for correlation
+    _open_tel_span_id: str  # Optional - for correlation
     
     # Optional event identification
     event_name: str  # Optional, can be empty
