@@ -91,7 +91,7 @@ async def save_workflow(
         if not existing_version or not existing_workflow:
             raise HTTPException(status_code=404, detail="Version or workflow not found")
 
-        async with await mongo_client.start_session() as session:
+        async with mongo_client.start_session() as session:
             async with session.start_transaction():
                 update_result = await version_collection.update_one(
                     version_query,
@@ -307,7 +307,7 @@ async def delete_workflow(
         if existing_workflow.get("container_id"):
             raise HTTPException(status_code=409, detail="workflow running, Stop and Spin down the workflow to delete the Workflow")
         
-        async with await mongo_client.start_session() as session:
+        async with mongo_client.start_session() as session:
             async with session.start_transaction(): 
 
                 for version_id in existing_workflow.get('versions', []):
@@ -360,7 +360,7 @@ async def delete_draft(
         if current_user.role != "admin":
             workflow_query["owner_ids"] = {"$in": [user_identifier]}
         
-        async with await mongo_client.start_session() as session:
+        async with mongo_client.start_session() as session:
             async with session.start_transaction():
                 pipeline={
                     "edges": [],
