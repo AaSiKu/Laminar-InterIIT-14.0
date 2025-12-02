@@ -463,7 +463,7 @@ class BatchedDetector(BaseDetector):
             "Batched detectors do not support synchronous detect_all(). Please use adetect_all() instead"
         )
 
-DEFAULT_PI_MODEL = "protectai/deberta-v3-base-prompt-injection-v2"
+DEFAULT_PROMPT_INJECTION_MODEL = "protectai/deberta-v3-base-prompt-injection-v2"
 
 
 class PromptInjectionAnalyzer(BatchedDetector):
@@ -492,7 +492,7 @@ class PromptInjectionAnalyzer(BatchedDetector):
         return model in self.pipe_store
 
     async def adetect_all_batch(
-        self, texts: list[str], model: str = DEFAULT_PI_MODEL, threshold: float = 0.9
+        self, texts: list[str], model: str = DEFAULT_PROMPT_INJECTION_MODEL, threshold: float = 0.9
     ) -> bool:
         """Detects whether text contains prompt injection.
 
@@ -525,45 +525,9 @@ class PromptInjectionAnalyzer(BatchedDetector):
         return result[0] is True
 
 
-DEFAULT_PI_MODEL = "ProtectAI/deberta-v3-base-prompt-injection-v2"
-
-
 class UnicodeDetector(BaseDetector):
-    """Detector for detecting unicode characters based on their category (using allow or deny list).
-
-    The detector analyzes the given string character by character and considers the following categories during the detection:
-
-    [Cc]	Other, Control
-    [Cf]	Other, Format
-    [Cn]	Other, Not Assigned (no characters in the file have this property)
-    [Co]	Other, Private Use
-    [Cs]	Other, Surrogate
-    [LC]	Letter, Cased
-    [Ll]	Letter, Lowercase
-    [Lm]	Letter, Modifier
-    [Lo]	Letter, Other
-    [Lt]	Letter, Titlecase
-    [Lu]	Letter, Uppercase
-    [Mc]	Mark, Spacing Combining
-    [Me]	Mark, Enclosing
-    [Mn]	Mark, Nonspacing
-    [Nd]	Number, Decimal Digit
-    [Nl]	Number, Letter
-    [No]	Number, Other
-    [Pc]	Punctuation, Connector
-    [Pd]	Punctuation, Dash
-    [Pe]	Punctuation, Close
-    [Pf]	Punctuation, Final quote (may behave like Ps or Pe depending on usage)
-    [Pi]	Punctuation, Initial quote (may behave like Ps or Pe depending on usage)
-    [Po]	Punctuation, Other
-    [Ps]	Punctuation, Open
-    [Sc]	Symbol, Currency
-    [Sk]	Symbol, Modifier
-    [Sm]	Symbol, Math
-    [So]	Symbol, Other
-    [Zl]	Separator, Line
-    [Zp]	Separator, Paragraph
-    [Zs]	Separator, Space
+    """
+    Detector for detecting unicode characters based on their category (using allow or deny list).
     """
 
     def detect_all(self, text: str, categories: list[str] | None = None) -> list[DetectorResult]:
@@ -894,30 +858,5 @@ class MCPSecurityGateway:
 
 
 
-# import asyncio
-# from mcpconn import MCPClient
-# from mcpconn.guardrails import PIIGuardrail, WordMaskGuardrail
 
-# async def main():
-#     client = MCPClient(llm_provider="anthropic",model="claude-3-5-sonnet-20241022")
-#     client.add_guardrail(PIIGuardrail(name="pii_detector"))
-#     client.add_guardrail(WordMaskGuardrail(name="word_mask", words_to_mask=["secret"], replacement="[CENSORED]"))
-
-#     await client.connect("examples/simple_server/weather_stdio.py", transport="stdio") # add your stdio server
-
-#     user_input = "what is the weather alert in texas."
-#     # Send to LLM (no guardrails applied automatically)
-#     response = await client.query(user_input)
-
-#     # If you want to apply guardrails to the LLM output, do it manually:
-#     guardrail_results = await client.guardrails.check_all(response)
-#     for result in guardrail_results:
-#         if not result.passed and result.masked_content:
-#             response = result.masked_content
-
-#     print("Sanitized response:", response)
-#     await client.disconnect()
-
-# if __name__ == "__main__":
-#     asyncio.run(main())
     

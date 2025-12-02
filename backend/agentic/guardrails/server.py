@@ -8,7 +8,7 @@ def _actual_db_fetch(query) -> bool:
     return True
 
 @mcp.tool()
-async def get_invoice(user_id: str, invoice_id: str):
+async def get_invoice(user_id: str, invoice_id: str) -> bool:
     decision = gateway.execute_secure_request(
         user_id=user_id,
         agent_role="invoice_reader",
