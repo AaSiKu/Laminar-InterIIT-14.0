@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import List, Optional, Any
 from pydantic import BaseModel
 
@@ -39,6 +39,9 @@ class Workflow(BaseModel):
     pipeline_host_port: str
     host_ip: str
     db_host_port: Optional[str] = None
+    last_started: datetime
+    runtime_seconds: int
+
 
 class Version(BaseModel):
     user_id: str

@@ -1,15 +1,14 @@
-//TODO: Add a loading state to the app
-//TODO: Add the use notification hook to the app and add to the notification in developer dashboard
+//TODO: Add the use notification hook for the 
 import { Routes, Route, Navigate, useLocation } from "react-router-dom";
-import ProtectedRoute from "./components/ProtectedRoute";
+import ProtectedRoute from "./pages/ProtectedRoute";
 import LoginPage from "./pages/Login.jsx";
 import SignupPage from "./pages/Signup.jsx";
 import WorkflowPage from "./pages/Workflows.jsx";
-import Sidebar from "./components/sidebar.jsx";
+import Sidebar from "./components/common/sidebar.jsx";
 import OverviewPage from "./pages/Overview.jsx";
+import CreatePipeline from "./pages/CreatePipeline.jsx";
 import { AdminPage } from "./pages/Admin.jsx";
 import {WorkflowsList} from "./pages/WorkflowsList.jsx"
-import { DeveloperDashboardProject } from "./pages/DeveloperDashboardProject.jsx";
 import NotFoundPage from "./pages/NotFoundPage.jsx";
 
 function AppContent() {
@@ -28,7 +27,7 @@ function AppContent() {
 
         {/* Protected routes */}
         <Route
-          path="/workflow"
+          path="/workflows"
           element={
             <ProtectedRoute>
               <WorkflowsList />
@@ -40,7 +39,7 @@ function AppContent() {
           element={
             <ProtectedRoute>
               <WorkflowPage />
-            </ProtectedRoute>
+            </ProtectedRoute> 
           }
         />
         <Route
@@ -48,15 +47,15 @@ function AppContent() {
           element={
             <ProtectedRoute>
               <OverviewPage />
-            </ProtectedRoute>
+          </ProtectedRoute> 
           }
         />
-        <Route
-          path="/overview/:projectId"
+         <Route
+          path="/create-pipeline"
           element={
             <ProtectedRoute>
-              <DeveloperDashboardProject />
-            </ProtectedRoute>
+              <CreatePipeline />
+            </ProtectedRoute> 
           }
         />
         <Route
@@ -64,7 +63,7 @@ function AppContent() {
           element={
             <ProtectedRoute>
               <AdminPage />
-            </ProtectedRoute>
+            </ProtectedRoute> 
           }
         />
         <Route path="*" element={<Navigate to="/404" />} />
