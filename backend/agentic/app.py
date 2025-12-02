@@ -13,12 +13,14 @@ from .rca.summarize import summarize_prompt
 from langchain_openai import ChatOpenAI
 from langchain_mcp_adapters.client import MultiServerMCPClient
 import os
+import sqlite3
+import hashlib
+from pathlib import Path
 
 planner_executor: CompiledStateGraph = None
 
 # Use OpenAI's o1 reasoning model for complex analysis
 reasoning_model = ChatOpenAI(model="o1", temperature=1, api_key=os.getenv("OPENAI_API_KEY"))
-
 mcp_client = MultiServerMCPClient({
     "context7": {
         "transport": "streamable_http",
@@ -26,12 +28,57 @@ mcp_client = MultiServerMCPClient({
         "headers": {"CONTEXT7_API_KEY": os.environ.get("CONTEXT7_API_KEY", "")},
     }
 })
+# SQLite cache setup
+CACHE_DB_PATH = "summarize_prompts_cache.db"
+
+def init_cache_db():
+    """Initialize the SQLite cache database"""
+    
+    conn = sqlite3.connect(CACHE_DB_PATH)
+    cursor = conn.cursor()
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS summarize_cache (
+            prompt_hash TEXT PRIMARY KEY,
+            prompt TEXT NOT NULL,
+            response TEXT NOT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+    conn.commit()
+    conn.close()
+
+def get_cached_response(full_prompt: str) -> str | None:
+    """Retrieve cached response for a given prompt"""
+    prompt_hash = hashlib.sha256(full_prompt.encode()).hexdigest()
+    conn = sqlite3.connect(CACHE_DB_PATH)
+    cursor = conn.cursor()
+    cursor.execute(
+        "SELECT response FROM summarize_cache WHERE prompt_hash = ?",
+        (prompt_hash,)
+    )
+    result = cursor.fetchone()
+    conn.close()
+    return result[0] if result else None
+
+def cache_response(full_prompt: str, response: str):
+    """Store a new prompt-response pair in the cache"""
+    prompt_hash = hashlib.sha256(full_prompt.encode()).hexdigest()
+    conn = sqlite3.connect(CACHE_DB_PATH)
+    cursor = conn.cursor()
+    cursor.execute(
+        "INSERT OR REPLACE INTO summarize_cache (prompt_hash, prompt, response) VALUES (?, ?, ?)",
+        (prompt_hash, full_prompt, response)
+    )
+    conn.commit()
+    conn.close()
+
 summarize_agent = None
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     
     global summarize_agent
+    init_cache_db()
     tools = await mcp_client.get_tools()
     summarize_agent = create_agent(
         model=reasoning_model,
@@ -147,6 +194,11 @@ async def summarize(request: SummarizeRequest):
         "use library /pathwaycom/pathway"
     )
     
+    # Check cache first
+    cached_response = get_cached_response(full_prompt)
+    if cached_response:
+        return {"status": "ok", "summarized": cached_response, "cached": True}
+    
     answer = await summarize_agent.ainvoke(
         {
             "messages": [
@@ -159,7 +211,11 @@ async def summarize(request: SummarizeRequest):
     )
     
     summarized = answer["messages"][-1].content
-    return {"status": "ok", "summarized": summarized}
+    
+    # Cache the response
+    cache_response(full_prompt, summarized)
+    
+    return {"status": "ok", "summarized": summarized, "cached": False}
 
 
 @app.post("/infer")
