@@ -239,7 +239,8 @@ class VectorStore:
         if self.client is None:
             return []
 
-        results = self.client.similarity_search_with_score(query, k=k)
+        results = self.client.similarity_search_with_score(query, k=k)
+
 
         actions = []
         for doc, score in results:
@@ -368,6 +369,7 @@ async def analysis_agent_node(state: RCAState) -> Dict:
         "messages": new_messages
     }
 
+### TODO: Client will give the MCP server of tools
 def validation_agent_node(state: RCAState) -> Dict:
     command = state.get("verification_command")
     if not command:
