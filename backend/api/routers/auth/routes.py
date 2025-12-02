@@ -109,7 +109,7 @@ async def login(request: Request, response: Response, form_data: OAuth2PasswordR
         path="/",
     )
 
-    return {"message": "Login successful", "access_token": access_token, "refresh_token": refresh_token, "role":user.role}
+    return {"message": "Login successful", "user_id":str(user.id), "role":user.role}
 
 
 # ------------------ LOGOUT ------------------ #
@@ -176,6 +176,7 @@ async def get_current_user_ws(websocket: WebSocket, db: AsyncSession):
             websocket.app.state.secret_key,
             algorithms=[websocket.app.state.algorithm],
         )
+        
         email: str = payload.get("sub")
         
         if email is None:

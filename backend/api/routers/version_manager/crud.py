@@ -36,7 +36,7 @@ async def create_workflow(user_identifier,version_collection,workflow_collection
                 "runtime": 0
             }
 
-    async with mongo_client.start_session() as session:
+    async with await mongo_client.start_session() as session:
         async with session.start_transaction():
             version = await version_collection.insert_one(version_doc, session=session)
             version_doc["_id"] = version.inserted_id

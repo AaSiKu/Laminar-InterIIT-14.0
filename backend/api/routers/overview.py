@@ -22,14 +22,23 @@ async def fetch_kpi(request: Request, current_user: User = Depends(get_current_u
     # Notification and Alert stats
     notifications = await notification_collection.find({"user_id": user_id}).to_list(length=None)
     total_notifications = len(notifications)
+    total_runtime = sum(w.get("runtime", 0) for w in workflows if w is not None)
     
     alerts = [n for n in notifications if n.get("type") == "alert"]
     total_alerts = len(alerts)
     
     pending_alerts = sum(1 for a in alerts if a.get("alert") and not a["alert"].get("action_taken"))
+    seconds = total_runtime
+    result=0
 
-    # TODO: Implement a real metric for total_runtime
-    total_runtime_dummy = 128  # Using a dummy value for now
+    if seconds >= 86400:
+        result = f"{seconds // 86400}d"
+    elif seconds >= 3600:
+        result = f"{seconds // 3600}h"
+    elif seconds >= 60:
+        result = f"{seconds // 60}m"
+    else:
+        result = f"{seconds}s"
 
     return {
         "pie_chart": {
@@ -42,7 +51,7 @@ async def fetch_kpi(request: Request, current_user: User = Depends(get_current_u
             {
                 "id": "total_runtime",
                 "title": "Total Runtime",
-                "value": f"{total_runtime_dummy}h",
+                "value": result,
                 "subtitle": "Across all pipelines",
                 "iconType": "speed",
                 "iconColor": "#86C8BC"
@@ -91,6 +100,7 @@ async def add_notification(data: Notification, request: Request):
     
 @router.get("/workflows/")
 async def workflow_data(request: Request, skip: int = 0, limit: int = 10, current_user: User = Depends(get_current_user)):
+
     cursor = request.app.state.workflow_collection.find({"owner_ids": str(current_user.id)}).sort("last_updated", -1).skip(skip).limit(limit)
     recent_pipelines = await cursor.to_list(length=limit)
     data = []
