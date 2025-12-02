@@ -11,10 +11,16 @@ from backend.api.routers.main_router import router
 from backend.api.routers.websocket import watch_changes
 from utils.logging import get_logger, configure_root
 import asyncio
+import certifi
 
 configure_root()
 logger = get_logger(__name__)
 load_dotenv()
+
+print("--- DEBUGGING CONNECTION ---")
+print(f"DB Host: {os.getenv('POSTGRES_HOST')}")
+print(f"DB Port: {os.getenv('POSTGRES_PORT')}")
+print("----------------------------")
 
 
 MONGO_URI = os.getenv("MONGO_URI")
@@ -40,7 +46,7 @@ async def lifespan(app: FastAPI):
     if not MONGO_URI:
         raise RuntimeError("MONGO_URI not set in environment")
 
-    mongo_client = AsyncIOMotorClient(MONGO_URI)
+    mongo_client = AsyncIOMotorClient(MONGO_URI, tlsCAFile=certifi.where())
     db = mongo_client[MONGO_DB]
     workflow_collection = db[WORKFLOW_COLLECTION]
     version_collection = db[VERSION_COLLECTION]
@@ -106,7 +112,7 @@ origins = [
 ]
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

@@ -1,6 +1,3 @@
-//TODO: Make the node accept only one input per handle 
-
-
 import React, { useState, useEffect } from "react";
 import {
   Drawer,
@@ -9,7 +6,6 @@ import {
   Grid,
   Paper,
   Avatar,
-  Divider,
   Collapse,
   IconButton,
   Tabs,
@@ -33,9 +29,9 @@ import {
 } from "@mui/icons-material";
 import { fetchNodeTypes, fetchNodeSchema } from "../../utils/dashboard.api";
 import "../../css/NodeDrawer.css";
-import inputIcon from "../../assets/input.png";
-import transformIcon from "../../assets/Transform.png";
-import jointIcon from "../../assets/joint.png";
+// import inputIcon from "../../assets/input.png"; // Assuming these exist in your project
+// import transformIcon from "../../assets/Transform.png";
+// import jointIcon from "../../assets/joint.png";
 
 /**
  * Get icon for category type
@@ -91,7 +87,6 @@ export const NodeDrawer = ({ open, onClose, onAddNode, onDragStart: onDragStartP
   const [clickedNode, setClickedNode] = useState(null);
   const [activeTab, setActiveTab] = useState(1); // Default to "All Files" tab
   const [searchQuery, setSearchQuery] = useState("");
-  const [imageErrors, setImageErrors] = useState({});
 
   // Compute recent nodes from current workspace and undo deque
   const recentNodes = React.useMemo(() => {
@@ -126,7 +121,7 @@ export const NodeDrawer = ({ open, onClose, onAddNode, onDragStart: onDragStartP
         // data.input=["hello"];
         setNodeCategories(data || {});
 
-        // clse all sections by default
+        // close all sections by default
         const initialOpen = Object.keys(data || {}).reduce((acc, key) => {
           acc[key] = false;
           return acc;
@@ -140,6 +135,34 @@ export const NodeDrawer = ({ open, onClose, onAddNode, onDragStart: onDragStartP
     };
     loadNodeTypes();
   }, []);
+
+  // Auto-expand/collapse sections based on search query
+  useEffect(() => {
+    if (!searchQuery.trim()) {
+      // If search is cleared, close all sections
+      setOpenSections((prev) => {
+        const closed = {};
+        Object.keys(prev).forEach((key) => {
+          closed[key] = false;
+        });
+        return closed;
+      });
+    } else {
+      // If search has input, open all sections that have matching nodes
+      setOpenSections((prev) => {
+        const updated = { ...prev };
+        Object.entries(nodeCategories).forEach(([key, nodes]) => {
+          const hasMatchingNodes = nodes.some(node =>
+            node.toLowerCase().includes(searchQuery.toLowerCase())
+          );
+          if (hasMatchingNodes) {
+            updated[key] = true;
+          }
+        });
+        return updated;
+      });
+    }
+  }, [searchQuery, nodeCategories]);
 
   const toggleSection = (key) => {
     setOpenSections((prev) => ({ ...prev, [key]: !prev[key] }));
@@ -196,26 +219,26 @@ export const NodeDrawer = ({ open, onClose, onAddNode, onDragStart: onDragStartP
           alignItems: "center",
           justifyContent: "space-between",
           cursor: "pointer",
-            px: 2,
-            py: 1.5,
+          px: 2,
+          py: 1.5,
           borderRadius: 1,
-            "&:hover": { bgcolor: 'action.hover' },
+          "&:hover": { bgcolor: 'action.hover' },
         }}
       >
-          <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
-            {getCategoryIcon(key, theme)}
+        <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
+          {getCategoryIcon(key, theme)}
           <Typography 
             variant="subtitle1" 
             fontWeight={600}
-              sx={{ 
-                fontSize: "0.875rem",
-                color: "text.primary"
-              }}
+            sx={{ 
+              fontSize: "0.875rem",
+              color: "text.primary"
+            }}
           >
             {key.charAt(0).toUpperCase() + key.slice(1)}
           </Typography>
         </Box>
-          <IconButton size="small" sx={{ color: "text.secondary" }}>
+        <IconButton size="small" sx={{ color: "text.secondary" }}>
           {openSections[key] ? <ExpandLess fontSize="small" /> : <ExpandMore fontSize="small" />}
         </IconButton>
       </Box>
@@ -315,8 +338,8 @@ export const NodeDrawer = ({ open, onClose, onAddNode, onDragStart: onDragStartP
                       border: '1px solid',
                       borderColor: 'divider',
                       padding: '6px 12px',
-                        borderRadius: '6px',
-                        fontSize: "0.6875rem",
+                      borderRadius: '6px',
+                      fontSize: "0.6875rem",
                       fontWeight: 500,
                       whiteSpace: 'nowrap',
                       zIndex: 10,
@@ -378,11 +401,11 @@ export const NodeDrawer = ({ open, onClose, onAddNode, onDragStart: onDragStartP
         "& .MuiDrawer-paper": {
           width: 400,
           boxSizing: "border-box",
-            bgcolor: 'background.paper',
-          top: "48px", // Below the topmost Laminar navbar
+          bgcolor: 'background.paper',
+          top: "48px",
           height: "calc(100vh - 48px)",
-            borderLeft: '1px solid',
-            borderColor: 'divider',
+          borderLeft: '1px solid',
+          borderColor: 'divider',
         },
       }}
     >
@@ -394,8 +417,7 @@ export const NodeDrawer = ({ open, onClose, onAddNode, onDragStart: onDragStartP
           justifyContent: "space-between",
           px: 3,
           py: 2.5,
-          borderBottom: "1px solid",
-          borderColor: 'divider',
+          borderBottom: 'none',
         }}
       >
         <Typography variant="h6" sx={{ fontWeight: 700, fontSize: "1rem", color: "text.primary" }}>
@@ -413,38 +435,47 @@ export const NodeDrawer = ({ open, onClose, onAddNode, onDragStart: onDragStartP
         </IconButton>
       </Box>
 
-      {/* Tabs */}
-      <Box sx={{ borderBottom: "1px solid", borderColor: 'divider' }}>
+      {/* --- START CHANGED SECTION: Small Tabs and Search Bar --- */}
+      <Box 
+        sx={{ 
+          px: 3, 
+          py: 1, // Reduced padding vertical
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between', // Ensures Left/Right separation
+          gap: 1,
+        }}
+      >
+        {/* Tabs on the left - Smaller */}
         <Tabs
           value={activeTab}
           onChange={(e, newValue) => setActiveTab(newValue)}
           sx={{
-            minHeight: 40,
-            px: 2,
+            minHeight: 30, // Smaller height
             "& .MuiTab-root": {
-              minHeight: 40,
+              minHeight: 30,
+              minWidth: 'auto',
+              px: 1.5, // Tighter padding
               textTransform: "none",
               fontWeight: 500,
-              fontSize: "0.875rem",
+              fontSize: "0.75rem", // Smaller font
               color: "text.secondary",
               "&.Mui-selected": {
-                color: "text.primary",
+                color: "primary.main",
               },
             },
             "& .MuiTabs-indicator": {
               bgcolor: "primary.main",
+              height: 2,
             },
           }}
         >
           <Tab label="Recent" />
           <Tab label="All Files" />
         </Tabs>
-      </Box>
 
-      {/* Search Bar */}
-      <Box sx={{ px: 3, py: 2 }}>
+        {/* Search Bar on the right - Smaller */}
         <TextField
-          fullWidth
           placeholder="Search"
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
@@ -452,28 +483,35 @@ export const NodeDrawer = ({ open, onClose, onAddNode, onDragStart: onDragStartP
           InputProps={{
             startAdornment: (
               <InputAdornment position="start">
-                <SearchIcon sx={{ fontSize: 20, color: "text.secondary" }} />
+                <SearchIcon sx={{ fontSize: 16, color: "text.secondary" }} />
               </InputAdornment>
             ),
           }}
           sx={{
+            width: 140, // Reduced width
             "& .MuiOutlinedInput-root": {
-              borderRadius: 2,
-              bgcolor: 'background.elevation1',
-              fontSize: "0.875rem",
+              borderRadius: 20,
+              bgcolor: 'action.hover',
+              fontSize: "0.75rem", // Smaller text
+              height: 30, // Smaller height
               "& fieldset": {
-                borderColor: 'divider',
+                borderColor: 'transparent',
               },
               "&:hover fieldset": {
                 borderColor: 'divider',
               },
               "&.Mui-focused fieldset": {
                 borderColor: 'primary.main',
+                borderWidth: 1,
+              },
+              "& input": {
+                py: 0, // Remove padding for perfect centering in small height
               },
             },
           }}
         />
       </Box>
+      {/* --- END CHANGED SECTION --- */}
 
       {/* Scrollable Content */}
       <Box sx={{ overflowY: "auto", flex: 1 }}>
@@ -485,7 +523,7 @@ export const NodeDrawer = ({ open, onClose, onAddNode, onDragStart: onDragStartP
                 variant="body2"
                 sx={{ 
                   textAlign: "center", 
-                color: "text.secondary",
+                  color: "text.secondary",
                   fontSize: "0.8125rem",
                   py: 4
                 }}
@@ -585,22 +623,22 @@ export const NodeDrawer = ({ open, onClose, onAddNode, onDragStart: onDragStartP
         ) : (
           // All Files Tab
           <Box>
-        {Object.keys(nodeCategories).length === 0 && !loading ? (
-          <Typography
-            variant="body2"
-            sx={{ 
-              textAlign: "center", 
-                color: "text.secondary",
+            {Object.keys(nodeCategories).length === 0 && !loading ? (
+              <Typography
+                variant="body2"
+                sx={{ 
+                  textAlign: "center", 
+                  color: "text.secondary",
                   fontSize: "0.8125rem",
                   py: 4
-            }}
-          >
-            No node categories found.
-          </Typography>
-        ) : (
+                }}
+              >
+                No node categories found.
+              </Typography>
+            ) : (
               Object.entries(nodeCategories).map(([key, nodes]) =>
-            renderCategory(key, nodes)
-          )
+                renderCategory(key, nodes)
+              )
             )}
           </Box>
         )}

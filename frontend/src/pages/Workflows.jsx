@@ -16,7 +16,7 @@ import {
 import BackspaceIcon from "@mui/icons-material/Backspace";
 import OpenInFullIcon from "@mui/icons-material/OpenInFull";
 import FullscreenExitIcon from "@mui/icons-material/FullscreenExit";
-import LockOpenIcon from "@mui/icons-material/LockOpen";
+import NearMeIcon from "@mui/icons-material/NearMe";
 import { PropertyBar } from "../components/workflow/PropertyBar";
 import { NodeDrawer } from "../components/workflow/NodeDrawer";
 import { nodeTypes, generateNode } from "../utils/dashboard.utils";
@@ -32,6 +32,7 @@ import { fetchNodeSchema } from "../utils/dashboard.api";
 import TopBar from "../components/TopBar";
 import PipelineNavBar from "../components/workflow/PipelineNavBar";
 import BottomToolbar from "../components/workflow/BottomToolbar";
+import ZoomControl from "../components/workflow/ZoomControl";
 import WorkflowCanvas from "../components/workflow/WorkflowCanvas";
 //TODO: need to fix this logic for setting status to Broken/Running/Stopped
 function toggleStatusLogic(variable) {
@@ -45,7 +46,9 @@ export default function WorkflowPage() {
   const [shareAnchorEl, setShareAnchorEl] = useState(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [isLocked, setIsLocked] = useState(false);
+  const [isSelectionMode, setIsSelectionMode] = useState(false);
   const [hoveredToolbarButton, setHoveredToolbarButton] = useState(null);
+  const [zoomLevel, setZoomLevel] = useState(100);
   const navigate = useNavigate();
   const { pipelineId } = useParams();
   
@@ -85,6 +88,7 @@ export default function WorkflowPage() {
     setContainerId,
     currentVersionId,
     setCurrentVersionId,
+    user,
   } = useGlobalContext();
 
   useEffect(() => {
@@ -481,6 +485,21 @@ export default function WorkflowPage() {
     setSelectedEdge(null);
   };
 
+  // Handler for edit button click - toggles property bar
+  const handleNodeEditClick = useCallback((nodeId) => {
+    const node = currentNodes.find(n => n.id === nodeId);
+    if (node) {
+      // If the same node is already selected, close the property bar
+      if (selectedNode && selectedNode.id === nodeId) {
+        setSelectedNode(null);
+      } else {
+        // Open property bar for the clicked node
+        setSelectedNode(node);
+        setSelectedEdge(null);
+      }
+    }
+  }, [currentNodes, selectedNode]);
+
   const onEdgeClick = (event, edge) => {
     setSelectedEdge(edge);
     setSelectedNode(null);
@@ -495,9 +514,126 @@ export default function WorkflowPage() {
     setIsFullscreen(false);
   };
 
+  const handleFitScreen = useCallback(() => {
+    if (!rfInstance) {
+      console.warn('ReactFlow instance not available');
+      return;
+    }
+
+    try {
+      // ReactFlow v12+ uses fitView method directly on the instance
+      if (typeof rfInstance.fitView === 'function') {
+        rfInstance.fitView({ 
+          padding: 0.1, 
+          maxZoom: 0.9,
+          duration: 300,
+          includeHiddenNodes: false
+        });
+      } else if (rfInstance.getNodes && rfInstance.getViewport && rfInstance.setViewport) {
+        // Fallback implementation using getNodes
+        const nodes = rfInstance.getNodes();
+        if (!nodes || nodes.length === 0) {
+          console.warn('No nodes to fit');
+          return;
+        }
+        
+        // Calculate bounding box
+        let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+        
+        nodes.forEach(node => {
+          const nodeWidth = node.measured?.width || node.width || 200;
+          const nodeHeight = node.measured?.height || node.height || 100;
+          
+          minX = Math.min(minX, node.position.x);
+          maxX = Math.max(maxX, node.position.x + nodeWidth);
+          minY = Math.min(minY, node.position.y);
+          maxY = Math.max(maxY, node.position.y + nodeHeight);
+        });
+        
+        const width = maxX - minX;
+        const height = maxY - minY;
+        
+        if (width > 0 && height > 0) {
+          // Get container dimensions from viewport or use defaults
+          const viewport = rfInstance.getViewport();
+          const containerWidth = viewport.width || window.innerWidth;
+          const containerHeight = viewport.height || window.innerHeight;
+          
+          // Calculate scale to fit with padding
+          const padding = 40;
+          const scale = Math.min(
+            (containerWidth - padding * 2) / width,
+            (containerHeight - padding * 2) / height,
+            0.9
+          );
+          
+          // Calculate center position
+          const x = (containerWidth - width * scale) / 2 - minX * scale;
+          const y = (containerHeight - height * scale) / 2 - minY * scale;
+          
+          rfInstance.setViewport({ x, y, zoom: scale }, { duration: 300 });
+        }
+      } else {
+        console.error('ReactFlow instance does not have required methods');
+      }
+    } catch (error) {
+      console.error('Error fitting view:', error);
+    }
+  }, [rfInstance]);
+
   const handleLockToggle = () => {
     setIsLocked(prev => !prev);
   };
+
+  const handleSelectionModeToggle = () => {
+    setIsSelectionMode(prev => !prev);
+  };
+
+  // Zoom handlers
+  const handleZoomIn = useCallback(() => {
+    if (rfInstance) {
+      const currentZoom = rfInstance.getZoom();
+      const roundedZoom = Math.round((currentZoom * 100) / 10) * 10;
+      const newZoom = Math.min((roundedZoom + 10) / 100, 2); // Max 200%, increment by 10%
+      rfInstance.zoomTo(newZoom);
+      setZoomLevel(newZoom * 100);
+    }
+  }, [rfInstance]);
+
+  const handleZoomOut = useCallback(() => {
+    if (rfInstance) {
+      const currentZoom = rfInstance.getZoom();
+      const roundedZoom = Math.round((currentZoom * 100) / 10) * 10;
+      const newZoom = Math.max((roundedZoom - 10) / 100, 0.1); // Min 10%, decrement by 10%
+      rfInstance.zoomTo(newZoom);
+      setZoomLevel(newZoom * 100);
+    }
+  }, [rfInstance]);
+
+  const handleZoomChange = useCallback((zoomPercent) => {
+    if (rfInstance) {
+      const newZoom = zoomPercent / 100;
+      rfInstance.zoomTo(newZoom);
+      setZoomLevel(zoomPercent);
+    }
+  }, [rfInstance]);
+
+  // Update zoom level when viewport changes
+  useEffect(() => {
+    if (rfInstance) {
+      const updateZoom = () => {
+        const zoom = rfInstance.getZoom();
+        setZoomLevel(zoom * 100);
+      };
+      
+      // Update zoom on viewport change
+      const unsubscribe = rfInstance.onViewportChange?.(updateZoom);
+      
+      return () => {
+        if (unsubscribe) unsubscribe();
+      };
+    }
+  }, [rfInstance]);
 
   const handleUpdateProperties = (nodeId, data) => {
     if (!isApplyingAction.current) {
@@ -580,6 +716,54 @@ export default function WorkflowPage() {
     setShareAnchorEl(null);
   };
 
+  const handleExportJSON = () => {
+    if (!rfInstance) {
+      setError("No workflow data available to export");
+      return;
+    }
+
+    try {
+      // Get the complete workflow data from ReactFlow instance
+      const flowData = rfInstance.toObject();
+      
+      // Create a comprehensive export object
+      const exportData = {
+        ...flowData,
+        metadata: {
+          pipelineName: `Pipeline ${pipelineId ? pipelineId.toLowerCase() : 'a'}`,
+          pipelineId: currentPipelineId,
+          versionId: currentVersionId,
+          exportedAt: new Date().toISOString(),
+          exportedBy: user?.name || user?.id || 'Unknown',
+        },
+      };
+
+      // Convert to JSON string with pretty formatting
+      const jsonString = JSON.stringify(exportData, null, 2);
+      
+      // Create a blob with the JSON data
+      const blob = new Blob([jsonString], { type: 'application/json' });
+      
+      // Create a download link
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      const fileName = `pipeline-${pipelineId || 'workflow'}-${new Date().toISOString().split('T')[0]}.json`;
+      link.download = fileName;
+      
+      // Trigger download
+      document.body.appendChild(link);
+      link.click();
+      
+      // Cleanup
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Export failed:', error);
+      setError('Failed to export workflow. Please try again.');
+    }
+  };
+
   const handleBackClick = () => {
     navigate("/workflows");
   };
@@ -658,6 +842,39 @@ export default function WorkflowPage() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isFullscreen]);
 
+  // F for fullscreen, Shift+F for fit screen, F again to exit fullscreen
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      // Check if focus is not on an input element
+      const activeElement = document.activeElement;
+      if (activeElement && (activeElement.tagName === 'INPUT' || activeElement.tagName === 'TEXTAREA' || activeElement.isContentEditable)) {
+        return;
+      }
+
+      // Shift + F: Fit screen (check shift first)
+      if ((e.key === 'f' || e.key === 'F') && e.shiftKey) {
+        e.preventDefault();
+          handleFitScreen();
+        return;
+      }
+
+      // F: Fullscreen toggle
+      if ((e.key === 'f' || e.key === 'F') && !e.shiftKey) {
+        e.preventDefault();
+        if (isFullscreen) {
+          // F when in fullscreen: Exit fullscreen
+          handleExitFullscreen();
+        } else {
+          // F: Enter fullscreen
+          handleEnterFullscreen();
+        }
+      }
+    };
+    
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isFullscreen, handleFitScreen]);
+
   // Create styled edges with selection highlighting
   const styledEdges = currentEdges.map((edge) => ({
     ...edge,
@@ -672,6 +889,12 @@ export default function WorkflowPage() {
       strokeWidth: edge.style?.strokeWidth || 2,
     },
     animated: selectedEdge?.id === edge.id ? true : edge.animated,
+  }));
+
+  // Add onEditClick handler to all nodes
+  const nodesWithEditHandler = currentNodes.map((node) => ({
+    ...node,
+    onEditClick: handleNodeEditClick,
   }));
 
   // Fullscreen view
@@ -691,7 +914,7 @@ export default function WorkflowPage() {
         }}
       >
         <WorkflowCanvas
-          nodes={currentNodes}
+          nodes={nodesWithEditHandler}
           edges={styledEdges}
           nodeTypes={nodeTypes}
           onNodesChange={() => {}}
@@ -781,6 +1004,15 @@ export default function WorkflowPage() {
           currentPipelineStatus={currentPipelineStatus}
           currentPipelineId={currentPipelineId}
           containerId={containerId}
+          onFullscreenClick={handleEnterFullscreen}
+          onFitScreenClick={handleFitScreen}
+          onRunBook={() => {
+            // TODO: Implement Run Book functionality
+            console.log("Run Book clicked");
+          }}
+          onExportJSON={handleExportJSON}
+          pipelineId={pipelineId}
+          userAvatar="https://i.pravatar.cc/40"
         />
 
         <Box
@@ -797,7 +1029,7 @@ export default function WorkflowPage() {
           }}
         >
           <WorkflowCanvas
-            nodes={currentNodes}
+            nodes={nodesWithEditHandler}
             edges={styledEdges}
             nodeTypes={nodeTypes}
             onNodesChange={onNodesChange}
@@ -831,13 +1063,14 @@ export default function WorkflowPage() {
             <Box
               sx={{
                 position: "absolute",
-                bottom: 56,
+                bottom: 68,
                 left: "50%",
                 transform: "translateX(-50%)",
                 display: "flex",
                 alignItems: "center",
                 gap: 0.3,
-                zIndex: 1000,
+                zIndex: 1001,
+                pointerEvents: "none",
               }}
             >
               <Typography 
@@ -852,40 +1085,7 @@ export default function WorkflowPage() {
                   fontWeight: 500,
                 }}
               >
-                Click <LockOpenIcon sx={{ fontSize: 11 }} /> to unlock and make changes
-              </Typography>
-            </Box>
-          )}
-
-          {/* Toolbar Button Helper */}
-          {hoveredToolbarButton && (
-            <Box
-              sx={{
-                position: "absolute",
-                bottom: 56,
-                left: "50%",
-                transform: "translateX(-50%)",
-                display: "flex",
-                alignItems: "center",
-                gap: 0.3,
-                zIndex: 1000,
-              }}
-            >
-              <Typography 
-                variant="caption" 
-                sx={{ 
-                  fontSize: "0.6rem",
-                  color: "#000000",
-                  textShadow: "1px 1px 2px rgba(255, 255, 255, 0.9), -1px -1px 2px rgba(255, 255, 255, 0.9), 0 0 3px rgba(255, 255, 255, 0.8)",
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 0.2,
-                  fontWeight: 500,
-                }}
-              >
-                {hoveredToolbarButton === 'add' && 'Add Node (Press A)'}
-                {hoveredToolbarButton === 'undo' && 'Undo (Ctrl + Z)'}
-                {hoveredToolbarButton === 'redo' && 'Redo (Ctrl + Shift + Z)'}
+                Click <NearMeIcon sx={{ fontSize: 11, transform: 'scaleX(-1)' }} /> to unlock and make changes
               </Typography>
             </Box>
           )}
@@ -895,13 +1095,14 @@ export default function WorkflowPage() {
             <Box
               sx={{
                 position: "absolute",
-                bottom: 56,
+                bottom: 68,
                 left: "50%",
                 transform: "translateX(-50%)",
                 display: "flex",
                 alignItems: "center",
                 gap: 0.3,
-                zIndex: 1000,
+                zIndex: 1001,
+                pointerEvents: "none",
               }}
             >
               <Typography 
@@ -929,6 +1130,16 @@ export default function WorkflowPage() {
             addDisabled={isLocked}
             undoDisabled={isLocked || undoDeque.length === 0}
             redoDisabled={isLocked || redoDeque.length === 0}
+            isLocked={isLocked}
+            onLockToggle={handleLockToggle}
+          />
+
+          <ZoomControl
+            zoom={zoomLevel}
+            onZoomIn={handleZoomIn}
+            onZoomOut={handleZoomOut}
+            onZoomChange={handleZoomChange}
+            propertyBarOpen={Boolean(selectedNode)}
           />
         </Box>
       </Box>

@@ -9,9 +9,41 @@ import {
   Box,
   useTheme,
 } from "@mui/material";
-import { ContentCopy, ContentCut, Delete, FileCopy, Extension } from "@mui/icons-material";
+import { 
+  Delete, 
+  FileCopy, 
+  Edit,
+  Input as InputIcon,
+  Transform as TransformIcon,
+  ControlCamera as ControlCameraIcon,
+} from "@mui/icons-material";
 import NodeDataTable from "./NodeDataTable";
 import "../../css/BaseNode.css";
+
+// Helper function to get icon based on node category
+const getCategoryIcon = (category, label) => {
+  const iconProps = { sx: { fontSize: 16, color: 'rgba(0, 0, 0, 0.9)' } };
+  const categoryLower = (category || '').toLowerCase();
+  const labelLower = (label || '').toLowerCase();
+  
+  // IO nodes (input/output)
+  if (categoryLower.includes('io') || categoryLower.includes('input') || categoryLower.includes('output')) {
+    return <InputIcon {...iconProps} />;
+  }
+  
+  // Agent nodes
+  if (categoryLower.includes('agent') || categoryLower.includes('action') || categoryLower.includes('logic')) {
+    return <ControlCameraIcon {...iconProps} />;
+  }
+  
+  // Table/Transform nodes
+  if (categoryLower.includes('table') || categoryLower.includes('temporal') || categoryLower.includes('transform')) {
+    return <TransformIcon {...iconProps} />;
+  }
+  
+  // Fallback to TransformIcon for unknown types
+  return <TransformIcon {...iconProps} />;
+};
 
 export const BaseNode = memo(
   ({
@@ -23,6 +55,8 @@ export const BaseNode = memo(
     properties = [],
     styles = {},
     contextMenu = [],
+    category,
+    onEditClick,
   }) => {
     const theme = useTheme();
     const { setNodes, getNode } = useReactFlow();
@@ -82,14 +116,26 @@ export const BaseNode = memo(
     const handleDuplicate = useCallback(() => {
       const node = getNode(id);
       if (node) {
+        const newNodeId = `${id}_dup_${Date.now()}`;
         const newNode = {
           ...node,
-          id: `${id}_dup_${Date.now()}`,
+          id: newNodeId,
           position: { x: node.position.x + 40, y: node.position.y + 40 },
+          selected: true, // Select the new node
         };
-        setNodes((nds) => [...nds, newNode]);
+        setNodes((nds) => [
+          ...nds.map(n => ({ ...n, selected: false })), // Deselect all existing nodes
+          newNode // Add new node with selected: true
+        ]);
       }
     }, [id, getNode, setNodes]);
+
+    const handleEdit = useCallback(() => {
+      // Call parent's onEditClick handler to toggle property bar
+      if (onEditClick) {
+        onEditClick(id);
+      }
+    }, [id, onEditClick]);
 
     // Hover state for floating actions
     const [isHovered, setIsHovered] = useState(false);
@@ -129,14 +175,9 @@ export const BaseNode = memo(
     // Action buttons configuration
     const actionButtons = [
       {
-        label: "Copy",
-        icon: <ContentCopy />,
-        onClick: handleCopy,
-      },
-      {
-        label: "Cut",
-        icon: <ContentCut />,
-        onClick: handleCut,
+        label: "Edit",
+        icon: <Edit />,
+        onClick: handleEdit,
       },
       {
         label: "Duplicate",
@@ -295,7 +336,7 @@ export const BaseNode = memo(
         }}>
           <div className="base-node-header-left">
             <div className="base-node-indicator-dot">
-              <Extension sx={{ fontSize: 16, color: 'rgba(255, 255, 255, 0.9)' }} />
+              {getCategoryIcon(category, data?.ui?.label)}
             </div>
             <Typography variant="subtitle2" className="base-node-title-in-header">
               {data?.ui?.label || "Node"}

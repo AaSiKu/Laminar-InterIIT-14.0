@@ -1,11 +1,40 @@
 import { useState, useContext } from 'react';
-import { Box, TextField, InputAdornment, Avatar, Menu, MenuItem, ListItemIcon, ListItemText, Divider, Switch, Typography } from '@mui/material';
+import { Box, TextField, InputAdornment, Avatar, Badge, Menu, MenuItem, ListItemIcon, ListItemText, Divider, Switch, Typography, styled } from '@mui/material';
 import SearchIcon from '@mui/icons-material/Search';
 import LogoutIcon from '@mui/icons-material/Logout';
 import DarkModeIcon from '@mui/icons-material/DarkMode';
 import LightModeIcon from '@mui/icons-material/LightMode';
 import { useColorScheme } from '@mui/material/styles';
 import { AuthContext } from '../context/AuthContext';
+
+const StyledBadge = styled(Badge)(({ theme }) => ({
+  '& .MuiBadge-badge': {
+    backgroundColor: '#44b700',
+    color: '#44b700',
+    boxShadow: `0 0 0 2px ${theme.palette.background.paper}`,
+    '&::after': {
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      width: '100%',
+      height: '100%',
+      borderRadius: '50%',
+      animation: 'ripple 1.2s infinite ease-in-out',
+      border: '1px solid currentColor',
+      content: '""',
+    },
+  },
+  '@keyframes ripple': {
+    '0%': {
+      transform: 'scale(.8)',
+      opacity: 1,
+    },
+    '100%': {
+      transform: 'scale(2.4)',
+      opacity: 0,
+    },
+  },
+}));
 
 const TopBar = ({ 
   showSearch = true, 
@@ -18,7 +47,7 @@ const TopBar = ({
   const [anchorEl, setAnchorEl] = useState(null);
   const open = Boolean(anchorEl);
   const { mode, setMode } = useColorScheme();
-  const { logout: authLogout } = useContext(AuthContext);
+  const { logout: authLogout, user } = useContext(AuthContext);
 
   const handleAvatarClick = (event) => {
     setAnchorEl(event.currentTarget);
@@ -39,6 +68,13 @@ const TopBar = ({
     } else if (authLogout) {
       authLogout();
     }
+  };
+
+  // Generate avatar URL from the service
+  const getAvatarUrl = () => {
+    // Always use avatar service with a unique identifier (user ID or name)
+    const identifier = user?.id || user?.name || userAvatar || 'default';
+    return `https://avatar.iran.liara.run/public/boy?username=${encodeURIComponent(identifier)}&size=32`;
   };
 
   return (
@@ -112,28 +148,34 @@ const TopBar = ({
         }}
       >
         {/* Avatar with Dropdown Menu */}
-        <Avatar
-          src={userAvatar}
-          alt="User"
-          onClick={handleAvatarClick}
-          sx={{
-            width: 28,
-            height: 28,
-            bgcolor: userAvatar ? 'transparent' : 'primary.main',
-            cursor: 'pointer',
-            fontSize: '0.75rem',
-            transition: 'transform 0.2s ease, box-shadow 0.2s ease',
-            '&:hover': {
-              transform: 'scale(1.05)',
-              boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
-            },
-          }}
-          aria-controls={open ? 'profile-menu' : undefined}
-          aria-haspopup="true"
-          aria-expanded={open ? 'true' : undefined}
+        <StyledBadge
+          overlap="circular"
+          anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+          variant="dot"
         >
-          {!userAvatar && 'U'}
-        </Avatar>
+          <Avatar
+            src={getAvatarUrl()}
+            alt={user?.name || "User"}
+            onClick={handleAvatarClick}
+            sx={{
+              width: 28,
+              height: 28,
+              bgcolor: 'primary.main',
+              cursor: 'pointer',
+              fontSize: '0.75rem',
+              transition: 'transform 0.2s ease, box-shadow 0.2s ease',
+              '&:hover': {
+                transform: 'scale(1.05)',
+                boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
+              },
+            }}
+            aria-controls={open ? 'profile-menu' : undefined}
+            aria-haspopup="true"
+            aria-expanded={open ? 'true' : undefined}
+          >
+            {(!userAvatar && !user?.id && !user?.name) && (user?.name?.[0]?.toUpperCase() || 'U')}
+          </Avatar>
+        </StyledBadge>
 
         <Menu
           id="profile-menu"

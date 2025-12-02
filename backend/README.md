@@ -111,7 +111,7 @@ Time-based windowing for streaming data:
 ```
 1. User saves pipeline JSON → MongoDB
                               ↓
-2. User triggers "Spin Up" → API creates Docker container
+2. User triggers "Activate" → API creates Docker container
                               ↓
 3. Container starts with:
    - Pipeline service (Pathway runtime)
@@ -173,7 +173,7 @@ pip install -r requirements.txt
 # backend/api/.env
 MONGO_URI=mongodb://localhost:27017
 MONGO_DB=pathway_tasks
-SECRET_KEY=your-secret-key-here
+SECRET_KEY=this-is-my-password
 GROQ_API_KEY=your-groq-api-key
 PATHWAY_LICENSE_KEY=your-pathway-license
 KAFKA_BOOTSTRAP_SERVER=localhost:9092

@@ -48,14 +48,14 @@ function AppContent() {
           path="/overview"
           element={
             <ProtectedRoute>
-              <OverviewPage />
-          </ProtectedRoute> 
+             <OverviewPage />
+         </ProtectedRoute> 
           }
         />
          <Route
           path="/create-pipeline"
           element={
-            <ProtectedRoute>
+           <ProtectedRoute>
               <CreatePipeline />
             </ProtectedRoute> 
           }
@@ -73,7 +73,7 @@ function AppContent() {
           element={
             <ProtectedRoute>
               <AdminPage />
-            </ProtectedRoute> 
+          </ProtectedRoute> 
           }
         />
         <Route path="*" element={<Navigate to="/404" />} />

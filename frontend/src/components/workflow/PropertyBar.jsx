@@ -46,6 +46,28 @@ export const PropertyBar = ({
     severity: "success",
   });
 
+  // Filter out non-editable fields from schema
+  const getEditableSchema = (schema) => {
+    if (!schema || !schema.properties) return schema;
+    
+    const filteredSchema = {
+      ...schema,
+      properties: { ...schema.properties },
+      required: schema.required ? [...schema.required] : [],
+    };
+    
+    // Remove node_id, category from properties (keep n_inputs to display but will be disabled)
+    delete filteredSchema.properties.node_id;
+    delete filteredSchema.properties.category;
+    
+    // Remove from required array if present
+    filteredSchema.required = filteredSchema.required.filter(
+      field => !['node_id', 'category'].includes(field)
+    );
+    
+    return filteredSchema;
+  };
+
   // 1. Create the Custom Description Component
   const MarkdownDescriptionField = ({ description, id }) => {
     if (!description) {
@@ -102,16 +124,18 @@ export const PropertyBar = ({
         }}
         sx={{
           "& .MuiDrawer-paper": {
-            width: drawerWidth,
+            width: "450px",
             backgroundColor: 'background.paper',
             boxShadow: theme.shadows[4],
-            border: "1px solid",
+            borderLeft: "1px solid",
             borderColor: 'divider',
-            borderLeft: "none",
             zIndex: 1400,
             top: "48px",
             height: "calc(100vh - 48px)",
             transition: "transform 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
+            padding: "40px",
+            display: "flex",
+            justifyContent: "space-between",
           },
         }}
       >
@@ -125,57 +149,103 @@ export const PropertyBar = ({
           <Box
             sx={{ height: "100%", display: "flex", flexDirection: "column" }}
           >
-            {/* Header */}
-            <Box
-              sx={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
-                px: 3,
-                py: 3.5,
-                borderBottom: "1px solid",
-                borderColor: 'divider',
-              }}
-            >
-              <Typography
-                variant="h6"
-                sx={{ fontWeight: 600, fontSize: "1.125rem", color: "text.primary" }}
-              >
-                Property Editor
-              </Typography>
-              <IconButton
-                onClick={onClose}
-                size="small"
-                sx={{
-                  color: "text.secondary",
-                  "&:hover": { backgroundColor: 'action.hover' },
-                }}
-              >
-                <CloseIcon fontSize="small" />
-              </IconButton>
-            </Box>
-
             {/* Scrollable Content */}
-            <Box sx={{ flex: 1, overflowY: "auto", px: 3, py: 2.5 }}>
-              {/* Node Title */}
-              <Box sx={{ mb: 2.5 }}>
+            <Box sx={{ flex: 1, overflowY: "auto" }}>
+              {/* Category and Node ID on same line - Read only */}
+              <Box sx={{ mb: 1.5, display: 'flex', gap: 1.5 }}>
+                <Box sx={{ flex: 1 }}>
+                  <Typography
+                    variant="caption"
+                    sx={{
+                      color: "text.secondary",
+                      fontWeight: 600,
+                      fontSize: "0.65rem",
+                      textTransform: "uppercase",
+                      letterSpacing: "0.5px",
+                      mb: 0.5,
+                      display: "block",
+                    }}
+                  >
+                    Category
+                  </Typography>
+                  <TextField
+                    fullWidth
+                    value={selectedNode?.category || selectedNode?.data?.properties?.category || "General"}
+                    variant="outlined"
+                    disabled
+                    size="small"
+                    sx={{
+                      "& .MuiOutlinedInput-root": {
+                        backgroundColor: 'background.elevation1',
+                        borderRadius: "6px",
+                        fontSize: "0.75rem",
+                        "& fieldset": { borderColor: 'divider' },
+                        "& input": {
+                          padding: "6px 8px",
+                          fontSize: "0.75rem",
+                          height: "auto",
+                        },
+                      },
+                    }}
+                  />
+                </Box>
+                <Box sx={{ flex: 1 }}>
+                  <Typography
+                    variant="caption"
+                    sx={{
+                      color: "text.secondary",
+                      fontWeight: 600,
+                      fontSize: "0.65rem",
+                      textTransform: "uppercase",
+                      letterSpacing: "0.5px",
+                      mb: 0.5,
+                      display: "block",
+                    }}
+                  >
+                    Node ID
+                  </Typography>
+                  <TextField
+                    fullWidth
+                    value={selectedNode?.node_id || selectedNode?.data?.properties?.node_id || "N/A"}
+                    variant="outlined"
+                    disabled
+                    size="small"
+                    sx={{
+                      "& .MuiOutlinedInput-root": {
+                        backgroundColor: 'background.elevation1',
+                        borderRadius: "6px",
+                        fontSize: "0.75rem",
+                        "& fieldset": { borderColor: 'divider' },
+                        "& input": {
+                          padding: "6px 8px",
+                          fontSize: "0.75rem",
+                          height: "auto",
+                        },
+                      },
+                    }}
+                  />
+                </Box>
+              </Box>
+
+              {/* N Inputs - Read only */}
+              <Box sx={{ mb: 1.5 }}>
                 <Typography
                   variant="caption"
                   sx={{
-                    color: "primary.main",
+                    color: "text.secondary",
                     fontWeight: 600,
-                    fontSize: "0.6875rem",
+                    fontSize: "0.65rem",
                     textTransform: "uppercase",
                     letterSpacing: "0.5px",
-                    mb: 0.75,
+                    mb: 0.5,
                     display: "block",
                   }}
                 >
-                  Title
+                  N Inputs
                 </Typography>
                 <TextField
                   fullWidth
-                  value={selectedNode?.data?.ui?.label || "Node"}
+                  value={selectedNode?.data?.properties?.n_inputs || "0"}
                   variant="outlined"
                   disabled
                   size="small"
@@ -183,67 +253,42 @@ export const PropertyBar = ({
                     "& .MuiOutlinedInput-root": {
                       backgroundColor: 'background.elevation1',
                       borderRadius: "6px",
-                      fontSize: "0.8125rem",
+                      fontSize: "0.75rem",
                       "& fieldset": { borderColor: 'divider' },
                       "& input": {
-                        padding: "10px 12px",
-                        fontSize: "0.8125rem",
+                        padding: "6px 8px",
+                        fontSize: "0.75rem",
+                        height: "auto",
                       },
                     },
                   }}
                 />
               </Box>
 
-              {/* Category Chip */}
-              <Box sx={{ mb: 2.5 }}>
-                <Typography
-                  variant="caption"
-                  sx={{
-                    color: "text.secondary",
-                    fontWeight: 600,
-                    fontSize: "0.6875rem",
-                    textTransform: "uppercase",
-                    letterSpacing: "0.5px",
-                    mb: 0.75,
-                    display: "block",
-                  }}
-                >
-                  Category
-                </Typography>
-                <Chip
-                  label={selectedNode?.data?.properties?.category || "General"}
-                  color="primary"
-                  variant="soft"
-                  sx={{
-                    fontWeight: 500,
-                    borderRadius: "6px",
-                    height: "26px",
-                    fontSize: "0.75rem",
-                  }}
-                />
-              </Box>
-
-              <Divider sx={{ my: 2.5 }} />
+              <Divider sx={{ my: 1.5 }} />
 
               {/* Properties Form */}
-              <Box sx={{ mb: 2.5 }}>
+              <Box sx={{ mb: 1.5 }}>
                 <Typography
                   variant="caption"
                   sx={{
                     color: "text.secondary",
                     fontWeight: 600,
-                    fontSize: "0.6875rem",
+                    fontSize: "0.65rem",
                     textTransform: "uppercase",
                     letterSpacing: "0.5px",
-                    mb: 1.5,
+                    mb: 1,
                     display: "block",
                   }}
                 >
                   Properties
                 </Typography>
-                <div className="property-bar-form-content">
+                <div className="property-bar-form-content" style={{ 
+                  '& .MuiTextField-root': { marginBottom: '8px' },
+                  '& .MuiFormControl-root': { marginBottom: '8px' },
+                }}>
                   <Form
-                    schema={selectedNode?.schema}
+                    schema={getEditableSchema(selectedNode?.schema)}
                     validator={validator}
                     formData={selectedNode?.data?.properties}
                     onSubmit={handleSave}

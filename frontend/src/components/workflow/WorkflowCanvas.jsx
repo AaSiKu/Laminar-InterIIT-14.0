@@ -1,9 +1,6 @@
 import { Box } from "@mui/material";
-import { ReactFlow, Background, Controls, ControlButton } from "@xyflow/react";
+import { ReactFlow, Background } from "@xyflow/react";
 import { useTheme } from "@mui/material/styles";
-import OpenInFullIcon from "@mui/icons-material/OpenInFull";
-import LockOpenIcon from "@mui/icons-material/LockOpen";
-import LockIcon from "@mui/icons-material/Lock";
 
 const WorkflowCanvas = ({
   nodes,
@@ -22,7 +19,6 @@ const WorkflowCanvas = ({
   nodesDraggable = true,
   nodesConnectable = true,
   elementsSelectable = true,
-  onFullscreenClick,
   isLocked = false,
   onLockToggle,
 }) => {
@@ -62,18 +58,6 @@ const WorkflowCanvas = ({
         fitView
         fitViewOptions={{ maxZoom: 0.9 }}
       >
-        <Controls position="top-right" showInteractive={false}>
-          {onLockToggle && (
-            <ControlButton onClick={onLockToggle} title={isLocked ? "Unlock" : "Lock"}>
-              {isLocked ? <LockIcon /> : <LockOpenIcon />}
-            </ControlButton>
-          )}
-          {onFullscreenClick && (
-            <ControlButton onClick={onFullscreenClick} title="Enter Fullscreen">
-              <OpenInFullIcon />
-            </ControlButton>
-          )}
-        </Controls>
         <Background 
           color={theme.palette.mode === 'dark' ? theme.palette.divider : '#DBE6EB'} 
           gap={16} 
