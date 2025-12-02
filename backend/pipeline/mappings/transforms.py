@@ -1,7 +1,6 @@
 from typing import List, Dict, Any
 import pathway as pw
-from lib.tables import JoinNode, FilterNode
-from lib.tables.transforms import GroupByNode, SelectNode, WithoutNode
+from lib.tables import JoinNode, FilterNode, GroupByNode, JSONSelectNode, FlattenNode
 from .helpers import MappingValues, get_col, get_this_col, select_for_join
 from .open_tel.prefix import open_tel_trace_id
 
@@ -100,6 +99,28 @@ def group_by(inputs: List[pw.Table], node: GroupByNode):
 
     return table.groupby(*group_cols).reduce(*group_cols, **reducers)
 
+def json_select(inputs: List[pw.Table], node: JSONSelectNode) -> pw.Table:
+    table = inputs[0]
+    new_column_name = node.new_column_name if node.new_column_name else node.property
+    all_cols = [get_this_col(col) for col in table.column_names() if col != new_column_name]
+    new_col = get_this_col(node.json_column)[node.property]
+
+    if node.property_type != "json":
+        new_col=pw.unwrap(getattr(new_col, f"as_{node.property_type}")())
+        
+    new_cols = {
+        new_column_name: new_col
+    }
+    return table.select(
+        *all_cols,
+        **new_cols
+    )
+
+def flatten(inputs: List[pw.Table], node: FlattenNode) -> pw.Table:
+    table = inputs[0]
+    return table.flatten(get_this_col(node.column))
+
+
 transform_mappings: dict[str, MappingValues] = {
     "filter": {
         "node_fn": filter,
@@ -118,12 +139,12 @@ transform_mappings: dict[str, MappingValues] = {
         "node_fn": group_by,
         "stringify": lambda node, inputs: f"Groups input {inputs[0]} by {', '.join(node.columns)} and reduces with {', '.join([f"{reducer["new_col"]} = {reducer["reducer"]}({reducer["col"]})" for reducer in node.reducers])}",
     },
-    "select": {
-        "node_fn": lambda inputs, node: inputs[0].select(*[get_this_col(col) for col in node.columns]),
-        "stringify": lambda node, inputs: f"Selects columns {', '.join(node.columns)} from input {inputs[0]}",
+    "json_select": {
+        "node_fn": json_select,
+        "stringify": lambda node, inputs: f"Selects attribute {node.property} from JSON column {node.json_column}{f" and stores it in column {node.new_column_name}" if node.new_column_name else ""} in input {inputs[0]}"
     },
-    "without": {
-        "node_fn": lambda inputs, node: inputs[0].without(*[get_this_col(col) for col in node.columns]),
-        "stringify": lambda node, inputs: f"Returns a table without columns {', '.join(node.columns)} from input {inputs[0]}",
-    },
+    "flatten": {
+        "node_fn": flatten,
+        "stringify": lambda node,inputs: f"Flattens iterable column {node.column}, while retaining the column name, in input {inputs[0]}"
+    }
 }
