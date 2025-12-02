@@ -9,7 +9,7 @@ import { BrowserRouter } from 'react-router-dom'
 import { AuthProvider } from './context/AuthContext.jsx'
 import SettingsProvider from './providers/SettingsProvider.jsx';
 import ThemeProvider from './providers/ThemeProvider.jsx';
-import MobileViewBlocker from "./components/MobileViewBlocker.jsx";
+import MobileViewBlocker from "./components/common/MobileViewBlocker.jsx";
 
 
 const container = document.getElementById("root");

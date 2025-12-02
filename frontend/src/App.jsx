@@ -1,15 +1,13 @@
-//TODO: Add a loading state to the app
-//TODO: Add the use notification hook to the app and add to the notification in developer dashboard
+//TODO: Add the use notification hook for the
 import { Routes, Route, Navigate, useLocation } from "react-router-dom";
-import ProtectedRoute from "./components/ProtectedRoute";
+import ProtectedRoute from "./pages/ProtectedRoute";
 import LoginPage from "./pages/Login.jsx";
 import SignupPage from "./pages/Signup.jsx";
 import WorkflowPage from "./pages/Workflows.jsx";
-import Sidebar from "./components/sidebar.jsx";
+import Sidebar from "./components/common/sidebar.jsx";
 import OverviewPage from "./pages/Overview.jsx";
 import { AdminPage } from "./pages/Admin.jsx";
-import {WorkflowsList} from "./pages/WorkflowsList.jsx"
-import { DeveloperDashboardProject } from "./pages/DeveloperDashboardProject.jsx";
+import { WorkflowsList } from "./pages/WorkflowsList.jsx";
 import NotFoundPage from "./pages/NotFoundPage.jsx";
 
 function AppContent() {
@@ -28,7 +26,7 @@ function AppContent() {
 
         {/* Protected routes */}
         <Route
-          path="/workflow"
+          path="/workflows"
           element={
             <ProtectedRoute>
               <WorkflowsList />
@@ -48,14 +46,6 @@ function AppContent() {
           element={
             <ProtectedRoute>
               <OverviewPage />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/overview/:projectId"
-          element={
-            <ProtectedRoute>
-              <DeveloperDashboardProject />
             </ProtectedRoute>
           }
         />

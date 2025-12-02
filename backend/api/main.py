@@ -106,7 +106,8 @@ origins = [
 ]
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=origins,
+    # if i set it to ["*"] it causes the issue of first login request fail https://stackoverflow.com/a/19744754/23078987
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

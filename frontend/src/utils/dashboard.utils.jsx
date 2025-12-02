@@ -1,4 +1,4 @@
-import { BaseNode } from "../components/BaseNode";
+import { BaseNode } from "../components/workflow/BaseNode";
 
 // TODO: As the nodeTypes is a in memory, it is lost when i leave the page for some time,
 // hence the ui resets to simple rectangle box
