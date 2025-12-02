@@ -11,7 +11,7 @@ from backend.api.routers.auth.database import get_db
 from bson.json_util import dumps
 from starlette.websockets import WebSocketDisconnect
 import logging
-
+#TODO: Add role and status to the notification
 logger = logging.getLogger(__name__)
 
 load_dotenv()

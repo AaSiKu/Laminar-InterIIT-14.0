@@ -27,9 +27,12 @@ async def create_workflow(user_identifier,version_collection,workflow_collection
                 "agent_port": "",
                 "agent_ip": "",
                 "notification": [],
-                "host_port": "",
+                "pipeline_host_port": "",
+                "agentic_host_port":"",
+                "db_host_port":"",
                 "host_ip": "",
-                "versions": []
+                "versions": [],
+                "last_updated": datetime.now()
             }
 
     async with await mongo_client.start_session() as session:
@@ -40,6 +43,7 @@ async def create_workflow(user_identifier,version_collection,workflow_collection
             version_doc["_id"] = version.inserted_id
             workflow_doc["versions"]=[str(version.inserted_id)]
             workflow_doc["current_version_id"] = str(version.inserted_id)
+            workflow_doc["last_updated"] = datetime.now()
             result = await workflow_collection.insert_one(workflow_doc, session=session)
             workflow_doc["_id"] = result.inserted_id
             await session.commit_transaction()

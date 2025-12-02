@@ -17,10 +17,10 @@ class Notification(BaseModel):
     desc: str
     action: str
     alert: Optional[Alert] = None
-    type:str
-    timestamp: datetime
-    notification_role: List[str]
-    notification_status:str
+    type:str  #type of notification (alert, notification)
+    timestamp: Optional[datetime] = datetime.now()
+    notification_role: List[str] #roles of users who will receive the notification
+    notification_status:str #status of notification (pending, resolved, ignored)
 
 
 class Workflow(BaseModel):
@@ -39,6 +39,7 @@ class Workflow(BaseModel):
     pipeline_host_port: str
     host_ip: str
     db_host_port: Optional[str] = None
+    last_updated: datetime
 
 class Version(BaseModel):
     user_id: str
