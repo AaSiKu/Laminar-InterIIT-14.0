@@ -5,7 +5,6 @@ import asyncio
 from fastapi import WebSocket, WebSocketDisconnect, APIRouter
 from aiokafka import AIOKafkaConsumer
 from dotenv import load_dotenv
-from backend.api.routers.overview import active_connections
 from backend.api.routers.auth.routes import get_current_user_ws, WebSocketAuthException
 from bson.objectid import ObjectId
 from backend.api.routers.auth.database import get_db

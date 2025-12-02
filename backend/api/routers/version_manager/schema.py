@@ -4,18 +4,23 @@ from pydantic import BaseModel
 
 # ------- User Actions on Workflow --------- #
 
-class Notification(BaseModel):
-    user_id:str
-    pipeline_id:str
-    notification_message: str
-    notification_created_at: datetime
-    notification_role: List[str]
-    notification_sensitivity: str
-    notification_status:str
-    action_choices:List[str]
-    action_chosen: str
-    action_execute_time:str
+class Alert(BaseModel):
+    actions: List[str]
+    action_taken: Optional[str] = None
+    taken_at: Optional[datetime] = None
     action_executed_by:str
+
+class Notification(BaseModel):
+    user_id: str
+    pipeline_id:str
+    title: str
+    desc: str
+    action: str
+    alert: Optional[Alert] = None
+    type:str
+    timestamp: datetime
+    notification_role: List[str]
+    notification_status:str
 
 
 class Workflow(BaseModel):
