@@ -20,7 +20,6 @@ import HighlightIcon from "@mui/icons-material/Highlight";
 import CloseIcon from "@mui/icons-material/Close";
 import NotificationsActiveOutlinedIcon from "@mui/icons-material/NotificationsActiveOutlined";
 import NoDataImage from "../assets/noData.svg";
-
 // Icon mapping utility
 const getIconComponent = (iconType) => {
   const iconMap = {

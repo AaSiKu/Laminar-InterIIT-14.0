@@ -27,14 +27,14 @@ export function AvatarStack({ count }) {
           },
         }}
       >
-        {Array.from({ length: displayCount }).map((_, i) => (
+      {Array.from({ length: displayCount }).map((_, i) => (
           <Avatar
             key={i}
             src={`https://i.pravatar.cc/40?img=${i + 10}`}
             alt="Member"
           />
-        ))}
-        {extraCount > 0 && (
+      ))}
+      {extraCount > 0 && (
           <Avatar
             sx={{
               bgcolor: 'primary.main',
@@ -45,7 +45,7 @@ export function AvatarStack({ count }) {
           >
             +{extraCount}
           </Avatar>
-        )}
+      )}
       </AvatarGroup>
     </Box>
   );
