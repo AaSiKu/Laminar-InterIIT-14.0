@@ -14,8 +14,8 @@ class Flowchart(TypedDict):
     name: Optional[str]
 
 class MetricNodeDescription(TypedDict):
-    description: str
-    description_indexes_mapping: Dict[int,int]
+    pipeline_description: str
+    pipeline_description_indexes_mapping: Dict[int,int]
     special_columns_source_indexes: Dict[str,int]
 
 class Graph(Flowchart):

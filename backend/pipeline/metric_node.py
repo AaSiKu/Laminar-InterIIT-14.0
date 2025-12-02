@@ -3,6 +3,7 @@ from .mappings.open_tel.prefix import open_tel_trace_id
 from typing import Optional, Dict, List, Any
 from .types import MetricNodeDescription, Graph
 from .mappings import mappings
+from lib.trigger_rca import TriggerRCANode
 import json
 
 prefixes = ["_pw_left_","_pw_right_","_pw_grouped_", "_pw_windowed_"]
@@ -125,10 +126,11 @@ def find_special_column_sources(
     while len(incoming_edges.get(current_node_idx,[])) > 0:
         
         current_node = nodes[current_node_idx]
-
+        print(f"Currently at node: {current_node.node_id}")
         if current_node.node_id in semantic_nodes or hasattr(current_node,"input_schema"):
             if current_source is None:
                 current_source = current_node_idx
+            current_node_idx = incoming_edges.get(current_node_idx,[None])[0] 
             continue
         
         current_source = None
@@ -231,7 +233,6 @@ def identify_metric_nodes_with_descriptions(
     """
     nodes = graph["nodes"]
     dependencies = graph["dependencies"]
-    parsing_order = graph["parsing_order"]
     metric_descriptions = {}
     
     # Find all TriggerRCA nodes
@@ -245,24 +246,25 @@ def identify_metric_nodes_with_descriptions(
     
     # For each TriggerRCA node, find its input nodes (metric nodes)
     for trigger_idx in trigger_rca_indices:
+        trigger_rca_node: TriggerRCANode = nodes[trigger_idx]
         # Get parent nodes of this TriggerRCA node
         if trigger_idx in dependencies:
             for metric_node_idx in dependencies[trigger_idx]:
                 # Generate description for this metric node
-                description, description_indexes_mapping = build_parent_graph_description(
+                pipeline_description, pipeline_description_indexes_mapping = build_parent_graph_description(
                     metric_node_idx,
                     graph
                 )
                 metric_descriptions[metric_node_idx] = {
-                    "description": description,
-                    "description_indexes_mapping": description_indexes_mapping,
-                    "special_columns_source_indexes": {
-                    }
+                    "description": trigger_rca_node.metric_description,
+                    "pipeline_description": pipeline_description,
+                    "pipeline_description_indexes_mapping": pipeline_description_indexes_mapping,
+                    "special_columns_source_indexes": {}
                 }
     
     return metric_descriptions
 
-def pretty_print_metric_nodes(metric_descriptions: List[MetricNodeDescription]):
+def pretty_print_metric_nodes(metric_descriptions: Dict[int,MetricNodeDescription]):
     """Print metric node descriptions in a readable format."""
     for metric_idx in metric_descriptions:
         metric = metric_descriptions[metric_idx]
@@ -272,11 +274,11 @@ def pretty_print_metric_nodes(metric_descriptions: List[MetricNodeDescription]):
         
         if 'description' in metric:
             print("\nPipeline Description:")
-            print(metric['description'])
+            print(metric['pipeline_description'])
         
         if 'description_indexes_mapping' in metric:
             print("\nNode Index Mapping:")
-            for idx, pos in metric['description_indexes_mapping'].items():
+            for idx, pos in metric['pipeline_description_indexes_mapping'].items():
                 print(f"  Node {idx} -> Position ${pos}")
         
         if 'special_columns_source_indexes' in metric:
