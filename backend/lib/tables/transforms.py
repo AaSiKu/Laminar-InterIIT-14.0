@@ -1,4 +1,5 @@
-from typing import Literal, List, Tuple, TypedDict
+from typing import Literal, List, Tuple, Optional
+from typing_extensions import TypedDict
 from .base import TableNode, ReducerDict
 
 ops = Literal["==", "<", "<=", ">=", ">", "!=", "startswith", "endswith", "find"]
@@ -22,18 +23,14 @@ class GroupByNode(TableNode):
     reducers: List[ReducerDict]
     n_inputs: Literal[1] = 1
 
-class SelectNode(TableNode):
-    node_id: Literal["select"]
-    columns: List[str]
-    n_inputs: Literal[1] = 1
 
-class RenameNode(TableNode):
-    node_id: Literal["rename"]
-    # old_name, new_name
-    mapping: List[Tuple[str, str]]
-    n_inputs: Literal[1] = 1
+class JSONSelectNode(TableNode):
+    node_id: Literal["json_select"]
+    json_column: str
+    property: str | int
+    property_type: Literal["json", "str", "int", "float", "bool"]
+    new_column_name: Optional[str]
 
-class WithoutNode(TableNode):
-    node_id: Literal["without"]
-    columns: List[str]
-    n_inputs: Literal[1] = 1
+class FlattenNode(TableNode):
+    node_id : Literal["flatten"]
+    column: str
