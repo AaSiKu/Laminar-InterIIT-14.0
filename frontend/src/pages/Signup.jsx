@@ -1,73 +1,87 @@
 import React, { useState, useContext, useEffect } from "react";
 import {
   Box,
+  Container,
   TextField,
   Button,
   Typography,
   Alert,
   Paper,
 } from "@mui/material";
-import { useGlobalContext } from "../context/GlobalContext";
+import { AuthContext } from "../context/AuthContext";
+import PersonAddIcon from "@mui/icons-material/PersonAdd";
 import EmailIcon from "@mui/icons-material/Email";
 import LockIcon from "@mui/icons-material/Lock";
-import LoginIcon from "@mui/icons-material/Login"; 
-import { Navigate } from "react-router-dom";
+import PersonIcon from "@mui/icons-material/Person";
+import { useNavigate } from "react-router-dom";
 
-export default function LoginPage() {
+export default function SignupPage() {
+  const { login, isAuthenticated } = useContext(AuthContext);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [fullName, setFullName] = useState("");
   const [error, setError] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
-  const { login, isAuthenticated } = useGlobalContext();
+  const navigate = useNavigate();
+  const API_SERVER = import.meta.env.VITE_API_SERVER;
+  useEffect(() => {
+    if (isAuthenticated) navigate("/overview");
+  }, [isAuthenticated]);
 
- if (isAuthenticated) {
-    return <Navigate to="/developer-dashboard" replace />;
-  }
+const handleSubmit = async (e) => {
+  e.preventDefault();
+  setError("");
+  try {
+    // 1. Signup → backend sets cookies
+    const res = await fetch(`${API_SERVER}/auth/signup`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, password, full_name: fullName }),
+      credentials: "include",
+    });
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setError("");
-    setIsLoading(true);
-
-    try {
-      const res = await fetch(`${import.meta.env.VITE_API_SERVER}/auth/login`, {
-        method: "POST",
-        credentials: "include",
-        headers: { "Content-Type": "application/x-www-form-urlencoded" },
-        body: new URLSearchParams({ username: email, password }),
-      });
-
-      if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.detail || "Login failed");
-      }
-
-      const userRes = await fetch(`${import.meta.env.VITE_API_SERVER}/auth/me`, {
-        method: "GET",
-        credentials: "include",
-      });
-
-      if (!userRes.ok) throw new Error("Failed to fetch user info");
-
-      const userData = await userRes.json();
-      login(userData); // triggers redirect
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setIsLoading(false);
+    if (!res.ok) {
+      const data = await res.json();
+      throw new Error(data.detail || "Signup failed");
     }
-  };
+
+    // 2. Fetch user info
+    const userRes = await fetch(`${API_SERVER}/auth/me`, {
+      method: "GET",
+      credentials: "include",
+    });
+
+    if (!userRes.ok) throw new Error("Failed to fetch user info");
+    const userData = await userRes.json();
+
+    // 3. Update AuthProvider state → triggers redirect automatically
+    login(userData);
+  } catch (err) {
+    setError(err.message);
+  }
+};
+
+
   return (
     <Box
       sx={{
         minHeight: "100vh",
-        minWidth: "100vw", 
+        minWidth: "100vw",
         display: "flex",
         justifyContent: "center",
         alignItems: "center",
-        background: "#f0f2f5",
+        background: "#f0f2f5", // Changed to a light grey background
         position: "relative",
         overflow: "hidden",
+        "&::before": {
+          content: '""',
+          position: "absolute",
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: "none", // Removed radial gradients
+          pointerEvents: "none",
+        },
         p: 2,
       }}
     >
@@ -108,7 +122,7 @@ export default function LoginPage() {
               boxShadow: "0 8px 20px rgba(59, 130, 246, 0.4)",
             }}
           >
-            <LoginIcon sx={{ fontSize: 32, color: "white" }} />
+            <PersonAddIcon sx={{ fontSize: 32, color: "white" }} />
           </Box>
           <Typography
             component="h1"
@@ -120,7 +134,7 @@ export default function LoginPage() {
               letterSpacing: "-0.5px",
             }}
           >
-            Sign In
+            Create Account
           </Typography>
           <Typography
             variant="body2"
@@ -130,7 +144,7 @@ export default function LoginPage() {
               mt: 1,
             }}
           >
-            Welcome back! Please sign in to your account.
+            Sign up to get started with your account
           </Typography>
         </Box>
 
@@ -150,6 +164,45 @@ export default function LoginPage() {
         )}
 
         <Box component="form" onSubmit={handleSubmit}>
+          {/* Full Name Field */}
+          <Box sx={{ mb: 2.5 }}>
+            <Typography
+              variant="body2"
+              sx={{ mb: 1, fontWeight: 600, color: "text.secondary" }}
+            >
+              Full Name
+            </Typography>
+            <TextField
+              required
+              fullWidth
+              placeholder="Enter your full name"
+              value={fullName}
+              onChange={(e) => setFullName(e.target.value)}
+              InputProps={{
+                startAdornment: (
+                  <PersonIcon
+                    sx={{ mr: 1, color: "text.secondary", fontSize: 20 }}
+                  />
+                ),
+              }}
+              sx={{
+                "& .MuiOutlinedInput-root": {
+                  borderRadius: "12px",
+                  background: "rgba(248, 250, 252, 0.8)",
+                  transition: "all 0.3s ease",
+                  "&:hover": {
+                    background: "rgba(255, 255, 255, 1)",
+                    boxShadow: "0 4px 12px rgba(59, 130, 246, 0.08)",
+                  },
+                  "&.Mui-focused": {
+                    background: "rgba(255, 255, 255, 1)",
+                    boxShadow: "0 4px 12px rgba(59, 130, 246, 0.15)",
+                  },
+                },
+              }}
+            />
+          </Box>
+
           {/* Email Field */}
           <Box sx={{ mb: 2.5 }}>
             <Typography
@@ -202,7 +255,7 @@ export default function LoginPage() {
               required
               fullWidth
               type="password"
-              placeholder="Enter your password"
+              placeholder="Create a strong password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               InputProps={{
@@ -269,11 +322,11 @@ export default function LoginPage() {
               },
             }}
           >
-            {isLoading ? "Signing In..." : "Sign In"}
+            Create Account
           </Button>
         </Box>
 
-        {/* Sign Up Link */}
+        {/* Sign In Link */}
         <Box sx={{ mt: 4, pt: 3, borderTop: "1px solid rgba(0, 0, 0, 0.06)" }}>
           <Typography
             sx={{
@@ -282,9 +335,9 @@ export default function LoginPage() {
               fontSize: "0.95rem",
             }}
           >
-            Don't have an account?{" "}
+            Already have an account?{" "}
             <a
-              href="/auth/signup"
+              href="/login"
               style={{
                 color: "#3b82f6",
                 textDecoration: "none",
@@ -294,7 +347,7 @@ export default function LoginPage() {
               onMouseEnter={(e) => (e.target.style.color = "#2563eb")}
               onMouseLeave={(e) => (e.target.style.color = "#3b82f6")}
             >
-              Sign Up
+              Sign In
             </a>
           </Typography>
         </Box>

@@ -202,7 +202,7 @@ function HumanInLoopPanel({ data }) {
 
 // --- Main Analytics Page Component ---
 
-export default function AnalyticsPage() {
+export default function NotificationPage() {
   const [tab, setTab] = useState("logs");
   const [loading, setLoading] = useState(false);
   const [analyticsData, setAnalyticsData] = useState(null);

@@ -255,7 +255,7 @@ def test_mapping(node_id: str):
         # Run the mapping
         typer.echo("\nRunning mapping transformation...")
         
-        output_table = mappings[node_id]["node_fn"](input_tables, node_instance)
+        output_table: pw.Table = mappings[node_id]["node_fn"](input_tables, node_instance)
         
         typer.echo(f"Output table schema: {output_table.schema}")
         
@@ -279,6 +279,19 @@ def test_mapping(node_id: str):
             )
             result_df.to_csv(output_path, index=False)
             typer.echo(f"Results saved to: {output_path}")
+
+        save_results = typer.confirm("Save results to jsonlines?", default=False)
+        
+        
+        if save_results:
+            import time
+            output_path = typer.prompt(
+                "Enter output path",
+                default=f"output_{node_id}_{int(time.time())}.jsonlines"
+            )
+            pw.io.jsonlines.write(output_table, output_path)
+            typer.echo(f"Results saved to: {output_path}")
+            pw.run()
         
     except KeyboardInterrupt:
         typer.echo("\n\nOperation cancelled by user")

@@ -1,3 +1,4 @@
+// TODO: need to remove this now
 import React, { useState } from "react";
 import {
   Drawer,
@@ -13,7 +14,6 @@ import {
 } from "@mui/material";
 import { Close } from "@mui/icons-material";
 import { useMediaQuery, useTheme } from "@mui/material";
-import { fetchFileData } from "../utils/dashboard.api";
 import { useGlobalContext } from "../context/GlobalContext";
 
 const DashboardSidebar = () => {

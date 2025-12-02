@@ -10,8 +10,8 @@ class RAGNode(Node):
     """
     category: Literal["rag"] = "rag"
     node_id: Literal["rag_node"] = "rag_node"
-    n_inputs: Literal[1] = 1
-    n_outputs: Literal[0] = 0
+    description: str
+    n_inputs: Literal[1] = 1 
 
     # --- Parser Configuration ---
     parser_type: Literal["Unstructured"] = Field(

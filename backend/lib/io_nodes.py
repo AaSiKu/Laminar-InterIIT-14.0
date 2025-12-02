@@ -1,22 +1,32 @@
-from pydantic import Field, field_validator
-from typing import Optional, Dict, Any, List, Literal, Tuple
+from pydantic import Field, TypeAdapter, field_validator, BaseModel
+from pydantic.json_schema import SkipJsonSchema
+from typing import Optional, Dict, Any, List, Literal, Annotated, Tuple
 import pathway as pw
 from .node import Node
 import json
 
+# TODO: Add descriptions for the fields for user help on the UI, the description will be rendered as md
+# NOTE: Instead of using tuple, using this special type to ensure correct rending mechanism on frontend
+PairOfStrings = Annotated[List[str], Field(min_length=2, max_length=2)]
+class ColumnType(BaseModel):
+    key: str = Field(..., title="Column Name")
+    value: str = Field(..., title="Type")
 class IONode(Node):
     category: Literal['io']
-    name: Optional[str] = Field(default="None")
-    
+    name: Optional[str] = Field(default="")
 
 class InputNode(IONode):
     n_inputs : Literal[0] = 0
-    table_schema: Any
-    datetime_columns: Optional[List[Tuple[str, str]]] = Field(
+    # input_schema will be sent to frontend and will be converted in to the table_schema at backend for parsing
+    input_schema: List[ColumnType] = Field(
+        description="List of columns names and types (eg. `str`, `float`, `int` for more details refer [here](https://pathway.com/developers/user-guide/connect/schema/))",
+    )
+    table_schema: SkipJsonSchema[Any]
+    datetime_columns: Optional[List[PairOfStrings]] = Field(
         default=None,
-        description="List of tuples (column_name, format_string) to convert string columns to datetime. "
-                    "Format strings follow strptime conventions (e.g., '%Y-%m-%d %H:%M:%S'). "
-                    "Use 'unix_seconds', 'unix_milliseconds', or 'unix_microseconds' for Unix timestamps."
+        description =( "List of tuples **[column_name, format_string]** to convert string columns to datetime. "
+                    "Format strings follow strptime conventions `(e.g., '%Y-%m-%d %H:%M:%S')`. "
+                    "Use 'unix_seconds', 'unix_milliseconds', or 'unix_microseconds' for Unix timestamps.")
     )
 
     @field_validator("table_schema", mode="before")
@@ -52,6 +62,7 @@ class InputNode(IONode):
 
 class OutputNode(IONode):
     n_inputs: Literal[1] = 1
+
 # ============ INPUT CONNECTORS ============
 
 class KafkaNode(InputNode):
@@ -68,13 +79,13 @@ class RedpandaNode(InputNode):
     rdkafka_settings: Dict[str, Any]
     format: Literal["json"]
     with_metadata: bool = False
-    
+
 
 
 class CsvNode(InputNode):
     path: str
     node_id: Literal["csv"]
-    
+
 
 
 class JsonLinesNode(InputNode):
@@ -84,7 +95,9 @@ class JsonLinesNode(InputNode):
 
 class AirbyteNode(InputNode):
     config_file_path: str
-    streams: List[str]
+    streams: List[str] = Field(
+        description="**Define the streams** from where you want to take input from"
+    )
     node_id: Literal["airbyte"]
     env_vars: Optional[Dict[str, str]] = None
     enforce_method: Optional[str] = None
@@ -96,7 +109,7 @@ class DebeziumNode(InputNode):
     topic_name: str
     node_id: Literal["debezium"]
     db_type: Optional[str] = None
-    
+
 
 
 class S3Node(InputNode):
@@ -172,7 +185,7 @@ class KinesisNode(InputNode):
     format: Literal["plaintext", "raw", "json"]
     aws_credentials: Dict[str, Any]
     node_id: Literal["kinesis"]
-    
+
 
 
 class NATSNode(InputNode):
@@ -180,7 +193,7 @@ class NATSNode(InputNode):
     format: Literal["plaintext", "raw", "json"]
     subject: str
     node_id: Literal["nats"]
-    
+
 
 
 class MQTTNode(InputNode):
@@ -188,7 +201,7 @@ class MQTTNode(InputNode):
     topic: str
     node_id: Literal["mqtt"]
     port: int = Field(default=1883)
-    
+
 
 
 class PythonConnectorNode(InputNode):
@@ -227,6 +240,7 @@ class PostgreSQLWriteNode(OutputNode):
     table_name: str
     primary_keys: List[str]
     node_id: Literal["postgres_write"]
+    output_table_type : Literal['stream_of_changes', 'snapshot'] = 'stream_of_changes'
 
 
 class MySQLWriteNode(OutputNode):
@@ -249,7 +263,7 @@ class BigQueryWriteNode(OutputNode):
     dataset: str
     table: str
     node_id: Literal["bigquery_write"]
-    
+
 
 
 class ElasticsearchWriteNode(OutputNode):

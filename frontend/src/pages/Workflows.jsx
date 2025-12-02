@@ -1,4 +1,4 @@
-import { useState, useCallback, memo, useEffect } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { useNavigate } from "react-router-dom"; // Import useNavigate
 import {
   ReactFlow,
@@ -14,15 +14,13 @@ import {
   Toolbar,
   Button,
   Box,
-  useTheme,
-  useMediaQuery,
   Alert,
   Snackbar,
   CircularProgress,
 } from "@mui/material";
-import { PropertyBar } from '../components/PropertyBar';
+import { PropertyBar } from "../components/PropertyBar";
 import { NodeDrawer } from "../components/NodeDrawer";
-import {nodeTypes, generateNode} from "../utils/dashboard.utils"
+import { nodeTypes, generateNode } from "../utils/dashboard.utils";
 import { useGlobalContext } from "../context/GlobalContext";
 import {
   savePipelineAPI,
@@ -31,16 +29,12 @@ import {
   spinupPipeline,
   spindownPipeline,
 } from "../utils/pipelineUtils";
+import { fetchNodeSchema } from "../utils/dashboard.api";
 
-
-export default function Dashboard() {
-  const theme = useTheme();
-  const isMobile = useMediaQuery(theme.breakpoints.down("md"));
+export default function WorkflowPage() {
   const [selectedNode, setSelectedNode] = useState(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
-
-
-  const navigate = useNavigate();
+  
   const {
     currentEdges,
     currentNodes,
@@ -61,7 +55,6 @@ export default function Dashboard() {
     containerId,
     setContainerId,
   } = useGlobalContext();
-
 
   useEffect(() => {
     if (currentPipelineId) {
@@ -134,7 +127,7 @@ export default function Dashboard() {
     } catch (err) {
       setError(err.message);
     } finally {
-      console.log(currentPipelineId)
+      console.log(currentPipelineId);
       setLoading(false);
     }
   };
@@ -156,26 +149,57 @@ export default function Dashboard() {
     setSelectedNode(node);
   };
 
-  const handleUpdateProperties = (nodeId, updatedProps) => {
+  const handleUpdateProperties = (nodeId, data) => {
     setCurrentNodes((nds) =>
       nds.map((n, idx) =>
         n.id === nodeId
-          ? { ...n, data: { ...n.data, properties: updatedProps } }
+          ? { ...n, data: { ...n.data, properties: data} }
           : n
       )
     );
     setSelectedNode(null);
   };
 
-  const drawerWidth = 64 + (dashboardSidebarOpen && !isMobile ? 325 : 0);
+  const onDragOver = useCallback((event) => {
+    event.preventDefault();
+    event.dataTransfer.dropEffect = 'move';
+  }, []);
 
-  const handleAnalyticsClick = () => {
-    if (currentPipelineId) {
-      navigate(`/analytics/${currentPipelineId}`);
-    } else {
-      setError("Please save the flow first to get an ID.");
-    }
-  };
+  const onDrop = useCallback(
+    async (event) => {
+      event.preventDefault();
+
+      const nodeName = event.dataTransfer.getData('application/reactflow');
+
+      if (!nodeName || !rfInstance) {
+        return;
+      }
+
+      try {
+        // Get the position where the node was dropped
+        const position = rfInstance.screenToFlowPosition({
+          x: event.clientX,
+          y: event.clientY,
+        });
+
+        // Fetch the schema for the node
+        const schema = await fetchNodeSchema(nodeName);
+
+        // Generate the node with the drop position
+        const newNode = generateNode(schema, currentNodes);
+        newNode.position = position;
+
+        // Add the node to the canvas
+        setCurrentNodes((prev) => [...prev, newNode]);
+      } catch (err) {
+        console.error('Failed to add node:', err);
+        setError('Failed to add node. Please try again.');
+      }
+    },
+    [rfInstance, currentNodes, setCurrentNodes, setError]
+  );
+
+  const drawerWidth = 64 + (dashboardSidebarOpen ? 325 : 0);
 
   return (
     <>
@@ -197,6 +221,8 @@ export default function Dashboard() {
             borderBottom: 1,
             borderColor: "divider",
             bgcolor: "background.paper",
+            zIndex: 1300,
+            position: "relative",
           }}
         >
           <Toolbar
@@ -206,11 +232,27 @@ export default function Dashboard() {
               justifyContent: "end",
             }}
           >
-            <Box sx={{ display: "flex", gap: 2, justifyContent: "end", alignContent: "center" }}>
+            <Box
+              sx={{
+                display: "flex",
+                gap: 2,
+                justifyContent: "end",
+                alignContent: "center",
+              }}
+            >
               {loading && <CircularProgress size={24} />}
               <Button
                 variant="outlined"
-                onClick={() => savePipelineAPI(currentPipelineId,rfInstance,currentPipelineId,setCurrentPipelineId,setLoading,setError)}
+                onClick={() =>
+                  savePipelineAPI(
+                    currentPipelineId,
+                    rfInstance,
+                    currentPipelineId,
+                    setCurrentPipelineId,
+                    setLoading,
+                    setError
+                  )
+                }
                 disabled={loading}
               >
                 Save
@@ -236,13 +278,6 @@ export default function Dashboard() {
               >
                 Spin Down
               </Button>
-              <Button
-                variant="outlined"
-                onClick={handleAnalyticsClick} // Use navigate
-                disabled={!currentPipelineId}
-              >
-                Analytics
-              </Button>
               <Button variant="contained" onClick={() => setDrawerOpen(true)}>
                 {" "}
                 + Add Node
@@ -251,7 +286,17 @@ export default function Dashboard() {
           </Toolbar>
         </AppBar>
 
-        <Box sx={{ height: "87vh", bgcolor: "white" }}>
+        <Box 
+          sx={{ height: "87vh", bgcolor: "#F7FAFC" }}
+          onClick={(e) => {
+            // Close PropertyBar when clicking on workspace
+            // Only if clicking on the canvas, not on nodes or controls
+            if (e.target.classList.contains('react-flow__pane') || 
+                e.target.classList.contains('react-flow__renderer')) {
+              setSelectedNode(null);
+            }
+          }}
+        >
           <ReactFlow
             nodes={currentNodes}
             edges={currentEdges}
@@ -261,7 +306,12 @@ export default function Dashboard() {
             onConnect={onConnect}
             onNodeClick={onNodeClick}
             onInit={setRfInstance}
+            onDrop={onDrop}
+            onDragOver={onDragOver}
+            onPaneClick={() => setSelectedNode(null)}
+            defaultViewport={{ x: 0, y: 0, zoom: 0.9 }}
             fitView
+            fitViewOptions={{ maxZoom: 0.9 }}
           >
             <Controls position="top-right" />
             <Background color="#aaa" gap={16} />
