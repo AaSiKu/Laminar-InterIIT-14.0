@@ -1,13 +1,10 @@
 import numpy as np
-import pandas as pd
-import tensorflow as tf
-from tensorflow import keras
-from tensorflow.keras import layers
-import matplotlib.pyplot as plt
+import torch
+import torch.nn as nn
+import torch.optim as optim
 import time
 import psutil
 import os
-from sklearn.metrics import mean_squared_error
 from typing import List, Optional, Tuple
 from numpy.typing import NDArray
 from stream_ml.model import BaseModel as StreamBaseModel, BaseModelConfig
@@ -21,17 +18,94 @@ class TiDEConfig(BaseModelConfig):
     clipnorm: Optional[float] = Field(None)
 
 
+class TiDENetwork(nn.Module):
+    """
+    TiDE (Time-series Dense Encoder) Neural Network in PyTorch.
+    
+    Architecture:
+    - Flattens multivariate input
+    - Dense encoder layers
+    - Dense decoder layers
+    - Residual connection from input to output
+    """
+    
+    def __init__(
+        self,
+        lookback: int,
+        horizon: int,
+        in_features: int,
+        out_features: int,
+        hidden_dim: int = 64
+    ):
+        super().__init__()
+        self.lookback = lookback
+        self.horizon = horizon
+        self.in_features = in_features
+        self.out_features = out_features
+        self.hidden_dim = hidden_dim
+        
+        flat_input_dim = lookback * in_features
+        flat_output_dim = horizon * out_features
+        
+        # Encoder layers
+        self.encoder = nn.Sequential(
+            nn.Linear(flat_input_dim, hidden_dim),
+            nn.ReLU(),
+            nn.Linear(hidden_dim, hidden_dim),
+            nn.ReLU(),
+            nn.Linear(hidden_dim, hidden_dim * 2),
+            nn.ReLU(),
+        )
+        
+        # Decoder (main path)
+        self.decoder = nn.Linear(hidden_dim * 2, flat_output_dim)
+        
+        # Residual connection
+        self.residual = nn.Linear(flat_input_dim, flat_output_dim)
+    
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        """
+        Forward pass.
+        
+        Args:
+            x: Input tensor of shape [batch, lookback, in_features]
+            
+        Returns:
+            Output tensor of shape [batch, horizon, out_features]
+        """
+        batch_size = x.shape[0]
+        
+        # Flatten input: [batch, lookback, in_features] -> [batch, lookback * in_features]
+        x_flat = x.view(batch_size, -1)
+        
+        # Encoder path
+        encoded = self.encoder(x_flat)
+        
+        # Decoder path
+        decoded = self.decoder(encoded)
+        
+        # Residual connection
+        residual = self.residual(x_flat)
+        
+        # Add residual
+        out = decoded + residual
+        
+        # Reshape to [batch, horizon, out_features]
+        out = out.view(batch_size, self.horizon, self.out_features)
+        
+        return out
+
+
 class TiDEModel(StreamBaseModel):
     """
     TiDE (Time-series Dense Encoder) Model for multivariate time series forecasting.
-    Inherits from BaseModel and implements run() and predict() methods.
+    Inherits from BaseModel and implements train() and predict() methods.
     
     Model Architecture:
     - Flattens multivariate input
     - Dense encoder layers
     - Dense decoder layers
     - Residual connection from input to output
-    - Outputs multiple quantiles for probabilistic forecasting
     """
     
     def __init__(
@@ -54,57 +128,49 @@ class TiDEModel(StreamBaseModel):
         self.out_features = out_features
         self.batch_size = batch_size
         self.epochs = epochs
-        self.optimizer = optimizer
+        self.optimizer_name = optimizer
         self.learning_rate = learning_rate
         self.clipnorm = clipnorm
         
+        # Device setup
+        self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+        
         # Build the model
-        self.model = self._build_model()
-        optimizer_obj = self._get_optimizer()
-        self.model.compile(optimizer=optimizer_obj, loss=self._get_loss())
+        self.model = TiDENetwork(
+            lookback=lookback,
+            horizon=horizon,
+            in_features=in_features,
+            out_features=out_features,
+            hidden_dim=hidden_dim
+        ).to(self.device)
+        
+        # Setup optimizer
+        self.optimizer = self._get_optimizer()
+        
+        # Loss function
+        self.criterion = nn.MSELoss()
         
         # Internal state for prediction
         self.context_history = []
-        #self.normalization_params = None
         
-    def _build_model(self) -> keras.Model:
+    def _get_optimizer(self) -> optim.Optimizer:
         """
-        Build TiDE neural network architecture.
-        
-        Returns:
-            Compiled Keras model
+        Get the optimizer based on configuration.
         """
-        inputs = keras.Input(shape=(self.lookback, self.in_features))
-        x_flat = layers.Flatten()(inputs)
-        x = layers.Dense(self.hidden_dim, activation="relu")(x_flat)
-        x = layers.Dense(self.hidden_dim, activation="relu")(x)
-        x = layers.Dense(self.hidden_dim * 2, activation="relu")(x)
-        flat_output = layers.Dense(self.horizon * self.out_features)(x)
-        residual_flat = layers.Dense(self.horizon * self.out_features)(x_flat)
-        out = layers.Add()([flat_output, residual_flat])
-        outputs = layers.Reshape((self.horizon, self.out_features))(out)
-
-        model = keras.Model(inputs=inputs, outputs=outputs)
-        return model
-    
-    def _get_optimizer(self):
-        optimizer_kwargs = {'learning_rate': self.learning_rate}
-        if self.clipnorm is not None:
-            optimizer_kwargs['clipnorm'] = self.clipnorm
         optimizer_map = {
-            'adam': keras.optimizers.Adam,
-            'sgd': keras.optimizers.SGD,
-            'rmsprop': keras.optimizers.RMSprop,
-            'adagrad': keras.optimizers.Adagrad,
-            'adadelta': keras.optimizers.Adadelta,
+            'adam': optim.Adam,
+            'sgd': optim.SGD,
+            'rmsprop': optim.RMSprop,
+            'adagrad': optim.Adagrad,
+            'adadelta': optim.Adadelta,
         }
-        optimizer_class = optimizer_map.get(self.optimizer.lower(), keras.optimizers.Adam)
-        return optimizer_class(**optimizer_kwargs)
-
-    def _get_loss(self):
-        return keras.losses.MeanSquaredError()
+        optimizer_class = optimizer_map.get(self.optimizer_name.lower(), optim.Adam)
+        return optimizer_class(self.model.parameters(), lr=self.learning_rate)
     
     def _get_memory_usage(self) -> float:
+        """
+        Get current process memory usage in MB.
+        """
         process = psutil.Process(os.getpid())
         return process.memory_info().rss / (1024 ** 2)
     
@@ -114,31 +180,52 @@ class TiDEModel(StreamBaseModel):
         truths: NDArray[np.float32]    # [Batch * Horizon * Out Features]
     ) -> Tuple[float, float, float]:
         """
+        Train the model on a batch of data.
+        
+        Args:
+            inputs: Input sequences of shape [batch, lookback, in_features]
+            truths: Ground truth of shape [batch, horizon, out_features]
+            
         Returns:
             Tuple of (Avg RAM usage in MB, Avg Latency in seconds, MAE)
         """
+        self.model.train()
         batch_size = inputs.shape[0]
+        
+        # Convert to tensors
+        x_tensor = torch.tensor(inputs, dtype=torch.float32).to(self.device)
+        y_tensor = torch.tensor(truths, dtype=torch.float32).to(self.device)
         
         # Track memory and time
         mem_before = self._get_memory_usage()
         start_time = time.time()
         
-        # Train on batch (single epoch for the batch)
-        history = self.model.fit(
-            inputs, 
-            truths,
-            batch_size=self.batch_size,
-            epochs=self.epochs,
-            verbose=0,
-            validation_split=0.0  # No validation during batch training
-        )
+        # Training loop
+        for epoch in range(self.epochs):
+            # Process in mini-batches
+            for i in range(0, batch_size, self.batch_size):
+                batch_x = x_tensor[i:i + self.batch_size]
+                batch_y = y_tensor[i:i + self.batch_size]
+                
+                self.optimizer.zero_grad()
+                predictions = self.model(batch_x)
+                loss = self.criterion(predictions, batch_y)
+                loss.backward()
+                
+                # Gradient clipping if specified
+                if self.clipnorm is not None:
+                    torch.nn.utils.clip_grad_norm_(self.model.parameters(), self.clipnorm)
+                
+                self.optimizer.step()
         
         end_time = time.time()
         mem_after = self._get_memory_usage()
         
-        predictions = self.model.predict(inputs, verbose=0)
-        y_pred = predictions  # [Batch, Horizon, Out Features]
-        mae = np.mean(np.abs(truths - y_pred))
+        # Calculate MAE on full batch
+        self.model.eval()
+        with torch.no_grad():
+            predictions = self.model(x_tensor)
+            mae = torch.mean(torch.abs(y_tensor - predictions)).item()
         
         avg_memory = (mem_before + mem_after) / 2
         latency = (end_time - start_time) / batch_size
@@ -150,10 +237,16 @@ class TiDEModel(StreamBaseModel):
         input: NDArray[np.float32],     # [In Features]
     ) -> Tuple[float, float, float, NDArray[np.float32]]:
         """
-        Predicts the next horizon using stored context (past inputs + truths).
+        Predicts the next horizon using stored context (past inputs).
+        
+        Args:
+            input: Current input of shape [in_features]
+            
         Returns:
-            Tuple of (RAM usage in MB, Latency in seconds, Error, Predictions [Horizon * Out Features])
+            Tuple of (RAM usage in MB, Latency in seconds, Error, Predictions [Horizon, Out Features])
         """
+        self.model.eval()
+        
         # If we don't have enough context yet, return zeros
         if len(self.context_history) < self.lookback:
             # Update context history even during warmup
@@ -167,15 +260,17 @@ class TiDEModel(StreamBaseModel):
         
         # Prepare input sequence [1, lookback, num_features]
         input_sequence = np.array(self.context_history[-self.lookback:], dtype=np.float32)
-        input_batch = np.expand_dims(input_sequence, axis=0)
+        x_tensor = torch.tensor(input_sequence, dtype=torch.float32).unsqueeze(0).to(self.device)
         
         mem_usage = self._get_memory_usage()
         start_time = time.time()
         
-        prediction = self.model.predict(input_batch, verbose=0)  # [1, horizon, out features]
+        with torch.no_grad():
+            prediction = self.model(x_tensor)  # [1, horizon, out_features]
+        
         latency = time.time() - start_time
         
-        y_pred = prediction[0, :, :]  # [horizon * out features]
+        y_pred = prediction[0].cpu().numpy()  # [horizon, out_features]
         
         # Calculate error (for the first step if horizon > 1)
         error = float(np.mean(np.abs(input - y_pred[0])))

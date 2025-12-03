@@ -109,7 +109,6 @@ def _create_predict_udf(model_wrapper: ModelWrapper, all_columns: List[str]):
     
     return predict_udf
 
-
 def _apply_streaming_ml(input_table: pw.Table, node: _StreamingMLNode, model_name: str) -> pw.Table:
     """
     1. Create model wrapper
