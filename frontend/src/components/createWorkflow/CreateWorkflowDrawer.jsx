@@ -6,15 +6,19 @@ import {
   Slide,
   Box,
   TextField,
-  MenuItem,
-  Select,
-  FormControl,
   useTheme,
+  Autocomplete,
+  Chip,
+  Avatar,
+  ListItemAvatar,
+  ListItemText,
+  Snackbar,
+  Alert,
 } from "@mui/material";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import CloseIcon from "@mui/icons-material/Close";
-import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
 import Playground from "../workflow/Playground";
+import { fetchAllUsers, createPipelineWithDetails } from "../../utils/developerDashboard.api";
 
 // Sidebar width matches the expanded nav sidebar
 const STEP_SIDEBAR_WIDTH = 240;
@@ -32,20 +36,52 @@ const CreateWorkflowDrawer = ({ open, onClose, onComplete }) => {
   const [formData, setFormData] = useState({
     name: "",
     description: "",
-    members: "",
+    selectedMembers: [],
   });
+  const [allUsers, setAllUsers] = useState([]);
+  const [loadingUsers, setLoadingUsers] = useState(false);
+  const [snackbar, setSnackbar] = useState({ open: false, message: "", severity: "success" });
 
   // Pipeline nodes and edges state (managed here, passed to Playground)
   const [nodes, setNodes] = useState([]);
   const [edges, setEdges] = useState([]);
 
+  // Load users when Autocomplete dropdown is opened
+  const handleOpenAutocomplete = async () => {
+    // Only fetch if we haven't loaded users yet
+    if (allUsers.length === 0 && !loadingUsers) {
+      setLoadingUsers(true);
+      try {
+        const users = await fetchAllUsers();
+        // Handle both array response and object with data property
+        const usersArray = Array.isArray(users) ? users : (users?.data || []);
+        console.log("Loaded users:", usersArray); // Debug log
+        console.log("Setting allUsers state with:", usersArray.length, "users");
+        console.log("Users array:", JSON.stringify(usersArray, null, 2));
+        setAllUsers(usersArray);
+      } catch (error) {
+        console.error("Error loading users:", error);
+        setAllUsers([]);
+      } finally {
+        setLoadingUsers(false);
+      }
+    } else {
+      console.log("Users already loaded:", allUsers.length);
+      console.log("Current allUsers:", allUsers);
+    }
+  };
+
   // Reset form when drawer opens
   useEffect(() => {
     if (open) {
       setCurrentStep(1);
-      setFormData({ name: "", description: "", members: "" });
+      setFormData({ name: "", description: "", selectedMembers: [] });
       setNodes([]);
       setEdges([]);
+    } else {
+      // Reset users list when drawer closes to fetch fresh data next time
+      setAllUsers([]);
+      setLoadingUsers(false);
     }
   }, [open]);
 
@@ -55,20 +91,69 @@ const CreateWorkflowDrawer = ({ open, onClose, onComplete }) => {
     }
   };
 
-  const handleNext = () => {
+  const handleNext = async () => {
     if (currentStep < steps.length) {
       setCurrentStep(currentStep + 1);
     } else {
-      // Complete workflow creation
-      if (onComplete) {
-        onComplete({
-          ...formData,
-          nodes,
-          edges,
+      // Step 3: Create workflow with all details using the new API
+      try {
+        // Extract viewer IDs from selected members
+        const viewerIds = formData.selectedMembers.map((user) => String(user.id));
+        
+        // Build pipeline structure from nodes and edges
+        const pipeline = {
+          nodes: nodes || [],
+          edges: edges || [],
+          viewport: {
+            x: 0,
+            y: 0,
+            zoom: 1
+          }
+        };
+
+        // Call the new API to create pipeline with all details
+        const result = await createPipelineWithDetails(
+          formData.name,
+          formData.description,
+          viewerIds,
+          pipeline
+        );
+
+        // Show success message
+        setSnackbar({
+          open: true,
+          message: "Pipeline created successfully!",
+          severity: "success",
+        });
+
+        // Complete workflow creation
+        if (onComplete) {
+          onComplete({
+            ...formData,
+            nodes,
+            edges,
+            pipelineId: result.pipeline_id,
+            versionId: result.version_id,
+          });
+        }
+
+        // Close drawer after a short delay to show the success message
+        setTimeout(() => {
+          onClose();
+        }, 1500);
+      } catch (error) {
+        console.error("Error creating workflow:", error);
+        setSnackbar({
+          open: true,
+          message: `Failed to create pipeline: ${error.message}`,
+          severity: "error",
         });
       }
-      onClose();
     }
+  };
+
+  const handleCloseSnackbar = () => {
+    setSnackbar({ ...snackbar, open: false });
   };
 
   const handleInputChange = (field) => (event) => {
@@ -410,46 +495,235 @@ const CreateWorkflowDrawer = ({ open, onClose, onComplete }) => {
                         >
                           Members
                         </Typography>
-                        <FormControl fullWidth variant="filled">
-                          <Select
-                            value={formData.members}
-                            onChange={handleInputChange("members")}
-                            displayEmpty
-                            disableUnderline
-                            IconComponent={KeyboardArrowDownIcon}
+                        <Autocomplete
+                          multiple
+                          options={allUsers || []}
+                          value={formData.selectedMembers || []}
+                          onOpen={(event) => {
+                            console.log("Autocomplete opened, allUsers:", allUsers.length);
+                            handleOpenAutocomplete();
+                          }}
+                          openOnFocus
+                          disablePortal={true}
+                          freeSolo={false}
+                          disableCloseOnSelect
+                          clearOnBlur={false}
+                          onChange={(event, newValue) => {
+                            console.log("Selected members:", newValue);
+                            setFormData({
+                              ...formData,
+                              selectedMembers: newValue,
+                            });
+                          }}
+                          onInputChange={(event, value, reason) => {
+                            console.log("Input changed:", value, reason);
+                            console.log("Current allUsers:", allUsers);
+                          }}
+                          getOptionLabel={(option) => {
+                            if (!option || typeof option !== 'object') return "";
+                            const name = option.full_name || option.name || `User ${option.id}`;
+                            const email = option.email || "";
+                            return email ? `${name} <${email}>` : name;
+                          }}
+                          isOptionEqualToValue={(option, value) => {
+                            if (!option || !value) return false;
+                            return String(option.id) === String(value.id);
+                          }}
+                          filterOptions={(options, params) => {
+                            console.log("Filtering options:", options.length, "options");
+                            const searchText = params.inputValue ? params.inputValue.toLowerCase().trim() : "";
+                            if (!searchText) {
+                              // Show all options when no search text
+                              console.log("No search text, returning all", options.length, "options");
+                              return options;
+                            }
+                            // Filter options based on search text
+                            const filtered = options.filter((option) => {
+                              if (!option) return false;
+                              const name = (option.full_name || option.name || "").toLowerCase();
+                              const email = (option.email || "").toLowerCase();
+                              return name.includes(searchText) || email.includes(searchText);
+                            });
+                            console.log("Filtered to", filtered.length, "options");
+                            return filtered;
+                          }}
+                          loading={loadingUsers}
+                          noOptionsText={loadingUsers ? "Loading users..." : "No users found"}
+                          renderInput={(params) => (
+                            <TextField
+                              {...params}
+                              variant="filled"
+                              placeholder="Add Viewers"
+                              InputProps={{
+                                ...params.InputProps,
+                                disableUnderline: true,
+                              }}
                             sx={{
+                                "& .MuiFilledInput-root": {
                               bgcolor: "background.elevation2",
                               borderRadius: 2,
+                                  minHeight: "56px",
                               "&:hover": { bgcolor: "background.elevation1" },
                               "&.Mui-focused": {
                                 bgcolor: "background.elevation1",
                                 boxShadow: (theme) => `0 0 0 2px ${theme.palette.primary.light}`,
                               },
-                              "& .MuiSelect-select": {
+                                },
+                                "& .MuiFilledInput-input": {
                                 py: 1.5,
                                 px: 2,
                                 fontSize: "0.875rem",
-                                color: formData.members ? "text.primary" : "text.secondary",
+                                },
+                              }}
+                            />
+                          )}
+                          renderTags={(value, getTagProps) =>
+                            value.map((option, index) => {
+                              const { key, ...tagProps } = getTagProps({ index });
+                              const name = option.full_name || option.name || `User ${option.id}`;
+                              const email = option.email || "";
+                              return (
+                                <Chip
+                                  key={key}
+                                  label={email ? `${name} <${email}>` : name}
+                                  {...tagProps}
+                                  sx={{
+                                    bgcolor: "primary.light",
+                                    color: "primary.contrastText",
+                                    "& .MuiChip-deleteIcon": {
+                                      color: "primary.contrastText",
+                                    },
+                                  }}
+                                />
+                              );
+                            })
+                          }
+                          renderOption={(props, option) => {
+                            if (!option) return null;
+                            const name = option.full_name || option.name || `User ${option.id}`;
+                            const email = option.email || "";
+                            const avatarUrl = `https://avatar.iran.liara.run/public/boy?username=${encodeURIComponent(name || option.id || `user${option.id}`)}&size=40`;
+                            
+                            // Extract key from props if it exists
+                            const { key, ...otherProps } = props;
+                            
+                            return (
+                              <li {...otherProps} key={key || option.id}>
+                                <Box
+                                  sx={{
+                                    display: "flex",
+                                    alignItems: "center",
+                                    gap: 1.5,
+                                    py: 1.5,
+                                    px: 2,
+                                    cursor: "pointer",
+                                    width: "100%",
+                                    "&:hover": {
+                                      bgcolor: "action.hover",
+                                    },
+                                  }}
+                                >
+                                  <Avatar
+                                    src={avatarUrl}
+                                    alt={name}
+                                    sx={{
+                                      width: 40,
+                                      height: 40,
+                                      flexShrink: 0,
+                                    }}
+                                  >
+                                    {name.charAt(0).toUpperCase()}
+                                  </Avatar>
+                                  <Box sx={{ flex: 1, minWidth: 0 }}>
+                                    <Typography
+                                      sx={{
+                                        fontSize: "0.875rem",
+                                        fontWeight: 500,
+                                        color: "text.primary",
+                                        overflow: "hidden",
+                                        textOverflow: "ellipsis",
+                                        whiteSpace: "nowrap",
+                                      }}
+                                    >
+                                      {name}
+                                    </Typography>
+                                    <Typography
+                                      sx={{
+                                        fontSize: "0.75rem",
+                                        color: "text.secondary",
+                                        overflow: "hidden",
+                                        textOverflow: "ellipsis",
+                                        whiteSpace: "nowrap",
+                                      }}
+                                    >
+                                      {email}
+                                    </Typography>
+                                  </Box>
+                                </Box>
+                              </li>
+                            );
+                          }}
+                          getOptionKey={(option) => String(option.id)}
+                          slotProps={{
+                            paper: {
+                              sx: { 
+                                zIndex: 10001,
+                                maxHeight: 400,
+                                boxShadow: 3,
+                                mt: 1,
+                                '& .MuiAutocomplete-listbox': {
+                                  padding: 0,
+                                  maxHeight: '400px',
+                                  overflowY: 'auto',
+                                  overflowX: 'hidden',
+                                  '&::-webkit-scrollbar': {
+                                    width: '8px',
+                                  },
+                                  '&::-webkit-scrollbar-track': {
+                                    background: 'transparent',
+                                  },
+                                  '&::-webkit-scrollbar-thumb': {
+                                    background: 'rgba(0, 0, 0, 0.2)',
+                                    borderRadius: '4px',
+                                    '&:hover': {
+                                      background: 'rgba(0, 0, 0, 0.3)',
+                                    },
+                                  },
+                                  '& .MuiAutocomplete-option': {
+                                    padding: 0,
+                                  },
+                                },
                               },
-                              "& .MuiSelect-icon": {
-                                color: "text.secondary",
-                                right: 12,
+                            },
+                            popper: {
+                              placement: 'bottom-start',
+                              disablePortal: true,
+                              container: (anchorEl) => anchorEl?.parentElement || document.body,
+                              modifiers: [
+                                {
+                                  name: 'offset',
+                                  options: {
+                                    offset: [0, 4],
+                                  },
+                                },
+                              ],
+                            },
+                          }}
+                          ListboxProps={{
+                            style: {
+                              maxHeight: '400px',
+                              overflowY: 'auto',
+                              overflowX: 'hidden',
+                            },
+                          }}
+                          componentsProps={{
+                            paper: {
+                              sx: {
+                                zIndex: 10001,
                               },
-                            }}
-                            MenuProps={{
-                              PaperProps: {
-                                sx: { zIndex: 10001 },
-                              },
-                            }}
-                          >
-                            <MenuItem value="" disabled>
-                              Select members
-                            </MenuItem>
-                            <MenuItem value="admin">Admin</MenuItem>
-                            <MenuItem value="developer">Developer</MenuItem>
-                            <MenuItem value="viewer">Viewer</MenuItem>
-                          </Select>
-                        </FormControl>
+                            },
+                          }}
+                        />
                       </Box>
 
                       {/* Navigation Buttons */}
@@ -663,6 +937,22 @@ const CreateWorkflowDrawer = ({ open, onClose, onComplete }) => {
           </Box>
         </Box>
       </Slide>
+
+      {/* Snackbar for notifications */}
+      <Snackbar
+        open={snackbar.open}
+        autoHideDuration={4000}
+        onClose={handleCloseSnackbar}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+      >
+        <Alert 
+          onClose={handleCloseSnackbar} 
+          severity={snackbar.severity} 
+          sx={{ borderRadius: 2 }}
+        >
+          {snackbar.message}
+        </Alert>
+      </Snackbar>
     </>
   );
 };

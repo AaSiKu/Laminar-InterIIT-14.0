@@ -182,26 +182,27 @@ async function fetchAndSetPipeline(pipeline_id, version_id, setters) {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        pipeline_id: pipeline_id,
+        workflow_id: pipeline_id,
         version_id: version_id,
       }),
     }
   );
 
   if (!res.ok) {
-    throw new Error(`Unable to fetch file, status: ${res.status}`);
+    const errorText = await res.text().catch(() => "");
+    throw new Error(`Unable to fetch pipeline: ${res.status} ${errorText || ""}`);
   }
   const result = await res.json();
-  const pipeline = result["pipeline"];
+  const workflow = result["workflow"]; // Changed from "pipeline" to "workflow"
   const version = result["version"];
 
-  if (!pipeline || !version) {
+  if (!workflow || !version) {
     setLoading(false);
     return null;
   }
 
-  // Extract pipeline data - the pipeline dict has a 'pipeline' key containing the actual flow data
-  const pipelineData = pipeline?.pipeline;
+  // Extract pipeline data from version - the version has a 'pipeline' key containing the actual flow data
+  const pipelineData = version?.pipeline;
 
   // Get version_id from version object
   if (version) {
@@ -211,27 +212,92 @@ async function fetchAndSetPipeline(pipeline_id, version_id, setters) {
     }
   }
 
-  // Get pipeline_id from pipeline object
-  if (pipeline) {
-    const pid = pipeline["_id"] || pipeline["pipeline_id"];
+  // Get pipeline_id from workflow object
+  if (workflow) {
+    const pid = workflow["_id"] || workflow["pipeline_id"];
     if (pid) {
       setCurrentPipelineId(String(pid));
     }
-    if (pipeline["status"]) {
-      setCurrentPipelineStatus(pipeline["status"]);
+    if (workflow["status"]) {
+      setCurrentPipelineStatus(workflow["status"]);
     }
-    if (pipeline["container_id"]) {
-      setContainerId(pipeline["container_id"]);
+    if (workflow["container_id"]) {
+      setContainerId(workflow["container_id"]);
     }
   }
 
   if (pipelineData && typeof pipelineData === "object") {
-    await add_to_node_types(pipelineData?.nodes || []);
-    setCurrentEdges(pipelineData["edges"] || []);
-    setCurrentNodes(pipelineData["nodes"] || []);
-    if (pipelineData["viewport"]) {
-      setViewport(pipelineData["viewport"]);
+    const nodes = pipelineData["nodes"] || [];
+    const edges = pipelineData["edges"] || [];
+    const viewport = pipelineData["viewport"];
+
+    console.log("Loading pipeline data:", {
+      nodesCount: nodes.length,
+      edgesCount: edges.length,
+      viewport,
+      sampleNode: nodes[0],
+    });
+
+    // Process nodes first
+    if (nodes.length > 0) {
+      await add_to_node_types(nodes);
+      
+      // Validate and ensure nodes have required properties
+      const validatedNodes = nodes.map((node, index) => {
+        // Ensure node has required properties
+        if (!node.id) {
+          console.warn("Node missing id:", node);
+          node.id = node.id || `node-${index}`;
+        }
+        
+        // Ensure position exists
+        if (!node.position || typeof node.position.x !== 'number' || typeof node.position.y !== 'number') {
+          console.warn("Node missing or invalid position:", node);
+          node.position = node.position || { x: index * 250, y: index * 150 };
+        }
+        
+        // Ensure type exists - use node_id if type is missing
+        if (!node.type && node.node_id) {
+          console.log("Setting node type from node_id:", node.node_id);
+          node.type = node.node_id;
+        } else if (!node.type) {
+          console.warn("Node missing both type and node_id:", node);
+          node.type = 'default';
+        }
+        
+        // Ensure data exists
+        if (!node.data) {
+          node.data = {};
+        }
+        
+        return node;
+      });
+      
+      console.log("Validated nodes:", validatedNodes);
+      setCurrentNodes(validatedNodes);
+    } else {
+      setCurrentNodes([]);
     }
+
+    // Set edges
+    console.log("Setting edges:", edges);
+    setCurrentEdges(edges || []);
+
+    // Set viewport if available (only if setViewport is provided)
+    if (setViewport) {
+      if (viewport) {
+        setViewport(viewport);
+      } else {
+        // Default viewport if not provided
+        setViewport({ x: 0, y: 0, zoom: 1 });
+      }
+    }
+  } else {
+    console.warn("No pipeline data found in version:", {
+      hasVersion: !!version,
+      hasPipeline: !!version?.pipeline,
+      pipelineDataType: typeof version?.pipeline,
+    });
   }
 
   setLoading(false);

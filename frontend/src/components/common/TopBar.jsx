@@ -1,4 +1,4 @@
-import { useState, useContext } from "react";
+import { useState, useContext, useEffect } from "react";
 import {
   Box,
   TextField,
@@ -20,6 +20,7 @@ import DarkModeIcon from "@mui/icons-material/DarkMode";
 import LightModeIcon from "@mui/icons-material/LightMode";
 import { useColorScheme } from "@mui/material/styles";
 import { AuthContext } from "../../context/AuthContext";
+import { getCurrentUser } from "../../utils/developerDashboard.api";
 
 const StyledBadge = styled(Badge)(({ theme }) => ({
   "& .MuiBadge-badge": {
@@ -62,6 +63,26 @@ const TopBar = ({
   const open = Boolean(anchorEl);
   const { mode, setMode } = useColorScheme();
   const { logout: authLogout, user } = useContext(AuthContext);
+  const [currentUser, setCurrentUser] = useState(null);
+  const [loadingUser, setLoadingUser] = useState(false);
+
+  // Fetch current user details when menu opens
+  useEffect(() => {
+    if (open && !currentUser && !loadingUser) {
+      const fetchUser = async () => {
+        setLoadingUser(true);
+        try {
+          const userData = await getCurrentUser();
+          setCurrentUser(userData);
+        } catch (error) {
+          console.error("Error fetching user details:", error);
+        } finally {
+          setLoadingUser(false);
+        }
+      };
+      fetchUser();
+    }
+  }, [open, currentUser, loadingUser]);
 
   const handleAvatarClick = (event) => {
     setAnchorEl(event.currentTarget);
@@ -223,6 +244,70 @@ const TopBar = ({
             },
           }}
         >
+          {/* User Info Section */}
+          <Box
+            sx={{
+              px: 2,
+              py: 2,
+              mx: 1,
+              my: 0.5,
+              borderRadius: 1,
+              bgcolor: "action.hover",
+            }}
+          >
+            {loadingUser ? (
+              <Typography variant="body2" sx={{ color: "text.secondary" }}>
+                Loading...
+              </Typography>
+            ) : currentUser ? (
+              <Box>
+                <Typography
+                  variant="body2"
+                  sx={{
+                    fontWeight: 600,
+                    color: "text.primary",
+                    mb: 0.5,
+                  }}
+                >
+                  {currentUser.full_name || "User"}
+                </Typography>
+                <Typography
+                  variant="caption"
+                  sx={{
+                    color: "text.secondary",
+                    fontSize: "0.75rem",
+                  }}
+                >
+                  {currentUser.email || ""}
+                </Typography>
+              </Box>
+            ) : (
+              <Box>
+                <Typography
+                  variant="body2"
+                  sx={{
+                    fontWeight: 600,
+                    color: "text.primary",
+                    mb: 0.5,
+                  }}
+                >
+                  {user?.name || user?.full_name || "User"}
+                </Typography>
+                <Typography
+                  variant="caption"
+                  sx={{
+                    color: "text.secondary",
+                    fontSize: "0.75rem",
+                  }}
+                >
+                  {user?.email || ""}
+                </Typography>
+              </Box>
+            )}
+          </Box>
+          <Divider sx={{ my: 0.5 }} />
+          
+          {/* Dark Mode Toggle */}
           <Box
             sx={{
               display: "flex",

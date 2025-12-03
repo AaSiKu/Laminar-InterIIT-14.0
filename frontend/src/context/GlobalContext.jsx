@@ -2,6 +2,7 @@ import { createContext, useContext, useEffect, useState } from "react";
 import { useReactFlow } from "@xyflow/react";
 import { AuthContext } from "./AuthContext";
 import { useLocation } from "react-router-dom";
+import { fetchAllWorkflows, fetchPreviousNotifications } from "../utils/developerDashboard.api";
 
 const GlobalContext = createContext();
 
@@ -26,6 +27,28 @@ export const GlobalContextProvider = ({ children }) => {
   const { fileStructure, setFileStructure } = useState({});
   const [currentVersionId, setCurrentVersionId] = useState(null);
   const [agentContainerId, setAgentContainerId]=useState(null);
+  const [workflows, setWorkflows] = useState([]);
+  const [notifications, setNotifications] = useState([]);
+
+  // Fetch workflows and notifications on mount
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        const workflowResponse = await fetchAllWorkflows();
+        if (workflowResponse.status === "success" && workflowResponse.data) {
+          setWorkflows(workflowResponse.data);
+        }
+
+        const previousNotifications = await fetchPreviousNotifications();
+        setNotifications(previousNotifications);
+      } catch (err) {
+        console.error("Error loading workflows and notifications:", err);
+        setError(err.message || "Failed to load data");
+      }
+    };
+
+    loadData();
+  }, []);
 
   const globalContextValue = {
     user,
@@ -59,6 +82,10 @@ export const GlobalContextProvider = ({ children }) => {
     fileStructure,
     setFileStructure,
     logout,
+    workflows,
+    setWorkflows,
+    notifications,
+    setNotifications,
   };
 
   return (

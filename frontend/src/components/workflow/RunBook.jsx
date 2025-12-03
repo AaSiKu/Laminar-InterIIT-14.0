@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   Dialog,
   DialogContent,
@@ -62,9 +62,31 @@ const RunBook = ({ open, onClose, formData = {}, onSave }) => {
     { id: "J", count: 33 },
   ];
 
-  // Update local state when formData prop changes
+  // Track previous formData to prevent unnecessary updates
+  const prevFormDataRef = useRef(null);
+
+  // Update local state when formData prop changes (only if values actually changed)
   useEffect(() => {
-    if (formData) {
+    // Skip if formData hasn't changed or is the same reference
+    if (!formData || prevFormDataRef.current === formData) {
+      return;
+    }
+
+    // Check if any values actually changed
+    const prevData = prevFormDataRef.current;
+    const hasChanged =
+      !prevData ||
+      prevData.name !== formData.name ||
+      prevData.userConfirmation !== formData.userConfirmation ||
+      prevData.errorDescription !== formData.errorDescription ||
+      prevData.correctiveMeasures !== formData.correctiveMeasures ||
+      prevData.correctiveMeasureMode !== formData.correctiveMeasureMode ||
+      prevData.apiKey !== formData.apiKey ||
+      prevData.apiValue !== formData.apiValue ||
+      prevData.runBookErrorDescription !== formData.runBookErrorDescription ||
+      JSON.stringify(prevData.actions) !== JSON.stringify(formData.actions);
+
+    if (hasChanged) {
       setName(formData.name || "");
       setUserConfirmation(formData.userConfirmation || false);
       setErrorDescription(formData.errorDescription || "");
@@ -74,6 +96,9 @@ const RunBook = ({ open, onClose, formData = {}, onSave }) => {
       setApiValue(formData.apiValue || "");
       setRunBookErrorDescription(formData.runBookErrorDescription || "");
       setActions(formData.actions || [""]);
+      
+      // Update ref to current formData
+      prevFormDataRef.current = formData;
     }
   }, [formData]);
 

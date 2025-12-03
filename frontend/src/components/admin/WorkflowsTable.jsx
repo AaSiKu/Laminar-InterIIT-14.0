@@ -10,27 +10,112 @@ import {
   TableHead,
   TableRow,
   Box,
+  Menu,
+  MenuItem,
+  ListItemIcon,
+  ListItemText,
 } from "@mui/material";
 import MoreHorizIcon from "@mui/icons-material/MoreHoriz";
 import ChevronLeftIcon from "@mui/icons-material/ChevronLeft";
 import ChevronRightIcon from "@mui/icons-material/ChevronRight";
+import SortByAlphaIcon from "@mui/icons-material/SortByAlpha";
+import SortIcon from "@mui/icons-material/Sort";
+import ArrowUpwardIcon from "@mui/icons-material/ArrowUpward";
+import ArrowDownwardIcon from "@mui/icons-material/ArrowDownward";
 import { AvatarStack } from "./AvatarStack";
 import { StatusChip } from "./StatusChip";
 
-export function WorkflowsTable({ data }) {
+// Format pipeline name - show name if exists, otherwise show "Pipeline ...eb3"
+const formatPipelineName = (workflow, workflowNames = {}) => {
+  // Check if name exists in workflowNames map (from retrieve_pipeline API)
+  const name = workflowNames[workflow?._id] || workflow?.name;
+  if (name) {
+    return `${name} Pipeline`;
+  }
+  if (!workflow?._id) return "Pipeline";
+  const lastThree = workflow._id.slice(-3);
+  return `Pipeline ...${lastThree}`;
+};
+
+// Format date for Last Activity
+const formatLastActivity = (dateString) => {
+  if (!dateString) return "N/A";
+  try {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffMs = now - date;
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMs / 3600000);
+    const diffDays = Math.floor(diffMs / 86400000);
+
+    if (diffMins < 1) return "Just now";
+    if (diffMins < 60) return `${diffMins}m ago`;
+    if (diffHours < 24) return `${diffHours}h ago`;
+    if (diffDays < 7) return `${diffDays}d ago`;
+    return date.toLocaleDateString();
+  } catch (e) {
+    return "N/A";
+  }
+};
+
+export function WorkflowsTable({ data = [], onWorkflowSelect, selectedWorkflowId, workflowNames = {} }) {
   const [currentPage, setCurrentPage] = useState(1);
   const [showAll, setShowAll] = useState(false);
+  const [menuAnchor, setMenuAnchor] = useState(null);
+  const [sortBy, setSortBy] = useState(null); // null, 'name-asc', 'name-desc', 'date-asc', 'date-desc'
   const itemsPerPage = 5;
 
-  const totalItems = data.length;
+  // Helper function to get workflow name for sorting
+  const getWorkflowName = (workflow) => {
+    const name = workflowNames[workflow?._id] || workflow?.name;
+    if (name) {
+      return name.toLowerCase();
+    }
+    if (!workflow?._id) return "pipeline";
+    const lastThree = workflow._id.slice(-3);
+    return `pipeline ...${lastThree}`;
+  };
+
+  // Sort data based on sortBy
+  const sortedData = [...data].sort((a, b) => {
+    if (!sortBy) return 0;
+    
+    if (sortBy === 'name-asc') {
+      const nameA = getWorkflowName(a);
+      const nameB = getWorkflowName(b);
+      return nameA.localeCompare(nameB);
+    }
+    
+    if (sortBy === 'name-desc') {
+      const nameA = getWorkflowName(a);
+      const nameB = getWorkflowName(b);
+      return nameB.localeCompare(nameA);
+    }
+    
+    if (sortBy === 'date-asc') {
+      const dateA = new Date(a.last_updated || 0).getTime();
+      const dateB = new Date(b.last_updated || 0).getTime();
+      return dateA - dateB;
+    }
+    
+    if (sortBy === 'date-desc') {
+      const dateA = new Date(a.last_updated || 0).getTime();
+      const dateB = new Date(b.last_updated || 0).getTime();
+      return dateB - dateA;
+    }
+    
+    return 0;
+  });
+
+  const totalItems = sortedData.length;
   const totalPages = Math.ceil(totalItems / itemsPerPage);
 
   // Get current page data
   const getCurrentPageData = () => {
-    if (showAll) return data;
+    if (showAll) return sortedData;
     const startIndex = (currentPage - 1) * itemsPerPage;
     const endIndex = startIndex + itemsPerPage;
-    return data.slice(startIndex, endIndex);
+    return sortedData.slice(startIndex, endIndex);
   };
 
   const displayedData = getCurrentPageData();
@@ -43,6 +128,20 @@ export function WorkflowsTable({ data }) {
   const handleShowAll = () => {
     setShowAll(!showAll);
     setCurrentPage(1);
+  };
+
+  const handleMenuOpen = (event) => {
+    setMenuAnchor(event.currentTarget);
+  };
+
+  const handleMenuClose = () => {
+    setMenuAnchor(null);
+  };
+
+  const handleSort = (sortType) => {
+    setSortBy(sortType);
+    setCurrentPage(1); // Reset to first page when sorting
+    handleMenuClose();
   };
 
   return (
@@ -81,12 +180,65 @@ export function WorkflowsTable({ data }) {
               mt: 0.125,
             }}
           >
-            Total No. of Pipeline running {totalItems}
+            Total No. of Pipelines: {totalItems}
           </Typography>
         </Box>
-        <IconButton size="small" sx={{ color: 'text.secondary' }}>
+        <IconButton 
+          size="small" 
+          sx={{ color: 'text.secondary' }}
+          onClick={handleMenuOpen}
+        >
           <MoreHorizIcon />
         </IconButton>
+        <Menu
+          anchorEl={menuAnchor}
+          open={Boolean(menuAnchor)}
+          onClose={handleMenuClose}
+          transformOrigin={{ horizontal: 'right', vertical: 'top' }}
+          anchorOrigin={{ horizontal: 'right', vertical: 'bottom' }}
+          slotProps={{
+            paper: {
+              elevation: 3,
+              sx: {
+                mt: 1,
+                minWidth: 220,
+                borderRadius: 2,
+                '& .MuiMenuItem-root': {
+                  px: 2,
+                  py: 1.5,
+                  borderRadius: 1,
+                  mx: 1,
+                  my: 0.5,
+                },
+              },
+            },
+          }}
+        >
+          <MenuItem onClick={() => handleSort('name-asc')}>
+            <ListItemIcon>
+              <SortByAlphaIcon fontSize="small" sx={{ color: 'text.secondary' }} />
+            </ListItemIcon>
+            <ListItemText>Sort by Name (A-Z)</ListItemText>
+          </MenuItem>
+          <MenuItem onClick={() => handleSort('name-desc')}>
+            <ListItemIcon>
+              <SortByAlphaIcon fontSize="small" sx={{ transform: 'scaleX(-1)', color: 'text.secondary' }} />
+            </ListItemIcon>
+            <ListItemText>Sort by Name (Z-A)</ListItemText>
+          </MenuItem>
+          <MenuItem onClick={() => handleSort('date-desc')}>
+            <ListItemIcon>
+              <ArrowDownwardIcon fontSize="small" sx={{ color: 'text.secondary' }} />
+            </ListItemIcon>
+            <ListItemText>Sort by Last Activity (Newest First)</ListItemText>
+          </MenuItem>
+          <MenuItem onClick={() => handleSort('date-asc')}>
+            <ListItemIcon>
+              <ArrowUpwardIcon fontSize="small" sx={{ color: 'text.secondary' }} />
+            </ListItemIcon>
+            <ListItemText>Sort by Last Activity (Oldest First)</ListItemText>
+          </MenuItem>
+        </Menu>
       </Box>
       <TableContainer
         sx={{
@@ -155,73 +307,81 @@ export function WorkflowsTable({ data }) {
             </TableRow>
           </TableHead>
           <TableBody>
-            {displayedData.map((workflow) => (
-              <TableRow
-                key={workflow.id}
-                sx={{
-                  transition: 'background-color 0.2s ease',
-                  '&:hover .MuiTableCell-root': {
-                    bgcolor: 'action.hover',
-                  },
-                  '&:active .MuiTableCell-root': {
-                    bgcolor: 'action.selected',
-                  },
-                  '& .MuiTableCell-root': {
-                    borderBottom: 'none',
-                    bgcolor: 'background.elevation1',
-                    '&:first-of-type': {
-                      borderTopLeftRadius: '0.75rem',
-                      borderBottomLeftRadius: '0.75rem',
-                    },
-                    '&:last-of-type': {
-                      borderTopRightRadius: '0.75rem',
-                      borderBottomRightRadius: '0.75rem',
-                    },
-                  },
-                }}
-              >
-                <TableCell
+            {displayedData.map((workflow) => {
+              const memberCount = (workflow.owner_ids?.length || 0) + (workflow.viewer_ids?.length || 0);
+              const isSelected = selectedWorkflowId === workflow._id;
+              
+              return (
+                <TableRow
+                  key={workflow._id}
+                  onClick={() => onWorkflowSelect && onWorkflowSelect(workflow)}
                   sx={{
-                    py: 1.75,
-                    fontSize: '0.875rem',
+                    cursor: 'pointer',
+                    transition: 'background-color 0.2s ease',
+                    bgcolor: isSelected ? 'action.selected' : 'transparent',
+                    '&:hover .MuiTableCell-root': {
+                      bgcolor: isSelected ? 'action.selected' : 'action.hover',
+                    },
+                    '&:active .MuiTableCell-root': {
+                      bgcolor: 'action.selected',
+                    },
+                    '& .MuiTableCell-root': {
+                      borderBottom: 'none',
+                      bgcolor: isSelected ? 'action.selected' : 'background.elevation1',
+                      '&:first-of-type': {
+                        borderTopLeftRadius: '0.75rem',
+                        borderBottomLeftRadius: '0.75rem',
+                      },
+                      '&:last-of-type': {
+                        borderTopRightRadius: '0.75rem',
+                        borderBottomRightRadius: '0.75rem',
+                      },
+                    },
                   }}
                 >
-                  <Typography
+                  <TableCell
                     sx={{
-                      color: 'text.primary',
-                      fontWeight: 500,
+                      py: 1.75,
+                      fontSize: '0.875rem',
                     }}
                   >
-                    {workflow.name}
-                  </Typography>
-                </TableCell>
-                <TableCell
-                  sx={{
-                    py: 1.75,
-                    fontSize: '0.875rem',
-                  }}
-                >
-                  <AvatarStack count={workflow.members.length} />
-                </TableCell>
-                <TableCell
-                  sx={{
-                    py: 1.75,
-                    fontSize: '0.875rem',
-                    color: 'text.primary',
-                  }}
-                >
-                  {workflow.lastActivity}
-                </TableCell>
-                <TableCell
-                  sx={{
-                    py: 1.75,
-                    fontSize: '0.875rem',
-                  }}
-                >
-                  <StatusChip status={workflow.state} />
-                </TableCell>
-              </TableRow>
-            ))}
+                    <Typography
+                      sx={{
+                        color: 'text.primary',
+                        fontWeight: 500,
+                      }}
+                    >
+                      {formatPipelineName(workflow, workflowNames)}
+                    </Typography>
+                  </TableCell>
+                  <TableCell
+                    sx={{
+                      py: 1.75,
+                      fontSize: '0.875rem',
+                    }}
+                  >
+                    <AvatarStack count={memberCount} />
+                  </TableCell>
+                  <TableCell
+                    sx={{
+                      py: 1.75,
+                      fontSize: '0.875rem',
+                      color: 'text.primary',
+                    }}
+                  >
+                    {formatLastActivity(workflow.last_updated)}
+                  </TableCell>
+                  <TableCell
+                    sx={{
+                      py: 1.75,
+                      fontSize: '0.875rem',
+                    }}
+                  >
+                    <StatusChip status={workflow.status || "Stopped"} />
+                  </TableCell>
+                </TableRow>
+              );
+            })}
             {/* Empty rows to maintain consistent table height */}
             {emptyRows > 0 && Array.from({ length: emptyRows }).map((_, index) => (
               <TableRow

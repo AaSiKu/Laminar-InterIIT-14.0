@@ -65,3 +65,17 @@ class save_draft_payload(BaseModel):
 class retrieve_payload(BaseModel):
     workflow_id: str
     version_id: str
+
+class add_viewer_payload(BaseModel):
+    pipeline_id: str
+    user_id: str
+
+class remove_viewer_payload(BaseModel):
+    pipeline_id: str
+    user_id: str
+
+class create_pipeline_with_details_payload(BaseModel):
+    name: Optional[str] = None
+    description: Optional[str] = ""
+    viewer_ids: List[str] = []
+    pipeline: Any  # Contains nodes, edges, viewport structure

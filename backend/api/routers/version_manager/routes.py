@@ -4,7 +4,7 @@ from backend.api.routers.auth.routes import get_current_user
 from backend.api.routers.auth.models import User
 from datetime import datetime
 import logging
-from .schema import save_workflow_payload, retrieve_payload,save_draft_payload
+from .schema import save_workflow_payload, retrieve_payload, save_draft_payload, add_viewer_payload, remove_viewer_payload, create_pipeline_with_details_payload
 from .crud import create_workflow as _create_workflow
 
 
@@ -51,6 +51,105 @@ async def create_workflow(
     except Exception as e:
         logger.error(f"Create Workflow error: {e}")
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
+
+
+@router.post(
+    "/create_pipeline_with_details",
+    tags=["version"],
+    summary="Create pipeline with details",
+    description="Create a new pipeline with name, description, viewer IDs, and nodes setup. This combines pipeline creation and saving in a single operation."
+)
+async def create_pipeline_with_details(
+    request: Request,
+    payload: create_pipeline_with_details_payload,
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Create a new pipeline with all details including name, description, viewers, and nodes setup.
+    This endpoint combines the functionality of create_pipeline and save in a single operation.
+    """
+    workflow_collection = request.app.state.workflow_collection
+    version_collection = request.app.state.version_collection
+    mongo_client = request.app.state.mongo_client
+    
+    try:
+        user_identifier = str(current_user.id)
+        
+        # Prepare pipeline document from payload
+        pipeline_doc = {
+            "edges": payload.pipeline.get("edges", []),
+            "nodes": payload.pipeline.get("nodes", []),
+            "viewport": payload.pipeline.get("viewport", {
+                "x": 0,
+                "y": 0,
+                "zoom": 1
+            })
+        }
+        
+        # Create version document
+        version_doc = {
+            "version_description": payload.description or "",
+            "user_id": user_identifier,
+            "version_created_at": datetime.now(),
+            "version_updated_at": datetime.now(),
+            "pipeline": pipeline_doc
+        }
+        
+        # Create workflow document (matching structure from create_workflow in crud.py)
+        workflow_doc = {
+            "owner_ids": [user_identifier],
+            "viewer_ids": payload.viewer_ids or [],
+            "name": payload.name or None,  # Store workflow name
+            "start_Date": None,
+            "status": "Stopped",
+            "container_id": "",
+            "agent_container_id": "",
+            "agent_port": "",
+            "agent_ip": "",
+            "notification": [],
+            "pipeline_host_port": "",
+            "agentic_host_port": "",
+            "db_host_port": "",
+            "host_ip": "",
+            "versions": [],
+            "last_started": None,
+            "runtime": 0
+        }
+        
+        # Use transaction to ensure atomicity
+        async with await mongo_client.start_session() as session:
+            async with session.start_transaction():
+                # Insert version first
+                version = await version_collection.insert_one(version_doc, session=session)
+                version_doc["_id"] = version.inserted_id
+                
+                # Update workflow with version info
+                workflow_doc["versions"] = [str(version.inserted_id)]
+                workflow_doc["current_version_id"] = str(version.inserted_id)
+                workflow_doc["last_updated"] = datetime.now()
+                
+                # Insert workflow
+                result = await workflow_collection.insert_one(workflow_doc, session=session)
+                workflow_doc["_id"] = result.inserted_id
+                
+                # Commit transaction
+                await session.commit_transaction()
+        
+        return {
+            "status": "success",
+            "message": "Pipeline created successfully",
+            "pipeline_id": str(workflow_doc["_id"]),
+            "version_id": str(version.inserted_id),
+            "user_id": user_identifier,
+            "viewer_ids": payload.viewer_ids
+        }
+        
+    except Exception as e:
+        logger.error(f"Create pipeline with details error: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to create pipeline: {str(e)}"
+        )
 
 
 
@@ -280,7 +379,7 @@ async def retrieve_all(
 
     if current_user.role == "admin":
         print("admin")
-        workflows = await workflow_collection.find().to_list(length=5)
+        workflows = await workflow_collection.find().sort("last_updated", -1).to_list(length=None)
         return serialize_mongo({
             "status": "success",
             "count": len(workflows),
@@ -290,9 +389,16 @@ async def retrieve_all(
 
     user_identifier = str(current_user.id)
     print(user_identifier)
+    
+    # Find workflows where user is either an owner or a viewer
     workflows = await workflow_collection.find(
-        {"owner_ids": user_identifier}
-    ).to_list(length=5)
+        {
+            "$or": [
+                {"owner_ids": user_identifier},
+                {"viewer_ids": user_identifier}
+            ]
+        }
+    ).sort("last_updated", -1).to_list(length=None)
 
     if not workflows:
         raise HTTPException(status_code=404, detail="No workflows found")
@@ -303,7 +409,255 @@ async def retrieve_all(
         "status": "success",
         "count": len(workflows),
         "data": workflows
-    }) 
+    })
+
+
+#---------------------------- Add Viewer to Pipeline --------------------------#
+@router.post(
+    "/add_viewer",
+    tags=["version"],
+    summary="Add viewer to pipeline",
+    description="Add a user as a viewer to a pipeline. Only pipeline owners or admins can add viewers. The user must not already be an owner or viewer of the pipeline."
+)
+async def add_viewer_to_pipeline(
+    request: Request,
+    payload: add_viewer_payload,
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Add a viewer to a pipeline.
+    Only pipeline owners or admins can add viewers.
+    """
+    workflow_collection = request.app.state.workflow_collection
+    
+    try:
+        user_identifier = str(current_user.id)
+        pipeline_id = payload.pipeline_id
+        viewer_user_id = payload.user_id
+        
+        # Validate pipeline_id format
+        try:
+            pipeline_object_id = ObjectId(pipeline_id)
+        except Exception:
+            raise HTTPException(status_code=400, detail="Invalid pipeline_id format")
+        
+        # Find the workflow
+        workflow_query = {"_id": pipeline_object_id}
+        
+        # If not admin, check if user is owner
+        if current_user.role != "admin":
+            workflow_query["owner_ids"] = {"$in": [user_identifier]}
+        
+        existing_workflow = await workflow_collection.find_one(workflow_query)
+        
+        if not existing_workflow:
+            raise HTTPException(
+                status_code=404,
+                detail="Pipeline not found or you don't have permission to modify it"
+            )
+        
+        # Check if viewer is already in the list
+        viewer_ids = existing_workflow.get("viewer_ids", [])
+        if viewer_user_id in viewer_ids:
+            raise HTTPException(
+                status_code=400,
+                detail="User is already a viewer of this pipeline"
+            )
+        
+        # Check if viewer is already an owner
+        owner_ids = existing_workflow.get("owner_ids", [])
+        if viewer_user_id in owner_ids:
+            raise HTTPException(
+                status_code=400,
+                detail="User is already an owner of this pipeline"
+            )
+        
+        # Add viewer to the pipeline
+        update_result = await workflow_collection.update_one(
+            {"_id": pipeline_object_id},
+            {
+                "$addToSet": {"viewer_ids": viewer_user_id}
+            }
+        )
+        
+        if update_result.modified_count == 0:
+            raise HTTPException(
+                status_code=500,
+                detail="Failed to add viewer to pipeline"
+            )
+        
+        return {
+            "status": "success",
+            "message": "Viewer added successfully",
+            "pipeline_id": pipeline_id,
+            "viewer_id": viewer_user_id
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error adding viewer: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to add viewer: {str(e)}")
+
+
+#---------------------------- Remove Viewer from Pipeline --------------------------#
+@router.post(
+    "/remove_viewer",
+    tags=["version"],
+    summary="Remove viewer from pipeline",
+    description="Remove a user as a viewer from a pipeline. Only pipeline owners or admins can remove viewers."
+)
+async def remove_viewer_from_pipeline(
+    request: Request,
+    payload: remove_viewer_payload,
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Remove a viewer from a pipeline.
+    Only pipeline owners or admins can remove viewers.
+    """
+    workflow_collection = request.app.state.workflow_collection
+    
+    try:
+        user_identifier = str(current_user.id)
+        pipeline_id = payload.pipeline_id
+        viewer_user_id = payload.user_id
+        
+        # Validate pipeline_id format
+        try:
+            pipeline_object_id = ObjectId(pipeline_id)
+        except Exception:
+            raise HTTPException(status_code=400, detail="Invalid pipeline_id format")
+        
+        # Find the workflow
+        workflow_query = {"_id": pipeline_object_id}
+        
+        # If not admin, check if user is owner
+        if current_user.role != "admin":
+            workflow_query["owner_ids"] = {"$in": [user_identifier]}
+        
+        existing_workflow = await workflow_collection.find_one(workflow_query)
+        
+        if not existing_workflow:
+            raise HTTPException(
+                status_code=404,
+                detail="Pipeline not found or you don't have permission to modify it"
+            )
+        
+        # Check if viewer is in the list
+        viewer_ids = existing_workflow.get("viewer_ids", [])
+        if viewer_user_id not in viewer_ids:
+            raise HTTPException(
+                status_code=400,
+                detail="User is not a viewer of this pipeline"
+            )
+        
+        # Remove viewer from the pipeline
+        update_result = await workflow_collection.update_one(
+            {"_id": pipeline_object_id},
+            {
+                "$pull": {"viewer_ids": viewer_user_id}
+            }
+        )
+        
+        if update_result.modified_count == 0:
+            raise HTTPException(
+                status_code=500,
+                detail="Failed to remove viewer from pipeline"
+            )
+        
+        return {
+            "status": "success",
+            "message": "Viewer removed successfully",
+            "pipeline_id": pipeline_id,
+            "viewer_id": viewer_user_id
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error removing viewer: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to remove viewer: {str(e)}")
+
+
+#---------------------------- Remove Viewer from Pipeline --------------------------#
+@router.post(
+    "/remove_viewer",
+    tags=["version"],
+    summary="Remove viewer from pipeline",
+    description="Remove a user as a viewer from a pipeline. Only pipeline owners or admins can remove viewers."
+)
+async def remove_viewer_from_pipeline(
+    request: Request,
+    payload: remove_viewer_payload,
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Remove a viewer from a pipeline.
+    Only pipeline owners or admins can remove viewers.
+    """
+    workflow_collection = request.app.state.workflow_collection
+    
+    try:
+        user_identifier = str(current_user.id)
+        pipeline_id = payload.pipeline_id
+        viewer_user_id = payload.user_id
+        
+        # Validate pipeline_id format
+        try:
+            pipeline_object_id = ObjectId(pipeline_id)
+        except Exception:
+            raise HTTPException(status_code=400, detail="Invalid pipeline_id format")
+        
+        # Find the workflow
+        workflow_query = {"_id": pipeline_object_id}
+        
+        # If not admin, check if user is owner
+        if current_user.role != "admin":
+            workflow_query["owner_ids"] = {"$in": [user_identifier]}
+        
+        existing_workflow = await workflow_collection.find_one(workflow_query)
+        
+        if not existing_workflow:
+            raise HTTPException(
+                status_code=404,
+                detail="Pipeline not found or you don't have permission to modify it"
+            )
+        
+        # Check if viewer is in the list
+        viewer_ids = existing_workflow.get("viewer_ids", [])
+        if viewer_user_id not in viewer_ids:
+            raise HTTPException(
+                status_code=400,
+                detail="User is not a viewer of this pipeline"
+            )
+        
+        # Remove viewer from the pipeline
+        update_result = await workflow_collection.update_one(
+            {"_id": pipeline_object_id},
+            {
+                "$pull": {"viewer_ids": viewer_user_id}
+            }
+        )
+        
+        if update_result.modified_count == 0:
+            raise HTTPException(
+                status_code=500,
+                detail="Failed to remove viewer from pipeline"
+            )
+        
+        return {
+            "status": "success",
+            "message": "Viewer removed successfully",
+            "pipeline_id": pipeline_id,
+            "viewer_id": viewer_user_id
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error removing viewer: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to remove viewer: {str(e)}") 
 
 
 #---------------------------- Delete workflow and Drafts--------------------------#
