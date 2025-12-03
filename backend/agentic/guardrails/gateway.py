@@ -23,6 +23,9 @@ from detect_secrets.core.secrets_collection import SecretsCollection
 import ipaddress
 import socket
 
+from .base import DetectorResult, BaseDetector, ExtrasImport, Extra
+from .batch import PromptInjectionAnalyzer
+
 load_dotenv()
 
 T = TypeVar("T")
@@ -55,220 +58,9 @@ def get_openai_client() -> AsyncClient:
     return client
 
 
-@dataclass
-class DetectorResult:
-    entity: str = Field(..., description="The type of entity that was detected.")
-    start: int = Field(..., description="The start index of the detected entity.")
-    end: int = Field(..., description="The end index of the detected entity.")
-
-
-class BaseDetector:
-    """Base class for detectors."""
-
-    def get_entities(self, results: list[DetectorResult]) -> list[str]:
-        """Returns a list of entities from a list of DetectorResult objects.
-
-        Args:
-            results: A list of DetectorResult objects.
-        Returns:
-            A list of entities.
-        """
-        return [result.entity for result in results]
-
-    def detect_all(self, text: str, *args, **kwargs) -> list[DetectorResult]:
-        """Performs detection on the given text and returns a list of DetectorResult objects.
-
-        Args:
-            text: The text to analyze.
-        Returns:
-            A list of DetectorResult objects.
-        """
-        raise NotImplementedError("")
-
-    def detect(self, text: str, *args, **kwargs) -> bool:
-        """Performs detection on the given text and returns a boolean indicating whether there has been any detection.
-
-        Args:
-            text: The text to analyze.
-        Returns:
-            A boolean indicating whether there has been any detection.
-        """
-        return len(self.detect_all(text, *args, **kwargs)) > 0
-
-    async def preload(self):
-        """
-        Some workload to run to initialize the detector for lower-latency inference later on.
-
-        For instance, model loading or other expensive operations.
-        """
-        pass
-
-
-class ExtrasImport:
-    
-    def __init__(self, import_name, package_name, version_constraint):
-        """Creates a new ExtrasImport object.
-
-        Args:
-            import_name (str): The name or specifier of the module to import (e.g. 'lib' or 'lib.submodule')
-            package_name (str): The name of the pypi package that contains the module.
-            version_constraint (str): The version constraint for the package (e.g. '>=1.0.0')
-        """
-        self.name = import_name
-        self.package_name = package_name
-        self.version_constraint = version_constraint
-
-        # collection of sites where this dependency is used
-        # (only available if find_all is used)
-        self.sites = []
-
-    def import_names(self, *specifiers):
-        
-        module = self.import_module()
-        elements = [getattr(module, specifier) for specifier in specifiers]
-        if len(elements) == 1:
-            return elements[0]
-        return elements
-
-    def import_module(self):
-        module = __import__(self.name, fromlist=[self.name])
-        return module
-
-    def __str__(self):
-        if len(self.sites) > 0:
-            sites_str = f", sites={self.sites}"
-        else:
-            sites_str = ""
-        return f"ExtrasImport('{self.name}', '{self.package_name}', '{self.version_constraint}'{sites_str})"
-
-    def __repr__(self):
-        return str(self)
-
-
-
-TERMINATE_ON_EXTRA_FAILURE = True
-
-class Extra:
-    """
-    An Extra is a group of optional dependencies that can be installed on demand.
-
-    The extra is defined by a name, a description, and a collection of packages.
-
-    For a list of available extras, see `Extra.find_all()` and below.
-    """
-
-    def __init__(self, name, description, packages):
-        self.name = name
-        self.description = description
-        self.packages = packages
-        self._is_available = None
-
-        Extra.extras[name] = self
-
-    def is_available(self) -> bool:
-        """Returns whether the extra is available (all assigned imports can be resolved)."""
-        if self._is_available is not None:
-            return self._is_available
-
-        for package in self.packages.values():
-            try:
-                __import__(package.name)
-            except ImportError:
-                self._is_available = False
-                return False
-
-        self._is_available = True
-        return True
-
-    def package(self, name) -> ExtrasImport:
-        """Returns the package with the given name."""
-        if not self.is_available():
-            self.install()
-
-        return self.packages[name]
-
-    def install(self):
-        """Installs all required packages for this extra (using pip if available)."""
-        # like for imports, but all in one go
-        msg = "warning: you are trying to use a feature that relies on the extra dependency '{}', which requires the following packages to be installed:\n".format(
-            self.name
-        )
-        for imp in self.packages.values():
-            msg += "   - " + imp.package_name + imp.version_constraint + "\n"
-
-        sys.stderr.write(msg + "\n")
-
-        # check if terminal input is possible
-        if sys.stdin.isatty():
-            sys.stderr.write("Press (y/enter) to install the packages or Ctrl+C to exit: ")
-            answer = input()
-            if answer == "y" or len(answer) == 0:
-                import subprocess
-
-                # check if 'pip' is installed
-                result = subprocess.run(
-                    [sys.executable, "-m", "pip", "--version"], capture_output=True
-                )
-                if result.returncode != 0:
-                    sys.stderr.write(
-                        "error: 'pip' is not installed. Please install the above mentioned packages manually.\n"
-                    )
-                    if TERMINATE_ON_EXTRA_FAILURE:
-                        sys.exit(1)
-                    else:
-                        raise RuntimeError(
-                            "policy execution failed due to missing dependencies in the runtime environment"
-                        )
-                for imp in self.packages.values():
-                    subprocess.call(
-                        [
-                            sys.executable,
-                            "-m",
-                            "pip",
-                            "install",
-                            f"{imp.package_name}{imp.version_constraint}",
-                        ]
-                    )
-            else:
-                if TERMINATE_ON_EXTRA_FAILURE:
-                    sys.exit(1)
-                else:
-                    raise RuntimeError(
-                        "policy execution failed due to missing dependencies in the runtime environment"
-                    )
-        else:
-            if TERMINATE_ON_EXTRA_FAILURE:
-                sys.exit(1)
-            else:
-                raise RuntimeError(
-                    "policy execution failed due to missing dependencies in the runtime environment"
-                )
-
-    @staticmethod
-    def find_all() -> list["Extra"]:
-        return list(Extra.extras.values())
 
 
 Extra.extras = {}
-
-
-PRESIDIO_EXTRA = Extra(
-    "PII and Secrets Scanning (using Presidio)",
-    "Enables the detection of personally identifiable information (PII) and secret scanning in text",
-    {
-        "presidio_analyzer": ExtrasImport("presidio_analyzer", "presidio-analyzer", ">=2.2.354"),
-        "spacy": ExtrasImport("spacy", "spacy", ">=3.7.5"),
-    },
-)
-
-transformers_extra = Extra(
-    "Transformers",
-    "Enables the use of `transformer`-based models and classifiers in the analyzer",
-    {
-        "transformers": ExtrasImport("transformers", "transformers", ">=4.41.1"),
-        "torch": ExtrasImport("torch", "torch", ">=2.3.0"),
-    },
-)
 
 class PII_Analyzer(BaseDetector):
     def __init__(self, threshold=0.5):
@@ -287,249 +79,6 @@ class PII_Analyzer(BaseDetector):
     async def adetect(self, text: str, entities: list[str] | None = None):
         return self.detect_all(text, entities)
     
-class BatchAccumulator(Generic[T, R]):
-    """
-    A simple asyncio batch accumulator that collects items and processes them in batches.
-
-    This is useful for batching API calls, database operations, or other operations
-    where processing items in bulk is more efficient than processing them individually.
-    """
-
-    def __init__(
-        self,
-        batch_processor: Callable[[List[T]], Awaitable[List[R]]],
-        max_batch_size: int = 100,
-        max_wait_time: float = 1.0,
-    ):
-        """
-        Initialize a new batch accumulator.
-
-        Args:
-            batch_processor: Async function that processes a batch of items
-            max_batch_size: Maximum number of items to collect before processing
-            max_wait_time: Maximum time to wait before processing a partial batch (in seconds)
-        """
-        self.batch_processor = batch_processor
-        self.max_batch_size = max_batch_size
-        self.max_wait_time = max_wait_time
-
-        self._queue: List[asyncio.Future[R]] = []
-        self._items: List[T] = []
-        self._batch_task: Optional[asyncio.Task] = None
-        self._timer_task: Optional[asyncio.Task] = None
-        self._lock = asyncio.Lock()
-        self._running = False
-
-    async def start(self) -> None:
-        """Start the batch accumulator."""
-        if self._running:
-            return
-
-        self._running = True
-        self._timer_task = asyncio.create_task(self._timer_loop())
-
-    async def stop(self) -> None:
-        """Stop the batch accumulator and process any remaining items."""
-        if not self._running:
-            return
-
-        self._running = False
-
-        if self._timer_task:
-            self._timer_task.cancel()
-            try:
-                await self._timer_task
-            except asyncio.CancelledError:
-                pass
-
-        # Process any remaining items
-        if self._items:
-            await self._process_batch()
-
-    async def add(self, item: T) -> R:
-        """
-        Add an item to the batch and return a future that will resolve when the item is processed.
-
-        Args:
-            item: The item to add to the batch
-
-        Returns:
-            A Future that resolves to the result of processing the item
-        """
-        if not self._running:
-            raise RuntimeError("BatchAccumulator is not running. Call start() first.")
-
-        future: asyncio.Future[R] = asyncio.Future()
-
-        async with self._lock:
-            self._items.append(item)
-            self._queue.append(future)
-
-            if len(self._items) >= self.max_batch_size:
-                # We've hit the max batch size, process immediately
-                await self._process_batch()
-
-        return await future
-
-    async def _timer_loop(self) -> None:
-        """Background task that processes batches after max_wait_time has elapsed."""
-        try:
-            while self._running:
-                await asyncio.sleep(self.max_wait_time)
-                async with self._lock:
-                    if self._items:
-                        await self._process_batch()
-        except asyncio.CancelledError:
-            # if this gets cancelled, we are shutting down this instance
-            # new start() call will re-initialize the instance
-            self._running = False
-        except Exception:
-            import traceback
-
-            traceback.print_exc()
-
-    async def _process_batch(self) -> None:
-        """Process the current batch of items."""
-        if not self._items:
-            return
-
-        items = self._items.copy()
-        futures = self._queue.copy()
-        self._items = []
-        self._queue = []
-
-        try:
-            results = await self.batch_processor(items)
-
-            # Resolve futures with results
-            if len(results) != len(futures):
-                error = ValueError(
-                    f"Batch processor returned {len(results)} results for {len(futures)} items"
-                )
-                for future in futures:
-                    if not future.done():
-                        future.set_exception(error)
-            else:
-                for future, result in zip(futures, results):
-                    if not future.done():
-                        future.set_result(result)
-        except Exception as e:
-            # If batch processing fails, propagate the error to all futures
-            for future in futures:
-                if not future.done():
-                    future.set_exception(e)
-    
-class BatchedDetector(BaseDetector):
-    """
-    A batched detector that uses a BatchAccumulator to process items in batches.
-
-    To subclass, implement the `adetect_batch` method.
-    """
-
-    def __init__(self, max_batch_size: int = 1, max_wait_time: float = 0.1):
-        # separate accumulators for any serialized args-kwargs combination
-        self.accumulators = {}
-        self.max_batch_size = max_batch_size
-        self.max_wait_time = max_wait_time
-
-    def get_accumulator(self, args, kwargs):
-        key = (args, tuple(kwargs.items()))
-        if key not in self.accumulators:
-
-            async def batch_processor(texts):
-                return await self.adetect_all_batch(texts, *args, **kwargs)
-
-            self.accumulators[key] = BatchAccumulator(
-                batch_processor=batch_processor,
-                max_batch_size=self.max_batch_size,
-                max_wait_time=self.max_wait_time,
-            )
-        return self.accumulators[key]
-
-    async def adetect_all_batch(self, texts, *args, **kwargs):
-        raise NotImplementedError("Subclasses must implement the adetect_all_batch method")
-
-    async def adetect(self, text, *args, **kwargs):
-        result = await self.adetect_all(text, *args, **kwargs)
-        return len(result) > 0
-
-    async def adetect_all(self, text, *args, **kwargs):
-        accumulator = self.get_accumulator(args, kwargs)
-        await accumulator.start()
-        return await accumulator.add(text)
-
-    def detect(self, text, *args, **kwargs):
-        raise NotImplementedError(
-            "Batched detectors do not support synchronous detect(). Please use adetect() instead"
-        )
-
-    def detect_all(self, text, *args, **kwargs):
-        raise NotImplementedError(
-            "Batched detectors do not support synchronous detect_all(). Please use adetect_all() instead"
-        )
-
-DEFAULT_PROMPT_INJECTION_MODEL = "protectai/deberta-v3-base-prompt-injection-v2"
-
-
-class PromptInjectionAnalyzer(BatchedDetector):
-    """Analyzer for detecting prompt injections via classifier.
-
-    The analyzer uses a pre-trained classifier (e.g., a model available on Huggingface) to detect prompt injections in text.
-    Note that this is just a heuristic, and relying solely on the classifier is not sufficient to prevent the security vulnerabilities.
-    """
-
-    def __init__(self):
-        super().__init__(max_batch_size=16, max_wait_time=0.1)
-        self.pipe_store = dict()
-
-    async def preload(self):
-        # preloads the model
-        await self.adetect("Testing")
-
-    def _load_model(self, model):
-        pipeline = transformers_extra.package("transformers").import_names("pipeline")
-        self.pipe_store[model] = pipeline("text-classification", model=model, top_k=None)
-
-    def _get_model(self, model):
-        return self.pipe_store[model]
-
-    def _has_model(self, model):
-        return model in self.pipe_store
-
-    async def adetect_all_batch(
-        self, texts: list[str], model: str = DEFAULT_PROMPT_INJECTION_MODEL, threshold: float = 0.9
-    ) -> bool:
-        """Detects whether text contains prompt injection.
-
-        Args:
-            text: The text to analyze.
-            model: The model to use for prompt injection detection.
-            threshold: The threshold for the model score above which text is considered prompt injection.
-
-        Returns:
-            A boolean indicating whether the text contains prompt injection.
-        """
-        if not self._has_model(model):
-            self._load_model(model)
-
-        # make sure texts is list of str
-        assert type(texts) is list and all(
-            type(t) is str for t in texts
-        ), "texts must be a list of str"
-
-        model = self._get_model(model)
-        scores = model(texts)
-
-        return [
-            [scores[i][0]["label"] == "INJECTION" and scores[i][0]["score"] > threshold]
-            for i in range(len(scores))
-        ]
-
-    async def adetect(self, text, *args, **kwargs):
-        result = await self.adetect_all(text, *args, **kwargs)
-        return result[0] is True
-
-
 class UnicodeDetector(BaseDetector):
     """
     Detector for detecting unicode characters based on their category (using allow or deny list).
@@ -555,40 +104,55 @@ class UnicodeDetector(BaseDetector):
                 res.append(DetectorResult(cat, index, index + 1))
         return res
 
+SECRETS_PATTERNS = {
+    ### TODO: add more token patterns to restrict
+    "GITHUB_TOKEN": [
+        re.compile(r'(ghp|gho|ghu|ghs|ghr)_[A-Za-z0-9_]{36}'),
+    ],
+    "AWS_ACCESS_KEY": [
+        re.compile(r'(?:A3T[A-Z0-9]|ABIA|ACCA|AKIA|ASIA)[0-9A-Z]{16}'),
+        re.compile(r'aws.{{0,20}}?{secret_keyword}.{{0,20}}?[\'\"]([0-9a-zA-Z/+]{{40}})[\'\"]'.format(
+            secret_keyword=r'(?:key|pwd|pw|password|pass|token)',
+        ), flags=re.IGNORECASE),
+    ],
+    "AZURE_STORAGE_KEY": [
+        re.compile(r'AccountKey=[a-zA-Z0-9+\/=]{88}'),
+    ],
+    "SLACK_TOKEN": [
+        re.compile(r'xox(?:a|b|p|o|s|r)-(?:\d+-)+[a-z0-9]+', flags=re.IGNORECASE),
+        re.compile(r'https://hooks\.slack\.com/services/T[a-zA-Z0-9_]+/B[a-zA-Z0-9_]+/[a-zA-Z0-9_]+', flags=re.IGNORECASE | re.VERBOSE),
+    ],
+}
+
+@dataclass
+class SecretPattern:
+    secret_name: str
+    patterns: list[Pattern]
+
+
 class SecretsAnalyzer(BaseDetector):
     """
-    Analyzer for detecting secrets in generated text using the detect-secrets library.
+    Analyzer for detecting secrets in generated text.
     """
+    def __init__(self):
+        super().__init__()
+        self.secrets = self.get_recognizers()
+
+    def get_recognizers(self) -> list[Pattern]:
+        secrets = []
+        for secret_name, regex_pattern in SECRETS_PATTERNS.items():
+            secrets.append(SecretPattern(secret_name, regex_pattern))
+        return secrets
+    
     def detect_all(self, text: str) -> list[DetectorResult]:
-        """
-        Detects secrets in the given text using detect-secrets.
-        Args:
-            text: The text to analyze.
-        Returns:
-            A list of DetectorResult objects for each detected secret.
-        """
         res = []
-        # Use detect-secrets to scan the text for secrets
-        # Note: detect-secrets works with file paths, so we write the text to a temporary file.
-        with open("temp_text_for_secrets_scan.txt", "w") as f:
-            f.write(text)
-
-        secrets = scan(["temp_text_for_secrets_scan.txt"])
-        
-        # Extract the detected secrets and their locations
-        for filename in secrets.files:
-            for secret in secrets.secrets[filename]:
-                res.append(
-                    DetectorResult(
-                        entity=secret.type,
-                        start=0,  # detect-secrets does not provide start and end indices for the secret in the text
-                        end=0,
-                    )
-                )
-        
-        os.remove("temp_text_for_secrets_scan.txt")
+        for secret in self.secrets:
+            for pattern in secret.patterns:
+                for match in pattern.finditer(text):
+                    res.append(DetectorResult(secret.secret_name, match.start(), match.end()))
         return res
-
+    
+    
 class MCPSecurityGateway:
     """
     (1) Network Layer: Connection Pooling (TLS), SSRF Validation.
