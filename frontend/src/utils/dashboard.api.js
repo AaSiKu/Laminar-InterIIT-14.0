@@ -1,6 +1,8 @@
+import fetchWithAuth from "./api";
+
 export const fetchNodeTypes = async () => {
   try {
-    const res = await fetch(`${import.meta.env.VITE_API_SERVER}/schema/all`);
+    const res = await fetchWithAuth("/schema/all");
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const data = await res.json();
     return data;
@@ -12,9 +14,7 @@ export const fetchNodeTypes = async () => {
 
 export const fetchNodeSchema = async (nodeName) => {
   try {
-    const res = await fetch(
-      `${import.meta.env.VITE_API_SERVER}/schema/${nodeName}`
-    );
+    const res = await fetchWithAuth(`/schema/${nodeName}`);
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const schema = await res.json();
     return schema;

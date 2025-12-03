@@ -12,13 +12,12 @@ export const fetchTemplates = async () => {
   ];
 };
 
+import fetchWithAuth from "./api";
+
 // Fetches a list of existing workflow files.
 export const fetchWorkflows = async (skip = 0, limit = 3) => {
-  const response = await fetch(
-    `${
-      import.meta.env.VITE_API_SERVER
-    }/overview/workflows/?skip=${skip}&limit=${limit}`,
-    { credentials: "include" }
+  const response = await fetchWithAuth(
+    `/overview/workflows/?skip=${skip}&limit=${limit}`
   );
   const data = await response.json();
   return data;
@@ -40,10 +39,7 @@ export const fetchNotifications = async () => {
 
 // Fetches overview statistics data.
 export const fetchOverviewData = async () => {
-  const response = await fetch(
-    `${import.meta.env.VITE_API_SERVER}/overview/kpi`,
-    { credentials: "include" }
-  );
+  const response = await fetchWithAuth("/overview/kpi");
   const data = await response.json();
   console.log(data)
   return data
