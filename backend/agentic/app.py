@@ -8,9 +8,9 @@ from pydantic import BaseModel
 from lib.agents import AlertResponse
 from langchain.agents import create_agent
 from langgraph.graph.state import CompiledStateGraph
-from .agents import  model, create_planner_executor, AgentPayload
+from .agents import create_planner_executor, AgentPayload
 from .rca.summarize import summarize_prompt
-from langchain_openai import ChatOpenAI
+from .llm_factory import create_reasoning_model, create_alert_model
 from langchain_mcp_adapters.client import MultiServerMCPClient
 import os
 import sqlite3
@@ -19,8 +19,12 @@ from pathlib import Path
 
 planner_executor: CompiledStateGraph = None
 
-# Use OpenAI's o1 reasoning model for complex analysis
-reasoning_model = ChatOpenAI(model="o1", temperature=1, api_key=os.getenv("OPENAI_API_KEY"))
+# Create reasoning model using the factory
+# This will use the default provider (OpenAI with o1 model) for complex analysis
+# To change provider, set DEFAULT_REASONING_PROVIDER environment variable
+reasoning_model = create_reasoning_model()
+
+# MCP client for Context7 integration (kept separate from LLM factory)
 mcp_client = MultiServerMCPClient({
     "context7": {
         "transport": "streamable_http",
@@ -119,8 +123,11 @@ class SummarizeRequest(BaseModel):
     pipeline_description: str
     semantic_origins: Dict[str, List[int]]
 
+# Create alert model using the factory
+# This will use the default provider (Groq) for fast alert generation
+# To change provider, set DEFAULT_ALERT_PROVIDER environment variable
 alert_agent = create_agent(
-    model=model,
+    model=create_alert_model(),
     tools=[],
     response_format=AlertResponse
 )
