@@ -32,7 +32,7 @@ const DRAWER_WIDTH = 240;
 const Sidebar = () => {
   const navigate = useNavigate();
   const theme = useTheme();
-  const { logout, isAuthenticated } = useContext(AuthContext);
+  const { logout, isAuthenticated, user } = useContext(AuthContext);
   const location = useLocation();
   const { sidebarOpen, setSideBarOpen } = useGlobalContext();
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -67,11 +67,12 @@ const Sidebar = () => {
       label: "Workflows",
       path: "/workflows",
     },
-    {
+    // Only show Admin menu item if user is admin
+    ...(user?.role === "admin" ? [{
       icon: <WorkspacePremiumRounded sx={{ fontSize: "1.5rem" }} />,
       label: "Admin",
       path: "/admin",
-    },
+    }] : []),
     {
       icon: <LogoutRounded color="error" sx={{ fontSize: "1.5rem" }} />,
       label: "Logout",
