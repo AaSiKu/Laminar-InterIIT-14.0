@@ -1,10 +1,12 @@
 import json
-from typing import Dict, List
+from typing import Dict, List, Set, Tuple, Any
 from collections import defaultdict
 from .validate import validate_nodes, validate_graph_topology
 from lib.agents import Agent
 from .types import Graph, Flowchart
-
+from lib.utils import get_node_class_map
+from lib.node import Node
+from .metric_node import identify_metric_nodes_with_descriptions
 
 def id2index(nodes: List[dict]) -> Dict[str, int]:
     """
@@ -83,11 +85,17 @@ def read_and_validate_graph(filepath: str) -> Graph:
     parsing_order, dependencies = validate_graph_topology(
         nodes, data["edges"], id2index_map
     )
-    
-    return {
+    graph = {
         **data,
         "parsing_order": parsing_order,
         "nodes": nodes,
         "dependencies": dependencies,
         "agents": agents,
+        "id2index_map": id2index_map
     }
+    # Identify metric nodes and generate descriptions
+    metric_node_descriptions = identify_metric_nodes_with_descriptions(graph)
+    
+    graph["metric_node_descriptions"] = metric_node_descriptions
+    return graph
+
