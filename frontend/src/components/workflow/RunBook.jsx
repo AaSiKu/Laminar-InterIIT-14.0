@@ -62,9 +62,9 @@ const RunBook = ({ open, onClose, formData = {}, onSave }) => {
     { id: "J", count: 33 },
   ];
 
-  // Update local state when formData prop changes
+  // Update local state when dialog opens
   useEffect(() => {
-    if (formData) {
+    if (open && formData) {
       setName(formData.name || "");
       setUserConfirmation(formData.userConfirmation || false);
       setErrorDescription(formData.errorDescription || "");
@@ -75,7 +75,7 @@ const RunBook = ({ open, onClose, formData = {}, onSave }) => {
       setRunBookErrorDescription(formData.runBookErrorDescription || "");
       setActions(formData.actions || [""]);
     }
-  }, [formData]);
+  }, [open]);
 
   const handleSave = async () => {
     const data = {
@@ -196,10 +196,10 @@ const RunBook = ({ open, onClose, formData = {}, onSave }) => {
                 key={protocol.id}
                 sx={{
                   mb: 2,
-                  bgcolor: "grey.50",
+                  bgcolor: "background.elevation1",
                   borderRadius: 2,
                   border: 1,
-                  borderColor: "grey.50",
+                  borderColor: "background.elevation1",
                 }}
               >
                 <CardContent>
@@ -291,7 +291,7 @@ const RunBook = ({ open, onClose, formData = {}, onSave }) => {
                     fullWidth
                     sx={{
                       "& .MuiOutlinedInput-root": {
-                        bgcolor: "#EBF2F5",
+                        bgcolor: "background.elevation1",
                         "& fieldset": {
                           border: "none",
                         },
@@ -322,7 +322,7 @@ const RunBook = ({ open, onClose, formData = {}, onSave }) => {
                         displayEmpty
                         variant="outlined"
                         sx={{
-                          bgcolor: "#EBF2F5",
+                          bgcolor: "background.elevation1",
                           "& .MuiOutlinedInput-notchedOutline": {
                             border: "none",
                           },
@@ -421,7 +421,7 @@ const RunBook = ({ open, onClose, formData = {}, onSave }) => {
                     fullWidth
                     sx={{
                       "& .MuiOutlinedInput-root": {
-                        bgcolor: "#EBF2F5",
+                        bgcolor: "background.elevation1",
                         "& fieldset": {
                           border: "none",
                         },
@@ -451,7 +451,7 @@ const RunBook = ({ open, onClose, formData = {}, onSave }) => {
                     fullWidth
                     sx={{
                       "& .MuiOutlinedInput-root": {
-                        bgcolor: "#EBF2F5",
+                        bgcolor: "background.elevation1",
                         "& fieldset": {
                           border: "none",
                         },
@@ -512,7 +512,7 @@ const RunBook = ({ open, onClose, formData = {}, onSave }) => {
                     fullWidth
                     sx={{
                       "& .MuiOutlinedInput-root": {
-                        bgcolor: "#EBF2F5",
+                        bgcolor: "background.elevation1",
                         "& fieldset": {
                           border: "none",
                         },
@@ -562,7 +562,7 @@ const RunBook = ({ open, onClose, formData = {}, onSave }) => {
                             mb: 0.5,
                             "& .MuiOutlinedInput-root": {
                               minHeight: "3rem",
-                              bgcolor: "#EBF2F5",
+                              bgcolor: "background.elevation1",
                               "& fieldset": {
                                 border: "none",
                               },
@@ -589,7 +589,7 @@ const RunBook = ({ open, onClose, formData = {}, onSave }) => {
                             mb: 0.5,
                             "& .MuiOutlinedInput-root": {
                               minHeight: "3rem",
-                              bgcolor: "#EBF2F5",
+                              bgcolor: "background.elevation1",
                               "& fieldset": {
                                 border: "none",
                               },
