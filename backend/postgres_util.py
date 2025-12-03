@@ -22,7 +22,7 @@ construct_postgre_url = lambda connection_string : (
 
 postgre_url = construct_postgre_url(connection_string)
 
-# TODO: Later we can work on connecting to the database only once instead of every tool or every node output connector connecting to the db everytime
+# : Later we can work on connecting to the database only once instead of every tool or every node output connector connecting to the db everytime
 postgre_engine = create_engine(postgre_url)
 
-# TODO: Afterwards we can consider using a lighter sql db rather than postgres such as sqlite
+# : Afterwards we can consider using a lighter sql db rather than postgres such as sqlite

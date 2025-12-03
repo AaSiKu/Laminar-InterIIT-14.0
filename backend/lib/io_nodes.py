@@ -19,7 +19,7 @@ class InputNode(IONode):
     n_inputs : Literal[0] = 0
     # input_schema will be sent to frontend and will be converted in to the table_schema at backend for parsing
     input_schema: List[ColumnType] = Field(
-        description="List of columns names and types (eg. `str`, `float`, `int` for more details refer [here](https://pathway.com/developers/user-guide/connect/schema/))"
+        description="List of columns names and types (eg. `str`, `float`, `int` for more details refer [here](https://pathway.com/developers/user-guide/connect/schema/))",
     )
     table_schema: SkipJsonSchema[Any]
     datetime_columns: Optional[List[PairOfStrings]] = Field(
@@ -268,6 +268,7 @@ class PostgreSQLWriteNode(OutputNode):
         description="When using snapshot mode, one or more columns that form the primary key in the target Postgres table."
     )
     node_id: Literal["postgres_write"]
+    output_table_type : Literal['stream_of_changes', 'snapshot'] = 'stream_of_changes'
 
 
 class MySQLWriteNode(OutputNode):
