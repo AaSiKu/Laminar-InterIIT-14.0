@@ -278,7 +278,7 @@ const NodeDataTable = ({ nodeId, isVisible, nodeRef, onMouseEnter, onMouseLeave 
       }}
       onMouseEnter={onMouseEnter}
       onMouseLeave={onMouseLeave}
-      style={{ position: 'absolute', ...position, zIndex: 9999 }}
+      style={{ position: 'absolute', ...position, zIndex: 99999 }}
     >
       <Paper
         ref={tableRef}
@@ -287,7 +287,7 @@ const NodeDataTable = ({ nodeId, isVisible, nodeRef, onMouseEnter, onMouseLeave 
           p: '1rem',
           minWidth: '40rem',
           maxWidth: '60rem',
-          zIndex: 9999,
+          zIndex: 99999,
           bgcolor: 'background.paper',
           borderRadius: '0.5rem',
           boxShadow: theme.shadows[8],
@@ -430,7 +430,7 @@ const NodeDataTable = ({ nodeId, isVisible, nodeRef, onMouseEnter, onMouseLeave 
                   border: `1px solid ${theme.palette.divider}`,
                   borderRadius: '0.25rem',
                   boxShadow: theme.shadows[4],
-                  zIndex: 10000,
+                  zIndex: 100000,
                   maxHeight: '12rem',
                   overflowY: 'auto',
                 }}

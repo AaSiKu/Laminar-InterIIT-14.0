@@ -11,6 +11,7 @@ from backend.api.routers.main_router import router
 from backend.api.routers.websocket import watch_changes
 from utils.logging import get_logger, configure_root
 from backend.api.routers.websocket import close_inactive_connections
+import certifi
 
 configure_root()
 logger = get_logger(__name__)
@@ -20,6 +21,8 @@ load_dotenv()
 MONGO_URI = os.getenv("MONGO_URI")
 MONGO_DB = os.getenv("MONGO_DB", "db")
 WORKFLOW_COLLECTION = os.getenv("WORKFLOW_COLLECTION", "workflows")
+# Actions are actions from rule book, in our notation there are alerts which are a specific type of notifications
+ACTION_COLLECTION = os.getenv("ACTION_COLLECTION", "actions")
 NOTIFICATION_COLLECTION = os.getenv("NOTIFICATION_COLLECTION", "notifications")
 VERSION_COLLECTION = os.getenv("VERSION_COLLECTION", "versions")
 # Global variables
@@ -40,11 +43,12 @@ async def lifespan(app: FastAPI):
     if not MONGO_URI:
         raise RuntimeError("MONGO_URI not set in environment")
 
-    mongo_client = AsyncIOMotorClient(MONGO_URI)
+    mongo_client = AsyncIOMotorClient(MONGO_URI, tlsCAFile=certifi.where())
     db = mongo_client[MONGO_DB]
     workflow_collection = db[WORKFLOW_COLLECTION]
     version_collection = db[VERSION_COLLECTION]
     notification_collection = db[NOTIFICATION_COLLECTION]
+    action_collection = db[ACTION_COLLECTION]
     print(f"Connected to MongoDB at {MONGO_URI}, DB: {MONGO_DB}", flush=True)
 
     # Create SQL database tables for users
@@ -64,7 +68,8 @@ async def lifespan(app: FastAPI):
 
     app.state.workflow_collection = workflow_collection
     app.state.version_collection = version_collection
-    app.state.notification_collection= notification_collection
+    app.state.notification_collection = notification_collection
+    app.state.action_collection = action_collection
     app.state.mongo_client=mongo_client
     app.state.secret_key = os.getenv("SECRET_KEY", "default_secret_key")
     app.state.algorithm = os.getenv("ALGORITHM", "HS256")

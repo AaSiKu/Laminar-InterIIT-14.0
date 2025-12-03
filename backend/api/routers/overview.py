@@ -112,17 +112,16 @@ async def add_notification(data: Notification, request: Request):
         "inserted_data": data.model_dump()})
     )
     
-# @router.get("/workflows/")
-# async def workflow_data(request: Request, skip: int = 0, limit: int = 10, current_user: User = Depends(get_current_user)):
-
-#     cursor = request.app.state.workflow_collection.find({"owner_ids": str(current_user.id)}).sort("last_updated", -1).skip(skip).limit(limit)
-#     recent_pipelines = await cursor.to_list(length=limit)
-#     data = []
-#     for pipeline in recent_pipelines:
-#         data.append({
-#             "id": str(pipeline["_id"]), "lastModified": str(pipeline["last_updated"], )
-#         })
-    # return data
+@router.get("/workflows/")
+async def workflow_data(request: Request, skip: int = 0, limit: int = 10, current_user: User = Depends(get_current_user)):
+    cursor = request.app.state.workflow_collection.find({"owner_ids": str(current_user.id)}).sort("last_updated", -1).skip(skip).limit(limit)
+    recent_pipelines = await cursor.to_list(length=limit)
+    data = []
+    for pipeline in recent_pipelines:
+        data.append({
+            "id": str(pipeline["_id"]), "lastModified": str(pipeline["last_updated"])
+        })
+    return data
 
 @router.get("/total_runtime")
 async def total_runtime(request: Request, current_user: User = Depends(get_current_user)):

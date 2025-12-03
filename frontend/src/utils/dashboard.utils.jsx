@@ -76,7 +76,7 @@ export const addNodeType = (schema) => {
   const type = schema.properties.node_id.const;
 
   nodeTypes[type] = (props) => {
-    const { id, data, selected } = props;
+    const { id, data, selected, onEditClick } = props;
 
     const nInputs = schema.properties.n_inputs?.const || 0;
     const categoryColor = hashColor(
@@ -129,6 +129,8 @@ export const addNodeType = (schema) => {
         id={id}
         data={data}
         selected={selected}
+        category={schema.properties.category?.const}
+        onEditClick={onEditClick}
         styles={{
           bgColor: categoryColor, // solid color
           hoverBgColor: categoryColor,

@@ -1,4 +1,3 @@
-
 import { useContext, useEffect, useState } from "react";
 import {
   Drawer,
@@ -35,10 +34,7 @@ const Sidebar = () => {
   const theme = useTheme();
   const { logout, isAuthenticated } = useContext(AuthContext);
   const location = useLocation();
-  const {
-    sidebarOpen,
-    setSideBarOpen,
-  } = useGlobalContext();
+  const { sidebarOpen, setSideBarOpen } = useGlobalContext();
   const [drawerOpen, setDrawerOpen] = useState(false);
 
   useEffect(() => {
@@ -61,15 +57,23 @@ const Sidebar = () => {
   };
 
   const menuItems = [
-    { icon: <TerminalRounded sx={{ fontSize: '1.5rem' }} />, label: "Overview", path: "/overview" },
     {
-      icon: <AccountTreeRounded sx={{ fontSize: '1.5rem' }} />,
+      icon: <TerminalRounded sx={{ fontSize: "1.5rem" }} />,
+      label: "Overview",
+      path: "/overview",
+    },
+    {
+      icon: <AccountTreeRounded sx={{ fontSize: "1.5rem" }} />,
       label: "Workflows",
       path: "/workflows",
     },
-    { icon: <WorkspacePremiumRounded sx={{ fontSize: '1.5rem' }} />, label: "Admin", path: "/admin" },
     {
-      icon: <LogoutRounded color="error" sx={{ fontSize: '1.5rem' }} />,
+      icon: <WorkspacePremiumRounded sx={{ fontSize: "1.5rem" }} />,
+      label: "Admin",
+      path: "/admin",
+    },
+    {
+      icon: <LogoutRounded color="error" sx={{ fontSize: "1.5rem" }} />,
       label: "Logout",
       onClick: logout,
     },
@@ -104,13 +108,13 @@ const Sidebar = () => {
           }),
           overflow: "visible",
           position: "fixed",
-          backgroundColor: drawerOpen ? 'background.elevation1' : 'background.paper',
-          borderRight: '1px solid',
-          borderColor: 'divider',
+          backgroundColor: drawerOpen
+            ? "background.elevation1"
+            : "background.paper",
+          borderRight: "1px solid",
+          borderColor: "divider",
           zIndex: 2500,
-          boxShadow: drawerOpen
-            ? theme.shadows[4]
-            : theme.shadows[1],
+          boxShadow: drawerOpen ? theme.shadows[4] : theme.shadows[1],
         },
       }}
     >
@@ -132,10 +136,13 @@ const Sidebar = () => {
             height: drawerOpen ? 24 : 32,
             width: "auto",
             objectFit: "contain",
-            transition: theme.transitions.create(["opacity", "transform", "height"], {
-              easing: theme.transitions.easing.sharp,
-              duration: theme.transitions.duration.enteringScreen,
-            }),
+            transition: theme.transitions.create(
+              ["opacity", "transform", "height"],
+              {
+                easing: theme.transitions.easing.sharp,
+                duration: theme.transitions.duration.enteringScreen,
+              }
+            ),
           }}
         />
       </Box>
@@ -159,7 +166,9 @@ const Sidebar = () => {
                     my: 0.5,
                     mx: 1,
                     borderRadius: 1,
-                    backgroundColor: isActive ? 'action.selected' : 'transparent',
+                    backgroundColor: isActive
+                      ? "action.selected"
+                      : "transparent",
                     transition: theme.transitions.create(
                       ["background-color", "color"],
                       {
@@ -168,7 +177,9 @@ const Sidebar = () => {
                       }
                     ),
                     "&:hover": {
-                      backgroundColor: isActive ? 'action.hover' : 'action.hover',
+                      backgroundColor: isActive
+                        ? "action.hover"
+                        : "action.hover",
                     },
                   }}
                   onClick={() => {
@@ -183,34 +194,36 @@ const Sidebar = () => {
                       return;
                     }
 
-                      if (item.path) navigate(item.path);
+                    if (item.path) navigate(item.path);
+                  }}
+                >
+                  <ListItemIcon
+                    sx={{
+                      minWidth: 0,
+                      mr: drawerOpen ? 3 : "auto",
+                      justifyContent: "center",
+                      color: isActive ? "primary.main" : "text.secondary",
+                      transition: theme.transitions.create("color", {
+                        easing: theme.transitions.easing.easeInOut,
+                        duration: theme.transitions.duration.short,
+                      }),
+                      "& .MuiSvgIcon-root": {
+                        fontSize: "1.5rem !important",
+                      },
                     }}
                   >
-                    <ListItemIcon
-                      sx={{
-                        minWidth: 0,
-                        mr: drawerOpen ? 3 : 'auto',
-                        justifyContent: 'center',
-                        color: isActive ? 'primary.main' : 'text.secondary',
-                        transition: theme.transitions.create('color', {
-                          easing: theme.transitions.easing.easeInOut,
-                          duration: theme.transitions.duration.short,
-                        }),
-                        '& .MuiSvgIcon-root': {
-                          fontSize: '1.5rem !important',
-                        },
-                      }}
-                    >
-                      {item.icon}
-                    </ListItemIcon>
-                    <ListItemText
-                      primary={item.label}
-                      primaryTypographyProps={{
-                        sx: {
-                          color: isActive ? 'primary.main' : 'text.primary',
-                          fontWeight: isActive ? 600 : 400,
-                          fontSize: '0.875rem',
-                          transition: theme.transitions.create(['color', 'font-weight'], {
+                    {item.icon}
+                  </ListItemIcon>
+                  <ListItemText
+                    primary={item.label}
+                    primaryTypographyProps={{
+                      sx: {
+                        color: isActive ? "primary.main" : "text.primary",
+                        fontWeight: isActive ? 600 : 400,
+                        fontSize: "0.875rem",
+                        transition: theme.transitions.create(
+                          ["color", "font-weight"],
+                          {
                             easing: theme.transitions.easing.easeInOut,
                             duration: theme.transitions.duration.short,
                           }
@@ -238,22 +251,22 @@ const Sidebar = () => {
       <IconButton
         onClick={drawerOpen ? handleDrawerClose : handleDrawerOpen}
         sx={{
-          position: 'absolute',
+          position: "absolute",
           right: -16,
-          top: '50%',
-          transform: 'translateY(-50%)',
+          top: "50%",
+          transform: "translateY(-50%)",
           width: 32,
           height: 32,
-          bgcolor: 'background.paper',
-          border: '1px solid',
-          borderColor: 'divider',
-          borderRadius: '50%',
+          bgcolor: "background.paper",
+          border: "1px solid",
+          borderColor: "divider",
+          borderRadius: "50%",
           zIndex: 9999,
-          '&:hover': {
-            bgcolor: 'action.hover',
+          "&:hover": {
+            bgcolor: "action.hover",
           },
-          '& .MuiSvgIcon-root': {
-            fontSize: '1.25rem',
+          "& .MuiSvgIcon-root": {
+            fontSize: "1.25rem",
           },
         }}
       >

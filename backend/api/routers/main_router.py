@@ -6,6 +6,7 @@ from .pipelines import router as pipelines_router
 from .schemas import router as schemas_router
 from .websocket import router as websocket_router
 from .overview import router as overview_router
+from .book import router as book_router
 router = APIRouter()
 
 router.include_router(auth_router, prefix="/auth", tags=["auth"])
@@ -15,3 +16,4 @@ router.include_router(pipelines_router, prefix="/pipelines", tags=["pipelines"])
 router.include_router(schemas_router, prefix="/schema", tags=["schemas"])
 router.include_router(websocket_router, prefix="/ws", tags=["websocket"])
 router.include_router(overview_router, prefix="/overview", tags=["overview"])
+router.include_router(book_router, prefix="/book", tags=["book"])

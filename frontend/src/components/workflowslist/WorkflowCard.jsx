@@ -37,18 +37,21 @@ const WorkflowCard = ({ workflow, isSelected, onClick }) => {
             </Typography>
             <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 1 }}>
               <AvatarGroup max={5} sx={{ "& .MuiAvatar-root": { width: 24, height: 24, fontSize: "0.625rem", border: `2px solid ${theme.palette.background.paper}` } }}>
-                {workflow.team.map((member, index) => (
-                  <Avatar 
-                    key={index}
-                    src={member.avatar}
-                    alt={member.name}
-                    sx={{ 
-                      width: 24, 
-                      height: 24,
-                    }}
-                    title={member.name}
-                  />
-                ))}
+                {workflow.team.map((member, index) => {
+                  const avatarUrl = `https://avatar.iran.liara.run/public/boy?username=${encodeURIComponent(member.name || member.id || `user${index}`)}&size=32`;
+                  return (
+                    <Avatar 
+                      key={index}
+                      src={avatarUrl}
+                      alt={member.name}
+                      sx={{ 
+                        width: 24, 
+                        height: 24,
+                      }}
+                      title={member.name}
+                    />
+                  );
+                })}
               </AvatarGroup>
               <Chip
                 label={workflow.status}

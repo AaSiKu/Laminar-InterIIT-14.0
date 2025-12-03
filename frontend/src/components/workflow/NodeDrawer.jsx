@@ -8,7 +8,6 @@ import {
   Grid,
   Paper,
   Avatar,
-  Divider,
   Collapse,
   IconButton,
   Tabs,
@@ -109,7 +108,6 @@ export const NodeDrawer = ({
   const [clickedNode, setClickedNode] = useState(null);
   const [activeTab, setActiveTab] = useState(1); // Default to "All Files" tab
   const [searchQuery, setSearchQuery] = useState("");
-  const [imageErrors, setImageErrors] = useState({});
 
   // Compute recent nodes from current workspace and undo deque
   const recentNodes = React.useMemo(() => {
@@ -147,7 +145,7 @@ export const NodeDrawer = ({
         // data.input=["hello"];
         setNodeCategories(data || {});
 
-        // clse all sections by default
+        // close all sections by default
         const initialOpen = Object.keys(data || {}).reduce((acc, key) => {
           acc[key] = false;
           return acc;
@@ -161,6 +159,34 @@ export const NodeDrawer = ({
     };
     loadNodeTypes();
   }, []);
+
+  // Auto-expand/collapse sections based on search query
+  useEffect(() => {
+    if (!searchQuery.trim()) {
+      // If search is cleared, close all sections
+      setOpenSections((prev) => {
+        const closed = {};
+        Object.keys(prev).forEach((key) => {
+          closed[key] = false;
+        });
+        return closed;
+      });
+    } else {
+      // If search has input, open all sections that have matching nodes
+      setOpenSections((prev) => {
+        const updated = { ...prev };
+        Object.entries(nodeCategories).forEach(([key, nodes]) => {
+          const hasMatchingNodes = nodes.some((node) =>
+            node.toLowerCase().includes(searchQuery.toLowerCase())
+          );
+          if (hasMatchingNodes) {
+            updated[key] = true;
+          }
+        });
+        return updated;
+      });
+    }
+  }, [searchQuery, nodeCategories]);
 
   const toggleSection = (key) => {
     setOpenSections((prev) => ({ ...prev, [key]: !prev[key] }));
@@ -417,8 +443,8 @@ export const NodeDrawer = ({
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
-          padding: { xs: "16px 16px", md: "16px 24px" },
-          borderBottom: "1px solid",
+          padding: { xs: "16px 16px", md: "17px 24px" },
+          borderBottom: "2px solid",
           borderColor: "divider",
         }}
       >
@@ -440,38 +466,47 @@ export const NodeDrawer = ({
         </IconButton>
       </Box>
 
-      {/* Tabs */}
-      <Box sx={{ borderBottom: "1px solid", borderColor: "divider" }}>
+      {/* --- START CHANGED SECTION: Small Tabs and Search Bar --- */}
+      <Box
+        sx={{
+          px: 3,
+          py: 1, // Reduced padding vertical
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between", // Ensures Left/Right separation
+          gap: 1,
+        }}
+      >
+        {/* Tabs on the left - Smaller */}
         <Tabs
           value={activeTab}
           onChange={(e, newValue) => setActiveTab(newValue)}
           sx={{
-            minHeight: 40,
-            px: 2,
+            minHeight: 30, // Smaller height
             "& .MuiTab-root": {
-              minHeight: 40,
+              minHeight: 30,
+              minWidth: "auto",
+              px: 1.5, // Tighter padding
               textTransform: "none",
               fontWeight: 500,
-              fontSize: "0.875rem",
+              fontSize: "0.75rem", // Smaller font
               color: "text.secondary",
               "&.Mui-selected": {
-                color: "text.primary",
+                color: "primary.main",
               },
             },
             "& .MuiTabs-indicator": {
               bgcolor: "primary.main",
+              height: 2,
             },
           }}
         >
           <Tab label="Recent" />
           <Tab label="All Files" />
         </Tabs>
-      </Box>
 
-      {/* Search Bar */}
-      <Box sx={{ px: 3, py: 2 }}>
+        {/* Search Bar on the right - Smaller */}
         <TextField
-          fullWidth
           placeholder="Search"
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
@@ -479,28 +514,35 @@ export const NodeDrawer = ({
           InputProps={{
             startAdornment: (
               <InputAdornment position="start">
-                <SearchIcon sx={{ fontSize: 20, color: "text.secondary" }} />
+                <SearchIcon sx={{ fontSize: 16, color: "text.secondary" }} />
               </InputAdornment>
             ),
           }}
           sx={{
+            width: 140, // Reduced width
             "& .MuiOutlinedInput-root": {
-              borderRadius: 2,
-              bgcolor: "background.elevation1",
-              fontSize: "0.875rem",
+              borderRadius: 20,
+              bgcolor: "action.hover",
+              fontSize: "0.75rem", // Smaller text
+              height: 30, // Smaller height
               "& fieldset": {
-                borderColor: "divider",
+                borderColor: "transparent",
               },
               "&:hover fieldset": {
                 borderColor: "divider",
               },
               "&.Mui-focused fieldset": {
                 borderColor: "primary.main",
+                borderWidth: 1,
+              },
+              "& input": {
+                py: 0, // Remove padding for perfect centering in small height
               },
             },
           }}
         />
       </Box>
+      {/* --- END CHANGED SECTION --- */}
 
       {/* Scrollable Content */}
       <Box sx={{ overflowY: "auto", flex: 1 }}>

@@ -22,13 +22,12 @@ export const GlobalContextProvider = ({ children }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [containerId, setContainerId] = useState();
-  const { login, user, logout, isAuthenticated } = useContext(AuthContext);
+  const { login, user, logout, isAuthenticated, ws, setWs } = useContext(AuthContext);
   const [sidebarOpen, setSideBarOpen] = useState(false);
   const { fileStructure, setFileStructure } = useState({});
   const [currentVersionId, setCurrentVersionId] = useState(null);
   const [agentContainerId, setAgentContainerId]=useState(null);
   const [workflows, setWorkflows] = useState([]);
-  const [ws, setWs]=useState (null);
 
   const globalContextValue = {
     user,

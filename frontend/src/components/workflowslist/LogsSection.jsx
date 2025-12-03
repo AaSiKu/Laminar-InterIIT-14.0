@@ -6,10 +6,10 @@ const LogsSection = ({ logs }) => {
   const [logsView, setLogsView] = useState("logs");
 
   const versionHistory = [
-    { date: "2025-11-29; 09:15:47", user: "Ninad Ingole", color: "#f97316", avatar: "https://i.pravatar.cc/150?img=11" },
-    { date: "2025-11-29; 11:58:03", user: "Manvib25", color: "#10b981", avatar: "https://i.pravatar.cc/150?img=25" },
-    { date: "2025-11-29; 16:42:55", user: "Yash Maherwal", color: "#3b82f6", avatar: "https://i.pravatar.cc/150?img=13" },
-    { date: "2025-11-29 18:27:19", user: "Nina", color: "#10b981", avatar: "https://i.pravatar.cc/150?img=9" },
+    { date: "2025-11-29; 09:15:47", user: "Ninad Ingole", color: "#f97316" },
+    { date: "2025-11-29; 11:58:03", user: "Manvib25", color: "#10b981" },
+    { date: "2025-11-29; 16:42:55", user: "Yash Maherwal", color: "#3b82f6" },
+    { date: "2025-11-29 18:27:19", user: "Nina", color: "#10b981" },
   ];
 
   return (
@@ -137,9 +137,9 @@ const LogsSection = ({ logs }) => {
                   </Typography>
                   <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
                     <Avatar 
-                      src={item.avatar}
+                      src={`https://avatar.iran.liara.run/public/boy?username=${encodeURIComponent(item.user)}&size=32`}
                       alt={item.user}
-                      sx={{ width: 20, height: 20 }}
+                       sx={{ width: 20, height: 20 }}
                     />
                     <Typography variant="body2" sx={{ fontSize: "0.75rem", color: "text.secondary" }}>
                       {item.user}

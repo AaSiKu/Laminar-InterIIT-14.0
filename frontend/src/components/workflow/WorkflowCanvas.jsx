@@ -1,9 +1,6 @@
 import { Box } from "@mui/material";
-import { ReactFlow, Background, Controls, ControlButton } from "@xyflow/react";
-import { useTheme, useColorScheme } from "@mui/material/styles";
-import OpenInFullIcon from "@mui/icons-material/OpenInFull";
-import LockOpenIcon from "@mui/icons-material/LockOpen";
-import LockIcon from "@mui/icons-material/Lock";
+import { ReactFlow, Background} from "@xyflow/react";
+import { useTheme, useColorScheme} from "@mui/material/styles";
 
 const WorkflowCanvas = ({
   nodes,
@@ -22,19 +19,18 @@ const WorkflowCanvas = ({
   nodesDraggable = true,
   nodesConnectable = true,
   elementsSelectable = true,
-  onFullscreenClick,
   isLocked = false,
   onLockToggle,
 }) => {
   const theme = useTheme();
-  const { mode, systemMode } = useColorScheme();
-  const resolvedMode = (mode === 'system' ? systemMode : mode) || theme.palette.mode;
+  const { colorMode } = useColorScheme();
+  const resolvedMode = colorMode || theme.palette.mode;
 
   return (
     <Box
       sx={{
         flex: 1,
-        bgcolor: 'background.elevation1',
+        bgcolor: "background.elevation1",
         borderRadius: 0,
         overflow: "hidden",
         border: "none",
@@ -65,22 +61,12 @@ const WorkflowCanvas = ({
         fitViewOptions={{ maxZoom: 0.9 }}
         colorMode={resolvedMode}
       >
-        <Controls position="top-right" showInteractive={false}>
-          {onLockToggle && (
-            <ControlButton onClick={onLockToggle} title={isLocked ? "Unlock" : "Lock"}>
-              {isLocked ? <LockIcon /> : <LockOpenIcon />}
-            </ControlButton>
-          )}
-          {onFullscreenClick && (
-            <ControlButton onClick={onFullscreenClick} title="Enter Fullscreen">
-              <OpenInFullIcon />
-            </ControlButton>
-          )}
-        </Controls>
-        <Background 
-          color={theme.palette.mode === 'dark' ? theme.palette.divider : '#DBE6EB'} 
-          gap={16} 
-          size={2} 
+        <Background
+          color={
+            theme.palette.mode === "dark" ? theme.palette.divider : "#DBE6EB"
+          }
+          gap={16}
+          size={2}
         />
       </ReactFlow>
     </Box>
@@ -88,4 +74,3 @@ const WorkflowCanvas = ({
 };
 
 export default WorkflowCanvas;
-

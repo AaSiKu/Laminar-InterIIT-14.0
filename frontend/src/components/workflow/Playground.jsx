@@ -15,6 +15,7 @@ import { nodeTypes, generateNode } from "../../utils/dashboard.utils";
 import { fetchNodeSchema } from "../../utils/dashboard.api";
 import BottomToolbar from "./BottomToolbar";
 import WorkflowCanvas from "./WorkflowCanvas";
+import ZoomControl from "./ZoomControl";
 import useUndoRedo, {
   ActionTypes,
   createAddNodeAction,
@@ -24,7 +25,6 @@ import useUndoRedo, {
   createMoveNodeAction,
   createUpdatePropertiesAction,
 } from "../../hooks/useUndoRedo";
-
 /**
  * Playground Component
  *
@@ -135,6 +135,7 @@ export default function Playground({
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [isLocked, setIsLocked] = useState(readOnly);
   const [hoveredToolbarButton, setHoveredToolbarButton] = useState(null);
+  const [zoomLevel, setZoomLevel] = useState(100);
 
   // Undo/Redo System (using custom hook)
   const {
@@ -461,77 +462,117 @@ export default function Playground({
     }
   }, [readOnly]);
 
-  // Update properties handler
-  const handleUpdateProperties = useCallback(
-    (nodeId, data) => {
-      if (!isExecuting()) {
-        const node = currentNodes.find((n) => n.id === nodeId);
-        if (node) {
-          addAction(
-            createUpdatePropertiesAction(
-              nodeId,
-              node.data?.properties || {},
-              data
-            )
-          );
-        }
-      }
+  const handleFitScreen = useCallback(() => {
+    if (!rfInstance) {
+      console.warn('ReactFlow instance not available');
+      return;
+    }
 
-      setCurrentNodes((nds) =>
-        nds.map((n) =>
-          n.id === nodeId ? { ...n, data: { ...n.data, properties: data } } : n
-        )
-      );
-      setSelectedNode(null);
-    },
-    [currentNodes, addAction, setCurrentNodes, isExecuting]
-  );
-
-  // Drag over handler
-  const onDragOver = useCallback((event) => {
-    event.preventDefault();
-    event.dataTransfer.dropEffect = "move";
-  }, []);
-
-  // Drop handler
-  const onDrop = useCallback(
-    async (event) => {
-      event.preventDefault();
-
-      const nodeName = event.dataTransfer.getData("application/reactflow");
-
-      if (!nodeName || !rfInstance) {
-        return;
-      }
-
-      try {
-        const position = rfInstance.screenToFlowPosition({
-          x: event.clientX,
-          y: event.clientY,
+    try {
+      // ReactFlow v12+ uses fitView method directly on the instance
+      if (typeof rfInstance.fitView === 'function') {
+        rfInstance.fitView({ 
+          padding: 0.1, 
+          maxZoom: 0.9,
+          duration: 300,
+          includeHiddenNodes: false
         });
-
-        const schema = await fetchNodeSchema(nodeName);
-        const newNode = generateNode(schema, currentNodes);
-        newNode.position = position;
-
-        if (!isExecuting()) {
-          addAction(createAddNodeAction(newNode));
-          nodePositionsRef.current[newNode.id] = { ...newNode.position };
+      } else if (rfInstance.getNodes && rfInstance.getViewport && rfInstance.setViewport) {
+        // Fallback implementation using getNodes
+        const nodes = rfInstance.getNodes();
+        if (!nodes || nodes.length === 0) {
+          console.warn('No nodes to fit');
+          return;
         }
-
-        setCurrentNodes((prev) => [...prev, newNode]);
-      } catch (err) {
-        console.error("Failed to add node:", err);
+        
+        // Calculate bounding box
+        let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+        
+        nodes.forEach(node => {
+          const nodeWidth = node.measured?.width || node.width || 200;
+          const nodeHeight = node.measured?.height || node.height || 100;
+          
+          minX = Math.min(minX, node.position.x);
+          maxX = Math.max(maxX, node.position.x + nodeWidth);
+          minY = Math.min(minY, node.position.y);
+          maxY = Math.max(maxY, node.position.y + nodeHeight);
+        });
+        
+        const width = maxX - minX;
+        const height = maxY - minY;
+        
+        if (width > 0 && height > 0) {
+          // Get container dimensions from viewport or use defaults
+          const viewport = rfInstance.getViewport();
+          const containerWidth = viewport.width || window.innerWidth;
+          const containerHeight = viewport.height || window.innerHeight;
+          
+          // Calculate scale to fit with padding
+          const padding = 40;
+          const scale = Math.min(
+            (containerWidth - padding * 2) / width,
+            (containerHeight - padding * 2) / height,
+            0.9
+          );
+          
+          // Calculate center position
+          const x = (containerWidth - width * scale) / 2 - minX * scale;
+          const y = (containerHeight - height * scale) / 2 - minY * scale;
+          
+          rfInstance.setViewport({ x, y, zoom: scale }, { duration: 300 });
+        }
+      } else {
+        console.error('ReactFlow instance does not have required methods');
       }
-    },
-    [rfInstance, currentNodes, setCurrentNodes, addAction, isExecuting]
-  );
+    } catch (error) {
+      console.error('Error fitting view:', error);
+    }
+  }, [rfInstance]);
 
-  // Pane click handler - deselect
-  const onPaneClick = useCallback(() => {
-    setSelectedNode(null);
-    setSelectedEdge(null);
-  }, []);
+  const handleZoomIn = useCallback(() => {
+    if (rfInstance) {
+      const currentZoom = rfInstance.getZoom();
+      const roundedZoom = Math.round((currentZoom * 100) / 10) * 10;
+      const newZoom = Math.min((roundedZoom + 10) / 100, 2); // Max 200%, increment by 10%
+      rfInstance.zoomTo(newZoom);
+      setZoomLevel(newZoom * 100);
+    }
+  }, [rfInstance]);
+
+  const handleZoomOut = useCallback(() => {
+    if (rfInstance) {
+      const currentZoom = rfInstance.getZoom();
+      const roundedZoom = Math.round((currentZoom * 100) / 10) * 10;
+      const newZoom = Math.max((roundedZoom - 10) / 100, 0.1); // Min 10%, decrement by 10%
+      rfInstance.zoomTo(newZoom);
+      setZoomLevel(newZoom * 100);
+    }
+  }, [rfInstance]);
+
+  const handleZoomChange = useCallback((zoomPercent) => {
+    if (rfInstance) {
+      const newZoom = zoomPercent / 100;
+      rfInstance.zoomTo(newZoom);
+      setZoomLevel(zoomPercent);
+    }
+  }, [rfInstance]);
+
+  // Update zoom level when viewport changes
+  useEffect(() => {
+    if (rfInstance) {
+      const updateZoom = () => {
+        const zoom = rfInstance.getZoom();
+        setZoomLevel(zoom * 100);
+      };
+      
+      // Update zoom on viewport change
+      const unsubscribe = rfInstance.onViewportChange?.(updateZoom);
+      
+      return () => {
+        if (unsubscribe) unsubscribe();
+      };
+    }
+  }, [rfInstance]);
 
   // Keyboard shortcuts for undo/redo/add
   useEffect(() => {
@@ -626,6 +667,78 @@ export default function Playground({
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [isFullscreen, handleExitFullscreen]);
+
+  // Update properties handler
+  const handleUpdateProperties = useCallback(
+    (nodeId, data) => {
+      if (!isExecuting()) {
+        const node = currentNodes.find((n) => n.id === nodeId);
+        if (node) {
+          addAction(
+            createUpdatePropertiesAction(
+              nodeId,
+              node.data?.properties || {},
+              data
+            )
+          );
+        }
+      }
+
+      setCurrentNodes((nds) =>
+        nds.map((n) =>
+          n.id === nodeId ? { ...n, data: { ...n.data, properties: data } } : n
+        )
+      );
+      setSelectedNode(null);
+    },
+    [currentNodes, addAction, setCurrentNodes, isExecuting]
+  );
+
+  // Drag over handler
+  const onDragOver = useCallback((event) => {
+    event.preventDefault();
+    event.dataTransfer.dropEffect = "move";
+  }, []);
+
+  // Drop handler
+  const onDrop = useCallback(
+    async (event) => {
+      event.preventDefault();
+
+      const nodeName = event.dataTransfer.getData("application/reactflow");
+
+      if (!nodeName || !rfInstance) {
+        return;
+      }
+
+      try {
+        const position = rfInstance.screenToFlowPosition({
+          x: event.clientX,
+          y: event.clientY,
+        });
+
+        const schema = await fetchNodeSchema(nodeName);
+        const newNode = generateNode(schema, currentNodes);
+        newNode.position = position;
+
+        if (!isExecuting()) {
+          addAction(createAddNodeAction(newNode));
+          nodePositionsRef.current[newNode.id] = { ...newNode.position };
+        }
+
+        setCurrentNodes((prev) => [...prev, newNode]);
+      } catch (err) {
+        console.error("Failed to add node:", err);
+      }
+    },
+    [rfInstance, currentNodes, setCurrentNodes, addAction, isExecuting]
+  );
+
+  // Pane click handler - deselect
+  const onPaneClick = useCallback(() => {
+    setSelectedNode(null);
+    setSelectedEdge(null);
+  }, []);
 
   // Create styled edges with selection highlighting
   const styledEdges = currentEdges.map((edge) => ({
@@ -777,6 +890,20 @@ export default function Playground({
           addDisabled={isLocked}
           undoDisabled={isLocked || !canUndo}
           redoDisabled={isLocked || !canRedo}
+          isLocked={isLocked}
+          onLockToggle={readOnly ? undefined : handleLockToggle}
+        />
+      )}
+
+      {/* Zoom Control */}
+      {showToolbar && (
+        <ZoomControl
+          zoom={zoomLevel}
+          onZoomIn={handleZoomIn}
+          onZoomOut={handleZoomOut}
+          onZoomChange={handleZoomChange}
+          onFitScreen={handleFitScreen}
+          propertyBarOpen={Boolean(selectedNode)}
         />
       )}
 

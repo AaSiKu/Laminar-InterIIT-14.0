@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import "@xyflow/react/dist/style.css";
 import { Box, Alert, Snackbar } from "@mui/material";
@@ -14,6 +14,7 @@ import {
 } from "../utils/pipelineUtils";
 import PipelineNavBar from "../components/workflow/PipelineNavBar";
 import Playground from "../components/workflow/Playground";
+import RunBook from "../components/workflow/RunBook";
 
 /**
  * Toggle status logic helper
@@ -22,6 +23,9 @@ import Playground from "../components/workflow/Playground";
 function toggleStatusLogic(variable) {
   return variable;
 }
+
+// Drawer width constant
+export const DRAWER_WIDTH = 64;
 
 /**
  * WorkflowPage Component
@@ -32,6 +36,9 @@ function toggleStatusLogic(variable) {
  */
 export default function WorkflowPage() {
   const [shareAnchorEl, setShareAnchorEl] = useState(null);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const [isRunBookOpen, setRunBookOpen] = useState(false);
+  const playgroundRef = useRef(null);
   const navigate = useNavigate();
   const { pipelineId } = useParams();
 
@@ -43,7 +50,6 @@ export default function WorkflowPage() {
     setCurrentEdges,
     currentPipelineStatus,
     setCurrentPipelineStatus,
-    setAgentContainerId,
     currentPipelineId,
     rfInstance,
     setCurrentPipelineId,
@@ -51,11 +57,11 @@ export default function WorkflowPage() {
     setLoading,
     error,
     setError,
-    setViewport,
     containerId,
     setContainerId,
     currentVersionId,
     setCurrentVersionId,
+    user,
   } = useGlobalContext();
 
   // Auto-save drafts when pipeline changes, TODO: check for debounce
@@ -89,13 +95,10 @@ export default function WorkflowPage() {
   }, [
     currentPipelineId,
     currentVersionId,
-    setCurrentEdges,
-    setCurrentNodes,
-    setViewport,
-    setCurrentPipelineStatus,
+    rfInstance,
+    setCurrentVersionId,
     setLoading,
     setError,
-    setContainerId,
   ]);
 
   useEffect(()=>{
@@ -116,7 +119,7 @@ export default function WorkflowPage() {
       )}, [])
 
   // Pipeline status toggle handler
-  const handleToggleStatus = async () => {
+  const handleToggleStatus = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
@@ -130,10 +133,16 @@ export default function WorkflowPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [
+    currentPipelineId,
+    currentPipelineStatus,
+    setCurrentPipelineStatus,
+    setLoading,
+    setError,
+  ]);
 
   // Spin up pipeline container
-  const handleSpinup = async () => {
+  const handleSpinup = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
@@ -144,10 +153,10 @@ export default function WorkflowPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [currentPipelineId, setContainerId, setLoading, setError]);
 
   // Spin down pipeline container
-  const handleSpindown = async () => {
+  const handleSpindown = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
@@ -158,10 +167,10 @@ export default function WorkflowPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [currentPipelineId, setContainerId, setLoading, setError]);
 
   // Save pipeline handler
-  const handleSave = () => {
+  const handleSave = useCallback(() => {
     savePipelineAPI(
       rfInstance,
       currentPipelineId,
@@ -171,78 +180,209 @@ export default function WorkflowPage() {
       setError,
       setLoading
     );
-  };
+  }, [
+    rfInstance,
+    currentPipelineId,
+    setCurrentPipelineId,
+    currentVersionId,
+    setCurrentVersionId,
+    setError,
+    setLoading,
+  ]);
 
   // Share menu handlers
-  const handleShareClick = (event) => {
+  const handleShareClick = useCallback((event) => {
     setShareAnchorEl(event.currentTarget);
-  };
+  }, []);
 
-  const handleShareClose = () => {
+  const handleShareClose = useCallback(() => {
     setShareAnchorEl(null);
-  };
+  }, []);
 
-  // Back navigation
-  const handleBackClick = () => {
+  // Export JSON handler
+  const handleExportJSON = useCallback(() => {
+    if (!rfInstance) {
+      setError("No workflow data available to export");
+      return;
+    }
+
+    try {
+      const flowData = rfInstance.toObject();
+      const exportData = {
+        ...flowData,
+        metadata: {
+          pipelineName: `Pipeline ${
+            pipelineId ? pipelineId.toLowerCase() : "a"
+          }`,
+          pipelineId: currentPipelineId,
+          versionId: currentVersionId,
+          exportedAt: new Date().toISOString(),
+          exportedBy: user?.name || user?.id || "Unknown",
+        },
+      };
+
+      const jsonString = JSON.stringify(exportData, null, 2);
+      const blob = new Blob([jsonString], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `pipeline-${pipelineId || "workflow"}-${
+        new Date().toISOString().split("T")[0]
+      }.json`;
+
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error("Export failed:", err);
+      setError("Failed to export workflow. Please try again.");
+    }
+  }, [
+    rfInstance,
+    pipelineId,
+    currentPipelineId,
+    currentVersionId,
+    user,
+    setError,
+  ]);
+
+  // Navigation handler
+  const handleBackClick = useCallback(() => {
     navigate("/workflows");
-  };
+  }, [navigate]);
 
-  // Handle nodes change from Playground
-  const handleNodesChange = (newNodes) => {
-    setCurrentNodes(newNodes);
-  };
+  // Fullscreen handlers
+  const handleEnterFullscreen = useCallback(() => {
+    setIsFullscreen(true);
+  }, []);
 
-  // Handle edges change from Playground
-  const handleEdgesChange = (newEdges) => {
-    setCurrentEdges(newEdges);
-  };
+  const handleExitFullscreen = useCallback(() => {
+    setIsFullscreen(false);
+  }, []);
 
-  const drawerWidth = 64;
+  // Keyboard shortcut for fullscreen (F key)
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      // Don't trigger if user is typing in an input
+      if (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA") {
+        return;
+      }
+
+      if (e.key === "f" || e.key === "F") {
+        if (!isFullscreen) {
+          handleEnterFullscreen();
+        }
+      }
+
+      if (e.key === "Escape" && isFullscreen) {
+        handleExitFullscreen();
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isFullscreen, handleEnterFullscreen, handleExitFullscreen]);
+
+  // Node/Edge change handlers for controlled mode
+  const handleNodesChange = useCallback(
+    (newNodes) => {
+      setCurrentNodes(newNodes);
+    },
+    [setCurrentNodes]
+  );
+
+  const handleEdgesChange = useCallback(
+    (newEdges) => {
+      setCurrentEdges(newEdges);
+    },
+    [setCurrentEdges]
+  );
 
   return (
     <>
-      <Box
-        sx={{
-          transition: "margin-left 0.3s ease",
-          left: drawerWidth,
-          position: "absolute",
-          width: `calc(100vw - ${drawerWidth}px)`,
-          height: "100vh",
-          bgcolor: "background.default",
-          overflow: "hidden",
-        }}
-      >
-        {/* Pipeline Navigation Bar */}
-        <PipelineNavBar
-          onBackClick={handleBackClick}
-          pipelineName={`Pipeline ${
-            pipelineId ? pipelineId.toLowerCase() : "a"
-          }`}
-          loading={loading}
-          shareAnchorEl={shareAnchorEl}
-          onShareClick={handleShareClick}
-          onShareClose={handleShareClose}
-          onSave={handleSave}
-          onSpinup={handleSpinup}
-          onSpindown={handleSpindown}
-          onToggleStatus={handleToggleStatus}
-          currentPipelineStatus={currentPipelineStatus}
-          currentPipelineId={currentPipelineId}
-          containerId={containerId}
-        />
+      {/* Fullscreen Mode */}
+      {isFullscreen && (
+        <Box
+          sx={{
+            position: "fixed",
+            top: 0,
+            left: 0,
+            width: "100vw",
+            height: "100vh",
+            zIndex: 9999,
+            bgcolor: "background.default",
+          }}
+        >
+          <Playground
+            ref={playgroundRef}
+            nodes={currentNodes}
+            edges={currentEdges}
+            onNodesChange={handleNodesChange}
+            onEdgesChange={handleEdgesChange}
+            onInit={setRfInstance}
+            height="100vh"
+            showToolbar={true}
+            showFullscreenButton={true}
+            isFullscreen={true}
+            onExitFullscreen={handleExitFullscreen}
+          />
+        </Box>
+      )}
 
-        {/* Playground - Visual Node Editor */}
-        <Playground
-          nodes={currentNodes}
-          edges={currentEdges}
-          onNodesChange={handleNodesChange}
-          onEdgesChange={handleEdgesChange}
-          onInit={setRfInstance}
-          height="calc(100vh - 48px)"
-          showToolbar={true}
-          showFullscreenButton={true}
-        />
-      </Box>
+      {/* Normal Mode */}
+      {!isFullscreen && (
+        <Box
+          sx={{
+            transition: "margin-left 0.3s ease",
+            left: DRAWER_WIDTH,
+            position: "absolute",
+            width: `calc(100vw - ${DRAWER_WIDTH}px)`,
+            height: "100vh",
+            bgcolor: "background.default",
+            overflow: "hidden",
+          }}
+        >
+          {/* Pipeline Navigation Bar */}
+          <PipelineNavBar
+            onBackClick={handleBackClick}
+            pipelineName={`Pipeline ${
+              pipelineId ? pipelineId.toLowerCase() : "undefined"
+            }`}
+            loading={loading}
+            shareAnchorEl={shareAnchorEl}
+            onShareClick={handleShareClick}
+            onShareClose={handleShareClose}
+            onSave={handleSave}
+            onSpinup={handleSpinup}
+            onSpindown={handleSpindown}
+            onToggleStatus={handleToggleStatus}
+            currentPipelineStatus={currentPipelineStatus}
+            currentPipelineId={currentPipelineId}
+            containerId={containerId}
+            onFullscreenClick={handleEnterFullscreen}
+            onRunBook={() => setRunBookOpen((state) => !state)}
+            onExportJSON={handleExportJSON}
+            pipelineId={pipelineId}
+            userAvatar="https://i.pravatar.cc/40"
+          />
+
+          {/* Playground - Visual Node Editor */}
+          <Playground
+            ref={playgroundRef}
+            nodes={currentNodes}
+            edges={currentEdges}
+            onNodesChange={handleNodesChange}
+            onEdgesChange={handleEdgesChange}
+            onInit={setRfInstance}
+            height="calc(100vh - 48px)"
+            showToolbar={true}
+            showFullscreenButton={false}
+          />
+        </Box>
+      )}
+
+      <RunBook open={isRunBookOpen} onClose={() => setRunBookOpen(false)} />
 
       {/* Error Snackbar */}
       <Snackbar
@@ -262,24 +402,3 @@ export default function WorkflowPage() {
     </>
   );
 }
-
-
-/**
-   <Button
-      variant="outlined"
-      onClick={()=>{
-
-        const pipelineId = "All"; // or "abc123" for a specific pipeline
-        const wsUrl = `ws://localhost:8081/ws/pipeline/${pipelineId}`;
-        const ws = new WebSocket(wsUrl);
-        ws.onopen=()=>{console.log("ench")}
-        ws.onmessage = (event) => {
-            console.log("Notification received:", event.data);
-        };
-
-      }  }
-      >
-      test
-    </Button>
-
- */

@@ -3,10 +3,12 @@ from .output_connectors import output_connector_mappings
 from .transforms import transform_mappings
 from .temporal import temporal_mappings
 from .alerts import alert_node_fn
+from .trigger_rca import trigger_rca
 from .helpers import apply_datetime_conversions, MappingValues
+from typing import Dict
 
 # Combine all mappings
-mappings = {
+mappings: Dict[str,MappingValues] = {
     **output_connector_mappings,
     **input_connector_mappings,
     **transform_mappings,
@@ -14,6 +16,9 @@ mappings = {
     "alert": {
         "node_fn": alert_node_fn
     },
+    "trigger_rca": {
+        "node_fn": trigger_rca
+    }
 }
 
 __all__ = [
@@ -26,4 +31,5 @@ __all__ = [
     "apply_datetime_conversions",
     "MappingValues",
     "parse_table_schema",
+    "trigger_rca"
 ]
