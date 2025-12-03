@@ -2,8 +2,8 @@ from typing import List
 import pathway as pw
 from lib.tables import AsofJoinNode, IntervalJoinNode, WindowJoinNode, WindowByNode
 from .helpers import MappingValues, get_col, get_this_col, select_for_join
+from ..metric_node import is_special_column
 from .transforms import _join
-from .open_tel.prefix import open_tel_trace_id
 import json
 
 def asof_join(inputs: List[pw.Table], node: AsofJoinNode):
@@ -74,7 +74,7 @@ def window_by(inputs: List[pw.Table], node: WindowByNode):
     reduce_kwargs = {}
     if instance is not None:
         reduce_kwargs[node.instance_col] = pw.this._pw_instance
-    _reducers = [(red["col"], red["reducer"], red["new_col"]) for red in node.reducers if red["col"].find(open_tel_trace_id) == -1]
+    _reducers = [(red["col"], red["reducer"], red["new_col"]) for red in node.reducers if not is_special_column(red["col"])]
     
     return inputs[0].windowby(
         get_this_col(node.time_col),
@@ -87,7 +87,7 @@ def window_by(inputs: List[pw.Table], node: WindowByNode):
             new_col: getattr(pw.reducers, reducer)(get_this_col(prev_col)) for prev_col, reducer, new_col in _reducers
         },
         **{
-            f"_pw_windowed_{col}" : pw.reducers.ndarray(get_this_col(col)) for col in inputs[0].column_names() if col != node.instance_col and col.find(open_tel_trace_id) != -1
+            f"_pw_windowed_{col}" : pw.reducers.ndarray(get_this_col(col)) for col in inputs[0].column_names() if col != node.instance_col and is_special_column(col)
         },
         **reduce_kwargs
     )

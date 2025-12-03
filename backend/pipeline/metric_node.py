@@ -1,5 +1,5 @@
 from lib.node import Node
-from .mappings.open_tel.prefix import open_tel_trace_id
+from .mappings.open_tel.prefix import open_tel_prefix
 from typing import Optional, Dict, List, Any
 from .types import MetricNodeDescription, Graph
 from .mappings import mappings
@@ -11,7 +11,7 @@ prefixes = ["_pw_left_","_pw_right_","_pw_grouped_", "_pw_windowed_"]
 
 def is_special_column(column_name: str) -> bool:
     """
-    Check if a column is special (contains the trace ID suffix).
+    Check if a column is special (contains the _open_tel_ prefix).
     
     Args:
         column_name: Name of the column to check
@@ -19,7 +19,7 @@ def is_special_column(column_name: str) -> bool:
     Returns:
         True if column is special, False otherwise
     """
-    return open_tel_trace_id in column_name
+    return open_tel_prefix in column_name
 
 
 def is_rename_node(node: Node) -> bool:

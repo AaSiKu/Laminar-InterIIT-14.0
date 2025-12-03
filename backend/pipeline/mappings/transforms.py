@@ -2,7 +2,7 @@ from typing import List, Dict, Any
 import pathway as pw
 from lib.tables import JoinNode, FilterNode, GroupByNode, JSONSelectNode, FlattenNode
 from .helpers import MappingValues, get_col, get_this_col, select_for_join
-from .open_tel.prefix import open_tel_trace_id
+from ..metric_node import is_special_column
 
 # Operator mapping for filter node
 _op_map = {
@@ -89,12 +89,12 @@ def group_by(inputs: List[pw.Table], node: GroupByNode):
     
     # Build the groupby columns
     group_cols = [get_col(table, col) for col in node.columns]
-    _reducers = [(red["col"], red["reducer"], red["new_col"]) for red in node.reducers if red["col"].find(open_tel_trace_id) == -1]
+    _reducers = [(red["col"], red["reducer"], red["new_col"]) for red in node.reducers if not is_special_column(red["col"])]
     reducers = {
             new_col: getattr(pw.reducers, reducer)(get_this_col(prev_col)) for prev_col, reducer, new_col in _reducers
     }
     for col in table.column_names():
-        if col not in node.columns and col.find(open_tel_trace_id) != -1:
+        if col not in node.columns and is_special_column(col):
             reducers[f"_pw_grouped_{col}"] = pw.reducers.ndarray(get_this_col(col))
 
     return table.groupby(*group_cols).reduce(*group_cols, **reducers)
