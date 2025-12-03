@@ -11,12 +11,14 @@ class Span(pw.Schema):
     # TODO: Make this primary_key
     _open_tel_span_id: str  # Required, must be non-empty
     _open_tel_parent_span_id: str  # empty for root spans
-    
+    _open_tel_service_name: str
+    _open_tel_service_namespace: str
+
     # Span metadata
     name: str  # Required
     kind: int  # Default 0 = SPAN_KIND_UNSPECIFIED
-    start_time_unix_nano: str  # Required
-    end_time_unix_nano: str # Required
+    start_time_unix_nano: int  # Required
+    end_time_unix_nano: int # Required
     
     trace_state: str # W3C trace state
     
@@ -53,7 +55,7 @@ def process_span_events(events) -> list[dict]:
     processed_events = []
     for event in events:
         processed_events.append({
-            "time_unix_nano": event.get("timeUnixNano", "0"),
+            "time_unix_nano": safe_int(event.get("timeUnixNano"),0),
             "name": event.get("name", ""),
             "attributes": flatten_attributes(event.get("attributes", [])),
             "dropped_attributes_count": safe_int(event.get("droppedAttributesCount"), 0)
@@ -118,19 +120,22 @@ def flatten_spans(data: str) -> list[dict]:
                 # Process events and links as complete objects
                 events = process_span_events(span.get("events", []))
                 links = process_span_links(span.get("links", []))
-                
+                service_name = resource_attrs.pop("service.name")
+                service_namespace = resource_attrs.pop("service.namespace")
                 flattened.append({
                     "trace_id": trace_id,
                     "span_id": span_id,
                     "parent_span_id": parent_span_id,
+                    "service_name": service_name,
+                    "service_namespace": service_namespace,
                     "name": span.get("name", ""),
                     "kind": safe_int(span.get("kind"), 0),
                     "status_code": safe_int(status.get("code"), 0),
                     "dropped_attributes_count": safe_int(span.get("droppedAttributesCount"), 0),
                     "dropped_events_count": safe_int(span.get("droppedEventsCount"), 0),
                     "dropped_links_count": safe_int(span.get("droppedLinksCount"), 0),
-                    "start_time_unix_nano": span.get("startTimeUnixNano"),
-                    "end_time_unix_nano": span.get("endTimeUnixNano"),
+                    "start_time_unix_nano": safe_int(span.get("startTimeUnixNano")),
+                    "end_time_unix_nano": safe_int(span.get("endTimeUnixNano")),
                     "trace_state": span.get("traceState", ""),  
                     "status_message": status.get("message", ""),
                     "attributes": flatten_attributes(span.get("attributes", [])),
@@ -161,10 +166,12 @@ def read_spans(_, node: OpenTelSpansNode):
         _open_tel_trace_id=pw.unwrap(pw.this.flattened["trace_id"].as_str()),
         _open_tel_span_id=pw.unwrap(pw.this.flattened["span_id"].as_str()),
         _open_tel_parent_span_id=pw.unwrap(pw.this.flattened["parent_span_id"].as_str()),
+        _open_tel_service_name=pw.unwrap(pw.this.flattened["service_name"].as_str()),
+        _open_tel_service_namespace=pw.unwrap(pw.this.flattened["service_namespace"].as_str()),
         name=pw.unwrap(pw.this.flattened["name"].as_str()),
         kind=pw.unwrap(pw.this.flattened["kind"].as_int()),
-        start_time_unix_nano=pw.unwrap(pw.this.flattened["start_time_unix_nano"].as_str()),
-        end_time_unix_nano=pw.unwrap(pw.this.flattened["end_time_unix_nano"].as_str()),
+        start_time_unix_nano=pw.unwrap(pw.this.flattened["start_time_unix_nano"].as_int()),
+        end_time_unix_nano=pw.unwrap(pw.this.flattened["end_time_unix_nano"].as_int()),
         trace_state=pw.unwrap(pw.this.flattened["trace_state"].as_str()),
         status_code=pw.unwrap(pw.this.flattened["status_code"].as_int()),
         status_message=pw.unwrap(pw.this.flattened["status_message"].as_str()),

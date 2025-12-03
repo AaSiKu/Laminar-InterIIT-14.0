@@ -9,9 +9,13 @@ from lib.open_tel.utils import flatten_attributes, safe_int
 
 class Log(pw.Schema):
     # Timestamps
-    time_unix_nano: str  # Can be 0 (unknown)
-    observed_time_unix_nano: str  # Can be 0 (unknown)
+    time_unix_nano: int  # Can be 0 (unknown)
+    observed_time_unix_nano: int  # Can be 0 (unknown)
     
+
+    _open_tel_service_name: str
+    _open_tel_service_namespace: str
+
     # Severity
     severity_number: int  # Default 0 (SEVERITY_NUMBER_UNSPECIFIED)
     severity_text: str  # Optional, can be empty string
@@ -65,9 +69,12 @@ def flatten_logs(data: str) -> list[dict]:
                 trace_id = log_record.get("traceId", "")
                 span_id = log_record.get("spanId", "")
                 
+                service_name = resource_attrs.pop("service.name")
+                service_namespace = resource_attrs.pop("service.namespace")
+
                 flattened.append({
-                    "time_unix_nano": log_record.get("timeUnixNano", "0"),  # 0 = unknown
-                    "observed_time_unix_nano": log_record.get("observedTimeUnixNano", "0"),  # 0 = unknown
+                    "time_unix_nano": safe_int(log_record.get("timeUnixNano"),0),  # 0 = unknown
+                    "observed_time_unix_nano": safe_int(log_record.get("observedTimeUnixNano"),0),  # 0 = unknown
                     "severity_text": log_record.get("severityText", ""), 
                     "body": body,  # Optional
                     "log_attributes": log_attrs,
@@ -75,6 +82,8 @@ def flatten_logs(data: str) -> list[dict]:
                     "dropped_attributes_count": safe_int(log_record.get("droppedAttributesCount"), 0),
                     "trace_id": trace_id,
                     "span_id": span_id,
+                    "service_name": service_name,
+                    "service_namespace": service_namespace,
                     "event_name": log_record.get("eventName", ""),
                     "resource_attributes": resource_attrs,
                     "resource_schema_url": resource_schema,
@@ -97,8 +106,8 @@ def read_logs(_,node:OpenTelLogsNode):
     logs_table = kafka_logs.select(
         flattened=pw.apply(flatten_logs, pw.this.data)
     ).flatten(pw.this.flattened).select(
-        time_unix_nano=pw.unwrap(pw.this.flattened["time_unix_nano"].as_str()),
-        observed_time_unix_nano=pw.unwrap(pw.this.flattened["observed_time_unix_nano"].as_str()), 
+        time_unix_nano=pw.unwrap(pw.this.flattened["time_unix_nano"].as_int()),
+        observed_time_unix_nano=pw.unwrap(pw.this.flattened["observed_time_unix_nano"].as_int()), 
         severity_number=pw.unwrap(pw.this.flattened["severity_number"].as_int()),
         severity_text=pw.unwrap(pw.this.flattened["severity_text"].as_str()),
         body=pw.this.flattened["body"],
@@ -106,6 +115,8 @@ def read_logs(_,node:OpenTelLogsNode):
         dropped_attributes_count=pw.unwrap(pw.this.flattened["dropped_attributes_count"].as_int()),
         _open_tel_trace_id=pw.unwrap(pw.this.flattened["trace_id"].as_str()),
         _open_tel_span_id=pw.unwrap(pw.this.flattened["span_id"].as_str()),
+        _open_tel_service_name=pw.unwrap(pw.this.flattened["service_name"].as_str()),
+        _open_tel_service_namespace=pw.unwrap(pw.this.flattened["service_namespace"].as_str()),
         event_name=pw.unwrap(pw.this.flattened["event_name"].as_str()),
         resource_attributes=pw.this.flattened["resource_attributes"],
         resource_schema_url=pw.unwrap(pw.this.flattened["resource_schema_url"].as_str()),
