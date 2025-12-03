@@ -13,20 +13,22 @@ export const fetchTemplates = async () => {
 };
 
 // Fetches a list of existing workflow files.
-export const fetchWorkflows = async (skip = 0, limit = 3) => {
+export const fetchWorkflows = async (skip = 0, limit = 4) => {
   const response = await fetch(
-    `${
-      import.meta.env.VITE_API_SERVER
-    }/overview/workflows/?skip=${skip}&limit=${limit}`,
+    `${import.meta.env.VITE_API_SERVER}/version/retrieve_all?skip=${skip}&limit=${limit}`,
     { credentials: "include" }
   );
-  const data = await response.json();
-  return data;
+
+  if (!response.ok) {
+    throw new Error("Failed to fetch workflows");
+  }
+
+  return await response.json();
 };
 
 // Create web - socket to fetch notifications and actions
 export const fetchNotifications = async () => {
-  const ws = new WebSocket(`${import.meta.env.VITE_WS_SERVER}/ws/pipeline`);
+  const ws = new WebSocket(`${import.meta.env.VITE_WS_SERVER}/ws/pipeline/All`);
 
   // To test:
   // ws.onopen = () => {
@@ -45,6 +47,36 @@ export const fetchOverviewData = async () => {
     { credentials: "include" }
   );
   const data = await response.json();
-  console.log(data)
   return data
+};
+
+export const fetchPreviousNotifcations = async()=>{
+  const response = await fetch(
+    `${import.meta.env.VITE_API_SERVER}/overview/notifications`,
+    { credentials: "include" }
+  )
+  const data = await response.json();
+  const notifications= data.data
+  return notifications
+}
+
+// Update notification with action taken
+export const updateNotificationAction = async (notificationId, action) => {
+  const response = await fetch(
+    `${import.meta.env.VITE_API_SERVER}/overview/notifications/${notificationId}/action`,
+    {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      credentials: "include",
+      body: JSON.stringify({
+        action_taken: action,
+        taken_at: new Date().toISOString(),
+      }),
+    }
+  );
+
+  const data = await response.json();
+  return { ok: response.ok, data };
 };

@@ -16,7 +16,6 @@ const container = document.getElementById("root");
 
 const root = createRoot(container);
 root.render(
-  <StrictMode>
     <SettingsProvider>
       <ThemeProvider>
         <ReactFlowProvider>
@@ -32,5 +31,4 @@ root.render(
         </ReactFlowProvider>
       </ThemeProvider>
     </SettingsProvider>
-  </StrictMode>
 );

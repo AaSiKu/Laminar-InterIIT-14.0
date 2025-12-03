@@ -75,7 +75,7 @@ async def lifespan(app: FastAPI):
 
     print(f"Connected to docker daemon")
 
-    asyncio.create_task(watch_changes(notification_collection))
+    asyncio.create_task(watch_changes(notification_collection,workflow_collection))
     print("Started MongoDB change stream listener")
     ws_cleanup_task = asyncio.create_task(close_inactive_connections())
     print("Started WebSocket inactivity cleanup task")

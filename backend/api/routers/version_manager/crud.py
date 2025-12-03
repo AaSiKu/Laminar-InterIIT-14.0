@@ -1,6 +1,6 @@
 
 from datetime import datetime
-async def create_workflow(user_identifier,version_collection,workflow_collection,mongo_client):
+async def create_workflow(name,user_identifier,version_collection,workflow_collection,mongo_client):
     pipeline_doc = {
                     "edges": [],
                     "nodes": [],
@@ -33,7 +33,8 @@ async def create_workflow(user_identifier,version_collection,workflow_collection
                 "host_ip": "",
                 "versions": [],
                 "last_started": None,
-                "runtime": 0
+                "runtime": 0,
+                "name":name
             }
 
     async with await mongo_client.start_session() as session:

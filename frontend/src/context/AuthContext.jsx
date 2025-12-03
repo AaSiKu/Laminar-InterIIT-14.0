@@ -1,6 +1,8 @@
 import React, { createContext, useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import Loading from "../components/common/Loading";
+import { useGlobalContext } from "./GlobalContext";
+import { fetchNotifications } from "../utils/developerDashboard.api";
 
 export const AuthContext = createContext();
 
@@ -8,6 +10,7 @@ export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
+  const {setWs} = useGlobalContext()
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -19,8 +22,11 @@ export const AuthProvider = ({ children }) => {
         if (res.ok) {
           const data = await res.json();
           setUser(data);
+          notifs= await fetchNotifications()
+          setWs(notifs);
         } else {
           setUser(null); 
+          setWs(null);
         }
       } catch (err) {
         setUser(null);
@@ -48,6 +54,7 @@ export const AuthProvider = ({ children }) => {
       console.error(err);
     } finally {
       setUser(null);
+      setWs(null);
       navigate("/login");
     }
   };

@@ -5,10 +5,12 @@ import KPICard from "../components/overview/KPICardDashboard";
 import RecentWorkflowCard from "../components/overview/RecentWorkflowCard";
 import HighlightsPanel from "../components/overview/HighlightsPanel";
 import TopBar from "../components/common/TopBar";
+import {useGlobalContext} from "../context/GlobalContext"
 import {
   fetchWorkflows,
   fetchNotifications,
   fetchOverviewData,
+  fetchPreviousNotifcations
 } from "../utils/developerDashboard.api";
 import { useNavigate } from "react-router-dom";
 import "../css/overview.css";
@@ -35,39 +37,29 @@ const getIconComponent = (iconType) => {
 
 export default function OverviewPage() {
   const navigate = useNavigate();
-  const [workflows, setWorkflows] = useState([]);
-  const [notifications, setNotifications] = useState([]);
   const [overviewData, setOverviewData] = useState(null);
   const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false);
+  const {notifications, setNotifications,workflows,setWorkflows} = useGlobalContext();
 
   useEffect(() => {
     const loadData = async () => {
       const workflowData = await fetchWorkflows();
-      setWorkflows(workflowData);
+      setWorkflows(workflowData.data);
 
       const overview = await fetchOverviewData();
       setOverviewData(overview);
 
-      const ws = await fetchNotifications();
-      ws.onmessage = (event) => {
-        const newNotification = JSON.parse(event.data);
-        setNotifications((prev) => [...prev, newNotification]);
-      };
+      setNotifications(await fetchPreviousNotifcations())
     };
     loadData();
   }, []);
 
   const handleSelectTemplate = (templateId) => {
     if (!templateId) return;
-    const randomSuffix =
-      typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
-        ? crypto.randomUUID()
-        : Math.random().toString(36).slice(2, 10);
-    const projectId = `${templateId}-${randomSuffix}`;
-    navigate(`/workflow/${projectId}`);
+    navigate(`/workflows/${templateId}`);
   };
   console.log();
-  return (
+  return(
     <>
     <div className="below-sidebar-container">
       <div className="overview-main">
@@ -81,11 +73,15 @@ export default function OverviewPage() {
               width: { xs: 'calc(100% + 32px)', md: 'calc(100% + 64px)' },
             }}>
               {overviewData && <Grid container spacing={0}>
-                <Grid size={{ xs: 12, md: 6, xl: 7 }}>
+                <Grid 
+                className="First"
+                size={{ xs: 12, md: 6, xl: 7 }}>
                   {overviewData["pie_chart"] && <OverviewSection data={overviewData["pie_chart"]} kpiData={overviewData["kpi"]} />}
                 </Grid>
+                
 
-                <Grid container size={{ xs: 12, md: 6, xl: 5 }} spacing={0}>
+                <Grid className = "Second"
+                container size={{ xs: 12, md: 6, xl: 5 }} spacing={0}>
                   {overviewData["kpi"] && overviewData["kpi"].map((kpi, index) => {
                     // Use notifications icon for the fourth card (index 3)
                     const IconComponent = index === 3 
@@ -131,9 +127,10 @@ export default function OverviewPage() {
                   ) : (
                     workflows.map((workflow) => (
                       <RecentWorkflowCard
-                        key={workflow.id}
+                        key={workflow._id}
                         workflow={workflow}
-                        onClick={() => handleSelectTemplate(workflow.id)}
+                        onClick={() => {
+                          handleSelectTemplate(workflow._id)}}
                       />
                     ))
                   )}
@@ -172,7 +169,7 @@ export default function OverviewPage() {
             <CloseIcon />
           </IconButton>
         </div>
-        <HighlightsPanel notifications={notifications} />
+        <HighlightsPanel/>
       </Drawer>
     </>
   );

@@ -8,19 +8,18 @@ class Alert(BaseModel):
     actions: List[str]
     action_taken: Optional[str] = None
     taken_at: Optional[datetime] = None
-    action_executed_by:str
+    action_executed_by : Optional[str] = None
+    action_executed_by_user:Optional[Any]
+    status:Optional[str] #status of notification (pending, resolved, ignored)
 
 class Notification(BaseModel):
-    user_id: str
     pipeline_id:str
     title: str
     desc: str
-    action: str
     alert: Optional[Alert] = None
-    type:str  #type of notification (alert, notification)
+    type:str  #type of notification (success, error, warning, info, alert)
     timestamp: Optional[datetime] = datetime.now()
-    notification_role: List[str] #roles of users who will receive the notification
-    notification_status:str #status of notification (pending, resolved, ignored)
+    #status only exist in alerts
 
 
 class Workflow(BaseModel):
@@ -39,8 +38,10 @@ class Workflow(BaseModel):
     pipeline_host_port: str
     host_ip: str
     db_host_port: Optional[str] = None
+    last_updated: datetime
     last_started: datetime
     runtime: int
+    name:str
 
 
 class Version(BaseModel):
@@ -49,6 +50,7 @@ class Version(BaseModel):
     version_created_at: datetime
     version_updated_at: datetime
     pipeline: Any
+    pipeline_id: str
 
 class save_workflow_payload(BaseModel):
     version_updated_at: datetime
@@ -59,9 +61,14 @@ class save_workflow_payload(BaseModel):
 
 class save_draft_payload(BaseModel):
     version_id:str
+    pipeline_id:str
     pipeline:Any
     version_description:Optional[str]
 
 class retrieve_payload(BaseModel):
     workflow_id: str
     version_id: str
+
+class UpdateNotificationAction(BaseModel):
+    action_taken: str
+    taken_at: str

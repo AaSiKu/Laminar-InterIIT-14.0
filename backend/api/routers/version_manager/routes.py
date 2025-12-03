@@ -3,9 +3,13 @@ from bson.objectid import ObjectId
 from backend.api.routers.auth.routes import get_current_user
 from backend.api.routers.auth.models import User
 from datetime import datetime
+from typing import List
 import logging
 from .schema import save_workflow_payload, retrieve_payload,save_draft_payload
 from .crud import create_workflow as _create_workflow
+from sqlalchemy.future import select
+from sqlalchemy.ext.asyncio import AsyncSession
+from backend.api.routers.auth.database import get_db
 
 
 logger = logging.getLogger(__name__)
@@ -14,6 +18,9 @@ router = APIRouter()
 def serialize_mongo(doc):
     if isinstance(doc, ObjectId):
         return str(doc)
+    
+    if isinstance(doc, datetime):
+        return doc.isoformat()
 
     if isinstance(doc, list):
         return [serialize_mongo(x) for x in doc]
@@ -29,6 +36,7 @@ def serialize_mongo(doc):
 
 @router.post("/create_pipeline")
 async def create_workflow(
+    name:str,
     request:Request,
     current_user: User = Depends(get_current_user)
 ):
@@ -41,7 +49,7 @@ async def create_workflow(
     mongo_client = request.app.state.mongo_client
     try:            
         user_identifier = str(current_user.id)
-        new_workflow = await _create_workflow(user_identifier,version_collection,workflow_collection,mongo_client)
+        new_workflow = await _create_workflow(name,user_identifier,version_collection,workflow_collection,mongo_client)
         return {
             "message": "Workflow created successfully",
             "id": str(new_workflow["_id"]),
@@ -170,27 +178,32 @@ async def save_draft(
     """
 
     version_collection = request.app.state.version_collection
-
+    workflow_collection = request.app.state.workflow_collection
     try: 
         current_version_id = payload.version_id
         pipeline=payload.pipeline
+        workflow_id=payload.pipeline_id
         version_description= payload.version_description
         user_identifier = str(current_user.id)
         try:
             (ObjectId(current_version_id) is None)
+            ObjectId(workflow_id)
         except:
             raise HTTPException(status_code=404, detail="Workflow or Version not found")
 
+        workflow_query = {"_id": ObjectId(workflow_id)}
         version_query = {"_id": ObjectId(current_version_id)}
         existing_version = await version_collection.find_one({"_id": ObjectId(current_version_id)})
+        existing_workflow = await workflow_collection.find_one({"_id":ObjectId(workflow_id)})
 
         if current_user.role != "admin":
+            workflow_query["owner_ids"] = {"$in":user_identifier}
             version_query["user_id"] = user_identifier
-        if not existing_version:
-            raise HTTPException(status_code=404, detail="Version not found")
+
+        if not existing_version or existing_workflow:
+            raise HTTPException(status_code=404, detail="Version or pipeline not found")
         
-        existing_version = await version_collection.find_one(version_query)
-        if not existing_version:
+        if not existing_version["user_id"]==user_identifier and not user_identifier in existing_workflow["owner_ids"] or current_user.role!="admin":
             raise HTTPException(status_code=403, detail="You are not authorised to Edit the workfow")
 
         result = await version_collection.update_one(
@@ -271,39 +284,72 @@ async def retrieve_workflow(
 @router.get("/retrieve_all")
 async def retrieve_all(
     request: Request,
-    current_user: User = Depends(get_current_user)
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+    skip: int = 0,
+    limit: int = 10
 ):
-    """
-    Retrieve all workflows and drafts for the current user
-    """
+
     workflow_collection = request.app.state.workflow_collection
+    version_collection = request.app.state.version_collection
 
-    if current_user.role == "admin":
-        print("admin")
-        workflows = await workflow_collection.find().to_list(length=5)
-        return serialize_mongo({
-            "status": "success",
-            "count": len(workflows),
-            "data": workflows
-        })
+    query = {}
+    if current_user.role != "admin":
+        query = {"owner_ids": str(current_user.id)}
+
+    workflows = await (
+        workflow_collection
+        .find(query)
+        .sort("last_updated", -1)
+        .skip(skip)
+        .limit(limit)
+        .to_list(length=limit)
+    )
+
+    current_user_id = str(current_user.id)
+
+    for wf in workflows:
+        version_ids = wf.get("versions", [])
+        owner_ids = wf.get("owner_ids", [])
+
+        # ===== FETCH USER-SPECIFIC VERSION ===== #
+        if version_ids:
+            object_ids = [ObjectId(v_id) for v_id in version_ids]
+            user_version = await version_collection.find_one({
+                "_id": {"$in": object_ids},
+                "user_id": current_user_id
+            })
+
+            if not user_version and wf.get("current_version_id"):
+                user_version = await version_collection.find_one({
+                    "_id": ObjectId(wf["current_version_id"])
+                })
+
+            wf["user_pipeline_version"] = user_version
+
+        # # ===== FETCH OWNERS FROM POSTGRES (NO PRIVACY RISK) ===== #
+            if owner_ids:
+                # Convert string IDs to integers
+                owner_ids_int = [int(uid) for uid in owner_ids]
+
+                stmt = select(User).where(User.id.in_(owner_ids_int))
+                users = (await db.execute(stmt)).scalars().all()
+
+                wf["owners"] = [
+                    {
+                        "id": str(u.id),
+                        "display_name": u.full_name,
+                        "initials": "".join([x[0].upper() for x in u.full_name.split()[:2]])
+                    }
+                    for u in users
+                ]
 
 
-    user_identifier = str(current_user.id)
-    print(user_identifier)
-    workflows = await workflow_collection.find(
-        {"owner_ids": user_identifier}
-    ).to_list(length=5)
-
-    if not workflows:
-        raise HTTPException(status_code=404, detail="No workflows found")
-
-    print(workflows)
-    
     return serialize_mongo({
         "status": "success",
         "count": len(workflows),
         "data": workflows
-    }) 
+    })
 
 
 #---------------------------- Delete workflow and Drafts--------------------------#

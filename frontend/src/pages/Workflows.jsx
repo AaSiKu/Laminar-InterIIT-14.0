@@ -10,6 +10,7 @@ import {
   spinupPipeline,
   spindownPipeline,
   saveDraftsAPI,
+  fetchAndSetPipeline,
 } from "../utils/pipelineUtils";
 import PipelineNavBar from "../components/workflow/PipelineNavBar";
 import Playground from "../components/workflow/Playground";
@@ -58,6 +59,19 @@ export default function WorkflowPage() {
   } = useGlobalContext();
 
   // Auto-save drafts when pipeline changes, TODO: check for debounce
+
+  /*
+      setCurrentEdges,
+      setCurrentNodes,
+      setRfInstance,
+      setCurrentPipelineStatus,
+      setCurrentPipelineId,
+      setLoading,
+      setError,
+      setViewport,
+      setCurrentVersionId
+   */
+
   useEffect(() => {
     if (currentPipelineId) {
       setLoading(true);
@@ -67,7 +81,7 @@ export default function WorkflowPage() {
         rfInstance,
         setCurrentVersionId,
         setLoading,
-        setError
+        setError,
       )
         .catch((err) => setError(err.message))
         .finally(() => setLoading(false));
@@ -83,6 +97,23 @@ export default function WorkflowPage() {
     setError,
     setContainerId,
   ]);
+
+  useEffect(()=>{
+    fetchAndSetPipeline(
+        currentPipelineId,
+        currentVersionId,
+        {
+          setCurrentPipelineId,
+          setCurrentVersionId,
+          setError,
+          setLoading,
+          setCurrentEdges,
+          setCurrentNodes,
+          setViewport,
+          setCurrentPipelineStatus,
+          setContainerId,
+        }
+      )}, [])
 
   // Pipeline status toggle handler
   const handleToggleStatus = async () => {

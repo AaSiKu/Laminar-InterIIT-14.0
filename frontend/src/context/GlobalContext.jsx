@@ -10,10 +10,11 @@ export function useGlobalContext() {
 }
 
 export const GlobalContextProvider = ({ children }) => {
-  const [roll, setRoll] = useState(null);
+  const [role, setRole] = useState(null);
   const [currentPipelineId, setCurrentPipelineId] = useState("69138bfd2d5fe329d1dfe689");
   const [currentPipelineStatus, setCurrentPipelineStatus] = useState("Stopped");
   //TODO: Need to fix this for broken/etc
+  const [notifications, setNotifications]= useState([]);
   const [currentNodes, setCurrentNodes] = useState([]);
   const [currentEdges, setCurrentEdges] = useState([]);
   const [rfInstance, setRfInstance] = useState(null);
@@ -26,11 +27,15 @@ export const GlobalContextProvider = ({ children }) => {
   const { fileStructure, setFileStructure } = useState({});
   const [currentVersionId, setCurrentVersionId] = useState(null);
   const [agentContainerId, setAgentContainerId]=useState(null);
+  const [workflows, setWorkflows] = useState([]);
+  const [ws, setWs]=useState (null);
 
   const globalContextValue = {
     user,
-    roll,
-    setRoll,
+    role,
+    setRole,
+    workflows,
+    setWorkflows,
     currentPipelineId,
     setCurrentPipelineId,
     currentVersionId,
@@ -59,6 +64,10 @@ export const GlobalContextProvider = ({ children }) => {
     fileStructure,
     setFileStructure,
     logout,
+    notifications,
+    setNotifications,
+    ws,
+    setWs
   };
 
   return (

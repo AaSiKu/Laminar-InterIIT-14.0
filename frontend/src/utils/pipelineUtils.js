@@ -6,6 +6,7 @@ import { fetchNodeSchema } from "./dashboard.api";
 //----------------------- Create Pipeline--------------------------------//
 
 const create_pipeline = async (
+  name,
   setCurrentPipelineId,
   setCurrentVersionId,
   setError,
@@ -14,7 +15,7 @@ const create_pipeline = async (
   setLoading(true);
   try {
     const response = await fetch(
-      `${import.meta.env.VITE_API_SERVER}/version/create_pipeline`,
+      f`${import.meta.env.VITE_API_SERVER}/version/create_pipeline/name=${name}`,
       {
         method: "POST",
         credentials: "include",

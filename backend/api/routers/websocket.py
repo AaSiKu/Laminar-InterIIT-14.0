@@ -9,6 +9,7 @@ from backend.api.routers.auth.routes import get_current_user_ws, WebSocketAuthEx
 from bson.objectid import ObjectId
 from backend.api.routers.auth.database import get_db
 from bson.json_util import dumps
+from bson import ObjectId
 from starlette.websockets import WebSocketDisconnect
 import logging
 #TODO: Add role and status to the notification
@@ -77,14 +78,14 @@ async def close_inactive_connections():
             # active_connections set contains: (websocket, user_id, pipeline_id, last_activity)
             for conn in list(active_connections):
                 if len(conn) == 4:
-                    websocket, user_id, pipeline_id, last_activity = conn
+                    websocket, current_user, pipeline_id, last_activity = conn
                     if current_time - last_activity > WS_INACTIVITY_TIMEOUT:
                         inactive_duration = current_time - last_activity
-                        connections_to_close.append((conn, user_id, pipeline_id, inactive_duration))
+                        connections_to_close.append((conn, current_user, pipeline_id, inactive_duration))
             
-            for conn, user_id, pipeline_id, inactive_duration in connections_to_close:
+            for conn, current_user, pipeline_id, inactive_duration in connections_to_close:
                 try:
-                    logger.info(f"Closing inactive connection for user {user_id}, pipeline {pipeline_id} (inactive for {inactive_duration:.0f}s)")
+                    logger.info(f"Closing inactive connection for user {current_user.id}, pipeline {pipeline_id} (inactive for {inactive_duration:.0f}s)")
                     await conn[0].close(code=1000, reason="Connection inactive")
                 except Exception as e:
                     logger.warning(f"Error closing inactive connection: {e}")
@@ -96,62 +97,72 @@ async def close_inactive_connections():
             logger.error(f"Error in close_inactive_connections: {e}")
 
 
-async def watch_changes(notification_collection):
+async def watch_changes(notification_collection, workflow_collection):
     condition = [{"$match": {"operationType": "insert"}}]
     try:
-        async with notification_collection.watch(condition) as stream:
+        async with notification_collection.watch(
+            condition,
+            full_document="updateLookup"
+        ) as stream:
+
             print("Change stream listener started")
             async for change in stream:
-                doc = change["fullDocument"]
+                doc = change.get("fullDocument")
+                if not doc:
+                    continue
+
+                # Fetch workflow details
+                workflow = await workflow_collection.find_one(
+                    {"_id": ObjectId(doc.get("pipeline_id"))}
+                )
+
+                # Attach workflow to message
+                doc["workflow"] = workflow or {}
                 await broadcast(doc)
+
     except Exception as e:
         print("⚠ ChangeStream NOT running:", e)
 
-
 async def broadcast(message: dict):
-    '''
-    Sends/Broadcasts the notification to all connections
-    '''
-    target_user = message["user_id"]
-    target_pipeline = message["pipeline_id"]
+    """
+    Sends/Broadcasts the notification to all active WebSocket connections
+    """
+    print(message.keys())
+    target_pipeline = message.get("pipeline_id")
     current_time = time.time()
+    workflow = message.get("workflow", {})
 
+    if not active_connections:
+        print("No websocket connections")
+
+    # track dropped connections
     connections_to_remove = []
-    
-    # active_connections set contains: (websocket, user_id, pipeline_id, last_activity)
-    for websocket, ws_user_id, ws_pipeline_id, last_activity in list(active_connections):
-        if ws_user_id == target_user:
-            if ws_pipeline_id == "All":
+    for websocket, ws_current_user, ws_pipeline_id, last_activity in list(active_connections):
+        if str(ws_current_user.id) not in workflow.get("owner_ids", []) \
+            and str(ws_current_user.id) not in workflow.get("owner_ids", []) \
+           and ws_current_user.role != "admin":
+            continue
+        if ws_pipeline_id == "All" or ws_pipeline_id == target_pipeline:
+            try:
+                await websocket.send_text(dumps(message))
+                
+                # update last activity
+                active_connections.discard((websocket, ws_current_user, ws_pipeline_id, last_activity))
+                active_connections.add((websocket, ws_current_user, ws_pipeline_id, current_time))
+
+            except Exception as e:
+                logger.warning(f"Failed to send message, closing connection: {e}")
                 try:
-                    await websocket.send_text(dumps(message))
-                    active_connections.discard((websocket, ws_user_id, ws_pipeline_id, last_activity))
-                    active_connections.add((websocket, ws_user_id, ws_pipeline_id, current_time))
-                    return "message sent"
-                except Exception as e:
-                    logger.warning(f"Failed to send message, closing connection: {e}")
-                    try:
-                        await websocket.close(code=1000, reason="Connection error")
-                    except:
-                        pass
-                    connections_to_remove.append((websocket, ws_user_id, ws_pipeline_id, last_activity))
-                continue
-            if ws_pipeline_id == target_pipeline:
-                try:
-                    await websocket.send_text(dumps(message))
-                    active_connections.discard((websocket, ws_user_id, ws_pipeline_id, last_activity))
-                    active_connections.add((websocket, ws_user_id, ws_pipeline_id, current_time))
-                    return "message sent"
-                except Exception as e:
-                    logger.warning(f"Failed to send message, closing connection: {e}")
-                    try:
-                        await websocket.close(code=1000, reason="Connection error")
-                    except:
-                        pass
-                    connections_to_remove.append((websocket, ws_user_id, ws_pipeline_id, last_activity))
-    
-    # Remove failed connections
+                    await websocket.close(code=1000, reason="Connection error")
+                except:
+                    pass
+                connections_to_remove.append((websocket, ws_current_user, ws_pipeline_id, last_activity))
+
+    # remove broken connections
     for conn in connections_to_remove:
         active_connections.discard(conn)
+
+    return "message broadcasted"
 
 
 @router.websocket("/pipeline/{pipeline_id}")
@@ -169,7 +180,7 @@ async def websocket_endpoint(
 
             if pipeline_id != "All":
                 pipeline = await workflow_collection.find_one({
-                    "owner_ids": {"$in":user_identifier},
+                    "owner_ids": {"$in": [user_identifier]},
                     "_id": ObjectId(pipeline_id),
                     "status": "Running"
                 })
@@ -178,15 +189,17 @@ async def websocket_endpoint(
                     return
 
             current_activity_time = time.time()
-            active_connections.add((websocket, user_identifier, pipeline_id, current_activity_time))
+            active_connections.add((websocket, current_user, pipeline_id, current_activity_time))
+            # print(active_connections)
+            print("active connection established")
 
             try:
                 while True:
                     await websocket.receive_text()
                     for conn in list(active_connections):
-                        if len(conn) == 4 and conn[0] == websocket and conn[1] == user_identifier and conn[2] == pipeline_id:
+                        if len(conn) == 4 and conn[0] == websocket and conn[1] == current_user and conn[2] == pipeline_id:
                             active_connections.discard(conn)
-                            active_connections.add((websocket, user_identifier, pipeline_id, time.time()))
+                            active_connections.add((websocket, current_user, pipeline_id, time.time()))
                             break
             except WebSocketDisconnect:
                 connection_closed = True

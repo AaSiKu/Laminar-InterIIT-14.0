@@ -1,23 +1,13 @@
 import React, { useState } from "react";
-import { Box, Typography, Paper, Menu, MenuItem, IconButton } from "@mui/material";
+import { Box, Typography, Paper, IconButton, Alert, Snackbar} from "@mui/material";
 import { PieChart, Pie, Cell, ResponsiveContainer } from "recharts";
-import MoreHorizIcon from "@mui/icons-material/MoreHoriz";
 import ContentCopyIcon from "@mui/icons-material/ContentCopy";
 
 const OverviewSection = ({ data, kpiData }) => {
-  const [anchorEl, setAnchorEl] = useState(null);
-  const open = Boolean(anchorEl);
+  const [showCopyAlert, setShowCopyAlert] = useState(false);
 
-  const handleMenuClick = (event) => {
-    setAnchorEl(event.currentTarget);
-  };
-
-  const handleMenuClose = () => {
-    setAnchorEl(null);
-  };
 
   const handleCopyJson = () => {
-    // Combine overview data and KPI cards data for complete snapshot
     const snapshotData = {
       timestamp: new Date().toISOString(),
       overview: {
@@ -28,16 +18,16 @@ const OverviewSection = ({ data, kpiData }) => {
       },
       kpiCards: kpiData || [],
     };
+
     const jsonData = JSON.stringify(snapshotData, null, 2);
-    navigator.clipboard.writeText(jsonData).then(() => {
-      console.log("Dashboard data copied to clipboard");
-    }).catch(err => {
-      console.error("Failed to copy: ", err);
-    });
-    handleMenuClose();
+
+    navigator.clipboard.writeText(jsonData)
+      .then(() => {
+        setShowCopyAlert(true);
+      })
+      .catch(err => console.error("Failed to copy:", err));
   };
   // Chart data - all segments with uniform thickness
-  console.log("car", data);
   const chartData = [
     {
       name: "Running",
@@ -54,7 +44,7 @@ const OverviewSection = ({ data, kpiData }) => {
       value: data?.stopped || 0,
       color: "#A2B8F4", // Blue
     },
-  ].filter(item => item.value > 0);
+  ];
 
   const total = data?.total;
 
@@ -73,6 +63,34 @@ const OverviewSection = ({ data, kpiData }) => {
         bgcolor: 'background.elevation1',
       }}
     >
+    <Snackbar
+      open={showCopyAlert}
+      autoHideDuration={2000}
+      onClose={() => setShowCopyAlert(false)}
+      anchorOrigin={{ vertical: "top", horizontal: "right" }}
+      sx={{
+        position: "absolute",   // float above content
+        top: 16,                // space from top of the card
+        right: 16,              // space from right edge
+        zIndex: 1500,           // make sure it's above other elements
+      }}
+    >
+      <Alert
+        onClose={() => setShowCopyAlert(false)}
+        severity="success"
+        variant="filled"
+        sx={{
+          borderRadius: 2,
+          boxShadow: 3,
+          fontWeight: 500,
+          minWidth: "180px",
+          textAlign: "center",
+        }}
+      >
+        JSON copied!
+      </Alert>
+    </Snackbar>
+
       {/* Header */}
       <Box
         sx={{
@@ -99,36 +117,17 @@ const OverviewSection = ({ data, kpiData }) => {
           </Typography>
         </Box>
         <IconButton
-          onClick={handleMenuClick}
-          sx={{
-            width: '2.25rem',
-            height: '2.25rem',
-            borderRadius: 0,
-            '&:hover': { bgcolor: 'action.hover' },
-          }}
-        >
-          <MoreHorizIcon
-            sx={{ fontSize: "1.25rem", color: "text.secondary" }}
-          />
+            onClick={handleCopyJson}
+            sx={{
+              width: '2.25rem',
+              height: '2.25rem',
+              borderRadius: 0,
+              '&:hover': { bgcolor: 'action.hover' },
+            }}
+          >
+            <ContentCopyIcon sx={{ fontSize: "1.25rem", color: "text.secondary" }} />
+        
         </IconButton>
-        <Menu
-          anchorEl={anchorEl}
-          open={open}
-          onClose={handleMenuClose}
-          anchorOrigin={{
-            vertical: 'bottom',
-            horizontal: 'right',
-          }}
-          transformOrigin={{
-            vertical: 'top',
-            horizontal: 'right',
-          }}
-        >
-          <MenuItem onClick={handleCopyJson} sx={{ gap: 1 }}>
-            <ContentCopyIcon sx={{ fontSize: '1rem' }} />
-            Copy JSON
-          </MenuItem>
-        </Menu>
       </Box>
 
       {/* Semicircle Donut Chart - Top 40% */}
