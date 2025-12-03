@@ -17,6 +17,11 @@ from openai import AsyncClient
 from re import Pattern
 import unicodedata
 from typing import Generic, TypeVar, Callable, Awaitable, List, Generic, Optional, Any
+import nh3
+from detect_secrets.core import scan
+from detect_secrets.core.secrets_collection import SecretsCollection
+import ipaddress
+import socket
 
 load_dotenv()
 
@@ -550,52 +555,38 @@ class UnicodeDetector(BaseDetector):
                 res.append(DetectorResult(cat, index, index + 1))
         return res
 
-# TODO: For now, we run everything with re.IGNORECASE, ignoring the flags below
-SECRETS_PATTERNS = {
-    "GITHUB_TOKEN": [
-        re.compile(r'(ghp|gho|ghu|ghs|ghr)_[A-Za-z0-9_]{36}'),
-    ],
-    "AWS_ACCESS_KEY": [
-        re.compile(r'(?:A3T[A-Z0-9]|ABIA|ACCA|AKIA|ASIA)[0-9A-Z]{16}'),
-        re.compile(r'aws.{{0,20}}?{secret_keyword}.{{0,20}}?[\'\"]([0-9a-zA-Z/+]{{40}})[\'\"]'.format(
-            secret_keyword=r'(?:key|pwd|pw|password|pass|token)',
-        ), flags=re.IGNORECASE),
-    ],
-    "AZURE_STORAGE_KEY": [
-        re.compile(r'AccountKey=[a-zA-Z0-9+\/=]{88}'),
-    ],
-    "SLACK_TOKEN": [
-        re.compile(r'xox(?:a|b|p|o|s|r)-(?:\d+-)+[a-z0-9]+', flags=re.IGNORECASE),
-        re.compile(r'https://hooks\.slack\.com/services/T[a-zA-Z0-9_]+/B[a-zA-Z0-9_]+/[a-zA-Z0-9_]+', flags=re.IGNORECASE | re.VERBOSE),
-    ],
-}
-
-@dataclass
-class SecretPattern:
-    secret_name: str
-    patterns: list[Pattern]
-
-
 class SecretsAnalyzer(BaseDetector):
     """
-    Analyzer for detecting secrets in generated text.
+    Analyzer for detecting secrets in generated text using the detect-secrets library.
     """
-    def __init__(self):
-        super().__init__()
-        self.secrets = self.get_recognizers()
-
-    def get_recognizers(self) -> list[Pattern]:
-        secrets = []
-        for secret_name, regex_pattern in SECRETS_PATTERNS.items():
-            secrets.append(SecretPattern(secret_name, regex_pattern))
-        return secrets
-    
     def detect_all(self, text: str) -> list[DetectorResult]:
+        """
+        Detects secrets in the given text using detect-secrets.
+        Args:
+            text: The text to analyze.
+        Returns:
+            A list of DetectorResult objects for each detected secret.
+        """
         res = []
-        for secret in self.secrets:
-            for pattern in secret.patterns:
-                for match in pattern.finditer(text):
-                    res.append(DetectorResult(secret.secret_name, match.start(), match.end()))
+        # Use detect-secrets to scan the text for secrets
+        # Note: detect-secrets works with file paths, so we write the text to a temporary file.
+        with open("temp_text_for_secrets_scan.txt", "w") as f:
+            f.write(text)
+
+        secrets = scan(["temp_text_for_secrets_scan.txt"])
+        
+        # Extract the detected secrets and their locations
+        for filename in secrets.files:
+            for secret in secrets.secrets[filename]:
+                res.append(
+                    DetectorResult(
+                        entity=secret.type,
+                        start=0,  # detect-secrets does not provide start and end indices for the secret in the text
+                        end=0,
+                    )
+                )
+        
+        os.remove("temp_text_for_secrets_scan.txt")
         return res
 
 class MCPSecurityGateway:
@@ -614,6 +605,33 @@ class MCPSecurityGateway:
         }
         logging.basicConfig(level=logging.INFO)
         self.logger = logging.getLogger("MCP_Security")
+        self.pii_analyzer = PII_Analyzer()
+        self.secrets_analyzer = SecretsAnalyzer()
+        self.prompt_injection_analyzer = PromptInjectionAnalyzer()
+        self.unicode_detector = UnicodeDetector()
+
+
+    async def scan_text_for_issues(self, text: str) -> List[str]:
+        """Scans text for PII, secrets, and prompt injections."""
+        issues = []
+        
+        pii_results = self.pii_analyzer.detect_all(text)
+        if pii_results:
+            issues.append(f"PII detected: {[res.entity for res in pii_results]}")
+
+        secrets_results = self.secrets_analyzer.detect_all(text)
+        if secrets_results:
+            issues.append(f"Secrets detected: {[res.entity for res in secrets_results]}")
+
+        if await self.prompt_injection_analyzer.adetect(text):
+            issues.append("Prompt injection detected")
+            
+        unicode_results = self.unicode_detector.detect_all(text, categories=["Co", "Cs"])
+        if unicode_results:
+            issues.append(f"Disallowed unicode characters detected: {[res.entity for res in unicode_results]}")
+
+        return issues
+
 
     def _init_connection_pool(self):
         """
@@ -637,16 +655,16 @@ class MCPSecurityGateway:
     def _init_permissions(self):
         """
         Protocol: PoLP & Prevent Broken Function Level Architecture.
-        Maps Agent Roles -> Allowed Methods -> Allowed Endpoints.
+        Maps Agent Roles -> Allowed Methods -> Allowed Endpoints with wildcard support.
         """
         self.role_permissions = {
             "invoice_reader_agent": {
-                "GET": ["/api/invoices"],
+                "GET": [re.compile(r"/api/invoices/inv_.*")],
                 "POST": [] 
             },
             "account_manager_agent": {
-                "GET": ["/api/accounts"],
-                "POST": ["/api/accounts/update"]
+                "GET": [re.compile(r"/api/accounts/acc_.*")],
+                "POST": [re.compile(r"/api/accounts/acc_.*/update")]
             }
         }
 
@@ -680,13 +698,14 @@ class MCPSecurityGateway:
             endpoint: str
     ) -> bool:
         """PoLP & Prevent Broken Function Level Architecture"""
+        self.logger.info(f"PoLP Check: Role '{agent_role}' attempting {method} on {endpoint}")
         # Check if role exists
         if agent_role not in self.role_permissions:
             self.logger.error(f"Security Alert: Unknown agent role {agent_role}")
             return False
 
         allowed_endpoints = self.role_permissions[agent_role].get(method, [])
-        is_allowed = any(endpoint.startswith(allowed) for allowed in allowed_endpoints)
+        is_allowed = any(pattern.match(endpoint) for pattern in allowed_endpoints)
         
         if not is_allowed:
             self.logger.warning(f"PoLP Violation: {agent_role} tried {method} on {endpoint}")
@@ -699,6 +718,7 @@ class MCPSecurityGateway:
             resource_id: str
     ) -> bool:
         """Prevent Broken Object Level Architecture (BOLA)"""
+        self.logger.info(f"BOLA Check: User '{user_id}' accessing resource '{resource_id}'")
         user_data = MOCK_USER_DB.get(user_id)
         
         if not user_data:
@@ -713,7 +733,12 @@ class MCPSecurityGateway:
             self, 
             url: str
     ) -> bool:
-        """Prevent server side request forgery"""
+        """
+        Prevent server-side request forgery (SSRF).
+        - Ensures URL scheme is HTTPS.
+        - Checks if the domain is in the allowed list.
+        - Prevents requests to internal IP addresses.
+        """
         try:
             parsed = urlparse(url)
             domain = parsed.netloc
@@ -722,13 +747,36 @@ class MCPSecurityGateway:
                 self.logger.warning(f"Unsafe Protocol detected: {url}")
                 return False
 
-            if domain not in self.allowed_domains:
+            # Check against allowed domains
+            if not any(domain.endswith(allowed) for allowed in self.allowed_domains):
                 self.logger.warning(f"SSRF Prevention: Blocked connection to {domain}")
+                return False
+            
+            # Prevent requests to internal IP addresses
+            ip = socket.gethostbyname(domain)
+            ip_addr = ipaddress.ip_address(ip)
+            if ip_addr.is_private or ip_addr.is_loopback:
+                self.logger.warning(f"SSRF Prevention: Blocked connection to internal IP {domain}")
                 return False
                 
             return True
-        except Exception:
+        except socket.gaierror:
+            self.logger.warning(f"SSRF Prevention: Could not resolve domain {domain}")
             return False
+        except Exception as e:
+            self.logger.error(f"Error validating URL: {e}")
+            return False
+
+    def sanitize_output(
+            self, 
+            html_content: str
+    ) -> str:
+        """
+        Sanitizes HTML content to prevent XSS attacks.
+        - Uses nh3 (a Python binding for Ammonia) for robust sanitization.
+        - Allows a safe subset of HTML tags and attributes.
+        """
+        return nh3.clean(html_content)
 
     def hash_sensitive_data(
             self, 
@@ -805,17 +853,32 @@ class MCPSecurityGateway:
         self.logger.warning(f"HITL TRIGGERED: {alert}")
         return {"status": 202, "message": "Request queued for manual security review."}
 
-    def execute_secure_request(
+    async def execute_secure_request(
             self, 
-            user_id, 
-            agent_role, 
-            method, 
-            url, 
-            resource_id=None,
-            payload=None,          
-            signature=None,        
-            is_workflow_end=False  
-    ):
+            user_id: str, 
+            agent_role: str, 
+            method: str, 
+            url: str, 
+            resource_id: Optional[str] = None,
+            payload: Optional[dict] = None,          
+            signature: Optional[str] = None,        
+            is_workflow_end: bool = False  
+    ) -> dict:
+        """
+        Executes a secure request after performing all security checks.
+        - Validates input parameters.
+        - Performs rate limiting, SSRF, PoLP, and BOLA checks.
+        - Triggers HITL for high-risk actions.
+        - Verifies tool signature for data integrity.
+        - Sanitizes output to prevent XSS.
+        - Flushes session context at the end of a workflow.
+        """
+        # Input Validation
+        if not all(isinstance(arg, str) for arg in [user_id, agent_role, method, url]):
+            return {"error": "Invalid input types"}
+        if method not in ["GET", "POST", "PUT", "DELETE"]:
+            return {"error": f"Invalid HTTP method: {method}"}
+
         if not self.check_rate_limit(user_id):
             return {"error": "Rate limit exceeded"}
 
@@ -830,20 +893,30 @@ class MCPSecurityGateway:
              if not self.validate_object_ownership(user_id, resource_id):
                  return {"error": "Access to this object is forbidden"}
 
-        if method == "DELETE" or "transfer" in url.lower():
+        if payload:
+            payload_issues = await self.scan_text_for_issues(str(payload))
+            if payload_issues:
+                return self.trigger_hitl_review(user_id, f"{method} {url}", f"Payload issues: {payload_issues}")
+
+        if method == "DELETE" or (payload and "transfer" in payload.get("action", "")):
             return self.trigger_hitl_review(user_id, f"{method} {url}", "High Risk Action Detected")
 
         self.secure_log(f"Authorized request for User: {user_id} to URL: {url}")
 
         try:
-            response = self.session.request(method, url, timeout=5)
+            response = self.session.request(method, url, json=payload, timeout=5)
+            response.raise_for_status()
             
             if payload and signature:
-                tool_secret = "my_super_secret_key" 
-                if not self.verify_tool_signature(payload, signature, tool_secret):
+                tool_secret = os.getenv("TOOL_SECRET_KEY", "my_super_secret_key")
+                if not self.verify_tool_signature(str(payload), signature, tool_secret):
                     return {"error": "Data Integrity Check Failed: Signature Mismatch"}
 
-            clean_text = re.sub(r'<script.*?>.*?</script>', '', response.text, flags=re.DOTALL)
+            response_issues = await self.scan_text_for_issues(response.text)
+            if response_issues:
+                return self.trigger_hitl_review(user_id, f"Response from {method} {url}", f"Response issues: {response_issues}")
+
+            clean_text = self.sanitize_output(response.text)
             
             result = {"status": response.status_code, "data": clean_text}
 
@@ -853,7 +926,11 @@ class MCPSecurityGateway:
             
             return result
             
+        except requests.HTTPError as e:
+            self.logger.error(f"HTTP Error: {e}")
+            return {"error": f"Upstream service returned status {e.response.status_code}"}
         except requests.RequestException as e:
+            self.logger.error(f"Request Exception: {e}")
             return {"error": "Upstream service failure"}
 
 

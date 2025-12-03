@@ -8,10 +8,14 @@ def _actual_db_fetch(query) -> bool:
     return True
 
 @mcp.tool()
-async def get_invoice(user_id: str, invoice_id: str) -> bool:
-    decision = gateway.execute_secure_request(
+async def get_invoice(
+    user_id: str, 
+    invoice_id: str
+) -> bool:
+    """Fetches an invoice for a given user, protected by the security gateway."""
+    decision = await gateway.execute_secure_request(
         user_id=user_id,
-        agent_role="invoice_reader",
+        agent_role="invoice_reader_agent",
         method="GET",
         url=f"https://api.internal/invoices/{invoice_id}",
         resource_id=invoice_id

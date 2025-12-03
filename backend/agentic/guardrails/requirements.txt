@@ -1,0 +1,11 @@
+requests==2.32.5
+python-dotenv==1.1.1
+google-generativeai
+pydantic==2.12.3
+openai==2.8.1
+nh3==0.3.2
+detect-secrets==0.12.0
+presidio-analyzer==2.2.360
+spacy==3.8.11
+transformers==4.57.3
+torch==2.9.1
