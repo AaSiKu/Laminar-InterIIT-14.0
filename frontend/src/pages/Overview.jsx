@@ -170,7 +170,7 @@ export default function OverviewPage() {
             </div>
 
             <div className="overview-highlights-panel">
-              <HighlightsPanel notifications={notifications} />
+              <HighlightsPanel />
             </div>
           </div>
         </div>

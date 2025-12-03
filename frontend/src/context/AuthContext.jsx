@@ -21,7 +21,8 @@ export const AuthProvider = ({ children }) => {
         if (res.ok) {
           const data = await res.json();
           setUser(data);
-          notifs= await fetchNotifications()
+          const notifs = await fetchNotifications();
+          console.log("WebSocket created:", notifs);
           setWs(notifs);
         } else {
           setUser(null); 
@@ -36,9 +37,12 @@ export const AuthProvider = ({ children }) => {
     checkAuth();
   }, []);
 
+
   // Login: just update state and redirect; backend sets HttpOnly cookies
-  const login = (data) => {
+  const login = async (data) => {
     setUser(data);
+          setWs( await fetchNotifications());
+          console.log(ws)
     navigate("/overview");
   };
 
@@ -65,7 +69,7 @@ export const AuthProvider = ({ children }) => {
   }
 
   return (
-    <AuthContext.Provider value={{ user, login, logout, isAuthenticated }}>
+    <AuthContext.Provider value={{ user, login, logout, isAuthenticated, ws, setWs }}>
       {children}
     </AuthContext.Provider>
   );

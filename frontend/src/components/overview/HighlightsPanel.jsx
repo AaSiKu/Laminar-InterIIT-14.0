@@ -90,16 +90,83 @@ const HighlightsPanel = () => {
     }
   };
   useEffect(() => {
-    const setupWs = async () => {
-      ws.onmessage = (event) => {
-        console.log("new message")
-        const newNotification = JSON.parse(event.data);
-        setNotifications(prev => [...prev, newNotification]);
-      };
+    if (!ws) {
+      console.log("WebSocket not available yet");
+      return;
+    }
+
+    console.log("Setting up WebSocket handlers, readyState:", ws.readyState);
+
+    // Create message handler function
+    const handleMessage = (event) => {
+      try {
+        console.log("Raw WebSocket message received:", event.data);
+        const data = typeof event.data === 'string' ? JSON.parse(event.data) : event.data;
+        console.log("Parsed notification:", data);
+        
+        // Check if it's a notification object
+        if (data && (data._id || data.id || data.title || data.desc)) {
+          setNotifications(prev => {
+            // Check if notification already exists to avoid duplicates
+            const exists = prev.some(n => n._id === data._id || (n.id === data.id && data.id));
+            if (exists) {
+              console.log("Notification already exists, skipping");
+              return prev;
+            }
+            console.log("Adding new notification to list");
+            return [...prev, data];
+          });
+        } else {
+          console.warn("Received data doesn't look like a notification:", data);
+        }
+      } catch (error) {
+        console.error("Error parsing notification:", error, event.data);
+      }
     };
 
-    setupWs();
-  }, []);
+    // Set up event handlers - use addEventListener to avoid overwriting
+    const handleOpen = () => {
+      console.log("WebSocket connected successfully");
+    };
+
+    const handleError = (error) => {
+      console.error("WebSocket error:", error);
+    };
+
+    const handleClose = (event) => {
+      console.log("WebSocket closed", event.code, event.reason);
+    };
+
+    // Remove any existing listeners first
+    ws.removeEventListener('open', handleOpen);
+    ws.removeEventListener('message', handleMessage);
+    ws.removeEventListener('error', handleError);
+    ws.removeEventListener('close', handleClose);
+
+    // Add new listeners
+    ws.addEventListener('open', handleOpen);
+    ws.addEventListener('message', handleMessage);
+    ws.addEventListener('error', handleError);
+    ws.addEventListener('close', handleClose);
+
+    // Also set direct handlers as fallback (some WebSocket implementations prefer these)
+    if (ws.readyState === WebSocket.OPEN) {
+      console.log("WebSocket already open, handlers set");
+    } else if (ws.readyState === WebSocket.CONNECTING) {
+      console.log("WebSocket is connecting, handlers will activate when open");
+    }
+
+    // Cleanup function
+    return () => {
+      if (ws) {
+        console.log("Cleaning up WebSocket handlers");
+        ws.removeEventListener('open', handleOpen);
+        ws.removeEventListener('message', handleMessage);
+        ws.removeEventListener('error', handleError);
+        ws.removeEventListener('close', handleClose);
+      }
+    };
+  }, [ws, setNotifications]);
 
 
   // Get appropriate icon based on notification content
