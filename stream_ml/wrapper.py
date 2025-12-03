@@ -12,14 +12,9 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-# This file works as a wrapper
-
 # TODO: Output and Input smoothing during training and after predicting. Add a smoothing factor to config? 
 
 class ModelWrapper:
-    """
-    Wrapper class for managing multiple streaming models with configurable input/output channels.
-    """
     MODEL_REGISTRY = {
         'arf': ArfRegressor,
         'tide': TiDEModel,
@@ -31,7 +26,7 @@ class ModelWrapper:
         channel_list : List[str],
         model_name: str,
         config: BaseModelConfig,
-        max_concurrent_training: int = 2,
+        max_concurrent_training: int = 4,
     ):
         self.channel_list = channel_list
         self.model_name = model_name.lower()
@@ -58,21 +53,29 @@ class ModelWrapper:
         model_class = self.MODEL_REGISTRY[self.model_name]
         return model_class(**self.config.model_dump())
     
-    def _extract_streams(self, data: NDArray, channel_list: List[str]) -> NDArray:
-        indices = self.indices
-        return data[..., indices]
+    def _extract_streams(self, **kwargs) -> NDArray[np.float32]:
+        if(self.indices is None):
+            self.indices = [
+                i for i, ch in enumerate(kwargs.keys()) if ch in self.channel_list
+            ]
+
+        # Validation step
+        arr = []
+        for key, value in kwargs.items():
+            if key in self.channel_list:
+                if not isinstance(value, (int, float, np.number)):
+                    raise ValueError(f"Value for channel '{key}' must be numerical.")
+                arr.append(float(value))
+        if len(arr) != len(self.channel_list):
+            raise ValueError("Input data does not match the expected channel list.")
+
+        return np.array(arr, dtype=np.float32)
     
     def _copy_model(self) -> BaseModel:
-        """
-        Create a deep copy of the current model for async training.
-        """
         with self._model_lock:
             return copy.deepcopy(self.model)
     
     def _prepare_training_data(self, buffered_rows: List[NDArray]) -> Tuple[NDArray, NDArray]:
-        """
-        Prepare X_input and y_output from buffered rows.
-        """
         X_input = []
         y_output = []
         for index in range(self.config.lookback - 1, len(buffered_rows) - self.config.horizon):
@@ -95,10 +98,6 @@ class ModelWrapper:
         return X_input, y_output
     
     def _async_train_task(self, model_copy: BaseModel, buffered_rows: List[NDArray]) -> Tuple[float, float, float]:
-        """
-        Async training task that runs in a background thread.
-        Trains the copied model and swaps it with the current model upon completion.
-        """
         try:
             X_input, y_output = self._prepare_training_data(buffered_rows)
             ram_usage, latency, mae = model_copy.train(X_input, y_output)
@@ -116,11 +115,8 @@ class ModelWrapper:
             with self._training_count_lock:
                 self._active_training_count -= 1
     
-    def _check_train(self, row : NDArray[np.float32]) -> bool: 
-        '''
-        Checks if the buffer has enough rows to trigger async training.
-        Returns True if training was triggered, False otherwise.
-        '''
+    def check_train(self, **kwargs) -> bool: 
+        row = self._extract_streams(**kwargs)
         self.buffered_rows.append(row)
         if len(self.buffered_rows) >= self.config.batch_size + self.config.horizon + self.config.lookback - 1:
             # Check if we can spawn a new training session
@@ -154,54 +150,23 @@ class ModelWrapper:
         return False
 
     def invoke(self, **kwargs) -> Dict[str, Any]: 
-        '''
-        Takes complete table row and outputs updated row with predictions and metrics
-        '''
-
-        if(self.indices is None):
-            self.indices = [
-                i for i, ch in enumerate(kwargs.keys()) if ch in self.channel_list
-            ]
-
-        # Validation step
-        arr = []
-        for key, value in kwargs.items():
-            if key in self.channel_list:
-                if not isinstance(value, (int, float, np.number)):
-                    raise ValueError(f"Value for channel '{key}' must be numerical.")
-                arr.append(float(value))
-        if len(arr) != len(self.channel_list):
-            raise ValueError("Input data does not match the expected channel list.")
-
-        data_array = np.array(arr, dtype=np.float32)
-        
+        data_array = self._extract_streams(**kwargs)
         # Use lock to safely access model during prediction
         with self._model_lock:
             ram_usage, latency, error, predictions = self.model.predict(data_array)
         
-        training_triggered = self._check_train(data_array) # trigger async training if buffer fills up
-
         kwargs['model_ram_usage'] = ram_usage
         kwargs['model_latency'] = latency
         kwargs['model_error'] = error
         kwargs['model_prediction'] = predictions[-1, :].tolist()  # Return only the last horizon step predictions
-        kwargs['model_training_triggered'] = training_triggered
-        kwargs['model_active_training_sessions'] = self._active_training_count
-
+        
         return kwargs
     
-    def shutdown(self, wait: bool = True) -> None:
-        """
-        Gracefully shutdown the training executor.
-        Call this when the wrapper is no longer needed.
-        """
+    def shutdown(self, wait: bool = True) -> None: #unsused
         self._training_executor.shutdown(wait=wait)
         logger.info("Training executor shutdown complete.")
     
-    def get_training_status(self) -> Dict[str, Any]:
-        """
-        Returns the current status of async training.
-        """
+    def get_training_status(self) -> Dict[str, Any]: #unsused
         with self._training_count_lock:
             return {
                 "active_training_sessions": self._active_training_count,

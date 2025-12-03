@@ -11,6 +11,7 @@ class _StreamingMLNode(TableNode):
     horizon: int = Field(1, description="Number of future time steps to predict")
     batch_size: int = Field(32, description="Number of samples per training batch")
     epochs: int = Field(1, description="Number of training epochs per training trigger")
+    max_concurrent_training: int = Field(4, description="Maximum number of concurrent training sessions")
 
 
 class ARFNode(_StreamingMLNode):

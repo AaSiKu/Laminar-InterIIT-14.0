@@ -12,6 +12,7 @@ class BaseModelConfig(PydanticBaseModel):
     lookback: int = Field(..., gt=0)
     batch_size: int = Field(32, gt=0)
     epochs: int = Field(1)
+    max_concurrent_training: int = Field(4, gt=0)
     
 
 class BaseModel(ABC):

@@ -20,8 +20,6 @@ class TiDEConfig(BaseModelConfig):
 
 class TiDENetwork(nn.Module):
     """
-    TiDE (Time-series Dense Encoder) Neural Network in PyTorch.
-    
     Architecture:
     - Flattens multivariate input
     - Dense encoder layers
@@ -57,57 +55,21 @@ class TiDENetwork(nn.Module):
             nn.ReLU(),
         )
         
-        # Decoder (main path)
         self.decoder = nn.Linear(hidden_dim * 2, flat_output_dim)
-        
-        # Residual connection
         self.residual = nn.Linear(flat_input_dim, flat_output_dim)
     
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        """
-        Forward pass.
-        
-        Args:
-            x: Input tensor of shape [batch, lookback, in_features]
-            
-        Returns:
-            Output tensor of shape [batch, horizon, out_features]
-        """
         batch_size = x.shape[0]
-        
-        # Flatten input: [batch, lookback, in_features] -> [batch, lookback * in_features]
         x_flat = x.view(batch_size, -1)
-        
-        # Encoder path
         encoded = self.encoder(x_flat)
-        
-        # Decoder path
         decoded = self.decoder(encoded)
-        
-        # Residual connection
         residual = self.residual(x_flat)
-        
-        # Add residual
         out = decoded + residual
-        
-        # Reshape to [batch, horizon, out_features]
         out = out.view(batch_size, self.horizon, self.out_features)
-        
         return out
 
 
 class TiDEModel(StreamBaseModel):
-    """
-    TiDE (Time-series Dense Encoder) Model for multivariate time series forecasting.
-    Inherits from BaseModel and implements train() and predict() methods.
-    
-    Model Architecture:
-    - Flattens multivariate input
-    - Dense encoder layers
-    - Dense decoder layers
-    - Residual connection from input to output
-    """
-    
     def __init__(
         self,
         in_features: int,
@@ -132,10 +94,8 @@ class TiDEModel(StreamBaseModel):
         self.learning_rate = learning_rate
         self.clipnorm = clipnorm
         
-        # Device setup
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
         
-        # Build the model
         self.model = TiDENetwork(
             lookback=lookback,
             horizon=horizon,
@@ -144,19 +104,11 @@ class TiDEModel(StreamBaseModel):
             hidden_dim=hidden_dim
         ).to(self.device)
         
-        # Setup optimizer
         self.optimizer = self._get_optimizer()
-        
-        # Loss function
         self.criterion = nn.MSELoss()
-        
-        # Internal state for prediction
         self.context_history = []
         
     def _get_optimizer(self) -> optim.Optimizer:
-        """
-        Get the optimizer based on configuration.
-        """
         optimizer_map = {
             'adam': optim.Adam,
             'sgd': optim.SGD,
@@ -168,9 +120,6 @@ class TiDEModel(StreamBaseModel):
         return optimizer_class(self.model.parameters(), lr=self.learning_rate)
     
     def _get_memory_usage(self) -> float:
-        """
-        Get current process memory usage in MB.
-        """
         process = psutil.Process(os.getpid())
         return process.memory_info().rss / (1024 ** 2)
     
@@ -180,8 +129,6 @@ class TiDEModel(StreamBaseModel):
         truths: NDArray[np.float32]    # [Batch * Horizon * Out Features]
     ) -> Tuple[float, float, float]:
         """
-        Train the model on a batch of data.
-        
         Args:
             inputs: Input sequences of shape [batch, lookback, in_features]
             truths: Ground truth of shape [batch, horizon, out_features]
@@ -237,8 +184,6 @@ class TiDEModel(StreamBaseModel):
         input: NDArray[np.float32],     # [In Features]
     ) -> Tuple[float, float, float, NDArray[np.float32]]:
         """
-        Predicts the next horizon using stored context (past inputs).
-        
         Args:
             input: Current input of shape [in_features]
             
