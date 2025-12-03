@@ -28,6 +28,7 @@ import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import AutoAwesomeIcon from "@mui/icons-material/AutoAwesome";
 import ContentCopyIcon from "@mui/icons-material/ContentCopy";
 import AddIcon from "@mui/icons-material/Add";
+import CloudUploadIcon from "@mui/icons-material/CloudUpload";
 
 const RunBook = ({ open, onClose, formData = {}, onSave }) => {
   const [activeTab, setActiveTab] = useState(0);
@@ -63,6 +64,8 @@ const RunBook = ({ open, onClose, formData = {}, onSave }) => {
 
   // Swagger/OpenAPI form state
   const [swaggerUrl, setSwaggerUrl] = useState(formData.swaggerUrl || "");
+  const [swaggerFile, setSwaggerFile] = useState(null);
+  const [swaggerFileName, setSwaggerFileName] = useState("");
   const [swaggerServiceName, setSwaggerServiceName] = useState(formData.swaggerServiceName || "");
 
   // Script Discovery form state
@@ -76,6 +79,8 @@ const RunBook = ({ open, onClose, formData = {}, onSave }) => {
 
   // Documentation Discovery form state
   const [documentation, setDocumentation] = useState(formData.documentation || "");
+  const [documentationFile, setDocumentationFile] = useState(null);
+  const [documentationFileName, setDocumentationFileName] = useState("");
 
   // Run Book form state
   const [runBookErrorDescription, setRunBookErrorDescription] = useState(
@@ -125,6 +130,8 @@ const RunBook = ({ open, onClose, formData = {}, onSave }) => {
       );
       setTags(formData.metadata?.tags || [""]);
       setSwaggerUrl(formData.swaggerUrl || "");
+      setSwaggerFile(null);
+      setSwaggerFileName("");
       setSwaggerServiceName(formData.swaggerServiceName || "");
       setScriptPath(formData.scriptPath || "");
       setScriptServiceName(formData.scriptServiceName || "");
@@ -134,10 +141,24 @@ const RunBook = ({ open, onClose, formData = {}, onSave }) => {
       setSshPassword(formData.sshPassword || "");
       setSshKeyPath(formData.sshKeyPath || "");
       setDocumentation(formData.documentation || "");
+      setDocumentationFile(null);
+      setDocumentationFileName("");
     }
   }, [open]);
 
   const handleSave = async () => {
+    // Read file contents if files are selected
+    let swaggerFileContent = null;
+    let documentationFileContent = null;
+    
+    if (swaggerFile) {
+      swaggerFileContent = await swaggerFile.text();
+    }
+    
+    if (documentationFile) {
+      documentationFileContent = await documentationFile.text();
+    }
+
     const data = {
       name,
       userConfirmation,
@@ -170,7 +191,9 @@ const RunBook = ({ open, onClose, formData = {}, onSave }) => {
       metadata: {
         tags: tags.filter(tag => tag.trim() !== ""),
       },
-      swaggerUrl,
+      swaggerUrl: swaggerFile ? null : swaggerUrl,
+      swaggerFile: swaggerFileContent,
+      swaggerFileName: swaggerFileName || null,
       swaggerServiceName,
       scriptPath,
       scriptServiceName,
@@ -179,7 +202,9 @@ const RunBook = ({ open, onClose, formData = {}, onSave }) => {
       sshUsername,
       sshPassword,
       sshKeyPath,
-      documentation,
+      documentation: documentationFile ? null : documentation,
+      documentationFile: documentationFileContent,
+      documentationFileName: documentationFileName || null,
     };
     console.log("data", data);
     try {
@@ -1059,16 +1084,22 @@ const RunBook = ({ open, onClose, formData = {}, onSave }) => {
                       <Typography variant="body2" fontWeight={600} sx={{ mb: 1 }}>
                         Swagger/OpenAPI URL
                     </Typography>
+                      <Box sx={{ display: "flex", gap: 1, alignItems: "center" }}>
                         <TextField
-                        value={swaggerUrl}
-                        onChange={(e) => setSwaggerUrl(e.target.value)}
+                          value={swaggerUrl}
+                          onChange={(e) => {
+                            setSwaggerUrl(e.target.value);
+                            setSwaggerFile(null);
+                            setSwaggerFileName("");
+                          }}
                           variant="outlined"
                           fullWidth
-                        placeholder="http://localhost:8000/openapi.json"
+                          placeholder="http://localhost:8000/openapi.json"
+                          disabled={!!swaggerFile}
                           sx={{
                             "& .MuiOutlinedInput-root": {
-                            height: "3rem",
-                            bgcolor: "background.elevation1",
+                              height: "3rem",
+                              bgcolor: "background.elevation1",
                               "& fieldset": {
                                 border: "none",
                               },
@@ -1081,6 +1112,48 @@ const RunBook = ({ open, onClose, formData = {}, onSave }) => {
                             },
                           }}
                         />
+                        <Typography variant="body2" color="text.secondary" sx={{ whiteSpace: "nowrap" }}>
+                          or
+                        </Typography>
+                        <input
+                          accept=".json,.yaml,.yml"
+                          style={{ display: "none" }}
+                          id="swagger-file-upload"
+                          type="file"
+                          onChange={(e) => {
+                            const file = e.target.files[0];
+                            if (file) {
+                              setSwaggerFile(file);
+                              setSwaggerFileName(file.name);
+                              setSwaggerUrl("");
+                            }
+                          }}
+                        />
+                        <label htmlFor="swagger-file-upload">
+                          <Button
+                            component="span"
+                            variant="outlined"
+                            startIcon={<CloudUploadIcon />}
+                            sx={{
+                              height: "3rem",
+                              whiteSpace: "nowrap",
+                              color: "#000",
+                              borderColor: "#000",
+                              "&:hover": {
+                                borderColor: "#000",
+                                backgroundColor: "rgba(0, 0, 0, 0.04)",
+                              },
+                            }}
+                          >
+                            {swaggerFileName || "Upload File"}
+                          </Button>
+                        </label>
+                      </Box>
+                      {swaggerFileName && (
+                        <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, display: "block" }}>
+                          {swaggerFileName}
+                        </Typography>
+                      )}
                 </Box>
                   </Box>
                 )}
@@ -1260,14 +1333,61 @@ const RunBook = ({ open, onClose, formData = {}, onSave }) => {
                       <Typography variant="body2" fontWeight={600} sx={{ mb: 1 }}>
                         Documentation
                       </Typography>
+                      <Box sx={{ mb: 1 }}>
+                        <input
+                          accept=".txt,.md,.pdf"
+                          style={{ display: "none" }}
+                          id="documentation-file-upload"
+                          type="file"
+                          onChange={(e) => {
+                            const file = e.target.files[0];
+                            if (file) {
+                              setDocumentationFile(file);
+                              setDocumentationFileName(file.name);
+                              setDocumentation("");
+                            }
+                          }}
+                        />
+                        <label htmlFor="documentation-file-upload">
+                          <Button
+                            component="span"
+                            variant="outlined"
+                            startIcon={<CloudUploadIcon />}
+                            sx={{
+                              mb: 1,
+                              color: "#000",
+                              borderColor: "#000",
+                              "&:hover": {
+                                borderColor: "#000",
+                                backgroundColor: "rgba(0, 0, 0, 0.04)",
+                              },
+                            }}
+                          >
+                            {documentationFileName || "Upload File"}
+                          </Button>
+                        </label>
+                        {documentationFileName && (
+                          <Typography variant="caption" color="text.secondary" sx={{ ml: 1 }}>
+                            {documentationFileName}
+                          </Typography>
+                        )}
+                      </Box>
+                      <Typography variant="body2" color="text.secondary" sx={{ mb: 1, textAlign: "center" }}>
+                        or
+                      </Typography>
                       <TextField
                         multiline
                         rows={12}
                         value={documentation}
-                        onChange={(e) => setDocumentation(e.target.value)}
+                        onChange={(e) => {
+                          setDocumentation(e.target.value);
+                          setDocumentationFile(null);
+                          setDocumentationFileName("");
+                        }}
                         variant="outlined"
                         fullWidth
                         placeholder="Enter documentation..."
+                        disabled={!!documentationFile}
                         sx={{
                           "& .MuiOutlinedInput-root": {
                             bgcolor: "background.elevation1",
