@@ -1,10 +1,10 @@
 import { useState, useEffect } from "react";
 import { Typography, IconButton, Drawer, Fab, Grid, Box, Divider } from "@mui/material";
-import OverviewSection from "../components/dashboard/OverviewSection";
-import KPICard from "../components/dashboard/KPICard";
-import RecentWorkflowCard from "../components/dashboard/RecentWorkflowCard";
-import HighlightsPanel from "../components/dashboard/HighlightsPanel";
-import TopBar from "../components/TopBar";
+import OverviewSection from "../components/overview/OverviewSection";
+import KPICard from "../components/overview/KPICardDashboard";
+import RecentWorkflowCard from "../components/overview/RecentWorkflowCard";
+import HighlightsPanel from "../components/overview/HighlightsPanel";
+import TopBar from "../components/common/TopBar";
 import {
   fetchWorkflows,
   fetchNotifications,
@@ -16,12 +16,10 @@ import TimelineIcon from "@mui/icons-material/Timeline";
 import AccessTimeIcon from "@mui/icons-material/AccessTime";
 import ErrorOutlineIcon from "@mui/icons-material/ErrorOutline";
 import SpeedIcon from "@mui/icons-material/Speed";
-import MoreHorizIcon from "@mui/icons-material/MoreHoriz";
 import HighlightIcon from "@mui/icons-material/Highlight";
 import CloseIcon from "@mui/icons-material/Close";
 import NotificationsActiveOutlinedIcon from "@mui/icons-material/NotificationsActiveOutlined";
-import NoDataImage from "../assets/no-data.svg";
-
+import NoDataImage from "../assets/noData.svg";
 // Icon mapping utility
 const getIconComponent = (iconType) => {
   const iconMap = {

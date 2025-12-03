@@ -55,7 +55,7 @@ const BottomToolbar = ({
         <Box
           sx={{
             position: "absolute",
-            bottom: 68,
+            bottom: 100,
             left: "50%",
             transform: "translateX(-50%)",
             display: "flex",
@@ -86,7 +86,7 @@ const BottomToolbar = ({
     <Box
       sx={{
         position: "absolute",
-        bottom: 12,
+        bottom: 52,
         left: "50%",
         transform: "translateX(-50%)",
         display: "flex",

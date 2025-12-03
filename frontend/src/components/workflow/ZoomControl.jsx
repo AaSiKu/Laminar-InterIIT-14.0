@@ -43,8 +43,8 @@ const ZoomControl = ({ zoom = 100, onZoomIn, onZoomOut, onZoomChange, propertyBa
     <Box
       sx={{
         position: "absolute",
-        bottom: 12,
-        right: propertyBarOpen ? "480px" : "24px",
+        bottom: 52,
+        right: propertyBarOpen ? "400px" : "24px",
         display: "flex",
         alignItems: "center",
         gap: 0,

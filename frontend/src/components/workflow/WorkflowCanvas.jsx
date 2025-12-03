@@ -1,6 +1,6 @@
 import { Box } from "@mui/material";
-import { ReactFlow, Background } from "@xyflow/react";
-import { useTheme } from "@mui/material/styles";
+import { ReactFlow, Background} from "@xyflow/react";
+import { useTheme, useColorScheme} from "@mui/material/styles";
 
 const WorkflowCanvas = ({
   nodes,
@@ -23,12 +23,14 @@ const WorkflowCanvas = ({
   onLockToggle,
 }) => {
   const theme = useTheme();
+  const { colorMode } = useColorScheme();
+  const resolvedMode = colorMode || theme.palette.mode;
 
   return (
     <Box
       sx={{
         flex: 1,
-        bgcolor: 'background.elevation1',
+        bgcolor: "background.elevation1",
         borderRadius: 0,
         overflow: "hidden",
         border: "none",
@@ -57,11 +59,14 @@ const WorkflowCanvas = ({
         defaultViewport={{ x: 0, y: 0, zoom: 0.5 }}
         fitView
         fitViewOptions={{ maxZoom: 0.9 }}
+        colorMode={resolvedMode}
       >
-        <Background 
-          color={theme.palette.mode === 'dark' ? theme.palette.divider : '#DBE6EB'} 
-          gap={16} 
-          size={2} 
+        <Background
+          color={
+            theme.palette.mode === "dark" ? theme.palette.divider : "#DBE6EB"
+          }
+          gap={16}
+          size={2}
         />
       </ReactFlow>
     </Box>
@@ -69,4 +74,3 @@ const WorkflowCanvas = ({
 };
 
 export default WorkflowCanvas;
-

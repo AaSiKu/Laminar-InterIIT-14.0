@@ -1,8 +1,8 @@
 import { useCallback, useRef } from 'react';
 import { useSearchParams } from 'react-router';
 import { Button } from '@mui/material';
-import { useThemeMode } from '../hooks/useThemeMode';
-import IconifyIcon from '../components/base/IconifyIcon';
+import { useThemeMode } from '../../hooks/useThemeMode';
+import IconifyIcon from '../base/IconifyIcon';
 
 const ThemeToggler = ({ type = 'default' }) => {
   const { isDark, setThemeMode } = useThemeMode();

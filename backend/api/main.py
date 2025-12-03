@@ -10,7 +10,7 @@ from backend.api.routers.auth.database import Base
 from backend.api.routers.main_router import router
 from backend.api.routers.websocket import watch_changes
 from utils.logging import get_logger, configure_root
-import asyncio
+from backend.api.routers.websocket import close_inactive_connections
 import certifi
 
 configure_root()
@@ -25,7 +25,7 @@ print("----------------------------")
 
 MONGO_URI = os.getenv("MONGO_URI")
 MONGO_DB = os.getenv("MONGO_DB", "db")
-WORKFLOW_COLLECTION = os.getenv("MONGO_COLLECTION", "workflows")
+WORKFLOW_COLLECTION = os.getenv("WORKFLOW_COLLECTION", "workflows")
 NOTIFICATION_COLLECTION = os.getenv("NOTIFICATION_COLLECTION", "notifications")
 VERSION_COLLECTION = os.getenv("VERSION_COLLECTION", "versions")
 # Global variables
@@ -70,7 +70,7 @@ async def lifespan(app: FastAPI):
 
     app.state.workflow_collection = workflow_collection
     app.state.version_collection = version_collection
-    app.state.notification_collection = notification_collection
+    app.state.notification_collection= notification_collection
     app.state.mongo_client=mongo_client
     app.state.secret_key = os.getenv("SECRET_KEY", "default_secret_key")
     app.state.algorithm = os.getenv("ALGORITHM", "HS256")
@@ -83,6 +83,8 @@ async def lifespan(app: FastAPI):
 
     asyncio.create_task(watch_changes(notification_collection))
     print("Started MongoDB change stream listener")
+    ws_cleanup_task = asyncio.create_task(close_inactive_connections())
+    print("Started WebSocket inactivity cleanup task")
 
 
     yield
@@ -113,6 +115,7 @@ origins = [
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
+    # if i set it to ["*"] it causes the issue of first login request fail https://stackoverflow.com/a/19744754/23078987
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

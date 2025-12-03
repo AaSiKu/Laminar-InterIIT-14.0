@@ -7,15 +7,22 @@ import {
   IconButton,
   Menu,
   MenuItem,
+  useTheme,
 } from "@mui/material";
+import { useColorScheme } from "@mui/material/styles";
 import MoreHorizIcon from "@mui/icons-material/MoreHoriz";
 import ErrorOutlineIcon from "@mui/icons-material/ErrorOutline";
 import WarningAmberIcon from "@mui/icons-material/WarningAmber";
 import IconifyIcon from "components/base/IconifyIcon";
 import ArrowDropDownIcon from "@mui/icons-material/ArrowDropDown";
-import NoDataImage from "../../assets/no-data.svg";
+import notif_dark from "../../assets/notif_dark.svg";
+import notif_light from "../../assets/notif_light.svg";
 
 const HighlightsPanel = ({ notifications }) => {
+  const theme = useTheme();
+  const { mode, systemMode } = useColorScheme();
+  const resolvedMode = (mode === 'system' ? systemMode : mode) || theme.palette.mode;
+  const isDark = resolvedMode === 'dark';
   const [anchorEl, setAnchorEl] = useState(null);
   const [sortBy, setSortBy] = useState("all");
 
@@ -212,7 +219,16 @@ const HighlightsPanel = ({ notifications }) => {
       <Box sx={{ flex: 1, overflowY: "auto", p: "1rem" }}>
         {enhancedNotifications.length === 0 ? (
           <Box sx={{ textAlign: "center", py: "2rem", display: "flex", flexDirection: "column", alignItems: "center", gap: "1rem" }}>
-            <img src={NoDataImage} alt="No data" style={{ width: "8rem", height: "auto", opacity: 0.7 }} />
+            <Box
+              component="img"
+              src={isDark ? notif_dark : notif_light}
+              alt="No highlights"
+              sx={{
+                width: { xs: "10rem", sm: "12rem" },
+                height: "auto",
+                opacity: 0.8,
+              }}
+            />
             <Typography color="text.secondary" sx={{ fontSize: "0.875rem" }}>
               No highlights to show
             </Typography>

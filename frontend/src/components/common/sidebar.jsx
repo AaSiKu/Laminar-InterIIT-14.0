@@ -23,10 +23,10 @@ import {
   ChevronRight,
 } from "@mui/icons-material";
 import { useNavigate, useLocation } from "react-router-dom";
-import { AuthContext } from "../context/AuthContext";
-import { useGlobalContext } from "../context/GlobalContext";
-import LogoExpanded from "../assets/logoexp.svg";
-import LogoCollapsed from "../assets/logo.svg";
+import { AuthContext } from "../../context/AuthContext";
+import { useGlobalContext } from "../../context/GlobalContext";
+import LogoExpanded from "../../assets/logoexp.svg";
+import LogoCollapsed from "../../assets/logo.svg";
 export const SIDEBAR_WIDTH = 64;
 const DRAWER_WIDTH = 240;
 

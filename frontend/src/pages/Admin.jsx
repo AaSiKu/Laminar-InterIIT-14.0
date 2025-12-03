@@ -1,24 +1,25 @@
 import { useState } from "react";
 import { Typography, Box, Divider } from "@mui/material";
-import TopBar from "../components/TopBar";
+import TopBar from "../components/common/TopBar";
 
 // Import components from admin folder
+import { KpiCard } from "../components/admin/KpiCardAdmin";
+import { PipelineStatsChart } from "../components/admin/PipelineStatsChart";
+import { MTTRChart } from "../components/admin/MTTRChart";
+import { SLAComplianceChart } from "../components/admin/SLAComplianceChart";
+import { AlertsChart } from "../components/admin/AlertsChart";
+import { WorkflowsTable } from "../components/admin/WorkflowsTable";
+import { MembersTable } from "../components/admin/MembersTable";
 import {
-  KpiCard,
-  PipelineStatsChart,
-  MTTRChart,
-  SLAComplianceChart,
-  AlertsChart,
-  WorkflowsTable,
-  MembersTable,
   kpiData,
   alertsChartData,
   pipelineStatsData,
   mttrChartData,
   slaComplianceData,
   workflowsData,
-  membersData,
-} from "../components/admin";
+  membersData
+}
+from "../utils/adminData"
 import "../css/overview.css"
 import "../css/admin.css";
 

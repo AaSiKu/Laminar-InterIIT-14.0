@@ -1,3 +1,5 @@
+//TODO: Make the node accept only one input per handle
+
 import React, { useState, useEffect } from "react";
 import {
   Drawer,
@@ -29,24 +31,23 @@ import {
 } from "@mui/icons-material";
 import { fetchNodeTypes, fetchNodeSchema } from "../../utils/dashboard.api";
 import "../../css/NodeDrawer.css";
-// import inputIcon from "../../assets/input.png"; // Assuming these exist in your project
-// import transformIcon from "../../assets/Transform.png";
-// import jointIcon from "../../assets/joint.png";
 
 /**
  * Get icon for category type
  */
 const getCategoryIcon = (category, theme) => {
-  const iconProps = { sx: { fontSize: 20, color: theme.palette.text.secondary } };
-  
+  const iconProps = {
+    sx: { fontSize: 20, color: theme.palette.text.secondary },
+  };
+
   switch (category.toLowerCase()) {
-    case 'input':
+    case "input":
       return <InputIcon {...iconProps} />;
-    case 'output':
+    case "output":
       return <OutputIcon {...iconProps} />;
-    case 'transform':
-    case 'table':
-    case 'temporal':
+    case "transform":
+    case "table":
+    case "temporal":
       return <TransformIcon {...iconProps} />;
     default:
       return <Extension {...iconProps} />;
@@ -58,28 +59,48 @@ const getCategoryIcon = (category, theme) => {
  */
 const getNodeIcon = (category) => {
   const iconProps = { sx: { fontSize: 50, color: "#77878F" } };
-  const categoryLower = (category || '').toLowerCase();
-  
+  const categoryLower = (category || "").toLowerCase();
+
   // IO nodes
-  if (categoryLower.includes('io') || categoryLower.includes('input') || categoryLower.includes('output')) {
+  if (
+    categoryLower.includes("io") ||
+    categoryLower.includes("input") ||
+    categoryLower.includes("output")
+  ) {
     return <InputIcon {...iconProps} />;
   }
-  
+
   // Agent nodes
-  if (categoryLower.includes('agent') || categoryLower.includes('action') || categoryLower.includes('logic')) {
+  if (
+    categoryLower.includes("agent") ||
+    categoryLower.includes("action") ||
+    categoryLower.includes("logic")
+  ) {
     return <ControlCameraIcon {...iconProps} />;
   }
-  
+
   // Table/Transform nodes
-  if (categoryLower.includes('table') || categoryLower.includes('temporal') || categoryLower.includes('transform')) {
+  if (
+    categoryLower.includes("table") ||
+    categoryLower.includes("temporal") ||
+    categoryLower.includes("transform")
+  ) {
     return <TransformIcon {...iconProps} />;
   }
-  
+
   // Default fallback
   return <ArrowForwardIcon {...iconProps} />;
 };
 
-export const NodeDrawer = ({ open, onClose, onAddNode, onDragStart: onDragStartProp, currentNodes = [], undoDeque = [] }) => {
+export const NodeDrawer = ({
+  open,
+  onClose,
+  onAddNode,
+  onDragStart: onDragStartProp,
+  currentNodes = [],
+  undoDeque = [],
+  zIndex,
+}) => {
   const theme = useTheme();
   const [openSections, setOpenSections] = useState({});
   const [nodeCategories, setNodeCategories] = useState({});
@@ -91,23 +112,26 @@ export const NodeDrawer = ({ open, onClose, onAddNode, onDragStart: onDragStartP
   // Compute recent nodes from current workspace and undo deque
   const recentNodes = React.useMemo(() => {
     const nodeSet = new Set();
-    
+
     // Add nodes from current workspace
-    currentNodes.forEach(node => {
+    currentNodes.forEach((node) => {
       if (node.data?.ui?.label) {
         nodeSet.add(node.data.ui.label);
       }
     });
-    
+
     // Add nodes from undo deque (actions involving nodes)
-    undoDeque.forEach(action => {
-      if (action.type === 'ADD_NODE' && action.node?.data?.ui?.label) {
+    undoDeque.forEach((action) => {
+      if (action.type === "ADD_NODE" && action.node?.data?.ui?.label) {
         nodeSet.add(action.node.data.ui.label);
-      } else if (action.type === 'REMOVE_NODE' && action.node?.data?.ui?.label) {
+      } else if (
+        action.type === "REMOVE_NODE" &&
+        action.node?.data?.ui?.label
+      ) {
         nodeSet.add(action.node.data.ui.label);
       }
     });
-    
+
     // Convert to array and limit to 10 most recent
     return Array.from(nodeSet).slice(0, 10);
   }, [currentNodes, undoDeque]);
@@ -152,7 +176,7 @@ export const NodeDrawer = ({ open, onClose, onAddNode, onDragStart: onDragStartP
       setOpenSections((prev) => {
         const updated = { ...prev };
         Object.entries(nodeCategories).forEach(([key, nodes]) => {
-          const hasMatchingNodes = nodes.some(node =>
+          const hasMatchingNodes = nodes.some((node) =>
             node.toLowerCase().includes(searchQuery.toLowerCase())
           );
           if (hasMatchingNodes) {
@@ -171,7 +195,7 @@ export const NodeDrawer = ({ open, onClose, onAddNode, onDragStart: onDragStartP
   const handleNodeClick = (nodeName) => {
     // Show drag and drop popup
     setClickedNode(nodeName);
-    
+
     // Hide popup after 2 seconds
     setTimeout(() => {
       setClickedNode(null);
@@ -179,12 +203,12 @@ export const NodeDrawer = ({ open, onClose, onAddNode, onDragStart: onDragStartP
   };
 
   const onDragStart = (event, nodeName) => {
-    event.dataTransfer.setData('application/reactflow', nodeName);
-    event.dataTransfer.effectAllowed = 'move';
-    
+    event.dataTransfer.setData("application/reactflow", nodeName);
+    event.dataTransfer.effectAllowed = "move";
+
     // Close the drawer immediately when drag starts
     onClose();
-    
+
     // Notify parent component if needed
     if (onDragStartProp) {
       onDragStartProp(nodeName);
@@ -198,199 +222,203 @@ export const NodeDrawer = ({ open, onClose, onAddNode, onDragStart: onDragStartP
         return category;
       }
     }
-    return 'default';
+    return "default";
   };
 
   const renderCategory = (key, nodes = []) => {
     // Filter nodes based on search query
-    const filteredNodes = nodes.filter(node => 
+    const filteredNodes = nodes.filter((node) =>
       node.toLowerCase().includes(searchQuery.toLowerCase())
     );
-    
-    if (searchQuery && filteredNodes.length === 0) return null;
-    
-    return (
-    <Box key={key} sx={{ mb: 2 }}>
-      {/* Header */}
-      <Box
-        onClick={() => toggleSection(key)}
-        sx={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          cursor: "pointer",
-          px: 2,
-          py: 1.5,
-          borderRadius: 1,
-          "&:hover": { bgcolor: 'action.hover' },
-        }}
-      >
-        <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
-          {getCategoryIcon(key, theme)}
-          <Typography 
-            variant="subtitle1" 
-            fontWeight={600}
-            sx={{ 
-              fontSize: "0.875rem",
-              color: "text.primary"
-            }}
-          >
-            {key.charAt(0).toUpperCase() + key.slice(1)}
-          </Typography>
-        </Box>
-        <IconButton size="small" sx={{ color: "text.secondary" }}>
-          {openSections[key] ? <ExpandLess fontSize="small" /> : <ExpandMore fontSize="small" />}
-        </IconButton>
-      </Box>
 
-      {/* Node List */}
-      <Collapse in={openSections[key]}>
-        {loading ? (
-          <Typography
-            variant="body2"
-            sx={{ 
-              textAlign: "center", 
-              color: "#9ca3af",
-              fontSize: "0.8125rem",
-              py: 1.5,
-              px: 2
-            }}
-          >
-            Loading...
-          </Typography>
-        ) : !filteredNodes || filteredNodes.length === 0 ? (
-          <Typography
-            variant="body2"
-            sx={{ 
-              textAlign: "center", 
-              color: "#9ca3af",
-              fontSize: "0.8125rem",
-              py: 1.5,
-              px: 2
-            }}
-          >
-            No nodes found.
-          </Typography>
-        ) : (
-          <Grid
-            container
-            spacing={1.5}
-            sx={{
-              display: "grid",
-              gridTemplateColumns: "repeat(2, 1fr)",
-              gap: 1.5,
-              px: 2,
-              pb: 1.5
-            }}
-          >
-            {filteredNodes.map((nodeName, i) => (
-              <Box
-                key={i}
-                onClick={() => handleNodeClick(nodeName)}
-                draggable
-                onDragStart={(event) => onDragStart(event, nodeName)}
-                sx={{
-                  position: 'relative',
-                  display: "flex",
-                  flexDirection: "column",
-                  alignItems: "center",
-                  cursor: "grab",
-                  transition: "all 0.2s ease",
-                  "&:active": {
-                    cursor: "grabbing",
-                  },
-                }}
-              >
-                {/* Image Container with Gray Background */}
-                <Paper
-                  elevation={0}
+    if (searchQuery && filteredNodes.length === 0) return null;
+
+    return (
+      <Box key={key} sx={{ mb: 2 }}>
+        {/* Header */}
+        <Box
+          onClick={() => toggleSection(key)}
+          sx={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            cursor: "pointer",
+            px: 2,
+            py: 1.5,
+            borderRadius: 1,
+            "&:hover": { bgcolor: "action.hover" },
+          }}
+        >
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
+            {getCategoryIcon(key, theme)}
+            <Typography
+              variant="subtitle1"
+              fontWeight={600}
+              sx={{
+                fontSize: "0.875rem",
+                color: "text.primary",
+              }}
+            >
+              {key.charAt(0).toUpperCase() + key.slice(1)}
+            </Typography>
+          </Box>
+          <IconButton size="small" sx={{ color: "text.secondary" }}>
+            {openSections[key] ? (
+              <ExpandLess fontSize="small" />
+            ) : (
+              <ExpandMore fontSize="small" />
+            )}
+          </IconButton>
+        </Box>
+
+        {/* Node List */}
+        <Collapse in={openSections[key]}>
+          {loading ? (
+            <Typography
+              variant="body2"
+              sx={{
+                textAlign: "center",
+                color: "#9ca3af",
+                fontSize: "0.8125rem",
+                py: 1.5,
+                px: 2,
+              }}
+            >
+              Loading...
+            </Typography>
+          ) : !filteredNodes || filteredNodes.length === 0 ? (
+            <Typography
+              variant="body2"
+              sx={{
+                textAlign: "center",
+                color: "#9ca3af",
+                fontSize: "0.8125rem",
+                py: 1.5,
+                px: 2,
+              }}
+            >
+              No nodes found.
+            </Typography>
+          ) : (
+            <Grid
+              container
+              spacing={1.5}
+              sx={{
+                display: "grid",
+                gridTemplateColumns: "repeat(2, 1fr)",
+                gap: 1.5,
+                px: 2,
+                pb: 1.5,
+              }}
+            >
+              {filteredNodes.map((nodeName, i) => (
+                <Box
+                  key={i}
+                  onClick={() => handleNodeClick(nodeName)}
+                  draggable
+                  onDragStart={(event) => onDragStart(event, nodeName)}
                   sx={{
-                    width: "100%",
-                    height: 100,
+                    position: "relative",
                     display: "flex",
+                    flexDirection: "column",
                     alignItems: "center",
-                    justifyContent: "center",
-                    borderRadius: 2,
-                    bgcolor: 'background.elevation1',
-                    border: "1px solid",
-                    borderColor: 'divider',
+                    cursor: "grab",
                     transition: "all 0.2s ease",
-                    mb: 1,
-                    "&:hover": {
-                      transform: "translateY(-2px)",
-                      boxShadow: theme.shadows[2],
-                      borderColor: 'divider',
+                    "&:active": {
+                      cursor: "grabbing",
                     },
                   }}
                 >
-                  {getNodeIcon(key)}
-                
-                {/* Drag and Drop Popup */}
-                {clickedNode === nodeName && (
-                  <Box
+                  {/* Image Container with Gray Background */}
+                  <Paper
+                    elevation={0}
                     sx={{
-                      position: 'absolute',
-                      top: '50%',
-                      left: '50%',
-                      transform: 'translate(-50%, -50%)',
-                      bgcolor: 'background.paper',
-                      color: 'text.primary',
-                      border: '1px solid',
-                      borderColor: 'divider',
-                      padding: '6px 12px',
-                      borderRadius: '6px',
-                      fontSize: "0.6875rem",
-                      fontWeight: 500,
-                      whiteSpace: 'nowrap',
-                      zIndex: 10,
-                      pointerEvents: 'none',
-                      boxShadow: '0 4px 12px rgba(0, 0, 0, 0.3)',
-                      animation: 'fadeInOut 2s ease-in-out',
+                      width: "100%",
+                      height: 100,
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      borderRadius: 2,
+                      bgcolor: "background.elevation1",
+                      border: "1px solid",
+                      borderColor: "divider",
+                      transition: "all 0.2s ease",
+                      mb: 1,
+                      "&:hover": {
+                        transform: "translateY(-2px)",
+                        boxShadow: theme.shadows[2],
+                        borderColor: "divider",
+                      },
                     }}
                   >
-                    Drag and Drop
-                  </Box>
-                )}
-              </Paper>
-                
-                {/* Text Outside Gray Background */}
-                <Typography
-                  variant="body2"
-                  sx={{
-                    textAlign: "center",
-                    wordBreak: "break-word",
-                    fontSize: "0.75rem",
-                    fontWeight: 700,
-                    color: "#374151",
-                    width: "100%",
-                    px: 1,
-                    pointerEvents: "none",
-                    lineHeight: 1.3,
-                    mb: 0.5,
-                  }}
-                >
-                  {nodeName}
-                </Typography>
-                <Typography
-                  variant="caption"
-                  sx={{
-                    textAlign: "center",
-                    fontSize: "0.6875rem",
-                    fontWeight: 400,
-                    color: "#9ca3af",
-                    pointerEvents: "none",
-                  }}
-                >
-                  ID: {nodeName.split('_')[0]}
-                </Typography>
-              </Box>
-            ))}
-          </Grid>
-        )}
-      </Collapse>
-    </Box>
-  );
-};
+                    {getNodeIcon(key)}
+
+                    {/* Drag and Drop Popup */}
+                    {clickedNode === nodeName && (
+                      <Box
+                        sx={{
+                          position: "absolute",
+                          top: "50%",
+                          left: "50%",
+                          transform: "translate(-50%, -50%)",
+                          bgcolor: "background.paper",
+                          color: "text.primary",
+                          border: "1px solid",
+                          borderColor: "divider",
+                          padding: "6px 12px",
+                          borderRadius: "6px",
+                          fontSize: "0.6875rem",
+                          fontWeight: 500,
+                          whiteSpace: "nowrap",
+                          zIndex: 10,
+                          pointerEvents: "none",
+                          boxShadow: "0 4px 12px rgba(0, 0, 0, 0.3)",
+                          animation: "fadeInOut 2s ease-in-out",
+                        }}
+                      >
+                        Drag and Drop
+                      </Box>
+                    )}
+                  </Paper>
+
+                  {/* Text Outside Gray Background */}
+                  <Typography
+                    variant="body2"
+                    sx={{
+                      textAlign: "center",
+                      wordBreak: "break-word",
+                      fontSize: "0.75rem",
+                      fontWeight: 700,
+                      color: "#374151",
+                      width: "100%",
+                      px: 1,
+                      pointerEvents: "none",
+                      lineHeight: 1.3,
+                      mb: 0.5,
+                    }}
+                  >
+                    {nodeName}
+                  </Typography>
+                  <Typography
+                    variant="caption"
+                    sx={{
+                      textAlign: "center",
+                      fontSize: "0.6875rem",
+                      fontWeight: 400,
+                      color: "#9ca3af",
+                      pointerEvents: "none",
+                    }}
+                  >
+                    ID: {nodeName.split("_")[0]}
+                  </Typography>
+                </Box>
+              ))}
+            </Grid>
+          )}
+        </Collapse>
+      </Box>
+    );
+  };
 
   return (
     <Drawer
@@ -398,14 +426,14 @@ export const NodeDrawer = ({ open, onClose, onAddNode, onDragStart: onDragStartP
       open={open}
       onClose={onClose}
       sx={{
+        zIndex: zIndex || 1200,
         "& .MuiDrawer-paper": {
           width: 400,
           boxSizing: "border-box",
-          bgcolor: 'background.paper',
-          top: "48px",
-          height: "calc(100vh - 48px)",
-          borderLeft: '1px solid',
-          borderColor: 'divider',
+          bgcolor: "background.paper",
+          top: 0,
+          borderLeft: "1px solid",
+          borderColor: "divider",
         },
       }}
     >
@@ -415,12 +443,15 @@ export const NodeDrawer = ({ open, onClose, onAddNode, onDragStart: onDragStartP
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
-          px: 3,
-          py: 2.5,
-          borderBottom: 'none',
+          padding: { xs: "16px 16px", md: "17px 24px" },
+          borderBottom: "2px solid",
+          borderColor: "divider",
         }}
       >
-        <Typography variant="h6" sx={{ fontWeight: 700, fontSize: "1rem", color: "text.primary" }}>
+        <Typography
+          variant="h6"
+          sx={{ fontWeight: 700, fontSize: "1rem", color: "text.primary" }}
+        >
           All Nodes
         </Typography>
         <IconButton
@@ -428,7 +459,7 @@ export const NodeDrawer = ({ open, onClose, onAddNode, onDragStart: onDragStartP
           size="small"
           sx={{
             color: "text.secondary",
-            "&:hover": { bgcolor: 'action.hover' },
+            "&:hover": { bgcolor: "action.hover" },
           }}
         >
           <CloseIcon fontSize="small" />
@@ -436,13 +467,13 @@ export const NodeDrawer = ({ open, onClose, onAddNode, onDragStart: onDragStartP
       </Box>
 
       {/* --- START CHANGED SECTION: Small Tabs and Search Bar --- */}
-      <Box 
-        sx={{ 
-          px: 3, 
+      <Box
+        sx={{
+          px: 3,
           py: 1, // Reduced padding vertical
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between', // Ensures Left/Right separation
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between", // Ensures Left/Right separation
           gap: 1,
         }}
       >
@@ -454,7 +485,7 @@ export const NodeDrawer = ({ open, onClose, onAddNode, onDragStart: onDragStartP
             minHeight: 30, // Smaller height
             "& .MuiTab-root": {
               minHeight: 30,
-              minWidth: 'auto',
+              minWidth: "auto",
               px: 1.5, // Tighter padding
               textTransform: "none",
               fontWeight: 500,
@@ -491,17 +522,17 @@ export const NodeDrawer = ({ open, onClose, onAddNode, onDragStart: onDragStartP
             width: 140, // Reduced width
             "& .MuiOutlinedInput-root": {
               borderRadius: 20,
-              bgcolor: 'action.hover',
+              bgcolor: "action.hover",
               fontSize: "0.75rem", // Smaller text
               height: 30, // Smaller height
               "& fieldset": {
-                borderColor: 'transparent',
+                borderColor: "transparent",
               },
               "&:hover fieldset": {
-                borderColor: 'divider',
+                borderColor: "divider",
               },
               "&.Mui-focused fieldset": {
-                borderColor: 'primary.main',
+                borderColor: "primary.main",
                 borderWidth: 1,
               },
               "& input": {
@@ -521,11 +552,11 @@ export const NodeDrawer = ({ open, onClose, onAddNode, onDragStart: onDragStartP
             {recentNodes.length === 0 ? (
               <Typography
                 variant="body2"
-                sx={{ 
-                  textAlign: "center", 
+                sx={{
+                  textAlign: "center",
                   color: "text.secondary",
                   fontSize: "0.8125rem",
-                  py: 4
+                  py: 4,
                 }}
               >
                 No recent nodes
@@ -548,7 +579,7 @@ export const NodeDrawer = ({ open, onClose, onAddNode, onDragStart: onDragStartP
                       draggable
                       onDragStart={(event) => onDragStart(event, nodeName)}
                       sx={{
-                        position: 'relative',
+                        position: "relative",
                         display: "flex",
                         flexDirection: "column",
                         alignItems: "center",
@@ -569,21 +600,21 @@ export const NodeDrawer = ({ open, onClose, onAddNode, onDragStart: onDragStartP
                           alignItems: "center",
                           justifyContent: "center",
                           borderRadius: 2,
-                          bgcolor: 'background.elevation1',
+                          bgcolor: "background.elevation1",
                           border: "1px solid",
-                          borderColor: 'divider',
+                          borderColor: "divider",
                           transition: "all 0.2s ease",
                           mb: 1,
                           "&:hover": {
                             transform: "translateY(-2px)",
                             boxShadow: theme.shadows[2],
-                            borderColor: 'divider',
+                            borderColor: "divider",
                           },
                         }}
                       >
                         {getNodeIcon(getCategoryForNode(nodeName))}
                       </Paper>
-                      
+
                       {/* Text Outside Gray Background */}
                       <Typography
                         variant="body2"
@@ -612,7 +643,7 @@ export const NodeDrawer = ({ open, onClose, onAddNode, onDragStart: onDragStartP
                           pointerEvents: "none",
                         }}
                       >
-                        ID: {nodeName.split('_')[0]}
+                        ID: {nodeName.split("_")[0]}
                       </Typography>
                     </Box>
                   ))}
@@ -626,11 +657,11 @@ export const NodeDrawer = ({ open, onClose, onAddNode, onDragStart: onDragStartP
             {Object.keys(nodeCategories).length === 0 && !loading ? (
               <Typography
                 variant="body2"
-                sx={{ 
-                  textAlign: "center", 
+                sx={{
+                  textAlign: "center",
                   color: "text.secondary",
                   fontSize: "0.8125rem",
-                  py: 4
+                  py: 4,
                 }}
               >
                 No node categories found.
