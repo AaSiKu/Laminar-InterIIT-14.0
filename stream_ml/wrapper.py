@@ -130,8 +130,6 @@ class ModelWrapper:
             # Copy model and buffer for async training
             model_copy = self._copy_model()
             buffered_rows_copy = list(self.buffered_rows)  # Shallow copy of the list, arrays are immutable
-            
-            # Slice original buffer to retain only necessary rows for future context
             self.buffered_rows = self.buffered_rows[self.config.batch_size:]
             
             # Submit async training task
@@ -155,9 +153,10 @@ class ModelWrapper:
         with self._model_lock:
             ram_usage, latency, error, predictions = self.model.predict(data_array)
         
-        kwargs['model_ram_usage'] = ram_usage
-        kwargs['model_latency'] = latency
-        kwargs['model_error'] = error
+        # Convert numpy types to Python native types for JSON serialization
+        kwargs['model_ram_usage'] = float(ram_usage) if isinstance(ram_usage, np.number) else ram_usage
+        kwargs['model_latency'] = float(latency) if isinstance(latency, np.number) else latency
+        kwargs['model_error'] = float(error) if isinstance(error, np.number) else error
         kwargs['model_prediction'] = predictions[-1, :].tolist()  # Return only the last horizon step predictions
         
         return kwargs
