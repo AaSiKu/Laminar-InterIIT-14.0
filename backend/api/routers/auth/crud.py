@@ -15,6 +15,7 @@ async def create_user(db: AsyncSession, data):
         full_name=data.full_name or "",
         is_active=True,
         created_at=datetime.utcnow(),
+        role="user"
     )
     db.add(user)
     await db.commit()

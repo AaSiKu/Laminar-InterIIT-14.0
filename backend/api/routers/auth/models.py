@@ -11,6 +11,7 @@ class User(Base):
     full_name = Column(String, nullable=True)
     is_active = Column(Boolean, default=True, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    role=Column(String, nullable=False, default= "user")
 
 from pydantic import BaseModel, EmailStr, Field
 from typing import Optional

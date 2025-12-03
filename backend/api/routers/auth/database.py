@@ -2,6 +2,9 @@ import os
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
 from sqlalchemy.orm import DeclarativeBase
 from dotenv import load_dotenv
+from fastapi import HTTPException, status, WebSocketException
+
+
 load_dotenv()
 # Database URL construction
 def get_database_url():
@@ -55,11 +58,15 @@ async def get_db():
                 yield session
             finally:
                 await session.close()
+    except HTTPException:
+        # Re-raise HTTPExceptions without wrapping them
+        raise
+    except WebSocketException:
+        raise
     except Exception as e:
-        # If database connection fails, raise a more informative error
-        from fastapi import HTTPException, status
+        # Only wrap actual database connection errors
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail=f"{str(e)}"
+            detail=f"Database connection error: {str(e)}"
         )
 
