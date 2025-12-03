@@ -44,7 +44,20 @@ async def fetch_kpi(request: Request, current_user: User = Depends(get_current_u
     pending_alerts = sum(1 for a in alerts if a.get("alert") and not a["alert"].get("action_taken"))
 
     # TODO: Implement a real metric for total_runtime
-    total_runtime_dummy = 128  # Using a dummy value for now
+    cursor = request.app.state.workflow_collection.find({"user_id": str(current_user.id)})
+    total_runtime = 0
+    print(str(current_user.id))
+    async for doc in cursor:
+        print(doc)
+        try:
+            total_runtime += doc["runtime"]
+        except:
+            pass
+    total_hours = int(total_runtime//3600)
+
+
+
+    # total_runtime_dummy = 128  # Using a dummy value for now
 
     return {
         "pie_chart": {
@@ -57,7 +70,7 @@ async def fetch_kpi(request: Request, current_user: User = Depends(get_current_u
             {
                 "id": "total_runtime",
                 "title": "Total Runtime",
-                "value": f"{total_runtime_dummy}h",
+                "value": f"{total_hours}h",
                 "subtitle": "Across all pipelines",
                 "iconType": "speed",
                 "iconColor": "#86C8BC"
@@ -115,18 +128,18 @@ async def workflow_data(request: Request, skip: int = 0, limit: int = 10, curren
         })
     return data
 
-@router.get("/total_runtime")
-async def total_runtime(request: Request, skip: int = 0, limit: int = 10, current_user: User = Depends(get_current_user)):
-    cursor = request.app.state.workflow_collection.find({"user_id": str(current_user.id)})
-    total_runtime = 0
-    print(str(current_user.id))
-    async for doc in cursor:
-        print(doc)
-        try:
-            total_runtime += doc["runtime"]
-        except:
-            pass
-    return total_runtime
+# @router.get("/total_runtime")
+# async def total_runtime(request: Request, skip: int = 0, limit: int = 10, current_user: User = Depends(get_current_user)):
+#     cursor = request.app.state.workflow_collection.find({"user_id": str(current_user.id)})
+#     total_runtime = 0
+#     print(str(current_user.id))
+#     async for doc in cursor:
+#         print(doc)
+#         try:
+#             total_runtime += doc["runtime"]
+#         except:
+#             pass
+#     return total_runtime
 
 
 # async def total_runtime(request: Request, skip: int = 0, limit: int = 10):

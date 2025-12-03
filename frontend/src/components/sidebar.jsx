@@ -124,20 +124,20 @@ const Sidebar = () => {
           minHeight: 64,
         }}
       >
-        <Box
-          component="img"
+          <Box
+            component="img"
           src={drawerOpen ? LogoExpanded : LogoCollapsed}
-          alt="Logo"
-          sx={{
+            alt="Logo"
+            sx={{
             height: drawerOpen ? 24 : 32,
-            width: "auto",
-            objectFit: "contain",
+              width: "auto",
+              objectFit: "contain",
             transition: theme.transitions.create(["opacity", "transform", "height"], {
-              easing: theme.transitions.easing.sharp,
-              duration: theme.transitions.duration.enteringScreen,
-            }),
-          }}
-        />
+                easing: theme.transitions.easing.sharp,
+                duration: theme.transitions.duration.enteringScreen,
+              }),
+            }}
+          />
       </Box>
 
       <List sx={{ flex: 1 }}>

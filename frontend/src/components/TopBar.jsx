@@ -98,13 +98,13 @@ const TopBar = ({
         }}
       >
         {/* Avatar with Dropdown Menu */}
-        <Avatar
-          src={userAvatar}
-          alt="User"
+          <Avatar
+            src={userAvatar}
+            alt="User"
           onClick={handleAvatarClick}
-          sx={{
-            width: 40,
-            height: 40,
+            sx={{
+              width: 40,
+              height: 40,
             bgcolor: userAvatar ? 'transparent' : 'primary.main',
             cursor: 'pointer',
             transition: 'transform 0.2s ease, box-shadow 0.2s ease',
