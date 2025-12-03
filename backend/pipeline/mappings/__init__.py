@@ -16,9 +16,6 @@ mappings: Dict[str,MappingValues] = {
     "alert": {
         "node_fn": alert_node_fn
     },
-    "trigger_rca": {
-        "node_fn": trigger_rca
-    }
 }
 
 __all__ = [

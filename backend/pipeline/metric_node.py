@@ -1,5 +1,5 @@
 from lib.node import Node
-from typing import Optional, Dict, List, Any
+from typing import Optional, Dict, List, Any, Tuple
 from .types import MetricNodeDescription, Graph
 from .mappings import mappings
 from lib.trigger_rca import TriggerRCANode
@@ -154,7 +154,7 @@ def find_special_column_sources(
 def build_parent_graph_description(
     metric_node_idx: int,
     graph: Graph
-) -> str:
+) -> Tuple[str, Dict[int,int]]:
     """
     Build a natural language description of the parent graph for a metric node.
     

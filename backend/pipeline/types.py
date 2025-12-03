@@ -3,7 +3,7 @@ from typing_extensions import TypedDict
 from collections import defaultdict
 from lib.node import Node
 from lib.agents import Agent
-
+import pathway as pw
 
 class Flowchart(TypedDict):
     """Raw flowchart data from JSON file."""
@@ -17,6 +17,7 @@ class MetricNodeDescription(TypedDict):
     pipeline_description: str
     pipeline_description_indexes_mapping: Dict[int,int]
     special_columns_source_indexes: Dict[str,int]
+    description: str
 
 class Graph(Flowchart):
     """Validated and processed graph structure."""
@@ -25,4 +26,5 @@ class Graph(Flowchart):
     nodes: List[Node]
     metric_node_descriptions: Dict[int,MetricNodeDescription]
     id2index_map: Dict[str,int]
+    node_outputs: List[pw.Table]
     

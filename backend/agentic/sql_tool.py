@@ -1,5 +1,4 @@
 from langchain_community.utilities.sql_database import SQLDatabase
-import json
 from langchain_community.tools import QuerySQLDataBaseTool
 from pydantic import BaseModel
 from typing import List, Optional, Dict, Any

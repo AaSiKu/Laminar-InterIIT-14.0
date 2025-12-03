@@ -1,19 +1,18 @@
 from typing import List, Union, Literal
 from langchain.agents import create_agent
 from langchain.agents.structured_output import ToolStrategy
-from langchain_groq import ChatGroq
 from langchain_core.tools import BaseTool
 from pydantic import BaseModel, Field
 from lib.agents import Agent
 from .sql_tool import TablePayload, create_sql_tool
-import os
-
-
+from .chat_models import model
 
 class Action(BaseModel):
     id: int
     agent: str = Field(description="Agent name to call")
     request: str = Field(description="Natural language request to the agent")
+
+
 class Plan(BaseModel):
     actions: List[Action]
     reasoning: str = Field(description="Reasoning behind the plan")
@@ -25,12 +24,6 @@ class CANNOT_EXECUTE_Plan(BaseModel):
 class AgentPayload(Agent):
     tools: List[Union[TablePayload]]
 
-model = ChatGroq(
-    model="llama-3.3-70b-versatile",
-    temperature=0.0,
-    max_retries=2,
-    api_key=os.environ["GROQ_API_KEY"]
-)
 
 def build_agent(agent: AgentPayload) -> BaseTool:
     agent.name = agent.name.replace(" ", "_")

@@ -3,7 +3,7 @@ import pathway as pw
 from lib.tables import JoinNode, FilterNode, GroupByNode, JSONSelectNode, FlattenNode
 from .helpers import MappingValues, get_col, get_this_col, select_for_join
 from .open_tel.prefix import is_special_column
-
+from .custom_reducers import custom_reducers
 
 # Operator mapping for filter node
 _op_map = {
@@ -91,9 +91,13 @@ def group_by(inputs: List[pw.Table], node: GroupByNode):
     # Build the groupby columns
     group_cols = [get_col(table, col) for col in node.columns]
     _reducers = [(red["col"], red["reducer"], red["new_col"]) for red in node.reducers if not is_special_column(red["col"])]
-    reducers = {
-            new_col: getattr(pw.reducers, reducer)(get_this_col(prev_col)) for prev_col, reducer, new_col in _reducers
-    }
+    reducers = {}
+    for prev_col, reducer, new_col in _reducers:
+        if hasattr(pw.reducers,reducer):
+            reducers[new_col] = getattr(pw.reducers, reducer)(get_this_col(prev_col))   
+        else:
+            reducers[new_col] = custom_reducers[reducer](get_this_col(prev_col))
+
     for col in table.column_names():
         if col not in node.columns and is_special_column(col):
             reducers[f"_pw_grouped_{col}"] = pw.reducers.ndarray(get_this_col(col))

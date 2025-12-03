@@ -2,7 +2,8 @@ import sys
 sys.path.insert(0, "./backend")
 from backend.pipeline.graph_reader import read_and_validate_graph
 from backend.pipeline.graph_builder import build_computational_graph
-from backend.pipeline.metric_node import find_special_column_sources, is_special_column, pretty_print_metric_nodes
+from backend.pipeline.metric_node import find_special_column_sources, pretty_print_metric_nodes
+from backend.pipeline.mappings.open_tel.prefix import is_special_column
 import json
 
 graph = read_and_validate_graph("flowchart.json")

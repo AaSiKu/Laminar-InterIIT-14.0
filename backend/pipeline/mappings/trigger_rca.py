@@ -1,10 +1,96 @@
 from lib.trigger_rca import TriggerRCANode
 import pathway as pw
-from typing import List
+from ..types import Graph, MetricNodeDescription
+import httpx
+import os
+from postgres_util import construct_table_name
 
-def trigger_rca(inputs: List[pw.Table], _) -> pw.Table:
+agentic_url = os.getenv("AGENTIC_URL")
+
+class RCAOutputSchema(pw.Schema):
+    analysis: str
+
+
+def trigger_rca(metric_table: pw.Table, node: TriggerRCANode, graph: Graph) -> pw.Table:
     # Retreive columns which contain trace ids relevent to the calculation of the metric connected to the TriggerRCA node
-    # If there are multiple columns make a tuple with them
-    #   If the multiple such columns are all pw.ndarrays then zip them together
-    metric_table = inputs[0]
-    pass
+    metric: MetricNodeDescription = None
+    metric_node_idx: int = None
+    for idx,_met in graph["metric_node_descriptions"].items():
+         if _met["description"] == node.metric_description:
+              metric = _met
+              metric_node_idx = idx
+        
+    semantic_origins = {}
+    for special_col, origins in metric["special_columns_source_indexes"].items():
+         semantic_origins[special_col] = [metric["pipeline_description_indexes_mapping"][origin] for origin in origins]
+    
+    if len(semantic_origins.keys()) == 0:
+        raise Exception("Can only perform RCA on metrics derived from OpenTelemetry data")
+    with httpx.Client(timeout=60) as client:
+            resp = client.post(
+                f"{agentic_url.rstrip('/')}/summarize",
+                json={
+                    "metric_description": metric["description"],
+                    "pipeline_description": metric["pipeline_description"],
+                    "semantic_origins": semantic_origins
+                },
+            )
+            resp.raise_for_status()
+            summarized_metric = resp.json()
+    if summarized_metric["metric_type"] == "error":
+        if len(semantic_origins.keys()) > 1:
+            raise Exception("Currently RCA on an error-rate metric derived from multiple traces is not supported")
+    if summarized_metric["metric_type"] == "uptime":
+        if len(semantic_origins.keys()) > 1:
+            raise Exception("Currently RCA on an uptime metric derived from multiple traces is not supported")
+    if summarized_metric["metric_type"] == "latency":
+        if len(semantic_origins.keys()) > 2:
+            raise Exception("Currently RCA on a latency metric derived from more than 2 traces is not supported")
+    
+    spans_node_idx : int = None
+    logs_node_idx: int = None
+
+    for idx,node in enumerate(graph["nodes"]):
+        if node.node_id == "open_tel_spans_input" and spans_node_idx is None:
+            spans_node_idx = idx
+        if node.node_id == "open_tel_logs_input" and logs_node_idx is None:
+            logs_node_idx = idx
+    if any(el is None for el in [spans_node_idx,logs_node_idx]):
+        raise Exception("No tables for span/logs found. Cannot run RCA on metrics derived from non open telemetry sources")
+    tables_data = {
+        "spans": {
+            "table_name": construct_table_name(graph["nodes"][spans_node_idx].node_id, spans_node_idx),
+            "table_schema": graph["node_outputs"][spans_node_idx].schema.columns_to_json_serializable_dict()
+        },
+        "logs": {
+            "table_name": construct_table_name(graph["nodes"][logs_node_idx].node_id, logs_node_idx),
+            "table_schema": graph["node_outputs"][logs_node_idx].schema.columns_to_json_serializable_dict()
+        },
+        "sla_metric_trigger": {
+            "table_name": construct_table_name(node,metric_node_idx),
+            "table_schema": metric_table.schema.columns_to_json_serializable_dict()
+        }
+    }
+
+
+    class RCATransformer(pw.AsyncTransformer, output_schema=RCAOutputSchema):
+        def __init__(self, *args, **kwargs):
+            super().__init__(*args, **kwargs)
+        
+        async def invoke(self,**columns ) -> dict:
+            
+            async with httpx.AsyncClient(timeout=300) as client:
+                resp = await client.post(
+                    f"{agentic_url.rstrip('/')}/rca",
+                    json={
+                        "trace_ids": {
+                            special_column: columns[special_column] for special_column in semantic_origins.keys()
+                        },
+                        **metric,
+                        "tables_data": tables_data
+                    },
+                )
+                resp.raise_for_status()
+                data = resp.json()
+                return data
+    return RCATransformer(metric_table).successful
