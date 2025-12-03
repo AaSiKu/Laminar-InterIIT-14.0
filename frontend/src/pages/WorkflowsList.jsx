@@ -12,13 +12,30 @@ import WorkflowDetails from "../components/workflowslist/WorkflowDetails";
 import TopBar from "../components/common/TopBar";
 import NewProjectModal from "../components/createWorkflow/NewProjectModal"
 import CreateWorkflowDrawer from "../components/createWorkflow/CreateWorkflowDrawer"
+import { useEffect } from "react";
 
 export const WorkflowsList = () => {
   const [selectedTab, setSelectedTab] = useState(0);
   const [selectedWorkflow, setSelectedWorkflow] = useState(mockWorkflows[0]);
   const [actionFilter, setActionFilter] = useState("critical"); // critical or low
   const [globalSearchQuery, setGlobalSearchQuery] = useState("");
+  const [workflows, setWorkflows] = useState([]);
 
+  const fetch_data = async () => {
+    const data = await fetch(
+      `http://localhost:8000/version/retrieve_all`,
+      { credentials: "include" }
+    );
+    const workflowsData = await data.json();
+    console.log(workflowsData);
+    return workflowsData
+  }
+  useEffect(() => {
+    const data = fetch_data();
+    setWorkflows(data);
+    console.log("here");
+    console.log(workflows);
+  }, []);
   const handleLogout = () => {
     // Add logout logic here
   };
@@ -201,11 +218,13 @@ export const WorkflowsList = () => {
           </Box>
 
           {/* Right Content - Workflow Details */}
+          {console.log(selectedWorkflow)}
           {selectedWorkflow && (
             <WorkflowDetails
               workflow={selectedWorkflow}
               actionFilter={actionFilter}
               onActionFilterChange={setActionFilter}
+              
               actionItems={mockActionItems}
               logs={mockLogs}
             />
