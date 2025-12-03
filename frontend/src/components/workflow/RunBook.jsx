@@ -7,6 +7,8 @@ import {
   IconButton,
   Button,
   Switch,
+  Checkbox,
+  FormControlLabel,
   TextField,
   Collapse,
   Tabs,
@@ -16,6 +18,7 @@ import {
   Select,
   MenuItem,
   FormControl,
+  InputLabel,
   Divider,
   ButtonGroup,
 } from "@mui/material";
@@ -28,7 +31,6 @@ import AddIcon from "@mui/icons-material/Add";
 
 const RunBook = ({ open, onClose, formData = {}, onSave }) => {
   const [activeTab, setActiveTab] = useState(0);
-  const [correctiveMeasureMode, setCorrectiveMeasureMode] = useState("prompt");
   const [name, setName] = useState(formData.name || "");
   const [userConfirmation, setUserConfirmation] = useState(
     formData.userConfirmation || false
@@ -36,12 +38,44 @@ const RunBook = ({ open, onClose, formData = {}, onSave }) => {
   const [errorDescription, setErrorDescription] = useState(
     formData.errorDescription || ""
   );
-  const [correctiveMeasures, setCorrectiveMeasures] = useState(
-    formData.correctiveMeasures || ""
+  const [actionDiscoveryMode, setActionDiscoveryMode] = useState(formData.actionDiscoveryMode || "");
+
+  // Manual action form state
+  const [actionId, setActionId] = useState(formData.actionId || "");
+  const [serviceName, setServiceName] = useState(formData.serviceName || "");
+  const [executionMethod, setExecutionMethod] = useState(formData.executionMethod || "");
+  const [actionDescription, setActionDescription] = useState(formData.actionDescription || "");
+  const [riskLevel, setRiskLevel] = useState(formData.riskLevel || "");
+  const [requiresApproval, setRequiresApproval] = useState(formData.requiresApproval || false);
+  const [secrets, setSecrets] = useState(
+    formData.secrets && typeof formData.secrets === 'object'
+      ? Object.entries(formData.secrets).map(([key, value]) => ({ key, value }))
+      : [{ key: "", value: "" }]
   );
-  const [apiAuthExpanded, setApiAuthExpanded] = useState(true);
-  const [apiKey, setApiKey] = useState(formData.apiKey || "");
-  const [apiValue, setApiValue] = useState(formData.apiValue || "");
+  const [command, setCommand] = useState(formData.command || "");
+  const [timeoutSeconds, setTimeoutSeconds] = useState(formData.timeoutSeconds || "");
+  const [parameters, setParameters] = useState(
+    formData.parameters && typeof formData.parameters === 'object' 
+      ? Object.entries(formData.parameters).map(([key, value]) => ({ key, value }))
+      : [{ key: "", value: "" }]
+  );
+  const [tags, setTags] = useState(formData.metadata?.tags || [""]);
+
+  // Swagger/OpenAPI form state
+  const [swaggerUrl, setSwaggerUrl] = useState(formData.swaggerUrl || "");
+  const [swaggerServiceName, setSwaggerServiceName] = useState(formData.swaggerServiceName || "");
+
+  // Script Discovery form state
+  const [scriptPath, setScriptPath] = useState(formData.scriptPath || "");
+  const [scriptServiceName, setScriptServiceName] = useState(formData.scriptServiceName || "");
+  const [accessViaSSH, setAccessViaSSH] = useState(formData.accessViaSSH || false);
+  const [sshHost, setSshHost] = useState(formData.sshHost || "");
+  const [sshUsername, setSshUsername] = useState(formData.sshUsername || "");
+  const [sshPassword, setSshPassword] = useState(formData.sshPassword || "");
+  const [sshKeyPath, setSshKeyPath] = useState(formData.sshKeyPath || "");
+
+  // Documentation Discovery form state
+  const [documentation, setDocumentation] = useState(formData.documentation || "");
 
   // Run Book form state
   const [runBookErrorDescription, setRunBookErrorDescription] = useState(
@@ -68,12 +102,38 @@ const RunBook = ({ open, onClose, formData = {}, onSave }) => {
       setName(formData.name || "");
       setUserConfirmation(formData.userConfirmation || false);
       setErrorDescription(formData.errorDescription || "");
-      setCorrectiveMeasures(formData.correctiveMeasures || "");
-      setCorrectiveMeasureMode(formData.correctiveMeasureMode || "prompt");
-      setApiKey(formData.apiKey || "");
-      setApiValue(formData.apiValue || "");
       setRunBookErrorDescription(formData.runBookErrorDescription || "");
       setActions(formData.actions || [""]);
+      setActionDiscoveryMode(formData.actionDiscoveryMode || "");
+      setActionId(formData.actionId || "");
+      setServiceName(formData.serviceName || "");
+      setExecutionMethod(formData.executionMethod || "");
+      setActionDescription(formData.actionDescription || "");
+      setRiskLevel(formData.riskLevel || "");
+      setRequiresApproval(formData.requiresApproval || false);
+      setSecrets(
+        formData.secrets && typeof formData.secrets === 'object'
+          ? Object.entries(formData.secrets).map(([key, value]) => ({ key, value }))
+          : [{ key: "", value: "" }]
+      );
+      setCommand(formData.command || "");
+      setTimeoutSeconds(formData.timeoutSeconds || "");
+      setParameters(
+        formData.parameters && typeof formData.parameters === 'object'
+          ? Object.entries(formData.parameters).map(([key, value]) => ({ key, value }))
+          : [{ key: "", value: "" }]
+      );
+      setTags(formData.metadata?.tags || [""]);
+      setSwaggerUrl(formData.swaggerUrl || "");
+      setSwaggerServiceName(formData.swaggerServiceName || "");
+      setScriptPath(formData.scriptPath || "");
+      setScriptServiceName(formData.scriptServiceName || "");
+      setAccessViaSSH(formData.accessViaSSH || false);
+      setSshHost(formData.sshHost || "");
+      setSshUsername(formData.sshUsername || "");
+      setSshPassword(formData.sshPassword || "");
+      setSshKeyPath(formData.sshKeyPath || "");
+      setDocumentation(formData.documentation || "");
     }
   }, [open]);
 
@@ -82,12 +142,44 @@ const RunBook = ({ open, onClose, formData = {}, onSave }) => {
       name,
       userConfirmation,
       errorDescription,
-      correctiveMeasures,
-      correctiveMeasureMode,
-      apiKey,
-      apiValue,
       runBookErrorDescription,
       actions,
+      actionDiscoveryMode,
+      actionId,
+      serviceName,
+      executionMethod,
+      actionDescription,
+      riskLevel,
+      requiresApproval,
+      secrets: secrets.reduce((acc, secret) => {
+        if (secret.key.trim() !== "") {
+          acc[secret.key] = secret.value;
+        }
+        return acc;
+      }, {}),
+      executionDetails: {
+        command: command,
+        timeout_seconds: timeoutSeconds,
+      },
+      parameters: parameters.reduce((acc, param) => {
+        if (param.key.trim() !== "") {
+          acc[param.key] = param.value;
+        }
+        return acc;
+      }, {}),
+      metadata: {
+        tags: tags.filter(tag => tag.trim() !== ""),
+      },
+      swaggerUrl,
+      swaggerServiceName,
+      scriptPath,
+      scriptServiceName,
+      accessViaSSH,
+      sshHost,
+      sshUsername,
+      sshPassword,
+      sshKeyPath,
+      documentation,
     };
     console.log("data", data);
     try {
@@ -322,6 +414,7 @@ const RunBook = ({ open, onClose, formData = {}, onSave }) => {
                         displayEmpty
                         variant="outlined"
                         sx={{
+                          height: "3rem",
                           bgcolor: "background.elevation1",
                           "& .MuiOutlinedInput-notchedOutline": {
                             border: "none",
@@ -421,6 +514,7 @@ const RunBook = ({ open, onClose, formData = {}, onSave }) => {
                     fullWidth
                     sx={{
                       "& .MuiOutlinedInput-root": {
+                        height: "3rem",
                         bgcolor: "background.elevation1",
                         "& fieldset": {
                           border: "none",
@@ -466,53 +560,142 @@ const RunBook = ({ open, onClose, formData = {}, onSave }) => {
                   />
                 </Box>
 
-                {/* Corrective Measures */}
+                {/* Action Discovery Mode */}
                 <Box sx={{ mb: 3 }}>
-                  <Box
+                  <Typography variant="body2" fontWeight={600} sx={{ mb: 1 }}>
+                    Add action method
+                  </Typography>
+                  <FormControl fullWidth variant="outlined">
+                    <Select
+                      value={actionDiscoveryMode}
+                      onChange={(e) => setActionDiscoveryMode(e.target.value)}
+                      displayEmpty
+                      variant="outlined"
                     sx={{
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "space-between",
-                      mb: 1,
-                    }}
-                  >
-                    <Typography variant="body2" fontWeight={600}>
-                      Corrective Measures
+                        height: "3rem",
+                        bgcolor: "background.elevation1",
+                        "& .MuiOutlinedInput-notchedOutline": {
+                          border: "none",
+                        },
+                        "&:hover .MuiOutlinedInput-notchedOutline": {
+                          border: "none",
+                        },
+                        "&.Mui-focused .MuiOutlinedInput-notchedOutline": {
+                          border: "none",
+                        },
+                      }}
+                      MenuProps={{
+                        disablePortal: false,
+                        container: document.body,
+                        PaperProps: {
+                          sx: {
+                            maxHeight: 300,
+                            zIndex: 20002,
+                          },
+                        },
+                      }}
+                    >
+                      <MenuItem value="" disabled>
+                        Select an option
+                      </MenuItem>
+                      <MenuItem value="manual">Add action manually</MenuItem>
+                      <MenuItem value="swagger">Discover from Swagger/OpenAI</MenuItem>
+                      <MenuItem value="script">Discover from script</MenuItem>
+                      <MenuItem value="documentation">Discover from documentation</MenuItem>
+                    </Select>
+                  </FormControl>
+                </Box>
+
+                {/* Manual Action Fields */}
+                {actionDiscoveryMode === "manual" && (
+                  <Box>
+                    {/* Top Section */}
+                    <Box sx={{ mb: 3 }}>
+                      <Box sx={{ mb: 2 }}>
+                        <Typography variant="body2" fontWeight={600} sx={{ mb: 1 }}>
+                          Action ID
                     </Typography>
-                    <ButtonGroup size="small">
-                      <Button
-                        variant={
-                          correctiveMeasureMode === "prompt"
-                            ? "contained"
-                            : "outlined"
-                        }
-                        onClick={() => setCorrectiveMeasureMode("prompt")}
-                      >
-                        Prompt
-                      </Button>
-                      <Button
-                        variant={
-                          correctiveMeasureMode === "code"
-                            ? "contained"
-                            : "outlined"
-                        }
-                        onClick={() => setCorrectiveMeasureMode("code")}
-                      >
-                        Code
-                      </Button>
-                    </ButtonGroup>
+                        <TextField
+                          value={actionId}
+                          onChange={(e) => setActionId(e.target.value)}
+                          variant="outlined"
+                          fullWidth
+                          placeholder="restart-nginx-service"
+                          sx={{
+                            "& .MuiOutlinedInput-root": {
+                              height: "3rem",
+                              bgcolor: "background.elevation1",
+                              "& fieldset": {
+                                border: "none",
+                              },
+                              "&:hover fieldset": {
+                                border: "none",
+                              },
+                              "&.Mui-focused fieldset": {
+                                border: "none",
+                              },
+                            },
+                          }}
+                        />
+                      </Box>
+
+                      <Box sx={{ mb: 2 }}>
+                        <Typography variant="body2" fontWeight={600} sx={{ mb: 1 }}>
+                          Execution Method
+                        </Typography>
+                        <FormControl fullWidth variant="outlined">
+                          <Select
+                            value={executionMethod}
+                            onChange={(e) => setExecutionMethod(e.target.value)}
+                            displayEmpty
+                            variant="outlined"
+                            sx={{
+                              height: "3rem",
+                              bgcolor: "background.elevation1",
+                              "& .MuiOutlinedInput-notchedOutline": {
+                                border: "none",
+                              },
+                              "&:hover .MuiOutlinedInput-notchedOutline": {
+                                border: "none",
+                              },
+                              "&.Mui-focused .MuiOutlinedInput-notchedOutline": {
+                                border: "none",
+                              },
+                            }}
+                            MenuProps={{
+                              disablePortal: false,
+                              container: document.body,
+                              PaperProps: {
+                                sx: {
+                                  maxHeight: 300,
+                                  zIndex: 20002,
+                                },
+                              },
+                            }}
+                          >
+                            <MenuItem value="">Select method</MenuItem>
+                            <MenuItem value="rpc">rpc</MenuItem>
+                            <MenuItem value="http">http</MenuItem>
+                            <MenuItem value="ssh">ssh</MenuItem>
+                          </Select>
+                        </FormControl>
                   </Box>
+
+                      <Box sx={{ mb: 2 }}>
+                        <Typography variant="body2" fontWeight={600} sx={{ mb: 1 }}>
+                          Description
+                        </Typography>
                   <TextField
                     multiline
-                    rows={4}
-                    placeholder="Description"
-                    value={correctiveMeasures}
-                    onChange={(e) => setCorrectiveMeasures(e.target.value)}
+                          rows={3}
+                          value={actionDescription}
+                          onChange={(e) => setActionDescription(e.target.value)}
                     variant="outlined"
                     fullWidth
+                          placeholder="Restart nginx web server"
                     sx={{
                       "& .MuiOutlinedInput-root": {
-                        bgcolor: "background.elevation1",
+                              bgcolor: "background.elevation1",
                         "& fieldset": {
                           border: "none",
                         },
@@ -525,90 +708,584 @@ const RunBook = ({ open, onClose, formData = {}, onSave }) => {
                       },
                     }}
                   />
+                      </Box>
                 </Box>
 
-                {/* API Authentication */}
-                <Box>
-                  <Box
+                    {/* Bottom Section - Risk Level, Requires Approval, Secrets */}
+                    <Box sx={{ mt: 3 }}>
+                      <Box sx={{ mb: 2 }}>
+                        <Typography variant="body2" fontWeight={600} sx={{ mb: 1 }}>
+                          Risk Level
+                        </Typography>
+                        <FormControl fullWidth variant="outlined">
+                          <Select
+                            value={riskLevel}
+                            onChange={(e) => setRiskLevel(e.target.value)}
+                            displayEmpty
+                            variant="outlined"
                     sx={{
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "space-between",
-                      mb: 1,
-                      cursor: "pointer",
-                    }}
-                    onClick={() => setApiAuthExpanded(!apiAuthExpanded)}
-                  >
-                    <Typography variant="body2" fontWeight={600}>
-                      API Authentication
-                    </Typography>
-                    <IconButton size="small">
-                      {apiAuthExpanded ? (
-                        <ExpandLessIcon />
-                      ) : (
-                        <ExpandMoreIcon />
-                      )}
-                    </IconButton>
+                              height: "3rem",
+                              bgcolor: "background.elevation1",
+                              "& .MuiOutlinedInput-notchedOutline": {
+                                border: "none",
+                              },
+                              "&:hover .MuiOutlinedInput-notchedOutline": {
+                                border: "none",
+                              },
+                              "&.Mui-focused .MuiOutlinedInput-notchedOutline": {
+                                border: "none",
+                              },
+                            }}
+                            MenuProps={{
+                              disablePortal: false,
+                              container: document.body,
+                              PaperProps: {
+                                sx: {
+                                  maxHeight: 300,
+                                  zIndex: 20002,
+                                },
+                              },
+                            }}
+                          >
+                            <MenuItem value="">Select risk level</MenuItem>
+                            <MenuItem value="low">low</MenuItem>
+                            <MenuItem value="medium">medium</MenuItem>
+                            <MenuItem value="high">high</MenuItem>
+                          </Select>
+                        </FormControl>
                   </Box>
-                  <Collapse in={apiAuthExpanded}>
-                    <Box sx={{ display: "flex", gap: 2 }}>
-                      <Box sx={{ flex: 1 }}>
-                        <TextField
-                          value={apiKey}
-                          onChange={(e) => setApiKey(e.target.value)}
-                          variant="outlined"
-                          fullWidth
-                          sx={{
-                            mb: 0.5,
-                            "& .MuiOutlinedInput-root": {
-                              minHeight: "3rem",
-                              bgcolor: "background.elevation1",
-                              "& fieldset": {
-                                border: "none",
-                              },
-                              "&:hover fieldset": {
-                                border: "none",
-                              },
-                              "&.Mui-focused fieldset": {
-                                border: "none",
-                              },
-                            },
-                          }}
+
+                      <Box sx={{ mb: 2 }}>
+                        <FormControlLabel
+                          control={
+                            <Checkbox
+                              checked={requiresApproval}
+                              onChange={(e) => setRequiresApproval(e.target.checked)}
+                              sx={{
+                                color: "primary.main",
+                                "&.Mui-checked": {
+                                  color: "primary.main",
+                                },
+                              }}
+                            />
+                          }
+                          label={
+                    <Typography variant="body2" fontWeight={600}>
+                              Requires Approval
+                    </Typography>
+                          }
                         />
-                        <Typography variant="caption" color="text.secondary">
-                          Key
-                        </Typography>
                       </Box>
-                      <Box sx={{ flex: 1 }}>
-                        <TextField
-                          value={apiValue}
-                          onChange={(e) => setApiValue(e.target.value)}
-                          variant="outlined"
-                          fullWidth
-                          sx={{
-                            mb: 0.5,
-                            "& .MuiOutlinedInput-root": {
-                              minHeight: "3rem",
-                              bgcolor: "background.elevation1",
-                              "& fieldset": {
-                                border: "none",
-                              },
-                              "&:hover fieldset": {
-                                border: "none",
-                              },
-                              "&.Mui-focused fieldset": {
-                                border: "none",
-                              },
-                            },
-                          }}
-                        />
-                        <Typography variant="caption" color="text.secondary">
-                          Value
+
+                      <Box sx={{ mb: 2 }}>
+                        <Typography variant="body2" fontWeight={600} sx={{ mb: 1 }}>
+                          Secrets
                         </Typography>
+                        {secrets.map((secret, index) => (
+                          <Box key={index} sx={{ display: "flex", gap: 1, mb: 1, alignItems: "center" }}>
+                            <TextField
+                              value={secret.key}
+                              onChange={(e) => {
+                                const newSecrets = [...secrets];
+                                newSecrets[index] = { ...newSecrets[index], key: e.target.value };
+                                setSecrets(newSecrets);
+                              }}
+                              variant="outlined"
+                              placeholder="Key"
+                              sx={{
+                                flex: 1,
+                                "& .MuiOutlinedInput-root": {
+                                  height: "3rem",
+                                  bgcolor: "background.elevation1",
+                                  "& fieldset": {
+                                    border: "none",
+                                  },
+                                  "&:hover fieldset": {
+                                    border: "none",
+                                  },
+                                  "&.Mui-focused fieldset": {
+                                    border: "none",
+                                  },
+                                },
+                              }}
+                            />
+                            <TextField
+                              type="password"
+                              value={secret.value}
+                              onChange={(e) => {
+                                const newSecrets = [...secrets];
+                                newSecrets[index] = { ...newSecrets[index], value: e.target.value };
+                                setSecrets(newSecrets);
+                              }}
+                              variant="outlined"
+                              placeholder="Value"
+                              sx={{
+                                flex: 1,
+                                "& .MuiOutlinedInput-root": {
+                                  height: "3rem",
+                                  bgcolor: "background.elevation1",
+                                  "& fieldset": {
+                                    border: "none",
+                                  },
+                                  "&:hover fieldset": {
+                                    border: "none",
+                                  },
+                                  "&.Mui-focused fieldset": {
+                                    border: "none",
+                                  },
+                                },
+                              }}
+                            />
+                            {index === secrets.length - 1 && (
+                              <IconButton
+                                onClick={() => {
+                                  setSecrets([...secrets, { key: "", value: "" }]);
+                                }}
+                                sx={{
+                                  bgcolor: "primary.lighter",
+                                  color: "primary.main",
+                                  "&:hover": {
+                                    bgcolor: "primary.light",
+                                  },
+                                }}
+                              >
+                                <AddIcon />
+                              </IconButton>
+                            )}
+                          </Box>
+                        ))}
                       </Box>
                     </Box>
-                  </Collapse>
+
+                    {/* JSON Configuration Blocks - Last Three Fields */}
+                    <Box sx={{ mt: 3 }}>
+                      {/* Command and Timeout Seconds */}
+                      <Box sx={{ mb: 2 }}>
+                        <Typography variant="body2" fontWeight={600} sx={{ mb: 1 }}>
+                          Command
+                        </Typography>
+                        <TextField
+                          value={command}
+                          onChange={(e) => setCommand(e.target.value)}
+                          variant="outlined"
+                          fullWidth
+                          placeholder="systemctl restart nginx"
+                          sx={{
+                            "& .MuiOutlinedInput-root": {
+                              height: "3rem",
+                              bgcolor: "background.elevation1",
+                              "& fieldset": {
+                                border: "none",
+                              },
+                              "&:hover fieldset": {
+                                border: "none",
+                              },
+                              "&.Mui-focused fieldset": {
+                                border: "none",
+                              },
+                            },
+                          }}
+                        />
+                      </Box>
+
+                      <Box sx={{ mb: 2 }}>
+                        <Typography variant="body2" fontWeight={600} sx={{ mb: 1 }}>
+                          Timeout Seconds
+                        </Typography>
+                        <TextField
+                          type="number"
+                          value={timeoutSeconds}
+                          onChange={(e) => setTimeoutSeconds(e.target.value)}
+                          variant="outlined"
+                          fullWidth
+                          placeholder="30"
+                          sx={{
+                            "& .MuiOutlinedInput-root": {
+                              height: "3rem",
+                              bgcolor: "background.elevation1",
+                              "& fieldset": {
+                                border: "none",
+                              },
+                              "&:hover fieldset": {
+                                border: "none",
+                              },
+                              "&.Mui-focused fieldset": {
+                                border: "none",
+                              },
+                            },
+                          }}
+                        />
+                      </Box>
+
+                      {/* Parameters */}
+                      <Box sx={{ mb: 2 }}>
+                        <Typography variant="body2" fontWeight={600} sx={{ mb: 1 }}>
+                          Parameters
+                        </Typography>
+                        {parameters.map((param, index) => (
+                          <Box key={index} sx={{ display: "flex", gap: 1, mb: 1, alignItems: "center" }}>
+                            <TextField
+                              value={param.key}
+                              onChange={(e) => {
+                                const newParameters = [...parameters];
+                                newParameters[index] = { ...newParameters[index], key: e.target.value };
+                                setParameters(newParameters);
+                              }}
+                              variant="outlined"
+                              placeholder="Key"
+                              sx={{
+                                flex: 1,
+                                "& .MuiOutlinedInput-root": {
+                                  height: "3rem",
+                                  bgcolor: "background.elevation1",
+                                  "& fieldset": {
+                                    border: "none",
+                                  },
+                                  "&:hover fieldset": {
+                                    border: "none",
+                                  },
+                                  "&.Mui-focused fieldset": {
+                                    border: "none",
+                                  },
+                                },
+                              }}
+                            />
+                            <TextField
+                              value={param.value}
+                              onChange={(e) => {
+                                const newParameters = [...parameters];
+                                newParameters[index] = { ...newParameters[index], value: e.target.value };
+                                setParameters(newParameters);
+                              }}
+                              variant="outlined"
+                              placeholder="Value"
+                              sx={{
+                                flex: 1,
+                                "& .MuiOutlinedInput-root": {
+                                  height: "3rem",
+                                  bgcolor: "background.elevation1",
+                                  "& fieldset": {
+                                    border: "none",
+                                  },
+                                  "&:hover fieldset": {
+                                    border: "none",
+                                  },
+                                  "&.Mui-focused fieldset": {
+                                    border: "none",
+                                  },
+                                },
+                              }}
+                            />
+                            {index === parameters.length - 1 && (
+                              <IconButton
+                                onClick={() => {
+                                  setParameters([...parameters, { key: "", value: "" }]);
+                                }}
+                                sx={{
+                                  bgcolor: "primary.lighter",
+                                  color: "primary.main",
+                                  "&:hover": {
+                                    bgcolor: "primary.light",
+                                  },
+                                }}
+                              >
+                                <AddIcon />
+                              </IconButton>
+                            )}
+                          </Box>
+                        ))}
+                      </Box>
+
+                      {/* Tags */}
+                      <Box sx={{ mb: 2 }}>
+                        <Typography variant="body2" fontWeight={600} sx={{ mb: 1 }}>
+                          Tags
+                        </Typography>
+                        {tags.map((tag, index) => (
+                          <Box key={index} sx={{ display: "flex", gap: 1, mb: 1, alignItems: "center" }}>
+                            <TextField
+                              value={tag}
+                              onChange={(e) => {
+                                const newTags = [...tags];
+                                newTags[index] = e.target.value;
+                                setTags(newTags);
+                              }}
+                              variant="outlined"
+                              fullWidth
+                              placeholder="Enter tag"
+                    sx={{
+                                "& .MuiOutlinedInput-root": {
+                                  height: "3rem",
+                                  bgcolor: "background.elevation1",
+                                  "& fieldset": {
+                                    border: "none",
+                                  },
+                                  "&:hover fieldset": {
+                                    border: "none",
+                                  },
+                                  "&.Mui-focused fieldset": {
+                                    border: "none",
+                                  },
+                                },
+                              }}
+                            />
+                            {index === tags.length - 1 && (
+                              <IconButton
+                                onClick={() => {
+                                  setTags([...tags, ""]);
+                                }}
+                                sx={{
+                                  bgcolor: "primary.lighter",
+                                  color: "primary.main",
+                                  "&:hover": {
+                                    bgcolor: "primary.light",
+                                  },
+                                }}
+                              >
+                                <AddIcon />
+                    </IconButton>
+                            )}
+                  </Box>
+                        ))}
+                      </Box>
+                    </Box>
+                  </Box>
+                )}
+
+                {/* Swagger/OpenAPI Fields */}
+                {actionDiscoveryMode === "swagger" && (
+                <Box>
+                    <Box sx={{ mb: 2 }}>
+                      <Typography variant="body2" fontWeight={600} sx={{ mb: 1 }}>
+                        Swagger/OpenAPI URL
+                    </Typography>
+                        <TextField
+                        value={swaggerUrl}
+                        onChange={(e) => setSwaggerUrl(e.target.value)}
+                          variant="outlined"
+                          fullWidth
+                        placeholder="http://localhost:8000/openapi.json"
+                          sx={{
+                            "& .MuiOutlinedInput-root": {
+                            height: "3rem",
+                            bgcolor: "background.elevation1",
+                              "& fieldset": {
+                                border: "none",
+                              },
+                              "&:hover fieldset": {
+                                border: "none",
+                              },
+                              "&.Mui-focused fieldset": {
+                                border: "none",
+                              },
+                            },
+                          }}
+                        />
                 </Box>
+                  </Box>
+                )}
+
+                {/* Script Discovery Fields */}
+                {actionDiscoveryMode === "script" && (
+                <Box>
+                    <Box sx={{ mb: 2 }}>
+                      <Typography variant="body2" fontWeight={600} sx={{ mb: 1 }}>
+                        Script Path
+                        </Typography>
+                      <TextField
+                        value={scriptPath}
+                        onChange={(e) => setScriptPath(e.target.value)}
+                        variant="outlined"
+                        fullWidth
+                        placeholder="/path/to/script.sh or /var/scripts/"
+                    sx={{
+                          "& .MuiOutlinedInput-root": {
+                            height: "3rem",
+                            bgcolor: "background.elevation1",
+                            "& fieldset": {
+                              border: "none",
+                            },
+                            "&:hover fieldset": {
+                              border: "none",
+                            },
+                            "&.Mui-focused fieldset": {
+                              border: "none",
+                            },
+                          },
+                        }}
+                      />
+                      </Box>
+
+                    <Box sx={{ mb: 2 }}>
+                      <FormControlLabel
+                        control={
+                          <Checkbox
+                            checked={accessViaSSH}
+                            onChange={(e) => setAccessViaSSH(e.target.checked)}
+                            sx={{
+                              color: "primary.main",
+                              "&.Mui-checked": {
+                                color: "primary.main",
+                              },
+                            }}
+                          />
+                        }
+                        label={
+                    <Typography variant="body2" fontWeight={600}>
+                            Access via SSH
+                    </Typography>
+                        }
+                      />
+                  </Box>
+
+                    {/* SSH Configuration Fields */}
+                    <Box sx={{ mb: 2 }}>
+                      <Typography variant="body2" fontWeight={600} sx={{ mb: 1 }}>
+                        SSH Host
+                      </Typography>
+                        <TextField
+                        value={sshHost}
+                        onChange={(e) => setSshHost(e.target.value)}
+                          variant="outlined"
+                          fullWidth
+                        placeholder="server.example.com"
+                          sx={{
+                            "& .MuiOutlinedInput-root": {
+                            height: "3rem",
+                            bgcolor: "background.elevation1",
+                              "& fieldset": {
+                                border: "none",
+                              },
+                              "&:hover fieldset": {
+                                border: "none",
+                              },
+                              "&.Mui-focused fieldset": {
+                                border: "none",
+                              },
+                            },
+                          }}
+                        />
+                    </Box>
+
+                    <Box sx={{ mb: 2 }}>
+                      <Typography variant="body2" fontWeight={600} sx={{ mb: 1 }}>
+                        SSH Username
+                        </Typography>
+                      <TextField
+                        value={sshUsername}
+                        onChange={(e) => setSshUsername(e.target.value)}
+                        variant="outlined"
+                        fullWidth
+                        placeholder="admin"
+                        sx={{
+                          "& .MuiOutlinedInput-root": {
+                            height: "3rem",
+                            bgcolor: "background.elevation1",
+                            "& fieldset": {
+                              border: "none",
+                            },
+                            "&:hover fieldset": {
+                              border: "none",
+                            },
+                            "&.Mui-focused fieldset": {
+                              border: "none",
+                            },
+                          },
+                        }}
+                      />
+                      </Box>
+
+                    <Box sx={{ mb: 2 }}>
+                      <Typography variant="body2" fontWeight={600} sx={{ mb: 1 }}>
+                        SSH Password (optional)
+                      </Typography>
+                        <TextField
+                        type="password"
+                        value={sshPassword}
+                        onChange={(e) => setSshPassword(e.target.value)}
+                          variant="outlined"
+                          fullWidth
+                          sx={{
+                            "& .MuiOutlinedInput-root": {
+                            height: "3rem",
+                            bgcolor: "background.elevation1",
+                              "& fieldset": {
+                                border: "none",
+                              },
+                              "&:hover fieldset": {
+                                border: "none",
+                              },
+                              "&.Mui-focused fieldset": {
+                                border: "none",
+                              },
+                            },
+                          }}
+                        />
+                    </Box>
+
+                    <Box sx={{ mb: 2 }}>
+                      <Typography variant="body2" fontWeight={600} sx={{ mb: 1 }}>
+                        SSH Key Path (optional)
+                        </Typography>
+                      <TextField
+                        value={sshKeyPath}
+                        onChange={(e) => setSshKeyPath(e.target.value)}
+                        variant="outlined"
+                        fullWidth
+                        placeholder="/home/user/.ssh/id_rsa"
+                        sx={{
+                          "& .MuiOutlinedInput-root": {
+                            height: "3rem",
+                            bgcolor: "background.elevation1",
+                            "& fieldset": {
+                              border: "none",
+                            },
+                            "&:hover fieldset": {
+                              border: "none",
+                            },
+                            "&.Mui-focused fieldset": {
+                              border: "none",
+                            },
+                          },
+                        }}
+                      />
+                </Box>
+                    </Box>
+                )}
+
+                {/* Documentation Discovery Field */}
+                {actionDiscoveryMode === "documentation" && (
+                  <Box>
+                    <Box sx={{ mb: 2 }}>
+                      <Typography variant="body2" fontWeight={600} sx={{ mb: 1 }}>
+                        Documentation
+                      </Typography>
+                      <TextField
+                        multiline
+                        rows={12}
+                        value={documentation}
+                        onChange={(e) => setDocumentation(e.target.value)}
+                        variant="outlined"
+                        fullWidth
+                        placeholder="Enter documentation..."
+                        sx={{
+                          "& .MuiOutlinedInput-root": {
+                            bgcolor: "background.elevation1",
+                            "& fieldset": {
+                              border: "none",
+                            },
+                            "&:hover fieldset": {
+                              border: "none",
+                            },
+                            "&.Mui-focused fieldset": {
+                              border: "none",
+                            },
+                          },
+                        }}
+                      />
+                </Box>
+                  </Box>
+                )}
               </Box>
             </Box>
           )}
