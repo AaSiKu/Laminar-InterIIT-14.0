@@ -1,51 +1,43 @@
 import { useState, useEffect, useCallback } from "react";
-import {
-  Typography,
-  Button,
-  IconButton,
-  Slide,
-  Box,
-  TextField,
-  MenuItem,
-  Select,
-  FormControl,
-  useTheme,
-} from "@mui/material";
-import CheckCircleIcon from "@mui/icons-material/CheckCircle";
+import { Typography, Slide, Box, IconButton, Button, CircularProgress } from "@mui/material";
 import CloseIcon from "@mui/icons-material/Close";
-import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
 import Playground from "../workflow/Playground";
-
-// Sidebar width matches the expanded nav sidebar
-const STEP_SIDEBAR_WIDTH = 240;
+import StepSidebar, { STEP_SIDEBAR_COLLAPSED_WIDTH } from "./StepSidebar";
+import BasicInformationForm from "./BasicInformationForm";
 
 // Stepper steps configuration
 const steps = [
   { id: 1, label: "Basic Information" },
-  { id: 2, label: "Nodes Setup" },
-  { id: 3, label: "Done" },
+  { id: 2, label: "AI Assistant" },
+  { id: 3, label: "Nodes Setup" },
+  { id: 4, label: "Done" },
 ];
 
 const CreateWorkflowDrawer = ({ open, onClose, onComplete }) => {
-  const theme = useTheme();
   const [currentStep, setCurrentStep] = useState(1);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [formData, setFormData] = useState({
     name: "",
     description: "",
     members: "",
+    document: null,
   });
 
   // Pipeline nodes and edges state (managed here, passed to Playground)
   const [nodes, setNodes] = useState([]);
   const [edges, setEdges] = useState([]);
+  
+  // AI chatbot state
+  const [isGenerating, setIsGenerating] = useState(false);
 
   // Reset form when drawer opens
   useEffect(() => {
     if (open) {
       setCurrentStep(1);
-      setFormData({ name: "", description: "", members: "" });
+      setFormData({ name: "", description: "", members: "", document: null });
       setNodes([]);
       setEdges([]);
+      setIsGenerating(false);
     }
   }, [open]);
 
@@ -55,7 +47,7 @@ const CreateWorkflowDrawer = ({ open, onClose, onComplete }) => {
     }
   };
 
-  const handleNext = () => {
+  const handleNext = async () => {
     if (currentStep < steps.length) {
       setCurrentStep(currentStep + 1);
     } else {
@@ -78,6 +70,14 @@ const CreateWorkflowDrawer = ({ open, onClose, onComplete }) => {
     });
   };
 
+  const handleFileChange = (event) => {
+    const file = event.target.files?.[0] || null;
+    setFormData({
+      ...formData,
+      document: file,
+    });
+  };
+
   const getStepStatus = (stepId) => {
     if (stepId < currentStep) return "completed";
     if (stepId === currentStep) return "current";
@@ -92,6 +92,29 @@ const CreateWorkflowDrawer = ({ open, onClose, onComplete }) => {
   // Handle edges change from Playground (controlled mode)
   const handleEdgesChange = useCallback((newEdges) => {
     setEdges(newEdges);
+  }, []);
+
+  // Handle workflow generation from AI chatbot
+  const handleWorkflowGenerated = useCallback((generatedNodes, generatedEdges) => {
+    if (generatedNodes && generatedEdges) {
+      setNodes(generatedNodes);
+      setEdges(generatedEdges);
+    }
+  }, []);
+
+  // Handle accept workflow from AI chatbot
+  const handleAcceptWorkflow = useCallback(() => {
+    // Automatically advance to next step when workflow is accepted
+    if (currentStep === 2) {
+      setCurrentStep(3);
+    }
+  }, [currentStep]);
+
+  // Handle decline workflow from AI chatbot
+  const handleDeclineWorkflow = useCallback(() => {
+    // Reset nodes and edges if declined
+    setNodes([]);
+    setEdges([]);
   }, []);
 
   return (
@@ -137,115 +160,23 @@ const CreateWorkflowDrawer = ({ open, onClose, onComplete }) => {
               overflow: "hidden",
             }}
           >
-            {/* Left Sidebar - matches expanded nav width */}
-            <Box
-              sx={{
-                width: STEP_SIDEBAR_WIDTH,
-                bgcolor: "background.paper",
-                borderRight: "1px solid",
-                borderColor: "divider",
-                px: 3,
-                pt: 4,
-                pb: 3,
-                display: "flex",
-                flexDirection: "column",
-                flexShrink: 0,
-              }}
-            >
-              <Box sx={{ flex: 1 }}>
-                <Typography
-                  variant="h6"
-                  sx={{
-                    fontWeight: 700,
-                    color: "text.primary",
-                    mb: 3,
-                  }}
-                >
-                  Details
-                </Typography>
-                
-                <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
-                  {steps.map((step, index) => (
-                    <Box key={step.id} sx={{ display: "flex", flexDirection: "column" }}>
-                      <Box
-                        sx={{
-                          display: "flex",
-                          alignItems: "flex-start",
-                          gap: 2,
-                          py: 0.25,
-                        }}
-                      >
-                        <Box
-                          sx={{
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "center",
-                            flexShrink: 0,
-                          }}
-                        >
-                          {getStepStatus(step.id) === "completed" ? (
-                            <CheckCircleIcon
-                              sx={{
-                                color: "success.main",
-                                fontSize: 24,
-                              }}
-                            />
-                          ) : (
-                            <Box
-                              sx={{
-                                width: 24,
-                                height: 24,
-                                borderRadius: "50%",
-                                display: "flex",
-                                alignItems: "center",
-                                justifyContent: "center",
-                                fontSize: 14,
-                                fontWeight: 500,
-                                bgcolor: getStepStatus(step.id) === "current" 
-                                  ? "primary.main" 
-                                  : "grey.100",
-                                color: getStepStatus(step.id) === "current" 
-                                  ? "common.white" 
-                                  : "text.primary",
-                              }}
-                            >
-                              {step.id}
-                            </Box>
-                          )}
-                        </Box>
-                        <Box sx={{ display: "flex", flexDirection: "column", gap: 0.125 }}>
-                          <Typography
-                            variant="body2"
-                            sx={{
-                              color: "text.primary",
-                              fontWeight: getStepStatus(step.id) === "completed" ? 600 : 500,
-                            }}
-                          >
-                            {step.label}
-                          </Typography>
-                        </Box>
-                      </Box>
-                      {index < steps.length - 1 && (
-                        <Box
-                          sx={{
-                            width: 2,
-                            height: 32,
-                            ml: "11px",
-                            my: 0.75,
-                            borderRadius: 1,
-                            bgcolor: getStepStatus(step.id) === "completed" 
-                              ? "success.main" 
-                              : (theme) => theme.palette.dividerLight,
-                          }}
-                        />
-                      )}
-                    </Box>
-                  ))}
-                </Box>
-              </Box>
-            </Box>
+            {/* Left Sidebar */}
+            <StepSidebar
+              steps={steps}
+              currentStep={currentStep}
+              isSidebarCollapsed={isSidebarCollapsed}
+              onToggleCollapse={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+              getStepStatus={getStepStatus}
+              formData={formData}
+              onWorkflowGenerated={handleWorkflowGenerated}
+              isGenerating={isGenerating}
+              setIsGenerating={setIsGenerating}
+              currentStepValue={currentStep}
+              onAcceptWorkflow={handleAcceptWorkflow}
+              onDeclineWorkflow={handleDeclineWorkflow}
+            />
 
-            {/* Main Content */}
+            {/* Main Content - Full width, sidebar overlays for step 2+ */}
             <Box
               sx={{
                 flex: 1,
@@ -254,6 +185,10 @@ const CreateWorkflowDrawer = ({ open, onClose, onComplete }) => {
                 bgcolor: "background.paper",
                 minWidth: 0,
                 overflow: "hidden",
+                width: "100%",
+                position: "relative",
+                marginLeft: currentStep > 1 && isSidebarCollapsed ? `${STEP_SIDEBAR_COLLAPSED_WIDTH}px` : 0,
+                transition: "margin-left 0.3s ease",
               }}
             >
               {/* Header */}
@@ -312,204 +247,166 @@ const CreateWorkflowDrawer = ({ open, onClose, onComplete }) => {
                       Basic Information
                     </Typography>
 
-                    <Box sx={{ display: "flex", flexDirection: "column", gap: 2.5 }}>
-                      {/* Name Field */}
-                      <Box sx={{ display: "flex", flexDirection: "column", gap: 0.75 }}>
-                        <Typography
-                          component="label"
-                          variant="subtitle2"
-                          sx={{
-                            fontWeight: 600,
-                            color: "text.primary",
-                          }}
-                        >
-                          Name
-                        </Typography>
-                        <TextField
-                          fullWidth
-                          placeholder="Name"
-                          value={formData.name}
-                          onChange={handleInputChange("name")}
-                          variant="filled"
-                          InputProps={{
-                            disableUnderline: true,
-                          }}
-                          sx={{
-                            "& .MuiFilledInput-root": {
-                              bgcolor: "background.elevation2",
-                              borderRadius: 2,
-                              "&:hover": { bgcolor: "background.elevation1" },
-                              "&.Mui-focused": {
-                                bgcolor: "background.elevation1",
-                                boxShadow: (theme) => `0 0 0 2px ${theme.palette.primary.light}`,
-                              },
-                            },
-                            "& .MuiFilledInput-input": {
-                              py: 1.5,
-                              px: 2,
-                              fontSize: "0.875rem",
-                              "&::placeholder": { color: "text.secondary", opacity: 1 },
-                            },
-                          }}
-                        />
-                      </Box>
+                    <BasicInformationForm
+                      formData={formData}
+                      onInputChange={handleInputChange}
+                      onFileChange={handleFileChange}
+                    />
 
-                      {/* Description Field */}
-                      <Box sx={{ display: "flex", flexDirection: "column", gap: 0.75 }}>
-                        <Typography
-                          component="label"
-                          variant="subtitle2"
-                          sx={{
-                            fontWeight: 600,
-                            color: "text.primary",
-                          }}
-                        >
-                          Description
-                        </Typography>
-                        <TextField
-                          fullWidth
-                          placeholder="Description"
-                          value={formData.description}
-                          onChange={handleInputChange("description")}
-                          variant="filled"
-                          multiline
-                          rows={4}
-                          InputProps={{
-                            disableUnderline: true,
-                          }}
-                          sx={{
-                            "& .MuiFilledInput-root": {
-                              bgcolor: "background.elevation2",
-                              borderRadius: 2,
-                              alignItems: "flex-start",
-                              "&:hover": { bgcolor: "background.elevation1" },
-                              "&.Mui-focused": {
-                                bgcolor: "background.elevation1",
-                                boxShadow: (theme) => `0 0 0 2px ${theme.palette.primary.light}`,
-                              },
-                            },
-                            "& .MuiFilledInput-input": {
-                              py: 1.5,
-                              px: 2,
-                              fontSize: "0.875rem",
-                              "&::placeholder": { color: "text.secondary", opacity: 1 },
-                            },
-                          }}
-                        />
-                      </Box>
-
-                      {/* Members Field */}
-                      <Box sx={{ display: "flex", flexDirection: "column", gap: 0.75 }}>
-                        <Typography
-                          component="label"
-                          variant="subtitle2"
-                          sx={{
-                            fontWeight: 600,
-                            color: "text.primary",
-                          }}
-                        >
-                          Members
-                        </Typography>
-                        <FormControl fullWidth variant="filled">
-                          <Select
-                            value={formData.members}
-                            onChange={handleInputChange("members")}
-                            displayEmpty
-                            disableUnderline
-                            IconComponent={KeyboardArrowDownIcon}
-                            sx={{
-                              bgcolor: "background.elevation2",
-                              borderRadius: 2,
-                              "&:hover": { bgcolor: "background.elevation1" },
-                              "&.Mui-focused": {
-                                bgcolor: "background.elevation1",
-                                boxShadow: (theme) => `0 0 0 2px ${theme.palette.primary.light}`,
-                              },
-                              "& .MuiSelect-select": {
-                                py: 1.5,
-                                px: 2,
-                                fontSize: "0.875rem",
-                                color: formData.members ? "text.primary" : "text.secondary",
-                              },
-                              "& .MuiSelect-icon": {
-                                color: "text.secondary",
-                                right: 12,
-                              },
-                            }}
-                            MenuProps={{
-                              PaperProps: {
-                                sx: { zIndex: 10001 },
-                              },
-                            }}
-                          >
-                            <MenuItem value="" disabled>
-                              Select members
-                            </MenuItem>
-                            <MenuItem value="admin">Admin</MenuItem>
-                            <MenuItem value="developer">Developer</MenuItem>
-                            <MenuItem value="viewer">Viewer</MenuItem>
-                          </Select>
-                        </FormControl>
-                      </Box>
-
-                      {/* Navigation Buttons */}
-                      <Box
+                    {/* Navigation Buttons */}
+                    <Box
+                      sx={{
+                        display: "flex",
+                        justifyContent: "space-between",
+                        gap: 1.5,
+                        mt: 2,
+                        mb: 4,
+                      }}
+                    >
+                      <Button
+                        variant="text"
+                        onClick={handleBack}
+                        disabled={currentStep === 1}
                         sx={{
-                          display: "flex",
-                          justifyContent: "space-between",
-                          gap: 1.5,
-                          mt: 2,
+                          py: 1,
+                          px: 3,
+                          color: "primary.main",
+                          textTransform: "none",
+                          fontWeight: 500,
+                          borderRadius: 2,
+                          "&:hover": {
+                            bgcolor: "action.hover",
+                          },
+                          "&:disabled": {
+                            color: "text.disabled",
+                          },
                         }}
                       >
-                        <Button
-                          variant="text"
-                          onClick={handleBack}
-                          disabled={currentStep === 1}
-                          sx={{
-                            py: 1,
-                            px: 3,
-                            color: "primary.main",
-                            textTransform: "none",
-                            fontWeight: 500,
-                            borderRadius: 2,
-                            "&:hover": {
-                              bgcolor: "action.hover",
-                            },
-                            "&:disabled": {
-                              color: "text.disabled",
-                            },
-                          }}
-                        >
-                          Back
-                        </Button>
-                        <Button
-                          variant="contained"
-                          onClick={handleNext}
-                          sx={{
-                            py: 1,
-                            px: 3,
-                            bgcolor: "primary.main",
-                            color: "common.white",
-                            textTransform: "none",
-                            fontWeight: 500,
-                            borderRadius: 2,
+                        Back
+                      </Button>
+                      <Button
+                        variant="contained"
+                        onClick={handleNext}
+                        disabled={isGenerating}
+                        sx={{
+                          py: 1,
+                          px: 3,
+                          bgcolor: "primary.main",
+                          color: "common.white",
+                          textTransform: "none",
+                          fontWeight: 500,
+                          borderRadius: 2,
+                          boxShadow: "none",
+                          "&:hover": {
+                            bgcolor: "primary.dark",
                             boxShadow: "none",
-                            "&:hover": {
-                              bgcolor: "primary.dark",
-                              boxShadow: "none",
-                            },
-                          }}
-                        >
-                          Next
-                        </Button>
-                      </Box>
+                          },
+                          "&:disabled": {
+                            bgcolor: "action.disabledBackground",
+                            color: "action.disabled",
+                          },
+                        }}
+                      >
+                        {isGenerating ? (
+                          <>
+                            <CircularProgress size={16} sx={{ mr: 1, color: "inherit" }} />
+                            Generating...
+                          </>
+                        ) : (
+                          "Next"
+                        )}
+                      </Button>
                     </Box>
                   </Box>
                 </Box>
               )}
 
-              {/* Step 2: Nodes Setup - Playground Canvas */}
+              {/* Step 2: AI Assistant - Show canvas with chatbot in sidebar */}
               {currentStep === 2 && (
+                <Box
+                  sx={{
+                    display: "flex",
+                    flexDirection: "column",
+                    flex: 1,
+                    overflow: "hidden",
+                  }}
+                >
+                  <Box sx={{ flex: 1, minHeight: 0 }}>
+                    <Playground
+                      nodes={nodes}
+                      edges={edges}
+                      onNodesChange={handleNodesChange}
+                      onEdgesChange={handleEdgesChange}
+                      showToolbar={true}
+                      showFullscreenButton={true}
+                      height="100%"
+                      drawerZIndex={10001}
+                    />
+                  </Box>
+                  
+                  {/* Navigation Buttons for AI Assistant Step */}
+                  <Box
+                    sx={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      gap: 1.5,
+                      p: 2,
+                      borderTop: "1px solid",
+                      borderColor: "divider",
+                      bgcolor: "background.paper",
+                    }}
+                  >
+                    <Button
+                      variant="text"
+                      onClick={handleBack}
+                      sx={{
+                        py: 1,
+                        px: 3,
+                        color: "primary.main",
+                        textTransform: "none",
+                        fontWeight: 500,
+                        borderRadius: 2,
+                        "&:hover": {
+                          bgcolor: "action.hover",
+                        },
+                        "&:disabled": {
+                          color: "text.disabled",
+                        },
+                      }}
+                    >
+                      Back
+                    </Button>
+                    <Button
+                      variant="contained"
+                      onClick={handleNext}
+                      disabled={nodes.length === 0}
+                      sx={{
+                        py: 1,
+                        px: 3,
+                        bgcolor: "primary.main",
+                        color: "common.white",
+                        textTransform: "none",
+                        fontWeight: 500,
+                        borderRadius: 2,
+                        boxShadow: "none",
+                        "&:hover": {
+                          bgcolor: "primary.dark",
+                          boxShadow: "none",
+                        },
+                        "&:disabled": {
+                          bgcolor: "action.disabledBackground",
+                          color: "action.disabled",
+                        },
+                      }}
+                    >
+                      Next
+                    </Button>
+                  </Box>
+                </Box>
+              )}
+
+              {/* Step 3: Nodes Setup - Playground Canvas */}
+              {currentStep === 3 && (
                 <Box
                   sx={{
                     display: "flex",
@@ -556,6 +453,9 @@ const CreateWorkflowDrawer = ({ open, onClose, onComplete }) => {
                         "&:hover": {
                           bgcolor: "action.hover",
                         },
+                        "&:disabled": {
+                          color: "text.disabled",
+                        },
                       }}
                     >
                       Back
@@ -576,6 +476,10 @@ const CreateWorkflowDrawer = ({ open, onClose, onComplete }) => {
                           bgcolor: "primary.dark",
                           boxShadow: "none",
                         },
+                        "&:disabled": {
+                          bgcolor: "action.disabledBackground",
+                          color: "action.disabled",
+                        },
                       }}
                     >
                       Next
@@ -584,8 +488,8 @@ const CreateWorkflowDrawer = ({ open, onClose, onComplete }) => {
                 </Box>
               )}
 
-              {/* Step 3: Done - Preview and Create */}
-              {currentStep === 3 && (
+              {/* Step 4: Done - Preview and Create */}
+              {currentStep === 4 && (
                 <Box
                   sx={{
                     display: "flex",
@@ -632,6 +536,9 @@ const CreateWorkflowDrawer = ({ open, onClose, onComplete }) => {
                         "&:hover": {
                           bgcolor: "action.hover",
                         },
+                        "&:disabled": {
+                          color: "text.disabled",
+                        },
                       }}
                     >
                       Back
@@ -652,6 +559,10 @@ const CreateWorkflowDrawer = ({ open, onClose, onComplete }) => {
                           bgcolor: "primary.dark",
                           boxShadow: "none",
                         },
+                        "&:disabled": {
+                          bgcolor: "action.disabledBackground",
+                          color: "action.disabled",
+                        },
                       }}
                     >
                       Create
@@ -668,4 +579,5 @@ const CreateWorkflowDrawer = ({ open, onClose, onComplete }) => {
 };
 
 export default CreateWorkflowDrawer;
+
 

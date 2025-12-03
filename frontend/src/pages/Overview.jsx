@@ -114,7 +114,7 @@ export default function OverviewPage() {
                             index >= totalKpis - Math.ceil(totalKpis / 2);
                           return (
                             <Grid
-                              size={{ xs: 6, sm: 4, md: 6, xl: 4 }}
+                              size={{ xs: 6, sm: 4, md: 6, xl: 6 }}
                               key={kpi.id}
                             >
                               <KPICard
