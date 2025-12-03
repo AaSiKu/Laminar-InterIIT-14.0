@@ -2,7 +2,7 @@ from typing import List
 import pathway as pw
 from lib.tables import AsofJoinNode, IntervalJoinNode, WindowJoinNode, WindowByNode
 from .helpers import MappingValues, get_col, get_this_col, select_for_join
-from ..metric_node import is_special_column
+from .open_tel.prefix import is_special_column
 from .transforms import _join
 import json
 

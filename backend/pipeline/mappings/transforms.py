@@ -2,7 +2,8 @@ from typing import List, Dict, Any
 import pathway as pw
 from lib.tables import JoinNode, FilterNode, GroupByNode, JSONSelectNode, FlattenNode
 from .helpers import MappingValues, get_col, get_this_col, select_for_join
-from ..metric_node import is_special_column
+from .open_tel.prefix import is_special_column
+
 
 # Operator mapping for filter node
 _op_map = {

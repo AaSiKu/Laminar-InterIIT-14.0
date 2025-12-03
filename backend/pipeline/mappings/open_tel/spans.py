@@ -120,8 +120,8 @@ def flatten_spans(data: str) -> list[dict]:
                 # Process events and links as complete objects
                 events = process_span_events(span.get("events", []))
                 links = process_span_links(span.get("links", []))
-                service_name = resource_attrs.pop("service.name")
-                service_namespace = resource_attrs.pop("service.namespace")
+                service_name = resource_attrs.pop("service.name", "")
+                service_namespace = resource_attrs.pop("service.namespace", "")
                 flattened.append({
                     "trace_id": trace_id,
                     "span_id": span_id,

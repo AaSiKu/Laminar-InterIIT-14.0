@@ -69,8 +69,8 @@ def flatten_logs(data: str) -> list[dict]:
                 trace_id = log_record.get("traceId", "")
                 span_id = log_record.get("spanId", "")
                 
-                service_name = resource_attrs.pop("service.name")
-                service_namespace = resource_attrs.pop("service.namespace")
+                service_name = resource_attrs.pop("service.name", "")
+                service_namespace = resource_attrs.pop("service.namespace", "")
 
                 flattened.append({
                     "time_unix_nano": safe_int(log_record.get("timeUnixNano"),0),  # 0 = unknown
