@@ -10,7 +10,8 @@ from backend.api.routers.auth.database import Base
 from backend.api.routers.main_router import router
 from backend.api.routers.websocket import watch_changes
 from utils.logging import get_logger, configure_root
-import asyncio
+from backend.api.routers.websocket import close_inactive_connections
+import certifi
 
 configure_root()
 logger = get_logger(__name__)
@@ -19,7 +20,8 @@ load_dotenv()
 
 MONGO_URI = os.getenv("MONGO_URI")
 MONGO_DB = os.getenv("MONGO_DB", "db")
-WORKFLOW_COLLECTION = os.getenv("MONGO_COLLECTION", "workflows")
+WORKFLOW_COLLECTION = os.getenv("WORKFLOW_COLLECTION", "workflows")
+# Actions are actions from rule book, in our notation there are alerts which are a specific type of notifications
 ACTION_COLLECTION = os.getenv("ACTION_COLLECTION", "actions")
 NOTIFICATION_COLLECTION = os.getenv("NOTIFICATION_COLLECTION", "notifications")
 VERSION_COLLECTION = os.getenv("VERSION_COLLECTION", "versions")
@@ -41,7 +43,7 @@ async def lifespan(app: FastAPI):
     if not MONGO_URI:
         raise RuntimeError("MONGO_URI not set in environment")
 
-    mongo_client = AsyncIOMotorClient(MONGO_URI)
+    mongo_client = AsyncIOMotorClient(MONGO_URI, tlsCAFile=certifi.where())
     db = mongo_client[MONGO_DB]
     workflow_collection = db[WORKFLOW_COLLECTION]
     version_collection = db[VERSION_COLLECTION]
@@ -80,6 +82,8 @@ async def lifespan(app: FastAPI):
 
     asyncio.create_task(watch_changes(notification_collection))
     print("Started MongoDB change stream listener")
+    ws_cleanup_task = asyncio.create_task(close_inactive_connections())
+    print("Started WebSocket inactivity cleanup task")
 
 
     yield
@@ -109,7 +113,8 @@ origins = [
 ]
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=origins,
+    # if i set it to ["*"] it causes the issue of first login request fail https://stackoverflow.com/a/19744754/23078987
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

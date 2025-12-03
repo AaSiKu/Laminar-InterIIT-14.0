@@ -1,4 +1,4 @@
-import { BaseNode } from "../components/BaseNode";
+import { BaseNode } from "../components/workflow/BaseNode";
 
 // TODO: As the nodeTypes is a in memory, it is lost when i leave the page for some time,
 // hence the ui resets to simple rectangle box
@@ -76,7 +76,7 @@ export const addNodeType = (schema) => {
   const type = schema.properties.node_id.const;
 
   nodeTypes[type] = (props) => {
-    const { id, data, selected } = props;
+    const { id, data, selected, onEditClick } = props;
 
     const nInputs = schema.properties.n_inputs?.const || 0;
     const categoryColor = hashColor(
@@ -129,6 +129,8 @@ export const addNodeType = (schema) => {
         id={id}
         data={data}
         selected={selected}
+        category={schema.properties.category?.const}
+        onEditClick={onEditClick}
         styles={{
           bgColor: categoryColor, // solid color
           hoverBgColor: categoryColor,

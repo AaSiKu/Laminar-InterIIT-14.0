@@ -15,8 +15,6 @@ export function PipelineStatsChart({ data }) {
         p: 2.5,
         display: 'flex',
         flexDirection: 'column',
-        border: '1px solid',
-        borderColor: 'divider',
         borderRadius: 2,
         height: '100%',
       }}
@@ -334,7 +332,7 @@ export function PipelineStatsChart({ data }) {
                     bgcolor: 'error.main',
                     transition: 'height 0.3s ease',
                   }}
-                />
+              />
               </Box>
             </Box>
           </Box>

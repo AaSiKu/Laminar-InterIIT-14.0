@@ -1,10 +1,18 @@
 import { useState, useEffect } from "react";
-import { Typography, IconButton, Drawer, Fab, Grid, Box, Divider } from "@mui/material";
-import OverviewSection from "../components/dashboard/OverviewSection";
-import KPICard from "../components/dashboard/KPICard";
-import RecentWorkflowCard from "../components/dashboard/RecentWorkflowCard";
-import HighlightsPanel from "../components/dashboard/HighlightsPanel";
-import TopBar from "../components/TopBar";
+import {
+  Typography,
+  IconButton,
+  Drawer,
+  Fab,
+  Grid,
+  Box,
+  Divider,
+} from "@mui/material";
+import OverviewSection from "../components/overview/OverviewSection";
+import KPICard from "../components/overview/KPICardDashboard";
+import RecentWorkflowCard from "../components/overview/RecentWorkflowCard";
+import HighlightsPanel from "../components/overview/HighlightsPanel";
+import TopBar from "../components/common/TopBar";
 import {
   fetchWorkflows,
   fetchNotifications,
@@ -16,12 +24,10 @@ import TimelineIcon from "@mui/icons-material/Timeline";
 import AccessTimeIcon from "@mui/icons-material/AccessTime";
 import ErrorOutlineIcon from "@mui/icons-material/ErrorOutline";
 import SpeedIcon from "@mui/icons-material/Speed";
-import MoreHorizIcon from "@mui/icons-material/MoreHoriz";
 import HighlightIcon from "@mui/icons-material/Highlight";
 import CloseIcon from "@mui/icons-material/Close";
 import NotificationsActiveOutlinedIcon from "@mui/icons-material/NotificationsActiveOutlined";
-import NoDataImage from "../assets/no-data.svg";
-
+import NoDataImage from "../assets/noData.svg";
 // Icon mapping utility
 const getIconComponent = (iconType) => {
   const iconMap = {
@@ -70,48 +76,63 @@ export default function OverviewPage() {
   console.log();
   return (
     <>
-    <div className="below-sidebar-container">
-      <div className="overview-main">
-        <TopBar userAvatar="https://i.pravatar.cc/40" />
+      <div className="below-sidebar-container">
+        <div className="overview-main">
+          <TopBar userAvatar="https://i.pravatar.cc/40" />
 
-        <div className="overview-content-wrapper">
-          <div className="overview-left-content">
-            <Box sx={{ 
-              mx: { xs: '-16px', md: '-32px' },
-              mt: { xs: '-16px', md: '-32px' },
-              width: { xs: 'calc(100% + 32px)', md: 'calc(100% + 64px)' },
-            }}>
-              {overviewData && <Grid container spacing={0}>
-                <Grid size={{ xs: 12, md: 6, xl: 7 }}>
-                  {overviewData["pie_chart"] && <OverviewSection data={overviewData["pie_chart"]} kpiData={overviewData["kpi"]} />}
-                </Grid>
-
-                <Grid container size={{ xs: 12, md: 6, xl: 5 }} spacing={0}>
-                  {overviewData["kpi"] && overviewData["kpi"].map((kpi, index) => {
-                    // Use notifications icon for the fourth card (index 3)
-                    const IconComponent = index === 3 
-                      ? getIconComponent("notifications") 
-                      : getIconComponent(kpi.iconType);
-                    const totalKpis = overviewData["kpi"].length;
-                    const isFirstRow = index < Math.ceil(totalKpis / 2);
-                    const isLastRow = index >= totalKpis - Math.ceil(totalKpis / 2);
-                    return (
-                      <Grid size={{ xs: 6, sm: 4, md: 6, xl: 4 }} key={kpi.id}>
-                        <KPICard
-                          title={kpi.title}
-                          value={kpi.value}
-                          subtitle={kpi.subtitle}
-                          icon={IconComponent}
-                          iconColor={kpi.iconColor}
-                          isFirstRow={isFirstRow}
-                          isLastRow={isLastRow}
+          <div className="overview-content-wrapper">
+            <div className="overview-left-content">
+              <Box
+                sx={{
+                  mx: { xs: "-16px", md: "-32px" },
+                  mt: { xs: "-16px", md: "-32px" },
+                  width: { xs: "calc(100% + 32px)", md: "calc(100% + 64px)" },
+                }}
+              >
+                {overviewData && (
+                  <Grid container spacing={0}>
+                    <Grid size={{ xs: 12, md: 6, xl: 7 }}>
+                      {overviewData["pie_chart"] && (
+                        <OverviewSection
+                          data={overviewData["pie_chart"]}
+                          kpiData={overviewData["kpi"]}
                         />
-                      </Grid>
-                    );
-                  })}
-                </Grid>
-              </Grid>}
-            </Box>
+                      )}
+                    </Grid>
+
+                    <Grid container size={{ xs: 12, md: 6, xl: 5 }} spacing={0}>
+                      {overviewData["kpi"] &&
+                        overviewData["kpi"].map((kpi, index) => {
+                          // Use notifications icon for the fourth card (index 3)
+                          const IconComponent =
+                            index === 3
+                              ? getIconComponent("notifications")
+                              : getIconComponent(kpi.iconType);
+                          const totalKpis = overviewData["kpi"].length;
+                          const isFirstRow = index < Math.ceil(totalKpis / 2);
+                          const isLastRow =
+                            index >= totalKpis - Math.ceil(totalKpis / 2);
+                          return (
+                            <Grid
+                              size={{ xs: 6, sm: 4, md: 6, xl: 4 }}
+                              key={kpi.id}
+                            >
+                              <KPICard
+                                title={kpi.title}
+                                value={kpi.value}
+                                subtitle={kpi.subtitle}
+                                icon={IconComponent}
+                                iconColor={kpi.iconColor}
+                                isFirstRow={isFirstRow}
+                                isLastRow={isLastRow}
+                              />
+                            </Grid>
+                          );
+                        })}
+                    </Grid>
+                  </Grid>
+                )}
+              </Box>
 
               <div className="overview-horizontal-divider" />
 
@@ -123,19 +144,36 @@ export default function OverviewPage() {
                 </div>
                 <div className="overview-workflows-list">
                   {workflows.length === 0 ? (
-                    <Box sx={{ textAlign: "center", py: "3rem", display: "flex", flexDirection: "column", alignItems: "center", gap: "1rem", width: "100%" }}>
-                      <img src={NoDataImage} alt="No data" style={{ width: "10rem", height: "auto", opacity: 0.7 }} />
-                      <Typography color="text.secondary" sx={{ fontSize: "0.875rem" }}>
+                    <Box
+                      sx={{
+                        textAlign: "center",
+                        py: "3rem",
+                        display: "flex",
+                        flexDirection: "column",
+                        alignItems: "center",
+                        gap: "1rem",
+                        width: "100%",
+                      }}
+                    >
+                      <img
+                        src={NoDataImage}
+                        alt="No data"
+                        style={{ width: "10rem", height: "auto", opacity: 0.7 }}
+                      />
+                      <Typography
+                        color="text.secondary"
+                        sx={{ fontSize: "0.875rem" }}
+                      >
                         No recent workflows
                       </Typography>
                     </Box>
                   ) : (
                     workflows.map((workflow) => (
-                    <RecentWorkflowCard
-                      key={workflow.id}
-                      workflow={workflow}
-                      onClick={() => handleSelectTemplate(workflow.id)}
-                    />
+                      <RecentWorkflowCard
+                        key={workflow.id}
+                        workflow={workflow}
+                        onClick={() => handleSelectTemplate(workflow.id)}
+                      />
                     ))
                   )}
                 </div>

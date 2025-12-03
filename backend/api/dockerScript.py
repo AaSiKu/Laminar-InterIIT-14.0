@@ -19,6 +19,7 @@ PIPELINE_CONTAINER_PORT = os.getenv("PIPELINE_CONTAINER_PORT", "8000/tcp")
 AGENTIC_CONTAINER_PORT = os.getenv("AGENTIC_CONTAINER_PORT", "5333/tcp")
 
 dev = os.getenv("ENVIRONMENT", "prod") == "dev"
+dynamic_ports = os.getenv("DYNAMIC_PORTS", "true") == "true"
 
 project_root = os.path.join(os.getcwd(),"backend")
 
@@ -73,7 +74,7 @@ def run_pipeline_container(client: docker.DockerClient, pipeline_id: str):
 
         },
         network=network_name,
-        ports={"5432/tcp": 5432 if dev else None},   # dynamic host port
+        ports={"5432/tcp": 5432 if not dynamic_ports else None},   # dynamic host port
     )
 
     logger.info(f"Started DB container: {db_container_name}")
@@ -93,7 +94,7 @@ def run_pipeline_container(client: docker.DockerClient, pipeline_id: str):
             "POSTGRES_PASSWORD": read_pass,
         },
         network=network_name,
-        ports={AGENTIC_CONTAINER_PORT: AGENTIC_CONTAINER_PORT if dev else None},   # dynamic host port
+        ports={AGENTIC_CONTAINER_PORT: AGENTIC_CONTAINER_PORT if not dynamic_ports else None},   # dynamic host port
         volumes=({
             os.path.join(project_root, "agentic"): {
                 "bind": "/app/agentic", 
@@ -130,7 +131,7 @@ def run_pipeline_container(client: docker.DockerClient, pipeline_id: str):
             "POSTGRES_PASSWORD": write_pass,
         },
         network=network_name,
-        ports={PIPELINE_CONTAINER_PORT: PIPELINE_CONTAINER_PORT if dev else None},   # dynamic host port
+        ports={PIPELINE_CONTAINER_PORT: PIPELINE_CONTAINER_PORT if not dynamic_ports else None},   # dynamic host port
         volumes=({  
             os.path.join(project_root, "pipeline"): {
                 "bind": "/app/pipeline",

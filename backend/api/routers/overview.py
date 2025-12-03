@@ -1,34 +1,19 @@
-from typing import List, Optional
 from fastapi import APIRouter, Request, Depends
-from pydantic import BaseModel, Field
-from datetime import datetime
+from .version_manager.schema import Notification
 from backend.api.routers.auth.models import User
 from backend.api.routers.auth.routes import get_current_user
 
 router = APIRouter()
 
-class Alert(BaseModel):
-    actions: List[str]
-    action_taken: Optional[str] = None
-    taken_at: Optional[datetime] = None
-
-class Notification(BaseModel):
-    title: str
-    desc: str
-    action: str
-    alert: Optional[Alert] = None
-    type: str
-    timestamp: datetime = Field(default_factory=datetime.utcnow)
-    user_id: str
 
 @router.get("/kpi")
 async def fetch_kpi(request: Request, current_user: User = Depends(get_current_user)):
     user_id = str(current_user.id)
     workflow_collection = request.app.state.workflow_collection
     notification_collection = request.app.state.notification_collection
+    workflows = await workflow_collection.find({"owner_ids": user_id}).to_list(length=None)
 
     # Workflow stats
-    workflows = await workflow_collection.find({"user_id": user_id}).to_list(length=None)
     total_workflows = len(workflows)
     running_workflows = sum(1 for w in workflows if w["status"] == "Running")
     stopped_workflows = sum(1 for w in workflows if w["status"] == "Stopped")
@@ -70,7 +55,7 @@ async def fetch_kpi(request: Request, current_user: User = Depends(get_current_u
             {
                 "id": "total_runtime",
                 "title": "Total Runtime",
-                "value": f"{total_hours}h",
+                "value": f"{total_hours} hr",
                 "subtitle": "Across all pipelines",
                 "iconType": "speed",
                 "iconColor": "#86C8BC"
@@ -119,7 +104,7 @@ async def add_notification(data: Notification, request: Request):
     
 @router.get("/workflows/")
 async def workflow_data(request: Request, skip: int = 0, limit: int = 10, current_user: User = Depends(get_current_user)):
-    cursor = request.app.state.workflow_collection.find({"user": str(current_user.id)}).sort("last_updated", -1).skip(skip).limit(limit)
+    cursor = request.app.state.workflow_collection.find({"owner_ids": str(current_user.id)}).sort("last_updated", -1).skip(skip).limit(limit)
     recent_pipelines = await cursor.to_list(length=limit)
     data = []
     for pipeline in recent_pipelines:
@@ -127,28 +112,3 @@ async def workflow_data(request: Request, skip: int = 0, limit: int = 10, curren
             "id": str(pipeline["_id"]), "lastModified": str(pipeline["last_updated"])
         })
     return data
-
-# @router.get("/total_runtime")
-# async def total_runtime(request: Request, skip: int = 0, limit: int = 10, current_user: User = Depends(get_current_user)):
-#     cursor = request.app.state.workflow_collection.find({"user_id": str(current_user.id)})
-#     total_runtime = 0
-#     print(str(current_user.id))
-#     async for doc in cursor:
-#         print(doc)
-#         try:
-#             total_runtime += doc["runtime"]
-#         except:
-#             pass
-#     return total_runtime
-
-
-# async def total_runtime(request: Request, skip: int = 0, limit: int = 10):
-#     cursor = request.app.state.workflow_collection.find({"user_id": ""})
-#     total_runtime = 0
-#     async for doc in cursor:
-#         print(doc)
-#         try:
-#             total_runtime += doc["runtime"]
-#         except:
-#             pass
-#     return total_runtime//3600
