@@ -460,3 +460,42 @@ async def delete_draft(
             status_code=500,
             detail=str(e)
         )
+
+
+@router.get("/retrieve_versions")
+async def retrieve_versions(
+    request: Request,
+    workflow_id: str,
+    current_user: User = Depends(get_current_user)
+):
+    workflow_collection = request.app.state.workflow_collection
+    version_collection = request.app.state.version_collection
+    try:
+        user_identifier = str(current_user.id)
+        workflow_query = {"_id": ObjectId(workflow_id)}
+        existing_workflow = await workflow_collection.find_one(workflow_query)
+
+        if not existing_workflow:
+            raise HTTPException(status_code=404, detail="Workflow not found")
+
+        if not (user_identifier in existing_workflow["owner_ids"] or current_user.role == "admin"):
+            raise HTTPException(status_code=403, detail="You are not authorised to view the versions")
+
+        version_ids = existing_workflow.get("versions", [])
+
+        version_data = []
+        for version_id in version_ids:
+            version = await version_collection.find_one({"_id": ObjectId(version_id)})
+            if not version:
+                raise HTTPException(status_code=404, detail=f"Version {version_id} not found")
+            version_data.append({'date': version.get("version_created_at"), 'user': version.get("user_id"), 'version_id': str(version.get("_id")), 'description': version.get("version_description")})
+
+        return [version_data[-5::][::-1], len(version_data)]
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error retrieving versions: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail=str(e)
+        )
