@@ -81,7 +81,7 @@ class BatchAccumulator(Generic[T, R]):
             try:
                 await self._timer_task
             except asyncio.CancelledError:
-                pass
+               pass 
 
         # Process any remaining items
         if self._items:
@@ -201,7 +201,12 @@ class BatchedDetector(BaseDetector):
         await accumulator.start()
         return await accumulator.add(text)
 
-    def detect(self, text, *args, **kwargs):
+    def detect(
+            self, 
+            text, 
+            *args, 
+            **kwargs
+    ):
         raise NotImplementedError(
             "Batched detectors do not support synchronous detect(). Please use adetect() instead"
         )

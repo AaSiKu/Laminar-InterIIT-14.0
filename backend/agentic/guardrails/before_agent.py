@@ -1,5 +1,4 @@
 import asyncio
-import logging
 from dataclasses import dataclass, field
 from typing import List, Tuple
 from gateway import (
@@ -23,16 +22,12 @@ class InputScanner:
     def __init__(
             self
     ):
-        """
-        Initializes the scanner and its detectors.
-        """
         self.prompt_injection_detector = PromptInjectionAnalyzer()
         self.pii_detector = PII_Analyzer()
         self.secrets_detector = SecretsAnalyzer()
 
     async def preload_models(
             self,
-            **kwargs
     ):
         """
         Preloads detector models for lower latency on first use.

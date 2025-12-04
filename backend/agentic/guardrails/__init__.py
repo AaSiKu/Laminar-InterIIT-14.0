@@ -25,5 +25,13 @@ __all__ = [
     'ExtrasImport', 
     'PromptInjectionAnalyzer', 
     'transformers_extra', 
-    'PRESIDIO_EXTRA'
+    'PRESIDIO_EXTRA',
+    'BatchAccumulator',
+    'BatchedDetector',
+    'MCPSecurityGateway', 
+    'PII_Analyzer', 
+    'SecretsAnalyzer', 
+    'UnicodeDetector',
+    'SecretPattern',
+    'BaseDetector'
 ]
