@@ -18,13 +18,13 @@ from re import Pattern
 import unicodedata
 from typing import Generic, TypeVar, Callable, Awaitable, List, Generic, Optional, Any
 import nh3
-from detect_secrets.core import scan
-from detect_secrets.core.secrets_collection import SecretsCollection
+# from detect_secrets.core import scan
+# from detect_secrets.core.secrets_collection import SecretsCollection
 import ipaddress
 import socket
 
-from .base import DetectorResult, BaseDetector, ExtrasImport, Extra
-from .batch import PromptInjectionAnalyzer, PRESIDIO_EXTRA, transformers_extra
+from base import DetectorResult, BaseDetector, ExtrasImport, Extra
+from batch import PromptInjectionAnalyzer, PRESIDIO_EXTRA, transformers_extra
 
 load_dotenv()
 
