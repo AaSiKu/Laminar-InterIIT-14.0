@@ -12,6 +12,7 @@ export const GlobalWorkflowProvider = ({ children }) => {
   const [edges, setEdges] = useState([]);
   const [id, setId] = useState(null);
   const [versionId, setVersionId] = useState(null);
+  const [workflowData, setWorkflowData] = useState({})
   const [status, setStatus] = useState("Stopped");
   const [rfInstance, setRfInstance] = useState(null);
   const { setViewport } = useReactFlow();
@@ -31,6 +32,8 @@ export const GlobalWorkflowProvider = ({ children }) => {
     rfInstance,
     setRfInstance,
     setViewport,
+    workflowData,
+    setWorkflowData
   };
 
   return (

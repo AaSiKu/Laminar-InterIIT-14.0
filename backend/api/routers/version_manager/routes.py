@@ -286,8 +286,7 @@ async def save_draft(
         user_identifier = str(current_user.id)
         try:
             (ObjectId(current_version_id) is None)
-            # TODO: Check after merge
-            ObjectId(workflow_id)
+            (ObjectId(workflow_id) is None)
         except:
             raise HTTPException(status_code=404, detail="Workflow or Version not found")
 
@@ -300,7 +299,7 @@ async def save_draft(
             workflow_query["owner_ids"] = {"$in":user_identifier}
             version_query["user_id"] = user_identifier
 
-        if not existing_version or existing_workflow:
+        if not existing_version or not existing_workflow:
             raise HTTPException(status_code=404, detail="Version or pipeline not found")
         
         if not existing_version["user_id"]==user_identifier and not user_identifier in existing_workflow["owner_ids"] or current_user.role!="admin":

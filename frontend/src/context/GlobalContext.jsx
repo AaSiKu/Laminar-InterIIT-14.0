@@ -15,10 +15,8 @@ export const GlobalContextProvider = ({ children }) => {
   const [containerId, setContainerId] = useState();
   const { login, user, logout, isAuthenticated } = useContext(AuthContext);
   const [sidebarOpen, setSideBarOpen] = useState(false);
-  const { fileStructure, setFileStructure } = useState({});
   const [workflows, setWorkflows] = useState([]);
   const [notifications, setNotifications] = useState([]);
-  const [currentVersionId, setCurrentVersionId] = useState(null);
   const [agentContainerId, setAgentContainerId]=useState(null);
 
   const globalContextValue = {
@@ -37,8 +35,6 @@ export const GlobalContextProvider = ({ children }) => {
     isAuthenticated,
     sidebarOpen,
     setSideBarOpen,
-    fileStructure,
-    setFileStructure,
     logout,
     workflows,
     setWorkflows,

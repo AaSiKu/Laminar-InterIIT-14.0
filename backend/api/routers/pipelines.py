@@ -21,7 +21,7 @@ router = APIRouter()
 
 class PipelineIdRequest(BaseModel):
     pipeline_id: str
-    
+
 @router.post("/spinup")
 async def docker_spinup(request_obj: Request,request: PipelineIdRequest, current_user: User= Depends(get_current_user)):
     """
@@ -127,18 +127,18 @@ async def run_pipeline_endpoint(request_obj: Request, request: PipelineIdRequest
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Workflow not found or not spinned up")
     if current_user_id not in workflow.get('owner_ids', []) and current_user.role != "admin":
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="You are not allowed to run this workflow")
-        
+
     port = workflow['pipeline_host_port']
     ip = workflow['host_ip']
     url = f"http://{ip}:{port}/trigger"
-    
+
     async with httpx.AsyncClient() as client:
         try:
-            # response = await client.post(url)
-            # response.raise_for_status()
+            response = await client.post(url)
+            response.raise_for_status()
             await workflow_collection.update_one(
                 {'_id': ObjectId(request.pipeline_id)},
-                {'$set': 
+                {'$set':
                     {
                         'status': "Running",
                         'last_spin_up_down_run_stop_by': current_user_id,
@@ -146,7 +146,7 @@ async def run_pipeline_endpoint(request_obj: Request, request: PipelineIdRequest
                     }
                 }
             )
-            # return response.json()
+            return response.json()
         except httpx.RequestError as exc:
             raise HTTPException(status_code=500, detail=f"Failed to trigger pipeline: {exc}")
 
@@ -172,8 +172,8 @@ async def stop_pipeline_endpoint(request_obj: Request, request: PipelineIdReques
     
     async with httpx.AsyncClient() as client:
         try:
-            # response = await client.post(url)
-            # response.raise_for_status()
+            response = await client.post(url)
+            response.raise_for_status()
             doc = await workflow_collection.find_one({'_id': ObjectId(request.pipeline_id)})
             last_started = doc["last_started"]
             try:
@@ -192,7 +192,7 @@ async def stop_pipeline_endpoint(request_obj: Request, request: PipelineIdReques
                 }
             )
             return {}
-            # return response.json()
+            return response.json()
         except httpx.RequestError as exc:
             raise HTTPException(status_code=500, detail=f"Failed to stop pipeline: {exc}")
 

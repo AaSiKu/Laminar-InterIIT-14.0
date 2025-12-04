@@ -1,6 +1,13 @@
-import { Box, Typography, AvatarGroup, Avatar, IconButton, Button, CircularProgress } from "@mui/material";
-import EditIcon from '@mui/icons-material/Edit';
-import FileCopyIcon from '@mui/icons-material/FileCopy';
+import {
+  Box,
+  Typography,
+  AvatarGroup,
+  Avatar,
+  IconButton,
+  Button,
+} from "@mui/material";
+import EditIcon from "@mui/icons-material/Edit";
+import FileCopyIcon from "@mui/icons-material/FileCopy";
 import PipelinePreview from "./PipelinePreview";
 import MetricCard from "./MetricCard";
 import ActionRequired from "./ActionRequired";
@@ -10,8 +17,14 @@ import { useGlobalState } from "../../context/GlobalStateContext";
 import { useEffect, useState, useMemo } from "react";
 import { fetchPipelineDetails } from "../../utils/pipelineUtils";
 import Loading from "../common/Loading";
+import noDataSvg from "../../assets/noData.svg";
 
-const WorkflowDetails = ({ workflow, actionFilter, onActionFilterChange, logs }) => {
+const WorkflowDetails = ({
+  workflow,
+  actionFilter,
+  onActionFilterChange,
+  logs,
+}) => {
   const { getAlertsForPipeline, alerts: allAlerts } = useWebSocket();
   const { notifications } = useGlobalState();
   const [workflowAlerts, setWorkflowAlerts] = useState([]);
@@ -26,35 +39,41 @@ const WorkflowDetails = ({ workflow, actionFilter, onActionFilterChange, logs })
     }
 
     const workflowId = String(workflow.id || workflow._id);
-    
+
     // Filter notifications for this pipeline
-    const pipelineNotifications = notifications.filter(notif => {
-      const notifPipelineId = String(notif.pipeline_id || '');
-      return notifPipelineId === workflowId;
+    const pipelineNotifications = notifications.filter((notification) => {
+      return String(notification?.pipeline_id || "") === workflowId;
     });
 
     // Apply filter based on actionFilter
     switch (actionFilter) {
       case "notifications":
-        // type != "alert"
-        return pipelineNotifications.filter(notif => notif.type !== "alert");
-      
+        return pipelineNotifications.filter((n) => n?.type !== "alert");
+
       case "pending_actions":
-        // type == "alert" AND (action_taken is null/undefined/empty)
-        return pipelineNotifications.filter(notif => {
-          if (notif.type !== "alert") return false;
-          const actionTaken = notif.alert?.action_taken;
-          return !actionTaken || actionTaken === "" || actionTaken === null || actionTaken === undefined;
+        return pipelineNotifications.filter((n) => {
+          if (n.type !== "alert") return false;
+          const actionTaken = n.alert?.action_taken;
+          return (
+            !actionTaken ||
+            actionTaken === "" ||
+            actionTaken === null ||
+            actionTaken === undefined
+          );
         });
-      
+
       case "actions_taken":
-        // type == "alert" AND action_taken is not null/undefined/empty
-        return pipelineNotifications.filter(notif => {
-          if (notif.type !== "alert") return false;
-          const actionTaken = notif.alert?.action_taken;
-          return actionTaken && actionTaken !== "" && actionTaken !== null && actionTaken !== undefined;
+        return pipelineNotifications.filter((n) => {
+          if (n.type !== "alert") return false;
+          const actionTaken = n.alert?.action_taken;
+          return (
+            actionTaken &&
+            actionTaken !== "" &&
+            actionTaken !== null &&
+            actionTaken !== undefined
+          );
         });
-      
+
       default:
         return pipelineNotifications;
     }
@@ -67,7 +86,6 @@ const WorkflowDetails = ({ workflow, actionFilter, onActionFilterChange, logs })
         setPipelineDetails(null);
         return;
       }
-
       try {
         setLoadingDetails(true);
         setDetailsError(null);
@@ -76,7 +94,6 @@ const WorkflowDetails = ({ workflow, actionFilter, onActionFilterChange, logs })
           setPipelineDetails(details);
         }
       } catch (err) {
-        console.error("Error fetching pipeline details:", err);
         setDetailsError(err.message || "Failed to load pipeline details");
       } finally {
         setLoadingDetails(false);
@@ -102,10 +119,10 @@ const WorkflowDetails = ({ workflow, actionFilter, onActionFilterChange, logs })
       const currentAlerts = getAlertsForPipeline(workflow.id);
       // Update alerts count if it changed
       if (currentAlerts.length !== (pipelineDetails.alerts_count || 0)) {
-        setPipelineDetails(prev => ({
+        setPipelineDetails((prev) => ({
           ...prev,
           alerts_count: currentAlerts.length,
-          alerts: currentAlerts
+          alerts: currentAlerts,
         }));
       }
     }
@@ -113,11 +130,11 @@ const WorkflowDetails = ({ workflow, actionFilter, onActionFilterChange, logs })
   // Format total running time from seconds to human readable format
   const formatRunningTime = (seconds) => {
     if (!seconds || seconds === 0) return "0 min";
-    
+
     const hours = Math.floor(seconds / 3600);
     const minutes = Math.floor((seconds % 3600) / 60);
     const secs = Math.floor(seconds % 60);
-    
+
     if (hours > 0) {
       return `${hours}h ${minutes}m`;
     } else if (minutes > 0) {
@@ -130,22 +147,23 @@ const WorkflowDetails = ({ workflow, actionFilter, onActionFilterChange, logs })
   // Calculate %time run = (total_runtime / (date.now - create_time)) * 100
   const calculateTimeRunPercentage = () => {
     if (!workflow) return "0%";
-    
+
     const totalRuntime = workflow.runtime || 0; // in seconds
     // Use created_at from pipeline details API (first version_created_at) if available
-    const createTime = pipelineDetails?.created_at || 
-                      workflow.created_at || 
-                      workflow.user_pipeline_version?.version_created_at || 
-                      workflow.last_updated;
-    
+    const createTime =
+      pipelineDetails?.created_at ||
+      workflow.created_at ||
+      workflow.user_pipeline_version?.version_created_at ||
+      workflow.last_updated;
+
     if (!createTime) return "0%";
-    
+
     const now = new Date();
     const created = new Date(createTime);
     const timeSinceCreation = (now - created) / 1000; // Convert to seconds
-    
+
     if (timeSinceCreation <= 0) return "0%";
-    
+
     const percentage = (totalRuntime / timeSinceCreation) * 100;
     return `${percentage.toFixed(2)}%`;
   };
@@ -162,7 +180,9 @@ const WorkflowDetails = ({ workflow, actionFilter, onActionFilterChange, logs })
   };
 
   const timeRunPercentage = calculateTimeRunPercentage();
-  const formattedRunningTime = formatRunningTime(workflow?.runtime || workflow?.avgRunningTime || 0);
+  const formattedRunningTime = formatRunningTime(
+    workflow?.runtime || workflow?.avgRunningTime || 0
+  );
   const alertsCount = getAlertsCount();
 
   // Show loading state if no workflow selected
@@ -172,7 +192,7 @@ const WorkflowDetails = ({ workflow, actionFilter, onActionFilterChange, logs })
         sx={{
           flex: 1,
           minHeight: 0,
-          bgcolor: 'background.paper',
+          bgcolor: "background.paper",
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
@@ -180,9 +200,28 @@ const WorkflowDetails = ({ workflow, actionFilter, onActionFilterChange, logs })
           pb: 3,
         }}
       >
-        <Typography variant="body2" color="text.secondary">
-          Select a workflow to view details
-        </Typography>
+        <Box
+          sx={{
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            justifyContent: "center",
+            margin: "auto",
+          }}
+        >
+          <Box
+            component="img"
+            src={noDataSvg}
+            alt="No data"
+            sx={{ width: "8rem", height: "auto", opacity: 0.6 }}
+          />
+          <Typography
+            variant="body2"
+            sx={{ color: "text.secondary", fontSize: "0.875rem", mt: 2 }}
+          >
+            No Workflow Selected!
+          </Typography>
+        </Box>
       </Box>
     );
   }
@@ -192,38 +231,41 @@ const WorkflowDetails = ({ workflow, actionFilter, onActionFilterChange, logs })
       sx={{
         flex: 1,
         minHeight: 0,
-        bgcolor: 'background.paper',
-        overflow: "auto",
+        bgcolor: "background.paper",
         display: "flex",
         flexDirection: "column",
         px: 3,
-        pb: 3,
       }}
     >
       {/* Header Box */}
-      <Box sx={{ 
-        bgcolor: 'background.paper', 
-        border: "1px solid", 
-        borderColor: 'divider', 
-        borderRadius: 0, 
-        p: 2,
-        mb: 0,
-        mx: -3,
-        mt: 0,
-        borderTop: "none",
-      }}>
-        {loadingDetails && (
-          <Loading />
-        )}
-        {detailsError && (
-          <Box sx={{ mb: 2 }}>
-            <Typography variant="caption" color="error">
-              {detailsError}
-            </Typography>
-          </Box>
-        )}
-        <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", mb: 2 }}>
-          <Typography variant="h5" sx={{ fontWeight: 600, color: "text.primary", fontSize: "1.125rem" }}>
+      <Box
+        sx={{
+          bgcolor: "background.paper",
+          border: "1px solid",
+          borderColor: "divider",
+          borderRadius: 0,
+          p: 2,
+          mb: 0,
+          mx: -3,
+          mt: 0,
+          borderTop: "none",
+        }}
+      >
+        {loadingDetails && <Loading />}
+        <Box
+          sx={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "flex-start",
+          }}
+        >
+          <Typography
+            variant="h5"
+            sx={{
+              fontWeight: 600,
+              color: "text.primary",
+            }}
+          >
             {workflow?.name || "Unnamed Workflow"}
           </Typography>
           <Box sx={{ display: "flex", gap: 1.5, alignItems: "center" }}>
@@ -232,31 +274,42 @@ const WorkflowDetails = ({ workflow, actionFilter, onActionFilterChange, logs })
               size="small"
               startIcon={<FileCopyIcon sx={{ fontSize: 16 }} />}
               sx={{
-                color: 'primary.main',
-                bgcolor: 'rgba(25, 118, 210, 0.08)',
+                color: "primary.main",
+                bgcolor: "rgba(25, 118, 210, 0.08)",
                 px: 1.5,
                 py: 0.5,
                 borderRadius: "6px",
                 fontSize: "0.75rem",
                 fontWeight: 500,
                 textTransform: "none",
-                '&:hover': {
-                  bgcolor: 'rgba(25, 118, 210, 0.16)',
+                "&:hover": {
+                  bgcolor: "rgba(25, 118, 210, 0.16)",
                 },
               }}
             >
               Get Report
             </Button>
-            <AvatarGroup max={3} sx={{ "& .MuiAvatar-root": { width: 32, height: 32, fontSize: "0.75rem" } }}>
+            <AvatarGroup
+              max={3}
+              sx={{
+                "& .MuiAvatar-root": {
+                  width: 32,
+                  height: 32,
+                  fontSize: "0.75rem",
+                },
+              }}
+            >
               {(workflow?.team || []).map((member, index) => {
-                const avatarUrl = `https://avatar.iran.liara.run/public/boy?username=${encodeURIComponent(member.name || member.id || `user${index}`)}&size=32`;
+                const avatarUrl = `https://avatar.iran.liara.run/public/boy?username=${encodeURIComponent(
+                  member.name || member.id || `user${index}`
+                )}&size=32`;
                 return (
-                  <Avatar 
+                  <Avatar
                     key={index}
                     src={avatarUrl}
                     alt={member.name}
-                    sx={{ 
-                      width: 32, 
+                    sx={{
+                      width: 32,
                       height: 32,
                     }}
                     title={member.name}
@@ -264,13 +317,13 @@ const WorkflowDetails = ({ workflow, actionFilter, onActionFilterChange, logs })
                 );
               })}
             </AvatarGroup>
-            <IconButton 
-              size="small" 
-              sx={{ 
-                color: 'primary.main',
-                bgcolor: 'rgba(25, 118, 210, 0.08)',
-                '&:hover': {
-                  bgcolor: 'rgba(25, 118, 210, 0.16)',
+            <IconButton
+              size="small"
+              sx={{
+                color: "primary.main",
+                bgcolor: "rgba(25, 118, 210, 0.08)",
+                "&:hover": {
+                  bgcolor: "rgba(25, 118, 210, 0.16)",
                 },
               }}
             >
@@ -278,23 +331,35 @@ const WorkflowDetails = ({ workflow, actionFilter, onActionFilterChange, logs })
             </IconButton>
           </Box>
         </Box>
-        <Typography variant="body2" sx={{ fontWeight: 600, color: "text.primary", mb: 1, fontSize: "0.875rem" }}>
-          Description
-        </Typography>
-        <Typography variant="body2" sx={{ color: "text.secondary", fontSize: "0.875rem", lineHeight: 1.6 }}>
+        <Typography
+          variant="body2"
+          sx={{
+            color: "text.secondary",
+            fontSize: "0.875rem",
+            lineHeight: 1.6,
+          }}
+        >
           {workflow?.description || "No description available"}
         </Typography>
         {pipelineDetails?.created_at && (
-          <Typography variant="caption" sx={{ color: "text.secondary", fontSize: "0.75rem", mt: 1, display: "block" }}>
-            Created: {new Date(pipelineDetails.created_at).toLocaleString()}
+          <Typography
+            variant="caption"
+            sx={{
+              color: "text.secondary",
+              fontSize: "0.75rem",
+              mt: 1,
+              display: "block",
+            }}
+          >
+            Created {new Date(pipelineDetails.created_at).toLocaleString()}
           </Typography>
         )}
       </Box>
 
       {/* 1x3 Grid: Pipeline, Average Running Time, Alerts Pending */}
-      <Box 
-        sx={{ 
-          display: "grid", 
+      <Box
+        sx={{
+          display: "grid",
           gridTemplateColumns: "1fr 1fr 1fr",
           gap: 0,
           mb: 0,
@@ -311,14 +376,14 @@ const WorkflowDetails = ({ workflow, actionFilter, onActionFilterChange, logs })
         <MetricCard
           title="Alerts Pending"
           subtitle="Real-time alerts from pipeline"
-          value={String(alertsCount).padStart(2, '0')}
+          value={String(alertsCount).padStart(2, "0")}
           change={workflow?.alertsChange || "0%"}
         />
       </Box>
 
       {/* Two Columns: Action Required and Logs */}
-      <Box 
-        sx={{ 
+      <Box
+        sx={{
           display: "grid",
           gridTemplateColumns: "1fr 1fr",
           gap: 0,
@@ -338,4 +403,3 @@ const WorkflowDetails = ({ workflow, actionFilter, onActionFilterChange, logs })
 };
 
 export default WorkflowDetails;
-

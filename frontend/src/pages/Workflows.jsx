@@ -18,14 +18,6 @@ import PipelineNavBar from "../components/workflow/PipelineNavBar";
 import Playground from "../components/workflow/Playground";
 import RunBook from "../components/workflow/RunBook";
 
-/**
- * Toggle status logic helper
- * TODO: need to fix this logic for setting status to Broken/Running/Stopped
- */
-function toggleStatusLogic(variable) {
-  return variable;
-}
-
 // Drawer width constant
 export const DRAWER_WIDTH = 64;
 
@@ -69,6 +61,8 @@ export default function WorkflowPage() {
     rfInstance,
     versionId: currentVersionId,
     setVersionId: setCurrentVersionId,
+    workflowData: currentWorkflowData,
+    setWorkflowData: setCurrentWorkflowData,
   } = useGlobalWorkflow();
 
   // Track loaded pipeline to prevent re-loading
@@ -77,18 +71,6 @@ export default function WorkflowPage() {
   const viewportDataRef = useRef(null); // Store viewport data for applying when rfInstance is ready
 
   // Load pipeline data when pipelineId changes (from URL), TODO: check for debounce
-
-  /*
-      setCurrentEdges,
-      setCurrentNodes,
-      setRfInstance,
-      setCurrentPipelineStatus,
-      setCurrentPipelineId,
-      setLoading,
-      setError,
-      setViewport,
-      setCurrentVersionId
-   */
 
   useEffect(() => {
     // Skip if no pipelineId
@@ -122,6 +104,9 @@ export default function WorkflowPage() {
             const foundWorkflow = workflowResponse.data.find(
               (w) => w._id === pipelineId
             );
+            setCurrentWorkflowData(foundWorkflow);
+            setCurrentPipelineStatus(foundWorkflow?.status);
+            console.log(foundWorkflow);
             if (foundWorkflow && foundWorkflow.current_version_id) {
               versionId = foundWorkflow.current_version_id;
             }
@@ -252,6 +237,7 @@ export default function WorkflowPage() {
       currentVersionId,
       rfInstance,
       setCurrentVersionId,
+      currentPipelineId,
       setLoading,
       setError
     )
@@ -285,11 +271,13 @@ export default function WorkflowPage() {
     setLoading(true);
     setError(null);
     try {
-      const newStatus = await togglePipelineStatus(
+      await togglePipelineStatus(
         currentPipelineId,
         currentPipelineStatus
       );
-      setCurrentPipelineStatus(toggleStatusLogic(newStatus["status"]));
+      // Toggle the status: Running -> Stopped, Stopped -> Running
+      const newStatus = currentPipelineStatus === "Running" ? "Stopped" : "Running";
+      setCurrentPipelineStatus(newStatus);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -309,7 +297,7 @@ export default function WorkflowPage() {
     setError(null);
     try {
       const data = await spinupPipeline(currentPipelineId);
-      setContainerId(data.id);
+      setContainerId(data.pipeline_container_id);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -508,8 +496,10 @@ export default function WorkflowPage() {
           {/* Pipeline Navigation Bar */}
           <PipelineNavBar
             onBackClick={handleBackClick}
-            pipelineName={`Pipeline ${
-              pipelineId ? pipelineId.toLowerCase() : "undefined"
+            pipelineName={`${
+              currentWorkflowData?.name || pipelineId
+                ? pipelineId.toLowerCase()
+                : "Unnamed Workflow"
             }`}
             loading={loading}
             shareAnchorEl={shareAnchorEl}
@@ -529,7 +519,6 @@ export default function WorkflowPage() {
             userAvatar="https://i.pravatar.cc/40"
           />
 
-          {/* Playground - Visual Node Editor */}
           <Playground
             ref={playgroundRef}
             nodes={currentNodes}
