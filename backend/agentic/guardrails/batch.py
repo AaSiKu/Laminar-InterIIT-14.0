@@ -275,4 +275,3 @@ class PromptInjectionAnalyzer(BatchedDetector):
     async def adetect(self, text, *args, **kwargs):
         result = await self.adetect_all(text, *args, **kwargs)
         return result[0] is True
-
