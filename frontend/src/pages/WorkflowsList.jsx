@@ -3,6 +3,7 @@ import { Box, CircularProgress, Typography } from "@mui/material";
 import { styles } from "../styles/WorkflowsList.styles";
 import { fetchWorkflows } from "../utils/utils";
 import { create_pipeline, fetchPipelineDetails } from "../utils/pipelineUtils";
+import Loading from "../components/common/Loading";
 
 // Mock action items data
 const mockActionItems = [
@@ -498,7 +499,7 @@ export const WorkflowsList = () => {
             >
               {loading ? (
                 <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", py: 4 }}>
-                  <CircularProgress />
+                  <Loading />
                 </Box>
               ) : error ? (
                 <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", py: 4 }}>
