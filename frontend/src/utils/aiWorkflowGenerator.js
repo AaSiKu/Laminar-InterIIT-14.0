@@ -3,6 +3,8 @@
  * Handles communication with the backend AI service to generate workflows
  */
 
+import fetchWithAuth from "./api";
+
 /**
  * Generate a workflow flowchart from user input using AI
  * @param {Object} formData - The form data containing name, description, members, document
@@ -11,29 +13,25 @@
  */
 export const generateWorkflowFromAI = async (formData, chatHistory = []) => {
   try {
-    const response = await fetch(
-      `${import.meta.env.VITE_API_SERVER}/ai/generate-workflow`,
-      {
-        method: "POST",
-        credentials: "include",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          name: formData.name || "",
-          description: formData.description || "",
-          members: formData.members || "",
-          document: formData.document
-            ? {
-                name: formData.document.name,
-                type: formData.document.type,
-                size: formData.document.size,
-              }
-            : null,
-          chat_history: chatHistory,
-        }),
-      }
-    );
+    const response = await fetchWithAuth("/ai/generate-workflow", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        name: formData.name || "",
+        description: formData.description || "",
+        members: formData.members || "",
+        document: formData.document
+          ? {
+              name: formData.document.name,
+              type: formData.document.type,
+              size: formData.document.size,
+            }
+          : null,
+        chat_history: chatHistory,
+      }),
+    });
 
     if (!response.ok) {
       const errText = await response.text();

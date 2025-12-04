@@ -2,6 +2,7 @@
 //TODO: net ni chal rha to sed
 import { Routes, Route, Navigate, useLocation } from "react-router-dom";
 import ProtectedRoute from "./pages/ProtectedRoute";
+import AdminProtectedRoute from "./pages/AdminProtectedRoute";
 import LoginPage from "./pages/Login.jsx";
 import SignupPage from "./pages/Signup.jsx";
 import WorkflowPage from "./pages/Workflows.jsx";
@@ -53,9 +54,9 @@ function AppContent() {
         <Route
           path="/admin"
           element={
-            <ProtectedRoute>
+            <AdminProtectedRoute>
               <AdminPage />
-            </ProtectedRoute>
+            </AdminProtectedRoute>
           }
         />
         <Route path="*" element={<Navigate to="/404" />} />

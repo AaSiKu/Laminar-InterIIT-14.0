@@ -12,15 +12,32 @@ export const AuthProvider = ({ children }) => {
   useEffect(() => {
     const checkAuth = async () => {
       try {
-        const res = await fetch(`${import.meta.env.VITE_API_SERVER}/auth/me`, {
+        let res = await fetch(`${import.meta.env.VITE_API_SERVER}/auth/me`, {
           method: "GET",
           credentials: "include",
         });
+
+        // If 401, try to refresh token
+        if (res.status === 401) {
+          const refreshRes = await fetch(`${import.meta.env.VITE_API_SERVER}/auth/refresh`, {
+            method: "POST",
+            credentials: "include",
+          });
+
+          if (refreshRes.ok) {
+            // Retry /me after refresh
+            res = await fetch(`${import.meta.env.VITE_API_SERVER}/auth/me`, {
+              method: "GET",
+              credentials: "include",
+            });
+          }
+        }
+
         if (res.ok) {
           const data = await res.json();
           setUser(data);
         } else {
-          setUser(null); 
+          setUser(null);
         }
       } catch (err) {
         setUser(null);

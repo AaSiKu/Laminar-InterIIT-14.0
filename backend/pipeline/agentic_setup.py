@@ -1,4 +1,4 @@
-from typing import Dict, List
+from typing import Dict, List, Any
 import pathway as pw
 from lib.node import Node
 from .types import Graph
@@ -86,7 +86,7 @@ def combine_answer_tables(
     return all_answers.with_columns(row_id=pw.this.id)
 
 
-def persist_answers(all_answers: pw.Table, connection_string: str) -> None:
+def persist_answers(all_answers: pw.Table, connection_string: dict[str, Any]) -> None:
     """
     Persist all answers to PostgreSQL.
     

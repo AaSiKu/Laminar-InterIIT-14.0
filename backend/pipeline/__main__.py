@@ -1,9 +1,8 @@
 import os
 from dotenv import load_dotenv
 import pathway as pw
-
 load_dotenv()
-
+from .logger import custom_logger
 from .agentic import build_agentic_graph
 from .graph_reader import read_and_validate_graph
 from .graph_builder import build_computational_graph
@@ -22,54 +21,57 @@ from .metric_node import find_special_column_sources, is_special_column
 
 pw.set_license_key(os.environ["PATHWAY_LICENSE_KEY"])
 
-
 class Prompt(pw.Schema):
     prompt: str
 
 
 def main():
     """Main execution function for the pipeline."""
-    # Get flowchart file path
-    flowchart_file = os.getenv("FLOWCHART_FILE", "flowchart.json")
+    try:
+        custom_logger.critical("Pipeline starting")
+        # Get flowchart file path
+        flowchart_file = os.getenv("FLOWCHART_FILE", "flowchart.json")
 
-    # Read and validate the graph
-    graph = read_and_validate_graph(flowchart_file)
+        # Read and validate the graph
+        graph = read_and_validate_graph(flowchart_file)
 
-    # Build the computational graph
-    node_outputs = build_computational_graph(
-        graph["nodes"],
-        graph["parsing_order"],
-        graph["dependencies"]
-    )
+        # Build the computational graph
+        node_outputs = build_computational_graph(
+            graph["nodes"],
+            graph["parsing_order"],
+            graph["dependencies"]
+        )
 
-    for metric_node_idx in graph["metric_node_descriptions"].keys():
-        graph["metric_node_descriptions"][metric_node_idx]["special_columns_source_indexes"] = {
-            col: find_special_column_sources(metric_node_idx,col,graph) for col in node_outputs[metric_node_idx].column_names() if is_special_column(col)
-        }
-    # Build agentic graph
-    graph_name = graph.get("name", "")
-    
-    supervisor = build_agentic_graph(
-        graph["agents"],
-        graph_name,
-        graph["nodes"],
-        node_outputs
-    )
+        for metric_node_idx in graph["metric_node_descriptions"].keys():
+            graph["metric_node_descriptions"][metric_node_idx]["special_columns_source_indexes"] = {
+                col: find_special_column_sources(metric_node_idx,col,graph) for col in node_outputs[metric_node_idx].column_names() if is_special_column(col)
+            }
+        # Build agentic graph
+        graph_name = graph.get("name", "")
 
-    # Setup trigger tables
-    answer_tables = setup_trigger_tables(graph, node_outputs, supervisor)
+        supervisor = build_agentic_graph(
+            graph["agents"],
+            graph_name,
+            graph["nodes"],
+            node_outputs
+        )
 
-    # Setup prompt input and answers
-    # TODO: Shift to a better input connector for prompts
-    prompts = pw.io.csv.read("prompts.csv", schema=Prompt, mode="streaming")
-    prompt_answers = setup_prompt_table(prompts, supervisor)
+        # Setup trigger tables
+        answer_tables = setup_trigger_tables(graph, node_outputs, supervisor)
 
-    # Combine all answers
-    all_answers = combine_answer_tables(prompt_answers, answer_tables)
+        # Setup prompt input and answers
+        # TODO: Shift to a better input connector for prompts
+        prompts = pw.io.csv.read("prompts.csv", schema=Prompt, mode="streaming")
+        prompt_answers = setup_prompt_table(prompts, supervisor)
 
-    # Persist to database
-    persist_answers(all_answers, connection_string)
-    pw.run()
+        # Combine all answers
+        all_answers = combine_answer_tables(prompt_answers, answer_tables)
+
+        # Persist to database
+        persist_answers(all_answers, connection_string)
+        pw.run()
+    except Exception as e:
+        custom_logger.error(f"Error running pipeline: {e}")
 
 
 if __name__ == "__main__":

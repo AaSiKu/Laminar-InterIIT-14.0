@@ -523,12 +523,14 @@ export const WorkflowsList = () => {
             </Box>
           </Box>
 
-          {/* Right Content - Workflow Details */}
+          {/* TODO: Check, after merge Right Content - Workflow Details */}
+          {console.log(selectedWorkflow)}
           {selectedWorkflow && (
             <WorkflowDetails
               workflow={selectedWorkflow}
               actionFilter={actionFilter}
               onActionFilterChange={setActionFilter}
+              actionItems={mockActionItems}
               logs={mockLogs}
             />
           )}

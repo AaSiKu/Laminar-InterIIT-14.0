@@ -66,7 +66,7 @@ async def signup(request: Request, response: Response, data: UserCreate, db: Asy
         path="/",
     )
 
-    return UserOut(id=str(user.id), email=user.email, full_name=user.full_name)
+    return UserOut(id=str(user.id), email=user.email, full_name=user.full_name, role=user.role)
 
 
 # ------------------ LOGIN ------------------ #
@@ -250,4 +250,4 @@ async def refresh_token(request: Request, response: Response, db: AsyncSession =
 # ------------------ ME ------------------ #
 @router.get("/me", response_model=UserOut)
 async def get_me(request: Request, current_user = Depends(get_current_user)):
-    return UserOut(id=str(current_user.id), email=current_user.email, full_name=current_user.full_name)
+    return UserOut(id=str(current_user.id), email=current_user.email, full_name=current_user.full_name, role=current_user.role)
