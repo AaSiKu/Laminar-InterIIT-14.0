@@ -2,6 +2,7 @@ import { Box, Typography, Button, IconButton, useTheme } from "@mui/material";
 import AutoAwesomeOutlinedIcon from '@mui/icons-material/AutoAwesomeOutlined';
 import dayjs from "dayjs";
 import relativeTime from "dayjs/plugin/relativeTime";
+import noDataSvg from "../../assets/noData.svg";
 dayjs.extend(relativeTime);
 
 const ActionRequired = ({ actionFilter, onFilterChange, notifications = [] }) => {
@@ -39,56 +40,57 @@ const ActionRequired = ({ actionFilter, onFilterChange, notifications = [] }) =>
         overflow: "hidden",
       }}
     >
-      <Box sx={{ p: 2, display: "flex", alignItems: "center", gap: 1 }}>
+      <Box sx={{ p: 2, display: "flex", flexDirection: "column", gap: 2 }}>
         <Typography variant="h6" sx={{ fontWeight: 600, fontSize: "0.9375rem", color: "text.primary" }}>
           Action Required
         </Typography>
-        <Box sx={{ flex: 1 }} />
-        <Button
-          size="small"
-          variant={actionFilter === "notifications" ? "soft" : "text"}
-          color="neutral"
-          onClick={() => onFilterChange("notifications")}
-          sx={{
-            minWidth: "auto",
-            border: "none",
-            '&:hover': {
+        <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+          <Button
+            size="small"
+            variant={actionFilter === "notifications" ? "soft" : "text"}
+            color="neutral"
+            onClick={() => onFilterChange("notifications")}
+            sx={{
+              minWidth: "auto",
               border: "none",
-            },
-          }}
-        >
-          Notifications
-        </Button>
-        <Button
-          size="small"
-          variant={actionFilter === "pending_actions" ? "soft" : "text"}
-          color="neutral"
-          onClick={() => onFilterChange("pending_actions")}
-          sx={{
-            minWidth: "auto",
-            border: "none",
-            '&:hover': {
+              '&:hover': {
+                border: "none",
+              },
+            }}
+          >
+            Notifications
+          </Button>
+          <Button
+            size="small"
+            variant={actionFilter === "pending_actions" ? "soft" : "text"}
+            color="neutral"
+            onClick={() => onFilterChange("pending_actions")}
+            sx={{
+              minWidth: "auto",
               border: "none",
-            },
-          }}
-        >
-          Pending Actions
-        </Button>
-        <Button
-          size="small"
-          variant={actionFilter === "actions_taken" ? "soft" : "text"}
-          color="neutral"
-          onClick={() => onFilterChange("actions_taken")}
-          sx={{
-            minWidth: "auto",
-            border: "none",
-            '&:hover': {
+              '&:hover': {
+                border: "none",
+              },
+            }}
+          >
+            Pending Actions
+          </Button>
+          <Button
+            size="small"
+            variant={actionFilter === "actions_taken" ? "soft" : "text"}
+            color="neutral"
+            onClick={() => onFilterChange("actions_taken")}
+            sx={{
+              minWidth: "auto",
               border: "none",
-            },
-          }}
-        >
-          Actions Taken
-        </Button>
+              '&:hover': {
+                border: "none",
+              },
+            }}
+          >
+            Actions Taken
+          </Button>
+        </Box>
       </Box>
       <Box 
         sx={{ 
@@ -103,9 +105,17 @@ const ActionRequired = ({ actionFilter, onFilterChange, notifications = [] }) =>
         </Typography>
         <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>
           {filteredNotifications.length === 0 ? (
-            <Typography variant="body2" sx={{ color: "text.secondary", fontSize: "0.875rem", py: 2 }}>
-              No items found
-            </Typography>
+            <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", py: 4 }}>
+              <Box
+                component="img"
+                src={noDataSvg}
+                alt="No data"
+                sx={{ width: "8rem", height: "auto", opacity: 0.6 }}
+              />
+              <Typography variant="body2" sx={{ color: "text.secondary", fontSize: "0.875rem", mt: 2 }}>
+                No items found
+              </Typography>
+            </Box>
           ) : (
             filteredNotifications.map((item) => (
               <Box

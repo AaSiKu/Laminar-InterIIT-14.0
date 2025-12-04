@@ -9,6 +9,7 @@ import { useWebSocket } from "../../context/WebSocketContext";
 import { useGlobalState } from "../../context/GlobalStateContext";
 import { useEffect, useState, useMemo } from "react";
 import { fetchPipelineDetails } from "../../utils/pipelineUtils";
+import Loading from "../common/Loading";
 
 const WorkflowDetails = ({ workflow, actionFilter, onActionFilterChange, logs }) => {
   const { getAlertsForPipeline, alerts: allAlerts } = useWebSocket();
@@ -212,12 +213,7 @@ const WorkflowDetails = ({ workflow, actionFilter, onActionFilterChange, logs })
         borderTop: "none",
       }}>
         {loadingDetails && (
-          <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 2 }}>
-            <CircularProgress size={16} />
-            <Typography variant="caption" color="text.secondary">
-              Loading pipeline details...
-            </Typography>
-          </Box>
+          <Loading />
         )}
         {detailsError && (
           <Box sx={{ mb: 2 }}>
