@@ -387,7 +387,7 @@ export const WorkflowsList = () => {
         setTimeout(() => {
           const newWorkflow = workflows.find(w => w.id === newWorkflowId || w._id === newWorkflowId);
           if (newWorkflow) {
-            setSelectedWorkflow(newWorkflow);
+    setSelectedWorkflow(newWorkflow);
           }
         }, 1000);
       }
@@ -412,8 +412,8 @@ export const WorkflowsList = () => {
       if (selectedTab === 2) return matchesSearch && workflow.status === "Stopped"; // Stopped only
       if (selectedTab === 3) return matchesSearch && workflow.status === "Broken"; // Broken only
       
-      return matchesSearch;
-    });
+    return matchesSearch;
+  });
 
     // Sort by last_updated (most recent first) and limit to 10
     return filtered
@@ -428,7 +428,7 @@ export const WorkflowsList = () => {
 
   return (
     <Box
-      sx={{
+                  sx={{
         display: "flex",
         flexDirection: "column",
         height: "100vh",
@@ -446,7 +446,7 @@ export const WorkflowsList = () => {
       />
 
       <Box
-        sx={{
+                  sx={{
           ...styles.mainContainer,
           bgcolor: "background.default",
           flex: 1,
@@ -456,7 +456,7 @@ export const WorkflowsList = () => {
       >
         {/* Main Content Area */}
         <Box
-          sx={{
+              sx={{
             ...styles.mainContentArea,
             bgcolor: "background.default",
             height: "100%",
@@ -487,9 +487,9 @@ export const WorkflowsList = () => {
             />
 
             {/* Scrollable Workflow Cards */}
-            <Box
-              sx={{
-                flex: 1,
+          <Box 
+            sx={{ 
+              flex: 1,
                 minHeight: 0,
                 overflowY: "auto",
                 px: 2,
@@ -508,7 +508,7 @@ export const WorkflowsList = () => {
               ) : filteredWorkflows.length === 0 ? (
                 <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", py: 4 }}>
                   <Typography color="text.secondary">No workflows found</Typography>
-                </Box>
+              </Box>
               ) : (
                 <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>
                   {filteredWorkflows.map((workflow) => (
@@ -535,7 +535,7 @@ export const WorkflowsList = () => {
               logs={mockLogs}
             />
           )}
-        </Box>
+          </Box>
       </Box>
 
       {/* New Project Modal */}

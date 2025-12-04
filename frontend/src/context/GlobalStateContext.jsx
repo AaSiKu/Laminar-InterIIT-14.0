@@ -125,14 +125,14 @@ export const GlobalStateProvider = ({ children }) => {
     }
 
     // Handle logs (commented out for now)
-    // if (messageType === "log") {
-    //   setLogs(prev => {
-    //     if (!itemExists(prev, data)) {
-    //       return [data, ...prev];
-    //     }
-    //     return prev;
-    //   });
-    // }
+    if (messageType === "log") {
+      setLogs(prev => {
+        if (!itemExists(prev, data)) {
+          return [data, ...prev];
+        }
+        return prev;
+      });
+    }
   }, [setWorkflows, setNotifications, setAlerts, itemExists]);
 
   // Process queued messages when connection is restored

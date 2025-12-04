@@ -45,51 +45,51 @@ const ActionRequired = ({ actionFilter, onFilterChange, notifications = [] }) =>
           Action Required
         </Typography>
         <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-          <Button
-            size="small"
-            variant={actionFilter === "notifications" ? "soft" : "text"}
-            color="neutral"
-            onClick={() => onFilterChange("notifications")}
-            sx={{
-              minWidth: "auto",
+        <Button
+          size="small"
+          variant={actionFilter === "notifications" ? "soft" : "text"}
+          color="neutral"
+          onClick={() => onFilterChange("notifications")}
+          sx={{
+            minWidth: "auto",
+            border: "none",
+            '&:hover': {
               border: "none",
-              '&:hover': {
-                border: "none",
-              },
-            }}
-          >
-            Notifications
-          </Button>
-          <Button
-            size="small"
-            variant={actionFilter === "pending_actions" ? "soft" : "text"}
-            color="neutral"
-            onClick={() => onFilterChange("pending_actions")}
-            sx={{
-              minWidth: "auto",
+            },
+          }}
+        >
+          Notifications
+        </Button>
+        <Button
+          size="small"
+          variant={actionFilter === "pending_actions" ? "soft" : "text"}
+          color="neutral"
+          onClick={() => onFilterChange("pending_actions")}
+          sx={{
+            minWidth: "auto",
+            border: "none",
+            '&:hover': {
               border: "none",
-              '&:hover': {
-                border: "none",
-              },
-            }}
-          >
-            Pending Actions
-          </Button>
-          <Button
-            size="small"
-            variant={actionFilter === "actions_taken" ? "soft" : "text"}
-            color="neutral"
-            onClick={() => onFilterChange("actions_taken")}
-            sx={{
-              minWidth: "auto",
+            },
+          }}
+        >
+          Pending Actions
+        </Button>
+        <Button
+          size="small"
+          variant={actionFilter === "actions_taken" ? "soft" : "text"}
+          color="neutral"
+          onClick={() => onFilterChange("actions_taken")}
+          sx={{
+            minWidth: "auto",
+            border: "none",
+            '&:hover': {
               border: "none",
-              '&:hover': {
-                border: "none",
-              },
-            }}
-          >
-            Actions Taken
-          </Button>
+            },
+          }}
+        >
+          Actions Taken
+        </Button>
         </Box>
       </Box>
       <Box 
@@ -113,8 +113,8 @@ const ActionRequired = ({ actionFilter, onFilterChange, notifications = [] }) =>
                 sx={{ width: "8rem", height: "auto", opacity: 0.6 }}
               />
               <Typography variant="body2" sx={{ color: "text.secondary", fontSize: "0.875rem", mt: 2 }}>
-                No items found
-              </Typography>
+              No items found
+            </Typography>
             </Box>
           ) : (
             filteredNotifications.map((item) => (

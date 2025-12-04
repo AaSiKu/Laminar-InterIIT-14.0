@@ -770,8 +770,8 @@ const RunBook = ({ open, onClose, formData = {}, onSave }) => {
                                   zIndex: 20002,
                                 },
                               },
-                            }}
-                          >
+                    }}
+                  >
                             <MenuItem value="">Select risk level</MenuItem>
                             <MenuItem value="low">low</MenuItem>
                             <MenuItem value="medium">medium</MenuItem>
@@ -873,7 +873,7 @@ const RunBook = ({ open, onClose, formData = {}, onSave }) => {
                                     bgcolor: "primary.light",
                                   },
                                 }}
-                              >
+                      >
                                 <AddIcon />
                               </IconButton>
                             )}
@@ -1017,7 +1017,7 @@ const RunBook = ({ open, onClose, formData = {}, onSave }) => {
                                 <AddIcon />
                               </IconButton>
                             )}
-                          </Box>
+                  </Box>
                         ))}
                       </Box>
 
@@ -1028,32 +1028,32 @@ const RunBook = ({ open, onClose, formData = {}, onSave }) => {
                         </Typography>
                         {tags.map((tag, index) => (
                           <Box key={index} sx={{ display: "flex", gap: 1, mb: 1, alignItems: "center" }}>
-                            <TextField
+                  <TextField
                               value={tag}
                               onChange={(e) => {
                                 const newTags = [...tags];
                                 newTags[index] = e.target.value;
                                 setTags(newTags);
                               }}
-                              variant="outlined"
-                              fullWidth
+                    variant="outlined"
+                    fullWidth
                               placeholder="Enter tag"
                     sx={{
-                                "& .MuiOutlinedInput-root": {
+                      "& .MuiOutlinedInput-root": {
                                   height: "3rem",
                                   bgcolor: "background.elevation1",
-                                  "& fieldset": {
-                                    border: "none",
-                                  },
-                                  "&:hover fieldset": {
-                                    border: "none",
-                                  },
-                                  "&.Mui-focused fieldset": {
-                                    border: "none",
-                                  },
-                                },
-                              }}
-                            />
+                        "& fieldset": {
+                          border: "none",
+                        },
+                        "&:hover fieldset": {
+                          border: "none",
+                        },
+                        "&.Mui-focused fieldset": {
+                          border: "none",
+                        },
+                      },
+                    }}
+                  />
                             {index === tags.length - 1 && (
                               <IconButton
                                 onClick={() => {
@@ -1070,7 +1070,7 @@ const RunBook = ({ open, onClose, formData = {}, onSave }) => {
                                 <AddIcon />
                     </IconButton>
                             )}
-                  </Box>
+                </Box>
                         ))}
                       </Box>
                     </Box>
@@ -1096,7 +1096,7 @@ const RunBook = ({ open, onClose, formData = {}, onSave }) => {
                           fullWidth
                           placeholder="http://localhost:8000/openapi.json"
                           disabled={!!swaggerFile}
-                          sx={{
+                    sx={{
                             "& .MuiOutlinedInput-root": {
                               height: "3rem",
                               bgcolor: "background.elevation1",
@@ -1144,7 +1144,7 @@ const RunBook = ({ open, onClose, formData = {}, onSave }) => {
                                 backgroundColor: "rgba(0, 0, 0, 0.04)",
                               },
                             }}
-                          >
+                  >
                             {swaggerFileName || "Upload File"}
                           </Button>
                         </label>
@@ -1152,9 +1152,9 @@ const RunBook = ({ open, onClose, formData = {}, onSave }) => {
                       {swaggerFileName && (
                         <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, display: "block" }}>
                           {swaggerFileName}
-                        </Typography>
+                    </Typography>
                       )}
-                </Box>
+                  </Box>
                   </Box>
                 )}
 
@@ -1165,28 +1165,28 @@ const RunBook = ({ open, onClose, formData = {}, onSave }) => {
                       <Typography variant="body2" fontWeight={600} sx={{ mb: 1 }}>
                         Script Path
                         </Typography>
-                      <TextField
+                        <TextField
                         value={scriptPath}
                         onChange={(e) => setScriptPath(e.target.value)}
-                        variant="outlined"
-                        fullWidth
+                          variant="outlined"
+                          fullWidth
                         placeholder="/path/to/script.sh or /var/scripts/"
-                    sx={{
-                          "& .MuiOutlinedInput-root": {
+                          sx={{
+                            "& .MuiOutlinedInput-root": {
                             height: "3rem",
                             bgcolor: "background.elevation1",
-                            "& fieldset": {
-                              border: "none",
+                              "& fieldset": {
+                                border: "none",
+                              },
+                              "&:hover fieldset": {
+                                border: "none",
+                              },
+                              "&.Mui-focused fieldset": {
+                                border: "none",
+                              },
                             },
-                            "&:hover fieldset": {
-                              border: "none",
-                            },
-                            "&.Mui-focused fieldset": {
-                              border: "none",
-                            },
-                          },
-                        }}
-                      />
+                          }}
+                        />
                       </Box>
 
                     <Box sx={{ mb: 2 }}>
@@ -1206,10 +1206,10 @@ const RunBook = ({ open, onClose, formData = {}, onSave }) => {
                         label={
                     <Typography variant="body2" fontWeight={600}>
                             Access via SSH
-                    </Typography>
+                        </Typography>
                         }
                       />
-                  </Box>
+                      </Box>
 
                     {/* SSH Configuration Fields */}
                     <Box sx={{ mb: 2 }}>

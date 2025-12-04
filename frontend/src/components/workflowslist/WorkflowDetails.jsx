@@ -331,7 +331,7 @@ const WorkflowDetails = ({ workflow, actionFilter, onActionFilterChange, logs })
           onFilterChange={onActionFilterChange}
           notifications={filteredNotifications}
         />
-        <LogsSection logs={logs} />
+        <LogsSection workflow={workflow} />
       </Box>
     </Box>
   );

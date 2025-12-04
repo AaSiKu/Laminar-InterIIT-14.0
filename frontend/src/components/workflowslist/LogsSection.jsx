@@ -2,7 +2,9 @@ import { useState } from "react";
 import { Box, Typography, Avatar, IconButton } from "@mui/material";
 import { Key as KeyIcon, History as HistoryIcon } from "@mui/icons-material";
 import { useEffect } from "react";
-const LogsSection = ({ logs }) => {
+import { useGlobalState } from "../../context/GlobalStateContext";
+const LogsSection = ({ workflow }) => {
+  console.log("workflow in logsection:", workflow.id);
   const [logsView, setLogsView] = useState("logs");
   const colorPalette = ["#f97316", "#10b981", "#3b82f6", "#8b5cf6", "#14b8a6"];
   // const versionHistory = [
@@ -11,14 +13,16 @@ const LogsSection = ({ logs }) => {
   //   { date: "2025-11-29; 16:42:55", user: "Yash Maherwal", color: "#3b82f6" },
   //   { date: "2025-11-29 18:27:19", user: "Nina", color: "#10b981" },
   // ];
+  const { logs } = useGlobalState();
+  console.log("logs in logsection:", logs);
   const [versionHistory, setVersionHistory] = useState(null);
   const [lenVersions, setLenVersions] = useState(0);
-  let workflow_id = "6930925d05740db6475de887"; // to be replaced with props.workflow.id
+  const workflow_id = workflow.id; // to be replaced with props.workflow.id
   useEffect(() => {
     const fetch_version_history = async () => {
       try {
         const res = await fetch(
-          `http://localhost:8000/version/retrieve_versions?workflow_id=${workflow_id}`,
+          `${import.meta.env.VITE_API_SERVER}/version/retrieve_versions?workflow_id=${workflow_id}`,
           { credentials: "include" }
         );
 
@@ -32,7 +36,7 @@ const LogsSection = ({ logs }) => {
     };
 
     fetch_version_history();
-  }, []);
+  }, [workflow_id]);
 
   return (
     <Box
@@ -121,8 +125,14 @@ const LogsSection = ({ logs }) => {
       >
         {logsView === "logs" ? (
           <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>
-            {logs.map((log, index) => (
-              <Box key={index} sx={{ display: "flex", gap: 1.5 }}>
+            {logs
+              .filter((log) => {
+                const logWorkflowId = log.workflow_id || log.pipeline_id;
+                const workflowId = workflow?._id || workflow?.id;
+                return logWorkflowId && workflowId && String(logWorkflowId) === String(workflowId);
+              })
+              .map((log, index) => (
+              <Box key={log._id} sx={{ display: "flex", gap: 1.5 }}>
                 <Box
                   sx={{
                     width: 20,
@@ -146,17 +156,17 @@ const LogsSection = ({ logs }) => {
                     sx={{
                       fontSize: "0.8125rem",
                       color: "text.primary",
-                      mb: 0.5,
-                      lineHeight: 1.5,
+                      fontWeight: 700,
                     }}
                   >
-                    {log}
+                    {log.message}
                   </Typography>
                   <Typography
                     variant="caption"
                     sx={{ fontSize: "0.6875rem", color: "text.secondary" }}
                   >
-                    9:30 PM
+                    {log.timestamp['$date'].split("T")[0]} at{" "}
+                    {log.timestamp['$date'].split("T")[1].split(".")[0]}
                   </Typography>
                 </Box>
               </Box>
