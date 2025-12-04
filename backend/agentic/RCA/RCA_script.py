@@ -83,6 +83,23 @@ DB_CONFIG = {
     "password": password
 }
 
+
+"""
+Database Interaction Layer
+All data required for the analysis is fetched from a PostgreSQL database via a connection pool (psycopg2.pool.SimpleConnectionPool) 
+for efficiency.
+
+- get_workflow_from_db(workflow_id): Retrieves the static definition (topology) of a workflow.
+- get_baselines_from_db(workflow_id): Fetches the expected performance metrics (e.g., p95 duration) for each node in a workflow. 
+        This is crucial for identifying deviations.
+- get_spans_from_db(trace_ids): Retrieves all OpenTelemetry spans for a given trace. Spans are the detailed, timed steps of a 
+        workflow execution. This data is used to calculate the actual duration of each node.
+- get_logs_from_db(trace_ids): Retrieves all logs associated with a trace, providing rich, unstructured context for debugging.
+- get_top_latency_traces(...): This is the key function that bridges the MetricAlert and the SLAAlert. It queries the otel_spans table to 
+        find the 5 slowest workflow executions (trace_ids) within a time window around the breach. 
+        It also intelligently checks for error statuses within those traces.
+"""
+
 try:
     postgreSQL_pool = psycopg2.pool.SimpleConnectionPool(1, 20, **DB_CONFIG)
     if postgreSQL_pool:
@@ -383,6 +400,14 @@ def context_builder_node(
         state: RCAState
 ) -> Dict:
     
+    """
+    context_builder_node (Entry Point):
+
+    Takes a single SLAAlert.
+    Gathers all evidence for this specific trace: it fetches spans, logs, baselines, and the workflow topology from the database.
+    It "hydrates" the trace by calculating the duration of each node and comparing it to its baseline, noting the deviation.
+    """
+    
     alert = state['sla_alert']
     topology = get_workflow_from_db(alert.workflow_id)
     baselines = get_baselines_from_db(alert.workflow_id)
@@ -579,6 +604,22 @@ async def supervisor_edge(state: RCAState) -> str:
 
 def build_graph() -> StateGraph:
     # This is the sub-graph that will run for each individual trace analysis
+    """
+    enrichment_node (Entry Point):
+
+        - Receives the initial MetricAlert.
+        - Calls get_top_latency_traces to identify the 5 worst-offending traces.
+        - Creates a list of 5 SLAAlert objects and places them in the graph's state.
+    """
+    
+    """
+    sub_graphs (runnable_sub_graph.map()):
+
+        - This is the engine of parallelism. 
+        - The .map() operator takes the list of 5 SLAAlert objects and concurrently executes 
+            the rca_sub_graph for each one. 
+        - Each execution is independent and has its own state.
+    """
     rca_sub_graph = StateGraph(RCAState)
     rca_sub_graph.add_node("ContextBuilder", context_builder_node)
     rca_sub_graph.add_node("AnalysisAgent", analysis_agent_node)
@@ -613,6 +654,11 @@ def build_graph() -> StateGraph:
     # workflow.add_edge("enrichment", "scatter")
     workflow.add_edge("enrichment", "sub_graphs")
     workflow.add_edge("sub_graphs", "gather")
+    """
+    gather_node:
+        - Acts as a synchronization barrier. It waits for all 5 parallel sub-graph runs to complete.
+        - It collects the RemediationPlan from each run into a final list.
+    """
     workflow.add_edge("gather", END)
 
     return workflow.compile()
