@@ -242,9 +242,7 @@ class VectorStore:
         self.url = url
         try:
             self.client = PathwayVectorClient(url=url)
-            # print(f"Connected to Pathway Vector Index at {url}")
         except Exception as e:
-            # print(f"FATAL: Could not connect to Pathway Vector Index: {e}")
             self.client = None
 
     def add_remediation_cases(self, cases: List[Document]):
@@ -521,7 +519,6 @@ async def validate_hypothesis_with_llm(hypothesis: str, validation_result: str) 
         llm_response = json.loads(content)
         return llm_response.get("confirmed", False)
     except Exception as e:
-        # print(f"Error during LLM-based validation: {e}")
         return False
 
 ### TODO: Client will give the MCP server of tools
@@ -552,7 +549,6 @@ async def supervisor_edge(state: RCAState) -> str:
     retries = state.get("retries", 0)
 
     if retries >= max_retries:
-        # print(f"--- Max retries ({max_retries}) reached. Proceeding to final report. ---")
         return "FinalReportGenerator"
 
     validation_result = state.get("validation_result")
@@ -564,10 +560,8 @@ async def supervisor_edge(state: RCAState) -> str:
     hypothesis_confirmed = await validate_hypothesis_with_llm(hypothesis, validation_result)
     
     if hypothesis_confirmed:
-        # print("--- Hypothesis confirmed by LLM. Proceeding to final report. ---")
         return "FinalReportGenerator"
     else:
-        # print("--- Hypothesis refuted by LLM. Retrying analysis. ---")
         return "AnalysisAgent"
 
 def build_graph() -> StateGraph:
