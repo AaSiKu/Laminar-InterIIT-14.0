@@ -10,9 +10,9 @@ PID_DIR="deploy/pids"
 LOG_DIR="deploy/logs"
 
 
-PIPELINE_IMAGE_NAME="backend-pipeline"
-POSTGRES_IMAGE_NAME="backend-postgres"
-AGENTIC_IMAGE_NAME="backend-agentic"
+PIPELINE_IMAGE_NAME="backend-pipeline:latest"
+POSTGRES_IMAGE_NAME="backend-postgres:latest"
+AGENTIC_IMAGE_NAME="backend-agentic:latest"
 
 
 # Server ports

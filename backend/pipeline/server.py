@@ -4,13 +4,18 @@ import subprocess
 from fastapi import FastAPI, Request, HTTPException
 from motor.motor_asyncio import AsyncIOMotorClient
 from contextlib import asynccontextmanager
-import uvicorn
 from dotenv import load_dotenv
 from bson import ObjectId
 from pydantic import BaseModel
+from typing import Optional
 import csv
-
 load_dotenv()
+# if load_dotenv() below the setup_logging import, then we will need to ourself provide the env variables.
+from .logger import custom_logger
+from postgres_util import postgre_engine
+from sqlalchemy import text
+
+
 MONGO_URI = os.getenv("MONGO_URI")
 MONGO_DB = os.getenv("MONGO_DB", "db")
 WORKFLOW_COLLECTION = os.getenv("WORKFLOW_COLLECTION", "workflows")
@@ -37,11 +42,15 @@ async def lifespan(app: FastAPI):
     if not MONGO_URI:
         raise RuntimeError("MONGO_URI not set in environment")
 
-    mongo_client = AsyncIOMotorClient(MONGO_URI)
-    db = mongo_client[MONGO_DB]
-    workflow_collection = db[WORKFLOW_COLLECTION]
-    version_collection = db[VERSION_COLLECTION]
-    print(f"Connected to MongoDB at {MONGO_URI}, DB: {MONGO_DB}", flush=True)
+    try:
+        mongo_client = AsyncIOMotorClient(MONGO_URI)
+        db = mongo_client[MONGO_DB]
+        workflow_collection = db[WORKFLOW_COLLECTION]
+        version_collection = db[VERSION_COLLECTION]
+        custom_logger.info(f"Connected to Database, DB: {MONGO_DB}")
+    except Exception as e:
+        custom_logger.error(f"Failed to connect to database: {e}")
+        raise
 
     # Hand over control to FastAPI runtime
     yield
@@ -68,21 +77,20 @@ def stop_pipeline():
             pipeline_process.wait(timeout=5)
         except subprocess.TimeoutExpired:
             pipeline_process.kill()
-        print("Pipeline stopped.")
     if pipeline_log_file:
         try:
             pipeline_log_file.close()
         except Exception:
             pass
         pipeline_log_file = None
-    
+    custom_logger.critical("Pipeline stopped.")
     pipeline_process = None
 
 
 def run_pipeline():
     global pipeline_process, pipeline_log_file
     stop_pipeline()
-    print("Starting new pipeline...")
+    custom_logger.critical("Re-starting pipeline...")
     pipeline_log_file = open("pipeline.log", "w")
     pipeline_process = subprocess.Popen(
         ["python3", "-m", "pipeline"], 
@@ -109,15 +117,15 @@ async def trigger_pipeline(request: Request):
     create_prompts_file()
     if not pipeline_id:
         raise HTTPException(status_code=400, detail="PIPELINE_ID not set in environment")
-    
+
     # Fetch workflow and version
     workflow = await workflow_collection.find_one({"_id": ObjectId(pipeline_id)})
     if not workflow:
         raise HTTPException(status_code=404, detail=f"No workflow found with id={pipeline_id}")
-    
+
     if "current_version_id" not in workflow:
         raise HTTPException(status_code=404, detail=f"Workflow {pipeline_id} has no current_version_id")
-    
+
     version = await version_collection.find_one({"_id": ObjectId(workflow["current_version_id"])})
     if not version:
         raise HTTPException(status_code=404, detail=f"No version found with id={workflow['current_version_id']}")
@@ -156,3 +164,45 @@ def stop_endpoint():
     """
     stop_pipeline()
     return {"status": "stopped"}
+
+
+class GetTable(BaseModel):
+    table_name: str
+    start: Optional[int] = 0
+    limit: Optional[int] = 10
+
+@app.post("/data")
+def get_table(body: GetTable):
+    """
+    Get table data from (start) to (start + limit) with table_name
+    """
+    try:
+        with postgre_engine.connect() as conn:
+            # Get total count
+            count_query = text(f"SELECT COUNT(*) FROM \"{body.table_name}\"")
+            total = conn.execute(count_query).scalar()
+
+            # Get paginated data - order by timestamp DESC for logs table
+            if body.table_name == "logs":
+                data_query = text(f"SELECT * FROM \"{body.table_name}\" ORDER BY timestamp DESC LIMIT :limit OFFSET :start")
+            else:
+                data_query = text(f"SELECT * FROM \"{body.table_name}\" LIMIT :limit OFFSET :start")
+            result = conn.execute(data_query, {"limit": body.limit, "start": body.start})
+
+            # Convert rows to list of dicts
+            columns = result.keys()
+            rows = [dict(zip(columns, row)) for row in result.fetchall()]
+
+            custom_logger.debug(f"Fetched {len(rows)} rows from table {body.table_name}")
+            return {
+                "status": "ok",
+                "table_name": body.table_name,
+                "total": total,
+                "start": body.start,
+                "limit": body.limit,
+                "has_more": (body.start + body.limit) < total,
+                "data": rows
+            }
+    except Exception as e:
+        custom_logger.error(f"Error fetching table data from {body.table_name}: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error fetching table data: {str(e)}")

@@ -109,7 +109,7 @@ async def login(request: Request, response: Response, form_data: OAuth2PasswordR
         path="/",
     )
 
-    return {"message": "Login successful", "access_token": access_token, "refresh_token": refresh_token, "role":user.role}
+    return {"message": "Login successful", "role":user.role}
 
 
 # ------------------ LOGOUT ------------------ #
