@@ -75,17 +75,17 @@ async def close_inactive_connections():
             current_time = time.time()
             connections_to_close = []
             
-            # active_connections set contains: (websocket, user_id, pipeline_id, last_activity)
+            # active_connections set contains: (websocket, current_user, last_activity)
             for conn in list(active_connections):
-                if len(conn) == 4:
-                    websocket, current_user, pipeline_id, last_activity = conn
+                if len(conn) == 3:
+                    websocket, current_user, last_activity = conn
                     if current_time - last_activity > WS_INACTIVITY_TIMEOUT:
                         inactive_duration = current_time - last_activity
-                        connections_to_close.append((conn, current_user, pipeline_id, inactive_duration))
+                        connections_to_close.append((conn, current_user, inactive_duration))
             
-            for conn, current_user, pipeline_id, inactive_duration in connections_to_close:
+            for conn, current_user, inactive_duration in connections_to_close:
                 try:
-                    logger.info(f"Closing inactive connection for user {current_user.id}, pipeline {pipeline_id} (inactive for {inactive_duration:.0f}s)")
+                    logger.info(f"Closing inactive connection for user {current_user.id} (inactive for {inactive_duration:.0f}s)")
                     await conn[0].close(code=1000, reason="Connection inactive")
                 except Exception as e:
                     logger.warning(f"Error closing inactive connection: {e}")
@@ -97,126 +97,233 @@ async def close_inactive_connections():
             logger.error(f"Error in close_inactive_connections: {e}")
 
 
-async def watch_changes(notification_collection, workflow_collection):
-    condition = [{"$match": {"operationType": "insert"}}]
+async def watch_notifications(notification_collection, workflow_collection):
+    """
+    Watch notification collection for inserts/updates and broadcast via WebSocket
+    """
+    condition = [{"$match": {"operationType": {"$in": ["insert", "update"]}}}]
     try:
         async with notification_collection.watch(
             condition,
             full_document="updateLookup"
         ) as stream:
-
-            print("Change stream listener started")
+            logger.info("Notification change stream listener started")
             async for change in stream:
                 doc = change.get("fullDocument")
                 if not doc:
                     continue
 
                 # Fetch workflow details
-                workflow = await workflow_collection.find_one(
-                    {"_id": ObjectId(doc.get("pipeline_id"))}
-                )
-
-                # Attach workflow to message
-                doc["workflow"] = workflow or {}
-                await broadcast(doc)
-
+                pipeline_id = doc.get("pipeline_id")
+                if pipeline_id:
+                    try:
+                        workflow = await workflow_collection.find_one(
+                            {"_id": ObjectId(pipeline_id)}
+                        )
+                        # Attach workflow to message
+                        doc["workflow"] = workflow or {}
+                    except Exception as e:
+                        logger.warning(f"Error fetching workflow for notification: {e}")
+                        doc["workflow"] = {}
+                
+                # Broadcast notification/alert
+                await broadcast(doc, message_type="notification")
     except Exception as e:
-        print("⚠ ChangeStream NOT running:", e)
+        logger.error(f"⚠ Notification ChangeStream NOT running: {e}")
 
-async def broadcast(message: dict):
+async def watch_workflows(workflow_collection):
     """
-    Sends/Broadcasts the notification to all active WebSocket connections
+    Watch workflow collection for inserts, updates, and replacements - broadcast via WebSocket
     """
-    print(message.keys())
-    target_pipeline = message.get("pipeline_id")
+    condition = [{"$match": {"operationType": {"$in": ["insert", "update", "replace"]}}}]
+    try:
+        async with workflow_collection.watch(
+            condition,
+            full_document="updateLookup"
+        ) as stream:
+            logger.info("Workflow change stream listener started")
+            async for change in stream:
+                doc = change.get("fullDocument")
+                if not doc:
+                    # For updates, get the document
+                    doc_id = change.get("documentKey", {}).get("_id")
+                    if doc_id:
+                        try:
+                            doc = await workflow_collection.find_one({"_id": doc_id})
+                        except Exception as e:
+                            logger.warning(f"Error fetching workflow document: {e}")
+                            continue
+                
+                if doc:
+                    # Broadcast workflow update/insert
+                    await broadcast(doc, message_type="workflow")
+    except Exception as e:
+        logger.error(f"⚠ Workflow ChangeStream NOT running: {e}")
+
+# async def watch_logs(log_collection, workflow_collection):
+#     """
+#     Watch log collection for inserts and broadcast via WebSocket
+#     Logs are similar to notifications but for different purposes (debugging, system events, etc.)
+#     """
+#     condition = [{"$match": {"operationType": {"$in": ["insert", "update"]}}}]
+#     try:
+#         async with log_collection.watch(
+#             condition,
+#             full_document="updateLookup"
+#         ) as stream:
+#             logger.info("Log change stream listener started")
+#             async for change in stream:
+#                 doc = change.get("fullDocument")
+#                 if not doc:
+#                     continue
+# 
+#                 # Fetch workflow details
+#                 pipeline_id = doc.get("pipeline_id")
+#                 if pipeline_id:
+#                     try:
+#                         workflow = await workflow_collection.find_one(
+#                             {"_id": ObjectId(pipeline_id)}
+#                         )
+#                         # Attach workflow to message
+#                         doc["workflow"] = workflow or {}
+#                     except Exception as e:
+#                         logger.warning(f"Error fetching workflow for log: {e}")
+#                         doc["workflow"] = {}
+#                 
+#                 # Broadcast log
+#                 await broadcast(doc, message_type="log")
+#     except Exception as e:
+#         logger.error(f"⚠ Log ChangeStream NOT running: {e}")
+
+async def watch_changes(notification_collection, log_collection, workflow_collection):
+    """
+    Watch changes in notification, log (commented out), and workflow collections
+    All changes are broadcast via the single global WebSocket connection at /ws
+    Sends everything to all connections - frontend filters what it needs
+    Starts watchers as background tasks that run concurrently
+    """
+    # Start notification and workflow watchers as background tasks
+    # They will run indefinitely until the application shuts down
+    # All changes go through the same global WebSocket connection
+    asyncio.create_task(
+        watch_notifications(notification_collection, workflow_collection)
+    )
+    asyncio.create_task(
+        watch_workflows(workflow_collection)
+    )
+    
+    # Logs watcher is commented out - logs not implemented yet
+    # if log_collection:
+    #     asyncio.create_task(
+    #         watch_logs(log_collection, workflow_collection)
+    #     )
+    
+    logger.info("Started notification and workflow change stream watchers (all via global WebSocket)")
+    # logger.info("Started notification, log, and workflow change stream watchers")
+
+async def broadcast(message: dict, message_type: str = "notification"):
+    """
+    Centralized function to broadcast messages to all active WebSocket connections
+    Handles notifications, alerts, workflow updates, and logs (logs commented out)
+    Sends everything to all connections - frontend will filter what it needs
+    """
     current_time = time.time()
-    workflow = message.get("workflow", {})
 
     if not active_connections:
-        print("No websocket connections")
+        logger.debug("No websocket connections to broadcast to")
+        return
 
-    # track dropped connections
+    # Track dropped connections
     connections_to_remove = []
-    for websocket, ws_current_user, ws_pipeline_id, last_activity in list(active_connections):
-        if str(ws_current_user.id) not in workflow.get("owner_ids", []) \
-            and str(ws_current_user.id) not in workflow.get("owner_ids", []) \
-           and ws_current_user.role != "admin":
-            continue
-        if ws_pipeline_id == "All" or ws_pipeline_id == target_pipeline:
-            try:
-                await websocket.send_text(dumps(message))
+    
+    # Send to all connections - frontend filters what it needs
+    for websocket, ws_current_user, last_activity in list(active_connections):
+        try:
+            # Add message type to the message
+            message_with_type = {**message, "message_type": message_type}
+            await websocket.send_text(dumps(message_with_type))
                 
-                # update last activity
-                active_connections.discard((websocket, ws_current_user, ws_pipeline_id, last_activity))
-                active_connections.add((websocket, ws_current_user, ws_pipeline_id, current_time))
+            # Update last activity
+            active_connections.discard((websocket, ws_current_user, last_activity))
+            active_connections.add((websocket, ws_current_user, current_time))
 
-            except Exception as e:
-                logger.warning(f"Failed to send message, closing connection: {e}")
-                try:
-                    await websocket.close(code=1000, reason="Connection error")
-                except:
-                    pass
-                connections_to_remove.append((websocket, ws_current_user, ws_pipeline_id, last_activity))
+        except Exception as e:
+            logger.warning(f"Failed to send message to user {ws_current_user.id}, closing connection: {e}")
+            try:
+                await websocket.close(code=1000, reason="Connection error")
+            except:
+                pass
+            connections_to_remove.append((websocket, ws_current_user, last_activity))
 
-    # remove broken connections
+    # Remove broken connections
     for conn in connections_to_remove:
         active_connections.discard(conn)
 
+    logger.debug(f"Broadcasted {message_type} message to {len(active_connections) - len(connections_to_remove)} connections")
     return "message broadcasted"
 
 
-@router.websocket("/pipeline/{pipeline_id}")
-async def websocket_endpoint(
-    websocket: WebSocket,
-    pipeline_id: str,
-):
+@router.websocket("/")
+async def websocket_endpoint(websocket: WebSocket):
+    """
+    Global WebSocket endpoint for all real-time updates
+    Sends all notifications, alerts, workflow updates, and logs (logs commented out) to all connections
+    Frontend will filter what it needs based on the user's access
+    """
     await websocket.accept()
     
     try:
         async for db in get_db():
             current_user = await get_current_user_ws(websocket, db)
-            user_identifier = str(current_user.id)
-            workflow_collection = websocket.app.state.workflow_collection
-
-            if pipeline_id != "All":
-                pipeline = await workflow_collection.find_one({
-                    "owner_ids": {"$in": [user_identifier]},
-                    "_id": ObjectId(pipeline_id),
-                    "status": "Running"
-                })
-                if not pipeline:
-                    await websocket.close(code=1008, reason="Pipeline not found")
-                    return
-
             current_activity_time = time.time()
-            active_connections.add((websocket, current_user, pipeline_id, current_activity_time))
-            # print(active_connections)
-            print("active connection established")
+            active_connections.add((websocket, current_user, current_activity_time))
+            logger.info(f"WebSocket connection established for user {current_user.id}")
 
             try:
+                # Keep connection alive and update activity on any message
                 while True:
-                    await websocket.receive_text()
-                    for conn in list(active_connections):
-                        if len(conn) == 4 and conn[0] == websocket and conn[1] == current_user and conn[2] == pipeline_id:
-                            active_connections.discard(conn)
-                            active_connections.add((websocket, current_user, pipeline_id, time.time()))
+                    try:
+                        # Wait for any message (ping/pong or data)
+                        data = await websocket.receive_text()
+                        
+                        # Handle ping messages
+                        try:
+                            message_data = json.loads(data)
+                            if message_data.get("type") == "ping":
+                                # Send pong response
+                                await websocket.send_text(json.dumps({"type": "pong"}))
+                        except:
+                            # Not JSON, just update activity
+                            pass
+                        
+                        # Update last activity time
+                        for conn in list(active_connections):
+                                if len(conn) == 3 and conn[0] == websocket and conn[1] == current_user:
+                                    active_connections.discard(conn)
+                                    active_connections.add((websocket, current_user, time.time()))
+                                    break
+                    except WebSocketDisconnect:
                             break
             except WebSocketDisconnect:
-                connection_closed = True
+                logger.info(f"WebSocket disconnected for user {current_user.id}")
             except Exception as e:
                 logger.error(f"Error in websocket connection: {e}")
                 try:
                     await websocket.close(code=1011, reason="Internal error")
-                    connection_closed = True
                 except:
                     pass
+            finally:
+                # Remove connection from active set
+                for conn in list(active_connections):
+                    if len(conn) == 3 and conn[0] == websocket and conn[1] == current_user:
+                        active_connections.discard(conn)
+                        break
             break
                 
     except WebSocketAuthException as e:
-        print(f"Auth failed: {e.reason}")
+        logger.warning(f"WebSocket auth failed: {e.reason}")
         await websocket.close(code=e.code, reason=e.reason)
     except Exception as e:
-        print(f"WebSocket error: {e}")
         logger.error(f"WebSocket error: {e}")
         try:
             await websocket.close(code=1011, reason="Internal error")

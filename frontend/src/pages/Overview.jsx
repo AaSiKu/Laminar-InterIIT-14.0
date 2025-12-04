@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import {
   Typography,
   IconButton,
@@ -13,12 +13,10 @@ import KPICard from "../components/overview/KPICardDashboard";
 import RecentWorkflowCard from "../components/overview/RecentWorkflowCard";
 import HighlightsPanel from "../components/overview/HighlightsPanel";
 import TopBar from "../components/common/TopBar";
-import {useGlobalContext} from "../context/GlobalContext"
+import {useGlobalState} from "../context/GlobalStateContext"
+import { fetchPreviousNotifcations, fetchWorkflows } from "../utils/utils";
 import {
-  fetchWorkflows,
-  fetchNotifications,
   fetchOverviewData,
-  fetchPreviousNotifcations
 } from "../utils/developerDashboard.api";
 import { useNavigate } from "react-router-dom";
 import "../css/overview.css";
@@ -46,26 +44,82 @@ export default function OverviewPage() {
   const navigate = useNavigate();
   const [overviewData, setOverviewData] = useState(null);
   const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false);
-  const {notifications, setNotifications,workflows,setWorkflows} = useGlobalContext();
+  const {workflows, setWorkflows, notifications, setNotifications} = useGlobalState();
 
+  // Load initial KPI data
   useEffect(() => {
-    const loadData = async () => {
-      const workflowData = await fetchWorkflows();
-      setWorkflows(workflowData.data);
-
+    const loadInitialData = async () => {
+      // Fetch initial KPI data
       const overview = await fetchOverviewData();
       setOverviewData(overview);
 
+      // Fetch initial notifications (workflows are already loaded by GlobalStateContext)
       setNotifications(await fetchPreviousNotifcations())
     };
-    loadData();
+    loadInitialData();
   }, []);
+
+  // Fallback: Periodically refresh workflows if WebSocket isn't working
+  // This ensures workflows are updated even if backend doesn't send WebSocket updates
+  useEffect(() => {
+    const refreshWorkflows = async () => {
+      try {
+        const workflowData = await fetchWorkflows(0, 100);
+        if (workflowData.status === "success" && workflowData.data) {
+          setWorkflows(workflowData.data);
+        }
+      } catch (error) {
+        console.error("Error refreshing workflows:", error);
+      }
+    };
+
+    // Refresh every 30 seconds as a fallback
+    const intervalId = setInterval(refreshWorkflows, 30000);
+
+    return () => clearInterval(intervalId);
+  }, [setWorkflows]);
+
+  // Update KPI data when workflows change (for dynamic updates via WebSocket)
+  useEffect(() => {
+    const updateKPIData = async () => {
+      try {
+        const overview = await fetchOverviewData();
+        setOverviewData(overview);
+      } catch (error) {
+        console.error("Error updating KPI data:", error);
+      }
+    };
+
+    // Update KPI data when workflows change (debounced to avoid too many calls)
+    // Only update if we already have initial data loaded
+    if (overviewData !== null) {
+      const timeoutId = setTimeout(() => {
+        updateKPIData();
+      }, 500); // Debounce by 500ms
+
+      return () => clearTimeout(timeoutId);
+    }
+  }, [workflows.length, overviewData]);
 
   const handleSelectTemplate = (templateId) => {
     if (!templateId) return;
     navigate(`/workflows/${templateId}`);
   };
-  console.log();
+
+  // Get recent workflows, sorted by last_updated (most recent first), limited to 4
+  // Use useMemo to ensure it updates when workflows change
+  const recentWorkflows = useMemo(() => {
+    if (!workflows || workflows.length === 0) return [];
+    
+    return workflows
+      .slice()
+      .sort((a, b) => {
+        const dateA = a.last_updated || a.user_pipeline_version?.version_updated_at || new Date(0);
+        const dateB = b.last_updated || b.user_pipeline_version?.version_updated_at || new Date(0);
+        return new Date(dateB) - new Date(dateA);
+      })
+      .slice(0, 4);
+  }, [workflows]);
   return(
     <>
       <div className="below-sidebar-container">
@@ -131,7 +185,7 @@ export default function OverviewPage() {
                   </Typography>
                 </div>
                 <div className="overview-workflows-list">
-                  {workflows.length === 0 ? (
+                  {recentWorkflows.length === 0 ? (
                     <Box
                       sx={{
                         textAlign: "center",
@@ -156,14 +210,18 @@ export default function OverviewPage() {
                       </Typography>
                     </Box>
                   ) : (
-                    workflows.map((workflow) => (
-                      <RecentWorkflowCard
-                        key={workflow._id}
-                        workflow={workflow}
-                        onClick={() => {
-                          handleSelectTemplate(workflow._id)}}
-                      />
-                    ))
+                    recentWorkflows.map((workflow, index) => {
+                      const workflowId = workflow.id || workflow._id || `workflow-${index}`;
+                      const lastUpdated = workflow.last_updated || workflow.user_pipeline_version?.version_updated_at || '';
+                      return (
+                        <RecentWorkflowCard
+                          key={`${workflowId}-${lastUpdated}`}
+                          workflow={workflow}
+                          onClick={() => {
+                            handleSelectTemplate(workflowId)}}
+                        />
+                      );
+                    })
                   )}
                 </div>
               </div>

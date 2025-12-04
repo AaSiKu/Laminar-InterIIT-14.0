@@ -4,6 +4,7 @@ import "@xyflow/react/dist/style.css";
 import { Box, Alert, Snackbar } from "@mui/material";
 
 import { useGlobalContext } from "../context/GlobalContext";
+import { useGlobalWorkflow } from "../context/GlobalWorkflowContext";
 import {
   savePipelineAPI,
   toggleStatus as togglePipelineStatus,
@@ -43,26 +44,30 @@ export default function WorkflowPage() {
   const { pipelineId } = useParams();
 
   const {
-    currentEdges,
-    currentNodes,
-    setCurrentNodes,
-    setRfInstance,
-    setCurrentEdges,
-    currentPipelineStatus,
-    setCurrentPipelineStatus,
-    currentPipelineId,
-    rfInstance,
-    setCurrentPipelineId,
     loading,
     setLoading,
     error,
     setError,
     containerId,
     setContainerId,
-    currentVersionId,
-    setCurrentVersionId,
     user,
   } = useGlobalContext();
+
+  const {
+    edges: currentEdges,
+    nodes: currentNodes,
+    setNodes: setCurrentNodes,
+    setEdges: setCurrentEdges,
+    setRfInstance,
+    status: currentPipelineStatus,
+    setStatus: setCurrentPipelineStatus,
+    id: currentPipelineId,
+    setId: setCurrentPipelineId,
+    rfInstance,
+    versionId: currentVersionId,
+    setVersionId: setCurrentVersionId,
+    setViewport,
+  } = useGlobalWorkflow();
 
   // Auto-save drafts when pipeline changes, TODO: check for debounce
 

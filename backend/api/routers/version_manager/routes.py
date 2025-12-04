@@ -352,6 +352,67 @@ async def retrieve_all(
     })
 
 
+@router.get("/pipeline/{pipeline_id}/details")
+async def get_pipeline_details(
+    request: Request,
+    pipeline_id: str,
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Get pipeline details including creation time and alerts
+    """
+    workflow_collection = request.app.state.workflow_collection
+    version_collection = request.app.state.version_collection
+    notification_collection = request.app.state.notification_collection
+    
+    try:
+        workflow = await workflow_collection.find_one({"_id": ObjectId(pipeline_id)})
+        if not workflow:
+            raise HTTPException(status_code=404, detail="Pipeline not found")
+        
+        # Check authorization
+        user_identifier = str(current_user.id)
+        if current_user.role != "admin":
+            if user_identifier not in workflow.get("owner_ids", []) and user_identifier not in workflow.get("viewer_ids", []):
+                raise HTTPException(status_code=403, detail="Not authorized to access this pipeline")
+        
+        # Get first version_created_at (pipeline creation time)
+        version_ids = workflow.get("versions", [])
+        first_version_created_at = None
+        
+        if version_ids:
+            # Get the first version (oldest)
+            first_version_id = version_ids[0]
+            first_version = await version_collection.find_one({"_id": ObjectId(first_version_id)})
+            if first_version:
+                first_version_created_at = first_version.get("version_created_at")
+        
+        # If no first version, use current version
+        if not first_version_created_at and workflow.get("current_version_id"):
+            current_version = await version_collection.find_one({"_id": ObjectId(workflow["current_version_id"])})
+            if current_version:
+                first_version_created_at = current_version.get("version_created_at")
+        
+        # Get all alerts/notifications for this pipeline
+        alerts = await notification_collection.find({
+            "pipeline_id": pipeline_id,
+            "type": "alert"
+        }).to_list(length=None)
+        
+        return serialize_mongo({
+            "status": "success",
+            "pipeline_id": pipeline_id,
+            "created_at": first_version_created_at,
+            "alerts": alerts,
+            "alerts_count": len(alerts)
+        })
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error fetching pipeline details: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 #---------------------------- Delete workflow and Drafts--------------------------#
 @router.post("/delete_pipeline")
 async def delete_workflow(

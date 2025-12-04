@@ -14,6 +14,6 @@ router.include_router(version_control_router, prefix="/version", tags=["version"
 router.include_router(whatsapp_router, prefix="/connectors/whatsapp", tags=["whatsapp"])
 router.include_router(pipelines_router, prefix="/pipelines", tags=["pipelines"])
 router.include_router(schemas_router, prefix="/schema", tags=["schemas"])
-router.include_router(websocket_router, prefix="/ws", tags=["websocket"])
+router.include_router(websocket_router, prefix="/ws", tags=["websocket"])  # Prefix for /ws/ws and /ws/alerts/{id}
 router.include_router(overview_router, prefix="/overview", tags=["overview"])
 router.include_router(book_router, prefix="/book", tags=["book"])

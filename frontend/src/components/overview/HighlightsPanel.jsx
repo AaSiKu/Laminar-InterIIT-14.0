@@ -30,8 +30,9 @@ import relativeTime from "dayjs/plugin/relativeTime";
 import PeopleIcon from "@mui/icons-material/People";
 import ArrowForwardIcon from "@mui/icons-material/ArrowForward";
 import EditIcon from "@mui/icons-material/Edit";
-import { updateNotificationAction, fetchPreviousNotifcations, fetchNotifications} from "../../utils/developerDashboard.api";
-import { useGlobalContext } from "../../context/GlobalContext";
+import { updateNotificationAction } from "../../utils/developerDashboard.api";
+import { fetchPreviousNotifcations } from "../../utils/utils";
+import { useGlobalState } from "../../context/GlobalStateContext";
 import notif_dark from "../../assets/notif_dark.svg";
 import notif_light from "../../assets/notif_light.svg";
 
@@ -47,7 +48,8 @@ const HighlightsPanel = () => {
   const [confirmDialog, setConfirmDialog] = useState({ open: false, notification: null, action: null });
   const [loadingAction, setLoadingAction] = useState(null);
   const [snackbar, setSnackbar] = useState({ open: false, message: "", severity: "success" });
-  const {notifications, setNotifications, ws} = useGlobalContext()
+  // Use GlobalStateContext which already has real-time WebSocket notifications
+  const { notifications, setNotifications } = useGlobalState();
 
   const getIconStyle = (type) => {
     switch (type) {
@@ -89,84 +91,9 @@ const HighlightsPanel = () => {
         };
     }
   };
-  useEffect(() => {
-    if (!ws) {
-      console.log("WebSocket not available yet");
-      return;
-    }
-
-    console.log("Setting up WebSocket handlers, readyState:", ws.readyState);
-
-    // Create message handler function
-    const handleMessage = (event) => {
-      try {
-        console.log("Raw WebSocket message received:", event.data);
-        const data = typeof event.data === 'string' ? JSON.parse(event.data) : event.data;
-        console.log("Parsed notification:", data);
-        
-        // Check if it's a notification object
-        if (data && (data._id || data.id || data.title || data.desc)) {
-          setNotifications(prev => {
-            // Check if notification already exists to avoid duplicates
-            const exists = prev.some(n => n._id === data._id || (n.id === data.id && data.id));
-            if (exists) {
-              console.log("Notification already exists, skipping");
-              return prev;
-            }
-            console.log("Adding new notification to list");
-            return [...prev, data];
-          });
-        } else {
-          console.warn("Received data doesn't look like a notification:", data);
-        }
-      } catch (error) {
-        console.error("Error parsing notification:", error, event.data);
-      }
-    };
-
-    // Set up event handlers - use addEventListener to avoid overwriting
-    const handleOpen = () => {
-      console.log("WebSocket connected successfully");
-    };
-
-    const handleError = (error) => {
-      console.error("WebSocket error:", error);
-    };
-
-    const handleClose = (event) => {
-      console.log("WebSocket closed", event.code, event.reason);
-    };
-
-    // Remove any existing listeners first
-    ws.removeEventListener('open', handleOpen);
-    ws.removeEventListener('message', handleMessage);
-    ws.removeEventListener('error', handleError);
-    ws.removeEventListener('close', handleClose);
-
-    // Add new listeners
-    ws.addEventListener('open', handleOpen);
-    ws.addEventListener('message', handleMessage);
-    ws.addEventListener('error', handleError);
-    ws.addEventListener('close', handleClose);
-
-    // Also set direct handlers as fallback (some WebSocket implementations prefer these)
-    if (ws.readyState === WebSocket.OPEN) {
-      console.log("WebSocket already open, handlers set");
-    } else if (ws.readyState === WebSocket.CONNECTING) {
-      console.log("WebSocket is connecting, handlers will activate when open");
-    }
-
-    // Cleanup function
-    return () => {
-      if (ws) {
-        console.log("Cleaning up WebSocket handlers");
-        ws.removeEventListener('open', handleOpen);
-        ws.removeEventListener('message', handleMessage);
-        ws.removeEventListener('error', handleError);
-        ws.removeEventListener('close', handleClose);
-      }
-    };
-  }, [ws, setNotifications]);
+  // Note: Previous notifications are now loaded by GlobalStateContext on mount
+  // This effect is kept for backward compatibility but shouldn't be needed
+  // The GlobalStateContext handles initial data loading
 
 
   // Get appropriate icon based on notification content

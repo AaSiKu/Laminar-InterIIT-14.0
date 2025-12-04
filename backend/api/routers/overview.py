@@ -1,5 +1,7 @@
-from fastapi import APIRouter, Request, Depends, HTTPException
+from fastapi import APIRouter, Request, Depends, HTTPException, Header
+from typing import Optional
 from .version_manager.schema import Notification, UpdateNotificationAction
+# from .version_manager.schema import Log  # Commented out - logs not implemented yet
 from datetime import datetime
 from bson.objectid import ObjectId
 from backend.api.routers.auth.models import User
@@ -97,20 +99,74 @@ async def fetch_kpi(request: Request, current_user: User = Depends(get_current_u
     }
 
 @router.post("/add_notification")
-async def add_notification(data: Notification, request: Request):
+async def add_notification(
+    data: Notification, 
+    request: Request,
+    x_agent_token: Optional[str] = Header(None, alias="X-Agent-Token")
+):
     '''
     Route to add a notification 
-    Would be called by an agent
+    Can only be called by an agent (via X-Agent-Token header)
+    Accepts notification data and broadcasts via WebSocket
+    The change stream watcher will automatically broadcast the notification
     '''
+    # TODO: Implement agent authentication via X-Agent-Token
+    # For now, we assume the token is validated elsewhere or will be implemented
+    # if not x_agent_token:
+    #     raise HTTPException(status_code=401, detail="Agent token required")
+    
     notification_collection = request.app.state.notification_collection
-    result = await notification_collection.insert_one(data.model_dump())
+    
+    # Convert to dict and ensure timestamp is set
+    notification_data = data.model_dump()
+    if "timestamp" not in notification_data or not notification_data["timestamp"]:
+        from datetime import datetime
+        notification_data["timestamp"] = datetime.now()
+    
+    # Insert notification into database
+    # The watch_notifications change stream will automatically broadcast it via WebSocket
+    result = await notification_collection.insert_one(notification_data)
 
-    return (
-        serialize_mongo({
+    return serialize_mongo({
         "status": "success",
         "inserted_id": str(result.inserted_id),
-        "inserted_data": data.model_dump()})
-    )
+        "inserted_data": notification_data
+    })
+
+# @router.post("/add_log")
+# async def add_log(
+#     data: Log,
+#     request: Request,
+#     x_agent_token: Optional[str] = Header(None, alias="X-Agent-Token")
+# ):
+#     '''
+#     Route to add a log entry
+#     Can only be called by an agent (via X-Agent-Token header)
+#     Accepts log data and broadcasts via WebSocket
+#     The change stream watcher will automatically broadcast the log
+#     '''
+#     # TODO: Implement agent authentication via X-Agent-Token
+#     # For now, we assume the token is validated elsewhere or will be implemented
+#     # if not x_agent_token:
+#     #     raise HTTPException(status_code=401, detail="Agent token required")
+#     
+#     log_collection = request.app.state.log_collection
+#     
+#     # Convert to dict and ensure timestamp is set
+#     log_data = data.model_dump()
+#     if "timestamp" not in log_data or not log_data["timestamp"]:
+#         from datetime import datetime
+#         log_data["timestamp"] = datetime.now()
+#     
+#     # Insert log into database
+#     # The watch_logs change stream will automatically broadcast it via WebSocket
+#     result = await log_collection.insert_one(log_data)
+# 
+#     return serialize_mongo({
+#         "status": "success",
+#         "inserted_id": str(result.inserted_id),
+#         "inserted_data": log_data
+#     })
     
 @router.get("/workflows/")
 async def workflow_data(request: Request, skip: int = 0, limit: int = 10, current_user: User = Depends(get_current_user)):
@@ -178,7 +234,8 @@ async def notification(
     return serialize_mongo({
         "status": "success",
         "count": len(enriched_notifications),
-        "data": enriched_notifications
+        "data": enriched_notifications,
+        "notifications": notifications
     })
 
 

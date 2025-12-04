@@ -4,6 +4,34 @@ import { BaseNode } from "../components/workflow/BaseNode";
 // hence the ui resets to simple rectangle box
 export const nodeTypes = {};
 
+// Fetch all node types from the API
+export const fetchNodeTypes = async () => {
+  try {
+    const res = await fetch(`${import.meta.env.VITE_API_SERVER}/schema/all`);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    return data;
+  } catch (err) {
+    console.error("Error fetching node types:", err);
+    return null;
+  }
+};
+
+// Fetch schema for a specific node
+export const fetchNodeSchema = async (nodeName) => {
+  try {
+    const res = await fetch(
+      `${import.meta.env.VITE_API_SERVER}/schema/${nodeName}`
+    );
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const schema = await res.json();
+    return schema;
+  } catch (err) {
+    console.error(`Error fetching schema for ${nodeName}:`, err);
+    return null;
+  }
+};
+
 const fixPydanticSchema = (schema) => {
   // Create a deep copy to avoid mutating the original
   const newSchema = JSON.parse(JSON.stringify(schema));

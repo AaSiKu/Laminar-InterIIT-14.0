@@ -5,6 +5,13 @@ import { useTheme } from "@mui/material/styles";
 const WorkflowCard = ({ workflow, isSelected, onClick }) => {
   const theme = useTheme();
 
+  // Generate different avatar images for each member
+  const getAvatarUrl = (member, index) => {
+    // Use different image numbers based on member id or index to get varied avatars
+    const imgNumber = (member.id?.charCodeAt(0) || index * 7) % 70 + 1; // Range 1-70
+    return `https://i.pravatar.cc/150?img=${imgNumber}`;
+  };
+
   return (
     <Card
       onClick={onClick}
@@ -32,23 +39,26 @@ const WorkflowCard = ({ workflow, isSelected, onClick }) => {
             <Typography variant="h6" sx={{ fontWeight: 600, fontSize: "0.9375rem", mb: 0.5, color: "text.primary" }}>
               {workflow.name}
             </Typography>
-            <Typography variant="body2" sx={{ color: "text.secondary", fontSize: "0.8125rem", mb: 2 }}>
-              {workflow.category} · {workflow.location}
+            <Typography variant="body2" sx={{ color: "text.secondary", fontSize: "0.8125rem", mb: 1 }}>
+              {workflow.category}
+            </Typography>
+            <Typography variant="caption" sx={{ color: "text.secondary", fontSize: "0.75rem", display: "block", mb: 2 }}>
+              Last updated: {workflow.location || "N/A"}
             </Typography>
             <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 1 }}>
               <AvatarGroup max={5} sx={{ "& .MuiAvatar-root": { width: 24, height: 24, fontSize: "0.625rem", border: `2px solid ${theme.palette.background.paper}` } }}>
                 {workflow.team.map((member, index) => {
-                  const avatarUrl = `https://avatar.iran.liara.run/public/boy?username=${encodeURIComponent(member.name || member.id || `user${index}`)}&size=32`;
+                  const avatarUrl = getAvatarUrl(member, index);
                   return (
                     <Avatar 
-                      key={index}
+                      key={member.id || index}
                       src={avatarUrl}
-                      alt={member.name}
+                      alt={member.name || member.display_name}
                       sx={{ 
                         width: 24, 
                         height: 24,
                       }}
-                      title={member.name}
+                      title={member.name || member.display_name}
                     />
                   );
                 })}
@@ -56,7 +66,7 @@ const WorkflowCard = ({ workflow, isSelected, onClick }) => {
               <Chip
                 label={workflow.status}
                 size="small"
-                color={workflow.status === "Active" ? "success" : "default"}
+                color={workflow.status === "Running" ? "success": (workflow.status === "Broken"? "error":"info")}
                 variant="soft"
                 sx={{
                   fontWeight: 500,

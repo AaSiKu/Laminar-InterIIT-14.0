@@ -3,8 +3,6 @@ import { useTheme } from "@mui/material/styles";
 
 const MetricCard = ({ title, subtitle, value, change }) => {
   const theme = useTheme();
-  const isPositive = change?.startsWith("+");
-  const isNegative = change?.startsWith("-");
 
   return (
     <Box sx={{ bgcolor: 'background.paper', border: "1px solid", borderColor: 'divider', borderRadius: 0, borderLeft: "none", p: 2 }}>
@@ -21,10 +19,10 @@ const MetricCard = ({ title, subtitle, value, change }) => {
         <Typography
           variant="caption"
           sx={{
-            color: isPositive ? "success.main" : isNegative ? "error.main" : "text.secondary",
+            color: "success.main",
             fontSize: "0.75rem",
             fontWeight: 600,
-            bgcolor: isPositive ? "success.lighter" : isNegative ? "error.lighter" : 'background.elevation1',
+            bgcolor:"success.lighter",
             px: 0.75,
             py: 0.25,
             borderRadius: "2px",

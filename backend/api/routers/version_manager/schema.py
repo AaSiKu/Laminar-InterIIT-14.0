@@ -21,6 +21,14 @@ class Notification(BaseModel):
     timestamp: Optional[datetime] = datetime.now()
     #status only exist in alerts
 
+# class Log(BaseModel):
+#     pipeline_id: str
+#     level: str  # log level (debug, info, warning, error, critical)
+#     message: str
+#     details: Optional[dict] = None  # additional log details/metadata
+#     timestamp: Optional[datetime] = datetime.now()
+#     source: Optional[str] = None  # source of the log (e.g., "agent", "pipeline", "system")
+
 
 class Workflow(BaseModel):
     owner_ids: List[str]

@@ -11,8 +11,7 @@ import {
   DeleteEdgeHelper,
 } from "./ToolbarHelpers";
 import { NodeDrawer } from "./NodeDrawer";
-import { nodeTypes, generateNode } from "../../utils/dashboard.utils";
-import { fetchNodeSchema } from "../../utils/dashboard.api";
+import { nodeTypes, generateNode, fetchNodeSchema } from "../../utils/dashboard.utils";
 import BottomToolbar from "./BottomToolbar";
 import WorkflowCanvas from "./WorkflowCanvas";
 import ZoomControl from "./ZoomControl";

@@ -1,5 +1,4 @@
-import { addNodeType } from "./dashboard.utils.jsx";
-import { fetchNodeSchema } from "./dashboard.api";
+import { addNodeType, fetchNodeSchema } from "./dashboard.utils";
 
 //Create a pipeline first to avoid the error of using a random id
 //TODO: a user should only first create a piepline thn use these fucntion, useing currentPipelineId or version id uses random and undefined values
@@ -15,7 +14,7 @@ const create_pipeline = async (
   setLoading(true);
   try {
     const response = await fetch(
-      f`${import.meta.env.VITE_API_SERVER}/version/create_pipeline/name=${name}`,
+      `${import.meta.env.VITE_API_SERVER}/version/create_pipeline?name=${encodeURIComponent(name)}`,
       {
         method: "POST",
         credentials: "include",
@@ -33,9 +32,13 @@ const create_pipeline = async (
     }
 
     const data = await response.json();
-    if (data.id && data.version_id) {
+    if (data.id) {
       setCurrentPipelineId(data.id);
-      setCurrentVersionId(data.version_id);
+      if (data.current_version_id) {
+        setCurrentVersionId(data.current_version_id);
+      } else if (data.version_id) {
+        setCurrentVersionId(data.version_id);
+      }
     }
   } catch (err) {
     setError(err.message);
@@ -423,6 +426,29 @@ async function add_to_node_types(nodes = []) {
   );
 }
 
+/**
+ * Fetch pipeline details including creation time and alerts
+ * @param {string} pipelineId - The pipeline ID
+ * @returns {Promise<Object>} Pipeline details with created_at and alerts
+ */
+async function fetchPipelineDetails(pipelineId) {
+  const response = await fetch(
+    `${import.meta.env.VITE_API_SERVER}/version/pipeline/${pipelineId}/details`,
+    {
+      credentials: "include",
+      headers: {
+        "Content-Type": "application/json",
+      },
+    }
+  );
+
+  if (!response.ok) {
+    throw new Error("Failed to fetch pipeline details");
+  }
+
+  return await response.json();
+}
+
 export {
   savePipelineAPI,
   fetchAndSetPipeline,
@@ -433,6 +459,7 @@ export {
   saveDraftsAPI,
   deleteDrafts,
   deletePipeline,
+  fetchPipelineDetails,
 };
 
 /**

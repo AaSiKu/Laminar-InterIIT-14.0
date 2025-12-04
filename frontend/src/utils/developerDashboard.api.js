@@ -1,3 +1,8 @@
+/**
+ * Developer Dashboard API utilities
+ * Page-specific functions for the developer dashboard
+ */
+
 export const fetchTemplates = async () => {
   // Real API call placeholder:
   // const response = await fetch('/api/templates');
@@ -10,20 +15,6 @@ export const fetchTemplates = async () => {
     { id: "proposal", name: "Latency Check" },
     { id: "invoice", name: "Crash Reports" },
   ];
-};
-
-// Fetches a list of existing workflow files.
-export const fetchWorkflows = async (skip = 0, limit = 4) => {
-  const response = await fetch(
-    `${import.meta.env.VITE_API_SERVER}/version/retrieve_all?skip=${skip}&limit=${limit}`,
-    { credentials: "include" }
-  );
-
-  if (!response.ok) {
-    throw new Error("Failed to fetch workflows");
-  }
-
-  return await response.json();
 };
 
 // Create web - socket to fetch notifications and actions
@@ -47,18 +38,8 @@ export const fetchOverviewData = async () => {
     { credentials: "include" }
   );
   const data = await response.json();
-  return data
+  return data;
 };
-
-export const fetchPreviousNotifcations = async()=>{
-  const response = await fetch(
-    `${import.meta.env.VITE_API_SERVER}/overview/notifications`,
-    { credentials: "include" }
-  )
-  const data = await response.json();
-  const notifications= data.data
-  return notifications
-}
 
 // Update notification with action taken
 export const updateNotificationAction = async (notificationId, action) => {

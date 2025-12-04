@@ -5,8 +5,58 @@ import PipelinePreview from "./PipelinePreview";
 import MetricCard from "./MetricCard";
 import ActionRequired from "./ActionRequired";
 import LogsSection from "./LogsSection";
+import { useWebSocket } from "../../context/WebSocketContext";
+import { useEffect, useState } from "react";
 
 const WorkflowDetails = ({ workflow, actionFilter, onActionFilterChange, actionItems, logs }) => {
+  const { getAlertsForPipeline, alerts: allAlerts } = useWebSocket();
+  const [workflowAlerts, setWorkflowAlerts] = useState([]);
+
+  // Update alerts when workflow changes or WebSocket receives new data
+  useEffect(() => {
+    if (workflow?.id) {
+      const alerts = getAlertsForPipeline(workflow.id);
+      setWorkflowAlerts(alerts);
+    }
+  }, [allAlerts, workflow?.id, getAlertsForPipeline]);
+  // Format total running time from seconds to human readable format
+  const formatRunningTime = (seconds) => {
+    if (!seconds || seconds === 0) return "0 min";
+    
+    const hours = Math.floor(seconds / 3600);
+    const minutes = Math.floor((seconds % 3600) / 60);
+    const secs = Math.floor(seconds % 60);
+    
+    if (hours > 0) {
+      return `${hours}h ${minutes}m`;
+    } else if (minutes > 0) {
+      return `${minutes}m ${secs}s`;
+    } else {
+      return `${secs}s`;
+    }
+  };
+
+  // Calculate %time run = (total_runtime / (date.now - create_time)) * 100
+  const calculateTimeRunPercentage = () => {
+    const totalRuntime = workflow.runtime || 0; // in seconds
+    // Use created_at from pipeline details API (first version_created_at)
+    const createTime = workflow.created_at || workflow.user_pipeline_version?.version_created_at || workflow.last_updated;
+    
+    if (!createTime) return "0%";
+    
+    const now = new Date();
+    const created = new Date(createTime);
+    const timeSinceCreation = (now - created) / 1000; // Convert to seconds
+    
+    if (timeSinceCreation <= 0) return "0%";
+    
+    const percentage = (totalRuntime / timeSinceCreation) * 100;
+    return `${percentage.toFixed(2)}%`;
+  };
+
+  const timeRunPercentage = calculateTimeRunPercentage();
+  const formattedRunningTime = formatRunningTime(workflow.runtime || workflow.avgRunningTime || 0);
+
   return (
     <Box
       sx={{
@@ -108,15 +158,15 @@ const WorkflowDetails = ({ workflow, actionFilter, onActionFilterChange, actionI
       >
         <PipelinePreview workflowId={workflow.id} />
         <MetricCard
-          title="Average Running Time"
+          title="Total Running Time"
           subtitle="Pipeline Running"
-          value={workflow.avgRunningTime}
-          change={workflow.avgChange}
+          value={formattedRunningTime}
+          change={timeRunPercentage}
         />
         <MetricCard
           title="Alerts Pending"
-          subtitle="Average income per visitors in your website"
-          value={workflow.alerts}
+          subtitle="Real-time alerts from pipeline"
+          value={String(workflowAlerts.length).padStart(2, '0')}
           change={workflow.alertsChange}
         />
       </Box>

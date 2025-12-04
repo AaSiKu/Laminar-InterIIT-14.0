@@ -29,7 +29,7 @@ import {
   ViewList as ViewListIcon,
   ArrowForward as ArrowForwardIcon,
 } from "@mui/icons-material";
-import { fetchNodeTypes, fetchNodeSchema } from "../../utils/dashboard.api";
+import { fetchNodeTypes } from "../../utils/dashboard.utils";
 import "../../css/NodeDrawer.css";
 
 /**
