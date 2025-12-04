@@ -2,7 +2,31 @@ from ..sql_tool import TablePayload
 from typing import List, Union, Dict, Any
 from sqlalchemy import text
 from postgres_util import postgre_engine
+import asyncio
+from functools import wraps
 
+def retry_on_falsy(max_retries: int = 3, delay_seconds: int = 2):
+    """
+    Decorator that retries a function if its result is falsy.
+    Sleeps for delay_seconds before each attempt.
+    
+    Args:
+        max_retries: Maximum number of attempts (default 3 for 6 seconds total)
+        delay_seconds: Seconds to sleep before each attempt (default 2)
+    """
+    def decorator(func):
+        @wraps(func)
+        async def wrapper(*args, **kwargs):
+            for attempt in range(max_retries):
+                await asyncio.sleep(delay_seconds)
+                result = await func(*args, **kwargs)
+                if bool(result):
+                    return result
+            return result  # Return the final result even if falsy
+        return wrapper
+    return decorator
+
+@retry_on_falsy()
 async def get_logs_for_trace_ids(trace_ids: Union[List[str], str], logs_table: TablePayload) -> List[Dict[str, Any]]:
     """
     Query logs for given trace IDs using SQLAlchemy.
@@ -43,6 +67,7 @@ async def get_logs_for_trace_ids(trace_ids: Union[List[str], str], logs_table: T
     
     return rows
 
+@retry_on_falsy()
 async def get_error_logs_for_trace_ids(trace_ids: Union[List[str], str], logs_table: TablePayload, severity_number: int) -> List[Dict[str, Any]]:
     """
     Query error logs for given trace IDs using SQLAlchemy.
@@ -87,6 +112,7 @@ async def get_error_logs_for_trace_ids(trace_ids: Union[List[str], str], logs_ta
     print(f"Retreived error logs: {rows}")
     return rows
 
+@retry_on_falsy()
 async def get_parent_chain(span_id: str, trace_id: str, spans_table: TablePayload) -> List[Dict[str, Any]]:
     """
     Build an ordered list of parent spans from the given span_id up to the root span.
@@ -146,6 +172,7 @@ async def get_parent_chain(span_id: str, trace_id: str, spans_table: TablePayloa
     return rows
 
 
+@retry_on_falsy()
 async def get_child_tree(span_id: str, trace_id: str, spans_table: TablePayload) -> List[Dict[str, Any]]:
     """
     Build a tree of all child spans for the given span_id.
@@ -206,6 +233,7 @@ async def get_child_tree(span_id: str, trace_id: str, spans_table: TablePayload)
     return rows
 
 
+@retry_on_falsy()
 async def get_full_span_tree(trace_id: str, spans_table: TablePayload) -> List[Dict[str, Any]]:
     """
     Build the complete span tree for a given trace_id, showing all parent-child relationships.
@@ -275,6 +303,7 @@ async def get_full_span_tree(trace_id: str, spans_table: TablePayload) -> List[D
     
     return rows
 
+@retry_on_falsy()
 async def get_logs_in_time_window(
     start_time: int,
     end_time: int,
@@ -321,6 +350,7 @@ async def get_logs_in_time_window(
     
     return rows
 
+@retry_on_falsy()
 async def get_downtime_timestamps(
     trace_ids: Union[List[str], str],
     column_name: str,
@@ -349,10 +379,10 @@ async def get_downtime_timestamps(
     sql_query = f"""
     SELECT 
         {column_name} as trace_id,
-        time as start_time_unix_nano
+        start_time_unix_nano as time
     FROM {sla_trigger_table["table_name"]}
     WHERE {column_name} IN ('{trace_ids_str}')
-    ORDER BY time
+    ORDER BY start_time_unix_nano
     """
     
     with postgre_engine.connect() as conn:

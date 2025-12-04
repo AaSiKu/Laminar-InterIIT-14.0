@@ -63,14 +63,15 @@ async def rca(init_rca_request: InitRCA):
                 for row in timestamp_data:
                     incidents.append(DowntimeIncident(
                         trace_id=row["trace_id"],
-                        timestamp=row["start_time_unix_nano"],
+                        timestamp=row["time"],
                         duration_ms=None
                     ))
                 
                 if not incidents:
                     return {
-                        "metric_type": "uptime",
-                        "error": "No downtime incidents found in SLA metric trigger table"
+                        "analysis":{ 
+                            "message": "No downtime incidents found in SLA metric trigger table"
+                        }
                     }
                 
                 # Analyze downtime with 30-second window around each incident
