@@ -1,0 +1,57 @@
+{
+  "pipeline_topology": {
+    "pipeline_name": "Order Fulfillment Pipeline",
+    "steps": [
+      {
+        "step_id": "order-queue-001",
+        "step_name": "Order Queue Consumer",
+        "step_type": "source",
+        "dependencies": []
+      },
+      {
+        "step_id": "inventory-check-001",
+        "step_name": "Inventory Availability Check",
+        "step_type": "transformation",
+        "dependencies": ["order-queue-001"]
+      },
+      {
+        "step_id": "pricing-engine-001",
+        "step_name": "Dynamic Pricing Engine",
+        "step_type": "transformation",
+        "dependencies": ["inventory-check-001"]
+      },
+      {
+        "step_id": "warehouse-api-001",
+        "step_name": "Warehouse Management API",
+        "step_type": "sink",
+        "dependencies": ["pricing-engine-001"]
+      }
+    ]
+  },
+  "rca_output": {
+    "incident_id": "INC-2025-11-29-1638",
+    "incident_time": "2024-11-29T16:38:00Z",
+    "severity": "low",
+    "root_cause": "Configuration drift in pricing engine due to stale cache not invalidated after price rule update",
+    "affected_components": [
+      {
+        "component_name": "pricing-engine-001",
+        "impact_level": "low",
+        "error_details": "Serving prices from 6-hour-old cache. Applied outdated 15% discount on 237 orders"
+      }
+    ],
+    "resolution_steps": [
+      "Manually flushed Redis cache for pricing rules",
+      "Fixed cache invalidation logic to trigger on rule updates",
+      "Reduced cache TTL from 6 hours to 30 minutes",
+      "Added monitoring alert for cache staleness"
+    ],
+    "additional_context": {
+      "financial_impact_usd": 850.0,
+      "affected_orders": 237,
+      "incorrect_discount_applied": 15,
+      "cache_age_hours": 6,
+      "customer_complaints": 0
+    }
+  }
+}
