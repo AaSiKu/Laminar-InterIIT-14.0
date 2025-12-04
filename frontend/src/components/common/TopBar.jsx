@@ -116,6 +116,7 @@ const TopBar = ({
             display: "flex",
             alignItems: "center",
             gap: 2,
+           
           }}
         >
           <TextField
@@ -125,12 +126,12 @@ const TopBar = ({
             onChange={(e) => onSearchChange && onSearchChange(e.target.value)}
             sx={{
               minWidth: { xs: 150, sm: 200, md: 280 },
-              "& .MuiOutlinedInput-root": {
-                borderRadius: "20px",
-                bgcolor: "background.elevation1",
-                height: "28px",
-                "& fieldset": {
-                  borderColor: "divider",
+              '& .MuiOutlinedInput-root': {
+                borderRadius: '50px',
+                bgcolor: 'background.elevation1',
+                height: '28px',
+                '& fieldset': {
+                  borderColor: 'divider',
                 },
                 "&:hover fieldset": {
                   borderColor: "divider",

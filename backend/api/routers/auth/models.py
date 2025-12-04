@@ -26,6 +26,7 @@ class UserOut(BaseModel):
     id: str
     email: EmailStr
     full_name: Optional[str] = None
+    role: Optional[str] = None
 
 class Token(BaseModel):
     access_token: str

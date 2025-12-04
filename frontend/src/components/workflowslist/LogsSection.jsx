@@ -164,71 +164,84 @@ const LogsSection = ({ logs }) => {
           </Box>
         ) : (
           <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
-            {versionHistory.map((item, index) => (
-              <Box
-                key={index}
-                sx={{ display: "flex", gap: 1.5, position: "relative" }}
+            {lenVersions === 0 ? (
+              <Typography
+                variant="body2"
+                sx={{ fontSize: "0.75rem", color: "text.secondary", textAlign: "center", py: 2 }}
               >
-                {index < versionHistory.length - 1 && (
+                No versions available
+              </Typography>
+            ) : (
+              <>
+                {versionHistory && versionHistory.map((item, index) => (
                   <Box
-                    sx={{
-                      position: "absolute",
-                      left: "6px",
-                      top: "24px",
-                      bottom: "-16px",
-                      width: "2px",
-                      bgcolor: "divider",
-                    }}
-                  />
-                )}
-                <Box
-                  sx={{
-                    width: 14,
-                    height: 14,
-                    borderRadius: "50%",
-                    bgcolor: `${colorPalette[index]}`,
-                    flexShrink: 0,
-                    mt: 0.25,
-                    zIndex: 1,
-                  }}
-                />
-                <Box sx={{ flex: 1 }}>
+                    key={index}
+                    sx={{ display: "flex", gap: 1.5, position: "relative" }}
+                  >
+                    {index < versionHistory.length - 1 && (
+                      <Box
+                        sx={{
+                          position: "absolute",
+                          left: "6px",
+                          top: "24px",
+                          bottom: "-16px",
+                          width: "2px",
+                          bgcolor: "divider",
+                        }}
+                      />
+                    )}
+                    <Box
+                      sx={{
+                        width: 14,
+                        height: 14,
+                        borderRadius: "50%",
+                        bgcolor: `${colorPalette[index]}`,
+                        flexShrink: 0,
+                        mt: 0.25,
+                        zIndex: 1,
+                      }}
+                    />
+                    <Box sx={{ flex: 1 }}>
+                      <Typography
+                        variant="body2"
+                        sx={{
+                          fontSize: "0.8125rem",
+                          color: "text.primary",
+                          mb: 0.5,
+                          fontWeight: 600,
+                        }}
+                      >
+                        {item.date.split("T")[0]} at{" "}
+                        {item.date.split("T")[1].split(".")[0]}
+                      </Typography>
+                      <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                        <Avatar
+                          src={`https://avatar.iran.liara.run/public/boy?username=${encodeURIComponent(
+                            item.user
+                          )}&size=32`}
+                          alt={item.user}
+                          sx={{ width: 20, height: 20 }}
+                        />
+                        <Typography
+                          variant="body2"
+                          sx={{ fontSize: "0.75rem", color: "text.secondary" }}
+                        >
+                          User ID: {item.user}, Version ID: {item.version_id}
+                        </Typography>
+                      </Box>
+                    </Box>
+                  </Box>
+                ))}
+                {lenVersions > 5 && (
                   <Typography
                     variant="body2"
-                    sx={{
-                      fontSize: "0.8125rem",
-                      color: "text.primary",
-                      mb: 0.5,
-                      fontWeight: 600,
-                    }}
+                    sx={{ fontSize: "0.75rem", color: "text.secondary" }}
                   >
-                    {item.date.split("T")[0]} at{" "}
-                    {item.date.split("T")[1].split(".")[0]}
+                    And {lenVersions - 5} more version(s)
                   </Typography>
-                  <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                    <Avatar
-                      src={`https://avatar.iran.liara.run/public/boy?username=${encodeURIComponent(
-                        item.user
-                      )}&size=32`}
-                      alt={item.user}
-                      sx={{ width: 20, height: 20 }}
-                    />
-                    <Typography
-                      variant="body2"
-                      sx={{ fontSize: "0.75rem", color: "text.secondary" }}
-                    >
-                      User ID: {item.user}, Version ID: {item.version_id}
-                    </Typography>
-                  </Box>
-                </Box>
-              </Box>
-            ))}
-            <Typography
-              variant="body2"
-              sx={{ fontSize: "0.75rem", color: "text.secondary" }}
-            >
-              And {lenVersions - 5} more version(s)
-            </Typography>
+                )}
+              </>
+            )}
           </Box>
         )}
       </Box>

@@ -65,7 +65,7 @@ const RecentWorkflowCard = ({ workflow, onClick, selected }) => {
       <Box sx={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
         <AvatarGroup max={4} sx={{ '& .MuiAvatar-root': { width: '1.75rem', height: '1.75rem', fontSize: '0.75rem' } }}>
           {avatars.map((avatar) => {
-            const avatarUrl = `https://avatar.iran.liara.run/public/boy?username=${encodeURIComponent(identifier)}&size=32`;
+            const avatarUrl = `https://avatar.iran.liara.run/public/boy?username=${encodeURIComponent(avatar.id)}&size=32`;
             return (
               <Avatar 
                 key={avatar.id}
