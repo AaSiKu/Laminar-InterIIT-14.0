@@ -605,13 +605,13 @@ def build_graph() -> StateGraph:
     # This is the main graph that orchestrates the parallel runs
     workflow = StateGraph(RCAState)
     workflow.add_node("enrichment", enrichment_node)
-    workflow.add_node("scatter", scatter_node)
+    # workflow.add_node("scatter", scatter_node)
     workflow.add_node("sub_graphs", runnable_sub_graph.map())
     workflow.add_node("gather", gather_node)
 
     workflow.set_entry_point("enrichment")
-    workflow.add_edge("enrichment", "scatter")
-    workflow.add_edge("scatter", "sub_graphs")
+    # workflow.add_edge("enrichment", "scatter")
+    workflow.add_edge("enrichment", "sub_graphs")
     workflow.add_edge("sub_graphs", "gather")
     workflow.add_edge("gather", END)
 
