@@ -122,6 +122,19 @@ fi
 
     echo "---"
 
+## 8. Start Contract Parser Agent Server
+    echo "Starting Contract Parser Agent server..."
+    cd backend/contractparseragent/server
+    nohup python server.py > ../../../$LOG_DIR/contractparseragent.log 2>&1 &
+    CONTRACTPARSERAGENT_PID=$!
+    echo $CONTRACTPARSERAGENT_PID > "../../../$PID_DIR/contractparseragent.pid"
+    cd ../../..
+
+    echo "Contract Parser Agent server started with PID: $CONTRACTPARSERAGENT_PID"
+    echo "You can monitor the logs with: tail -f $LOG_DIR/contractparseragent.log"
+
+    echo "---"
+
 echo "Setup script finished."
 echo "To stop all services, run: ./scripts/stop.sh"
 
