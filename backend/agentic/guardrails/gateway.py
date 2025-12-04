@@ -24,7 +24,7 @@ import ipaddress
 import socket
 
 from .base import DetectorResult, BaseDetector, ExtrasImport, Extra
-from .batch import PromptInjectionAnalyzer
+from .batch import PromptInjectionAnalyzer, PRESIDIO_EXTRA, transformers_extra
 
 load_dotenv()
 
@@ -56,8 +56,6 @@ def get_openai_client() -> AsyncClient:
     if client is None:
         client = AsyncClient()
     return client
-
-
 
 
 Extra.extras = {}

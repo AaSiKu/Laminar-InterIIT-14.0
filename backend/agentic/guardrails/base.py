@@ -2,7 +2,7 @@ import os, sys
 from pydantic.dataclasses import dataclass
 from pydantic import Field
 
-
+TERMINATE_ON_EXTRA_FAILURE: bool = True
 
 @dataclass
 class DetectorResult:
@@ -94,7 +94,7 @@ class ExtrasImport:
     def __repr__(self):
         return str(self)
 
-TERMINATE_ON_EXTRA_FAILURE: bool = True
+
 
 class Extra:
     """

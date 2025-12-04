@@ -1,5 +1,5 @@
-from mcp.server.fastmcp import FastMCP
-from gateway import MCPSecurityGateway
+from fastmcp import FastMCP
+from .gateway import MCPSecurityGateway
 
 gateway = MCPSecurityGateway()
 mcp = FastMCP("secure-invoice-server")

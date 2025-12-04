@@ -1,8 +1,6 @@
 import asyncio
 from typing import AsyncGenerator, Awaitable, Callable, Generic, List, Optional, TypeVar
 
-
-
 from .base import BaseDetector, Extra, ExtrasImport
 
 T = TypeVar("T")
