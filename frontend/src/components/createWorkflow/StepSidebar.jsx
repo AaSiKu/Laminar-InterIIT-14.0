@@ -6,9 +6,9 @@ import AIChatbot from "./AIChatbot";
 
 const STEP_SIDEBAR_COLLAPSED_WIDTH = 64;
 const STEP_SIDEBAR_DEFAULT_WIDTH = 360; // Default width when chatbot is not visible
-// Chatbot width is 70vh, plus buttons width (~200px), plus padding (24px left + 24px right) + left margin (32px) + gap (16px)
-// Reduced by 40px to make it narrower
-const STEP_SIDEBAR_WITH_CHATBOT_WIDTH = "85.5vh";
+// Chatbot width is 40vh, plus sidebar padding (24px left + 24px right = 48px) + left margin (32px) = 80px total
+// Width should just fit the chatbot with padding
+const STEP_SIDEBAR_WITH_CHATBOT_WIDTH = "calc(40vh + 80px)";
 
 const StepSidebar = ({
   steps,
@@ -50,7 +50,7 @@ const StepSidebar = ({
         left: currentStepValue === 1 ? "auto" : 0,
         top: currentStepValue === 1 ? "auto" : 0,
         bottom: currentStepValue === 1 ? "auto" : 0,
-        zIndex: currentStepValue === 1 ? "auto" : 100,
+        zIndex: currentStepValue === 1 ? "auto" : 10002,
         flexShrink: currentStepValue === 1 ? 0 : "none",
         transition: "width 0.3s ease, padding 0.3s ease, position 0.3s ease",
         boxShadow: currentStepValue === 1 || isSidebarCollapsed ? "none" : "2px 0 8px rgba(0, 0, 0, 0.1)",
@@ -70,7 +70,7 @@ const StepSidebar = ({
           border: "1px solid",
           borderColor: "divider",
           boxShadow: 1,
-          zIndex: 1,
+          zIndex: 10003,
           "&:hover": {
             bgcolor: "action.hover",
           },

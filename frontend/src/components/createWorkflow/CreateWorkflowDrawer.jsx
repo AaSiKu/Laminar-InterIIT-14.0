@@ -15,7 +15,7 @@ const steps = [
 
 const CreateWorkflowDrawer = ({ open, onClose, onComplete }) => {
   const [currentStep, setCurrentStep] = useState(1);
-  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(true);
   const [formData, setFormData] = useState({
     name: "",
     description: "",
@@ -38,6 +38,7 @@ const CreateWorkflowDrawer = ({ open, onClose, onComplete }) => {
       setNodes([]);
       setEdges([]);
       setIsGenerating(false);
+      setIsSidebarCollapsed(true);
     }
   }, [open]);
 

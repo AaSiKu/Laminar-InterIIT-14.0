@@ -11,6 +11,7 @@ import {
 import SendIcon from "@mui/icons-material/Send";
 import CheckIcon from "@mui/icons-material/Check";
 import CloseIcon from "@mui/icons-material/Close";
+import { useTheme } from "@mui/material/styles";
 
 // Animated gradient glow keyframes
 const gradientGlow = keyframes`
@@ -33,6 +34,7 @@ const AIChatbot = ({
   onAccept,
   onDecline,
 }) => {
+  const theme = useTheme();
   const [chatMessages, setChatMessages] = useState([]);
   const [chatInput, setChatInput] = useState("");
   const [hasGeneratedWorkflow, setHasGeneratedWorkflow] = useState(false);
@@ -92,8 +94,8 @@ const AIChatbot = ({
   };
 
   // Square chatbot: 50vh height, 70vh width
-  const chatbotSize = "50vh";
-  const chatbotWidth = "70vh";
+  const chatbotSize = "45vh";
+  const chatbotWidth = "40vh";
 
   return (
     <Box 
@@ -104,7 +106,6 @@ const AIChatbot = ({
         width: chatbotWidth,
         position: "relative",
         flexShrink: 0,
-        overflow: "visible", // Ensure nothing gets clipped
       }}
     >
       {/* Wrapper for gradient border with animated glow */}
@@ -117,7 +118,9 @@ const AIChatbot = ({
           flexShrink: 0,
           overflow: "visible", // Ensure nothing gets clipped
           // Static gradient border wrapper (base layer)
-          background: "linear-gradient(to bottom, #3F78B0 0%, rgba(128, 187, 196, 0) 100%)",
+          background: theme.palette.mode === "dark"
+            ? "linear-gradient(to bottom, rgba(63, 120, 176, 0.3) 0%, rgba(128, 187, 196, 0) 100%)"
+            : "linear-gradient(to bottom, #3F78B0 0%, rgba(128, 187, 196, 0) 100%)",
           padding: "2px", // Reduced from 5px for minimalistic look
           // Animated gradient glow border using pseudo-element
           "&::before": {
@@ -132,14 +135,18 @@ const AIChatbot = ({
             transition: "opacity 0.5s ease, filter 0.5s ease, background 0.5s ease, background-size 0.5s ease",
             ...(isAnalyzing ? {
               // Animated state - rotating gradient
-              background: "linear-gradient(45deg, #3F78B0, #80BBC4, #3F78B0, #80BBC4)",
+              background: theme.palette.mode === "dark"
+                ? "linear-gradient(45deg, rgba(63, 120, 176, 0.4), rgba(128, 187, 196, 0.3), rgba(63, 120, 176, 0.4), rgba(128, 187, 196, 0.3))"
+                : "linear-gradient(45deg, #3F78B0, #80BBC4, #3F78B0, #80BBC4)",
               backgroundSize: "400% 400%",
               animation: `${gradientGlow} 3s ease infinite`,
               filter: "blur(8px)", // Slightly reduced blur
               opacity: 0.7,
             } : {
               // Static state - matching the base gradient
-              background: "linear-gradient(to bottom, #3F78B0 0%, rgba(128, 187, 196, 0) 100%)",
+              background: theme.palette.mode === "dark"
+                ? "linear-gradient(to bottom, rgba(63, 120, 176, 0.2) 0%, rgba(128, 187, 196, 0) 100%)"
+                : "linear-gradient(to bottom, #3F78B0 0%, rgba(128, 187, 196, 0) 100%)",
               backgroundSize: "100% 100%",
               filter: "blur(8px)", // Slightly reduced blur
               opacity: 0.3,
@@ -149,9 +156,7 @@ const AIChatbot = ({
       >
         <Box
           sx={{
-            bgcolor: (theme) => theme.palette.mode === "dark" 
-              ? "rgba(255, 255, 255, 0.05)" 
-              : "#EBF2F5",
+            bgcolor: "background.paper",
             borderRadius: "14px", // Inner radius (16px - 2px for border)
             height: "100%",
             width: "100%",
@@ -309,7 +314,9 @@ const AIChatbot = ({
           <Box
             sx={{
               borderRadius: "16px",
-              background: "linear-gradient(to bottom, #3F78B0 0%, rgba(128, 187, 196, 0) 100%)",
+              background: theme.palette.mode === "dark"
+                ? "linear-gradient(to bottom, rgba(63, 120, 176, 0.3) 0%, rgba(128, 187, 196, 0) 100%)"
+                : "linear-gradient(to bottom, #3F78B0 0%, rgba(128, 187, 196, 0) 100%)",
               padding: "2px", // Reduced from 5px for minimalistic look
               marginBottom: "2px", // Add spacing to prevent border clipping
             }}
@@ -325,16 +332,22 @@ const AIChatbot = ({
                 borderRadius: "14px", // Inner radius (16px - 2px for border)
                 px: 3,
                 py: 1,
-                bgcolor: "#EBF2F5",
+                bgcolor: theme.palette.mode === "dark" 
+                  ? "rgba(255, 255, 255, 0.05)" 
+                  : "#EBF2F5",
                 color: "text.primary",
                 fontWeight: 500,
                 width: "100%",
                 height: "100%",
                 "&:hover": {
-                  bgcolor: "#E0E8EB",
+                  bgcolor: theme.palette.mode === "dark"
+                    ? "rgba(255, 255, 255, 0.08)"
+                    : "#E0E8EB",
                 },
                 "&:disabled": {
-                  bgcolor: "#EBF2F5",
+                  bgcolor: theme.palette.mode === "dark"
+                    ? "rgba(255, 255, 255, 0.05)"
+                    : "#EBF2F5",
                   opacity: 0.6,
                 },
               }}
@@ -355,7 +368,9 @@ const AIChatbot = ({
             <Box
               sx={{
                 borderRadius: "16px",
-                background: "linear-gradient(to bottom, #3F78B0 0%, rgba(128, 187, 196, 0) 100%)",
+                background: theme.palette.mode === "dark"
+                  ? "linear-gradient(to bottom, rgba(63, 120, 176, 0.3) 0%, rgba(128, 187, 196, 0) 100%)"
+                  : "linear-gradient(to bottom, #3F78B0 0%, rgba(128, 187, 196, 0) 100%)",
                 padding: "2px", // Reduced from 5px for minimalistic look
               }}
             >
@@ -368,13 +383,17 @@ const AIChatbot = ({
                   borderRadius: "14px", // Inner radius (16px - 2px for border)
                   px: 2,
                   py: 0.75,
-                  bgcolor: "#EBF2F5",
+                  bgcolor: theme.palette.mode === "dark"
+                    ? "rgba(255, 255, 255, 0.05)"
+                    : "#EBF2F5",
                   color: "text.primary",
                   border: "none",
                   width: "100%",
                   height: "100%",
                   "&:hover": {
-                    bgcolor: "#E0E8EB",
+                    bgcolor: theme.palette.mode === "dark"
+                      ? "rgba(255, 255, 255, 0.08)"
+                      : "#E0E8EB",
                   },
                 }}
               >
@@ -384,7 +403,9 @@ const AIChatbot = ({
             <Box
               sx={{
                 borderRadius: "16px",
-                background: "linear-gradient(to bottom, #3F78B0 0%, rgba(128, 187, 196, 0) 100%)",
+                background: theme.palette.mode === "dark"
+                  ? "linear-gradient(to bottom, rgba(63, 120, 176, 0.3) 0%, rgba(128, 187, 196, 0) 100%)"
+                  : "linear-gradient(to bottom, #3F78B0 0%, rgba(128, 187, 196, 0) 100%)",
                 padding: "2px", // Reduced from 5px for minimalistic look
               }}
             >
@@ -397,12 +418,16 @@ const AIChatbot = ({
                   borderRadius: "14px", // Inner radius (16px - 2px for border)
                   px: 2,
                   py: 0.75,
-                  bgcolor: "#EBF2F5",
+                  bgcolor: theme.palette.mode === "dark"
+                    ? "rgba(255, 255, 255, 0.05)"
+                    : "#EBF2F5",
                   color: "text.primary",
                   width: "100%",
                   height: "100%",
                   "&:hover": {
-                    bgcolor: "#E0E8EB",
+                    bgcolor: theme.palette.mode === "dark"
+                      ? "rgba(255, 255, 255, 0.08)"
+                      : "#E0E8EB",
                   },
                 }}
               >
