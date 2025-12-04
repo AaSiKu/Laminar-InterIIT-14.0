@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import { Box, Typography, Paper, IconButton, Alert, Snackbar} from "@mui/material";
 import { PieChart, Pie, Cell, ResponsiveContainer } from "recharts";
 import ContentCopyIcon from "@mui/icons-material/ContentCopy";
@@ -28,7 +28,8 @@ const OverviewSection = ({ data, kpiData }) => {
       .catch(err => console.error("Failed to copy:", err));
   };
   // Chart data - all segments with uniform thickness
-  const chartData = [
+  // Use useMemo to ensure smooth transitions
+  const chartData = useMemo(() => [
     {
       name: "Running",
       value: data?.running || 0,
@@ -44,7 +45,7 @@ const OverviewSection = ({ data, kpiData }) => {
       value: data?.stopped || 0,
       color: "#A2B8F4", // Blue
     },
-  ];
+  ], [data?.running, data?.broken, data?.stopped]);
 
   const total = data?.total;
 
@@ -155,9 +156,12 @@ const OverviewSection = ({ data, kpiData }) => {
                 paddingAngle={2}
                 dataKey="value"
                 strokeWidth={0}
+                animationBegin={0}
+                animationDuration={800}
+                animationEasing="ease-out"
               >
                 {chartData.map((entry, index) => (
-                  <Cell key={`cell-${index}`} fill={entry.color} />
+                  <Cell key={`cell-${entry.name}-${entry.value}`} fill={entry.color} />
                 ))}
               </Pie>
             </PieChart>

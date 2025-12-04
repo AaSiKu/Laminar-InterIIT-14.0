@@ -1,4 +1,4 @@
-import { Box, Typography, AvatarGroup, Avatar, IconButton, Button } from "@mui/material";
+import { Box, Typography, AvatarGroup, Avatar, IconButton, Button, CircularProgress } from "@mui/material";
 import EditIcon from '@mui/icons-material/Edit';
 import FileCopyIcon from '@mui/icons-material/FileCopy';
 import PipelinePreview from "./PipelinePreview";
@@ -6,19 +6,109 @@ import MetricCard from "./MetricCard";
 import ActionRequired from "./ActionRequired";
 import LogsSection from "./LogsSection";
 import { useWebSocket } from "../../context/WebSocketContext";
-import { useEffect, useState } from "react";
+import { useGlobalState } from "../../context/GlobalStateContext";
+import { useEffect, useState, useMemo } from "react";
+import { fetchPipelineDetails } from "../../utils/pipelineUtils";
 
-const WorkflowDetails = ({ workflow, actionFilter, onActionFilterChange, actionItems, logs }) => {
+const WorkflowDetails = ({ workflow, actionFilter, onActionFilterChange, logs }) => {
   const { getAlertsForPipeline, alerts: allAlerts } = useWebSocket();
+  const { notifications } = useGlobalState();
   const [workflowAlerts, setWorkflowAlerts] = useState([]);
+  const [pipelineDetails, setPipelineDetails] = useState(null);
+  const [loadingDetails, setLoadingDetails] = useState(false);
+  const [detailsError, setDetailsError] = useState(null);
+
+  // Filter notifications for this pipeline based on the selected filter
+  const filteredNotifications = useMemo(() => {
+    if (!workflow?.id || !notifications || notifications.length === 0) {
+      return [];
+    }
+
+    const workflowId = String(workflow.id || workflow._id);
+    
+    // Filter notifications for this pipeline
+    const pipelineNotifications = notifications.filter(notif => {
+      const notifPipelineId = String(notif.pipeline_id || '');
+      return notifPipelineId === workflowId;
+    });
+
+    // Apply filter based on actionFilter
+    switch (actionFilter) {
+      case "notifications":
+        // type != "alert"
+        return pipelineNotifications.filter(notif => notif.type !== "alert");
+      
+      case "pending_actions":
+        // type == "alert" AND (action_taken is null/undefined/empty)
+        return pipelineNotifications.filter(notif => {
+          if (notif.type !== "alert") return false;
+          const actionTaken = notif.alert?.action_taken;
+          return !actionTaken || actionTaken === "" || actionTaken === null || actionTaken === undefined;
+        });
+      
+      case "actions_taken":
+        // type == "alert" AND action_taken is not null/undefined/empty
+        return pipelineNotifications.filter(notif => {
+          if (notif.type !== "alert") return false;
+          const actionTaken = notif.alert?.action_taken;
+          return actionTaken && actionTaken !== "" && actionTaken !== null && actionTaken !== undefined;
+        });
+      
+      default:
+        return pipelineNotifications;
+    }
+  }, [workflow?.id, notifications, actionFilter]);
+
+  // Fetch pipeline details when workflow is selected
+  useEffect(() => {
+    const loadPipelineDetails = async () => {
+      if (!workflow?.id) {
+        setPipelineDetails(null);
+        return;
+      }
+
+      try {
+        setLoadingDetails(true);
+        setDetailsError(null);
+        const details = await fetchPipelineDetails(workflow.id);
+        if (details.status === "success") {
+          setPipelineDetails(details);
+        }
+      } catch (err) {
+        console.error("Error fetching pipeline details:", err);
+        setDetailsError(err.message || "Failed to load pipeline details");
+      } finally {
+        setLoadingDetails(false);
+      }
+    };
+
+    loadPipelineDetails();
+  }, [workflow?.id]);
 
   // Update alerts when workflow changes or WebSocket receives new data
   useEffect(() => {
     if (workflow?.id) {
       const alerts = getAlertsForPipeline(workflow.id);
       setWorkflowAlerts(alerts);
+    } else {
+      setWorkflowAlerts([]);
     }
   }, [allAlerts, workflow?.id, getAlertsForPipeline]);
+
+  // Update pipeline details when alerts change via WebSocket
+  useEffect(() => {
+    if (pipelineDetails && workflow?.id) {
+      const currentAlerts = getAlertsForPipeline(workflow.id);
+      // Update alerts count if it changed
+      if (currentAlerts.length !== (pipelineDetails.alerts_count || 0)) {
+        setPipelineDetails(prev => ({
+          ...prev,
+          alerts_count: currentAlerts.length,
+          alerts: currentAlerts
+        }));
+      }
+    }
+  }, [allAlerts.length, pipelineDetails, workflow?.id, getAlertsForPipeline]);
   // Format total running time from seconds to human readable format
   const formatRunningTime = (seconds) => {
     if (!seconds || seconds === 0) return "0 min";
@@ -38,9 +128,14 @@ const WorkflowDetails = ({ workflow, actionFilter, onActionFilterChange, actionI
 
   // Calculate %time run = (total_runtime / (date.now - create_time)) * 100
   const calculateTimeRunPercentage = () => {
+    if (!workflow) return "0%";
+    
     const totalRuntime = workflow.runtime || 0; // in seconds
-    // Use created_at from pipeline details API (first version_created_at)
-    const createTime = workflow.created_at || workflow.user_pipeline_version?.version_created_at || workflow.last_updated;
+    // Use created_at from pipeline details API (first version_created_at) if available
+    const createTime = pipelineDetails?.created_at || 
+                      workflow.created_at || 
+                      workflow.user_pipeline_version?.version_created_at || 
+                      workflow.last_updated;
     
     if (!createTime) return "0%";
     
@@ -54,8 +149,42 @@ const WorkflowDetails = ({ workflow, actionFilter, onActionFilterChange, actionI
     return `${percentage.toFixed(2)}%`;
   };
 
+  // Get alerts count from pipeline details or WebSocket
+  const getAlertsCount = () => {
+    if (workflowAlerts.length > 0) {
+      return workflowAlerts.length;
+    }
+    if (pipelineDetails?.alerts_count !== undefined) {
+      return pipelineDetails.alerts_count;
+    }
+    return workflow?.alerts ? parseInt(workflow.alerts) || 0 : 0;
+  };
+
   const timeRunPercentage = calculateTimeRunPercentage();
-  const formattedRunningTime = formatRunningTime(workflow.runtime || workflow.avgRunningTime || 0);
+  const formattedRunningTime = formatRunningTime(workflow?.runtime || workflow?.avgRunningTime || 0);
+  const alertsCount = getAlertsCount();
+
+  // Show loading state if no workflow selected
+  if (!workflow) {
+    return (
+      <Box
+        sx={{
+          flex: 1,
+          minHeight: 0,
+          bgcolor: 'background.paper',
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          px: 3,
+          pb: 3,
+        }}
+      >
+        <Typography variant="body2" color="text.secondary">
+          Select a workflow to view details
+        </Typography>
+      </Box>
+    );
+  }
 
   return (
     <Box
@@ -82,9 +211,24 @@ const WorkflowDetails = ({ workflow, actionFilter, onActionFilterChange, actionI
         mt: 0,
         borderTop: "none",
       }}>
+        {loadingDetails && (
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 2 }}>
+            <CircularProgress size={16} />
+            <Typography variant="caption" color="text.secondary">
+              Loading pipeline details...
+            </Typography>
+          </Box>
+        )}
+        {detailsError && (
+          <Box sx={{ mb: 2 }}>
+            <Typography variant="caption" color="error">
+              {detailsError}
+            </Typography>
+          </Box>
+        )}
         <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", mb: 2 }}>
           <Typography variant="h5" sx={{ fontWeight: 600, color: "text.primary", fontSize: "1.125rem" }}>
-            {workflow.name}
+            {workflow?.name || "Unnamed Workflow"}
           </Typography>
           <Box sx={{ display: "flex", gap: 1.5, alignItems: "center" }}>
             <Button
@@ -108,7 +252,7 @@ const WorkflowDetails = ({ workflow, actionFilter, onActionFilterChange, actionI
               Get Report
             </Button>
             <AvatarGroup max={3} sx={{ "& .MuiAvatar-root": { width: 32, height: 32, fontSize: "0.75rem" } }}>
-              {workflow.team.map((member, index) => {
+              {(workflow?.team || []).map((member, index) => {
                 const avatarUrl = `https://avatar.iran.liara.run/public/boy?username=${encodeURIComponent(member.name || member.id || `user${index}`)}&size=32`;
                 return (
                   <Avatar 
@@ -142,8 +286,13 @@ const WorkflowDetails = ({ workflow, actionFilter, onActionFilterChange, actionI
           Description
         </Typography>
         <Typography variant="body2" sx={{ color: "text.secondary", fontSize: "0.875rem", lineHeight: 1.6 }}>
-          {workflow.description}
+          {workflow?.description || "No description available"}
         </Typography>
+        {pipelineDetails?.created_at && (
+          <Typography variant="caption" sx={{ color: "text.secondary", fontSize: "0.75rem", mt: 1, display: "block" }}>
+            Created: {new Date(pipelineDetails.created_at).toLocaleString()}
+          </Typography>
+        )}
       </Box>
 
       {/* 1x3 Grid: Pipeline, Average Running Time, Alerts Pending */}
@@ -156,7 +305,7 @@ const WorkflowDetails = ({ workflow, actionFilter, onActionFilterChange, actionI
           mx: -3,
         }}
       >
-        <PipelinePreview workflowId={workflow.id} />
+        <PipelinePreview workflowId={workflow?.id || workflow?._id} />
         <MetricCard
           title="Total Running Time"
           subtitle="Pipeline Running"
@@ -166,8 +315,8 @@ const WorkflowDetails = ({ workflow, actionFilter, onActionFilterChange, actionI
         <MetricCard
           title="Alerts Pending"
           subtitle="Real-time alerts from pipeline"
-          value={String(workflowAlerts.length).padStart(2, '0')}
-          change={workflow.alertsChange}
+          value={String(alertsCount).padStart(2, '0')}
+          change={workflow?.alertsChange || "0%"}
         />
       </Box>
 
@@ -184,7 +333,7 @@ const WorkflowDetails = ({ workflow, actionFilter, onActionFilterChange, actionI
         <ActionRequired
           actionFilter={actionFilter}
           onFilterChange={onActionFilterChange}
-          actionItems={actionItems}
+          notifications={filteredNotifications}
         />
         <LogsSection logs={logs} />
       </Box>

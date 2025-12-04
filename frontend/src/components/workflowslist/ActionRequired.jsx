@@ -1,8 +1,31 @@
 import { Box, Typography, Button, IconButton, useTheme } from "@mui/material";
 import AutoAwesomeOutlinedIcon from '@mui/icons-material/AutoAwesomeOutlined';
+import dayjs from "dayjs";
+import relativeTime from "dayjs/plugin/relativeTime";
+dayjs.extend(relativeTime);
 
-const ActionRequired = ({ actionFilter, onFilterChange, actionItems }) => {
+const ActionRequired = ({ actionFilter, onFilterChange, notifications = [] }) => {
   const theme = useTheme();
+
+  // Format notification for display
+  const formatNotification = (notif) => {
+    return {
+      id: notif._id || notif.id,
+      title: notif.title || notif.desc || "Notification",
+      description: notif.desc || notif.title || "",
+      type: notif.type,
+      timestamp: notif.timestamp,
+      timeAgo: notif.timestamp ? dayjs(notif.timestamp).fromNow() : "Unknown",
+      action_taken: notif.alert?.action_taken,
+      action_executed_by: notif.alert?.action_executed_by,
+      action_executed_by_user: notif.action_executed_by_user,
+      email: notif.action_executed_by_user?.email,
+      assignee: notif.action_executed_by_user ? `Action taken by ${notif.action_executed_by_user.full_name || notif.action_executed_by_user.email}` : undefined,
+    };
+  };
+
+  const filteredNotifications = notifications.map(formatNotification);
+
   return (
     <Box 
       sx={{ 
@@ -23,9 +46,9 @@ const ActionRequired = ({ actionFilter, onFilterChange, actionItems }) => {
         <Box sx={{ flex: 1 }} />
         <Button
           size="small"
-          variant={actionFilter === "critical" ? "soft" : "text"}
+          variant={actionFilter === "notifications" ? "soft" : "text"}
           color="neutral"
-          onClick={() => onFilterChange("critical")}
+          onClick={() => onFilterChange("notifications")}
           sx={{
             minWidth: "auto",
             border: "none",
@@ -34,13 +57,13 @@ const ActionRequired = ({ actionFilter, onFilterChange, actionItems }) => {
             },
           }}
         >
-          Critical
+          Notifications
         </Button>
         <Button
           size="small"
-          variant={actionFilter === "low" ? "soft" : "text"}
+          variant={actionFilter === "pending_actions" ? "soft" : "text"}
           color="neutral"
-          onClick={() => onFilterChange("low")}
+          onClick={() => onFilterChange("pending_actions")}
           sx={{
             minWidth: "auto",
             border: "none",
@@ -49,13 +72,13 @@ const ActionRequired = ({ actionFilter, onFilterChange, actionItems }) => {
             },
           }}
         >
-          Low
+          Pending Actions
         </Button>
         <Button
           size="small"
-          variant={actionFilter === "history" ? "soft" : "text"}
+          variant={actionFilter === "actions_taken" ? "soft" : "text"}
           color="neutral"
-          onClick={() => onFilterChange("history")}
+          onClick={() => onFilterChange("actions_taken")}
           sx={{
             minWidth: "auto",
             border: "none",
@@ -64,7 +87,7 @@ const ActionRequired = ({ actionFilter, onFilterChange, actionItems }) => {
             },
           }}
         >
-          History
+          Actions Taken
         </Button>
       </Box>
       <Box 
@@ -76,93 +99,101 @@ const ActionRequired = ({ actionFilter, onFilterChange, actionItems }) => {
         }}
       >
         <Typography variant="caption" sx={{ color: "text.secondary", fontSize: "0.75rem", mb: 0.5, display: "block", textTransform: "capitalize" }}>
-          {actionFilter}
+          {actionFilter === "notifications" ? "notifications" : actionFilter === "pending_actions" ? "pending actions" : "actions taken"}
         </Typography>
         <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>
-          {actionItems.map((item, index) => (
-            <Box
-              key={index}
-              sx={{
-                p: "1rem",
-                borderRadius: 2,
-                bgcolor: "background.elevation1",
-                transition: "all 0.2s",
-                "&:hover": {
-                  bgcolor: "action.hover",
-                },
-              }}
-            >
-              <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", mb: 0.75 }}>
-                <Typography variant="body2" sx={{ fontWeight: 600, fontSize: "0.8125rem", color: "text.primary", flex: 1 }}>
-                  {item.title}
+          {filteredNotifications.length === 0 ? (
+            <Typography variant="body2" sx={{ color: "text.secondary", fontSize: "0.875rem", py: 2 }}>
+              No items found
+            </Typography>
+          ) : (
+            filteredNotifications.map((item) => (
+              <Box
+                key={item.id}
+                sx={{
+                  p: "1rem",
+                  borderRadius: 2,
+                  bgcolor: "background.elevation1",
+                  transition: "all 0.2s",
+                  "&:hover": {
+                    bgcolor: "action.hover",
+                  },
+                }}
+              >
+                <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", mb: 0.75 }}>
+                  <Typography variant="body2" sx={{ fontWeight: 600, fontSize: "0.8125rem", color: "text.primary", flex: 1 }}>
+                    {item.title}
+                  </Typography>
+                  <IconButton 
+                    size="small" 
+                    sx={{ 
+                      ml: 1, 
+                      p: 0.5,
+                      color: 'primary.main',
+                      bgcolor: 'rgba(25, 118, 210, 0.08)',
+                      width: 28,
+                      height: 28,
+                      '&:hover': {
+                        bgcolor: 'rgba(25, 118, 210, 0.16)',
+                      },
+                    }}
+                  >
+                    <AutoAwesomeOutlinedIcon sx={{ fontSize: 16 }} />
+                  </IconButton>
+                </Box>
+                {item.email && (
+                  <Typography variant="caption" sx={{ color: "text.secondary", fontSize: "0.75rem", display: "block", mb: 0.5 }}>
+                    {item.email}
+                  </Typography>
+                )}
+                <Typography variant="caption" sx={{ color: "text.secondary", fontSize: "0.6875rem", display: "block", mb: 1 }}>
+                  {item.assignee || item.timeAgo}
                 </Typography>
-                <IconButton 
-                  size="small" 
-                  sx={{ 
-                    ml: 1, 
-                    p: 0.5,
-                    color: 'primary.main',
-                    bgcolor: 'rgba(25, 118, 210, 0.08)',
-                    width: 28,
-                    height: 28,
-                    '&:hover': {
-                      bgcolor: 'rgba(25, 118, 210, 0.16)',
-                    },
-                  }}
-                >
-                  <AutoAwesomeOutlinedIcon sx={{ fontSize: 16 }} />
-                </IconButton>
+                {item.type === "alert" && actionFilter === "pending_actions" && (
+                  <Box sx={{ display: "flex", gap: 1.5 }}>
+                    <Button 
+                      size="small"
+                      variant="text"
+                      sx={{ 
+                        minWidth: "auto",
+                        px: 1.5,
+                        py: 0.5,
+                        color: "primary.main",
+                        fontSize: "0.75rem",
+                        fontWeight: 500,
+                        textTransform: "none",
+                        '&:hover': {
+                          bgcolor: 'action.hover',
+                        },
+                      }}
+                    >
+                      Approve
+                    </Button>
+                    <Button 
+                      size="small"
+                      variant="text"
+                      sx={{ 
+                        minWidth: "auto",
+                        px: 1.5,
+                        py: 0.5,
+                        color: "error.main",
+                        fontSize: "0.75rem",
+                        fontWeight: 500,
+                        textTransform: "none",
+                        '&:hover': {
+                          bgcolor: theme.palette.mode === 'dark' 
+                            ? 'rgba(211, 47, 47, 0.16)' 
+                            : 'rgba(211, 47, 47, 0.08)',
+                        },
+                      }}
+                    >
+                      Reject
+                    </Button>
+                  </Box>
+                )}
               </Box>
-              {item.email && (
-                <Typography variant="caption" sx={{ color: "text.secondary", fontSize: "0.75rem", display: "block", mb: 0.5 }}>
-                  {item.email}
-                </Typography>
-              )}
-              <Typography variant="caption" sx={{ color: "text.secondary", fontSize: "0.6875rem", display: "block", mb: 1 }}>
-                {item.assignee || item.time}
-              </Typography>
-              <Box sx={{ display: "flex", gap: 1.5 }}>
-                <Button 
-                  size="small"
-                  variant="text"
-                  sx={{ 
-                    minWidth: "auto",
-                    px: 1.5,
-                    py: 0.5,
-                    color: "primary.main",
-                    fontSize: "0.75rem",
-                    fontWeight: 500,
-                    textTransform: "none",
-                    '&:hover': {
-                      bgcolor: 'action.hover',
-                    },
-                  }}
-                >
-                  Approve
-                </Button>
-                <Button 
-                  size="small"
-                  variant="text"
-                  sx={{ 
-                    minWidth: "auto",
-                    px: 1.5,
-                    py: 0.5,
-                    color: "error.main",
-                    fontSize: "0.75rem",
-                    fontWeight: 500,
-                    textTransform: "none",
-                    '&:hover': {
-                      bgcolor: theme.palette.mode === 'dark' 
-                        ? 'rgba(211, 47, 47, 0.16)' 
-                        : 'rgba(211, 47, 47, 0.08)',
-                    },
-                  }}
-                >
-                  Reject
-                </Button>
-              </Box>
-            </Box>
-          ))}
+            ))
+          )}
         </Box>
       </Box>
     </Box>

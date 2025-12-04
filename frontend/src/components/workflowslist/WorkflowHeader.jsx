@@ -15,7 +15,19 @@ const WorkflowHeader = ({ onAddNew, selectedTab, onTabChange }) => {
   };
 
   const handleFilterOption = (option) => {
-    console.log("Filter option selected:", option);
+    // Map filter options to tab indices
+    // 0: All, 1: Running, 2: Stopped, 3: Broken
+    const filterMap = {
+      "all": 0,
+      "inProgress": 1, // Running
+      "save": 2, // Stopped
+      "critical": 3, // Broken
+    };
+    
+    const tabIndex = filterMap[option] !== undefined ? filterMap[option] : 0;
+    if (onTabChange) {
+      onTabChange(tabIndex);
+    }
     handleFilterClose();
   };
 
@@ -79,6 +91,22 @@ const WorkflowHeader = ({ onAddNew, selectedTab, onTabChange }) => {
             },
           }}
         >
+          <MenuItem onClick={() => handleFilterOption("all")} sx={{ py: 1.5 }}>
+            <ListItemIcon sx={{ mr: 2 }}>
+              <Box sx={{ 
+                bgcolor: 'background.elevation1', 
+                borderRadius: '6px', 
+                width: 32, 
+                height: 32, 
+                display: 'flex', 
+                alignItems: 'center', 
+                justifyContent: 'center' 
+              }}>
+                <LoopOutlinedIcon sx={{ fontSize: 18, color: "text.secondary" }} />
+              </Box>
+            </ListItemIcon>
+            <ListItemText>All Workflows</ListItemText>
+          </MenuItem>
           <MenuItem onClick={() => handleFilterOption("inProgress")} sx={{ py: 1.5 }}>
             <ListItemIcon sx={{ mr: 2 }}>
               <Box sx={{ 
@@ -93,39 +121,7 @@ const WorkflowHeader = ({ onAddNew, selectedTab, onTabChange }) => {
                 <LoopOutlinedIcon sx={{ fontSize: 18, color: "text.secondary" }} />
               </Box>
             </ListItemIcon>
-            <ListItemText>In Progress</ListItemText>
-          </MenuItem>
-          <MenuItem onClick={() => handleFilterOption("critical")} sx={{ py: 1.5 }}>
-            <ListItemIcon sx={{ mr: 2 }}>
-              <Box sx={{ 
-                bgcolor: 'background.elevation1', 
-                borderRadius: '6px', 
-                width: 32, 
-                height: 32, 
-                display: 'flex', 
-                alignItems: 'center', 
-                justifyContent: 'center' 
-              }}>
-                <WarningAmberOutlinedIcon sx={{ fontSize: 18, color: "text.secondary" }} />
-              </Box>
-            </ListItemIcon>
-            <ListItemText>Critical</ListItemText>
-          </MenuItem>
-          <MenuItem onClick={() => handleFilterOption("flagged")} sx={{ py: 1.5 }}>
-            <ListItemIcon sx={{ mr: 2 }}>
-              <Box sx={{ 
-                bgcolor: 'background.elevation1', 
-                borderRadius: '6px', 
-                width: 32, 
-                height: 32, 
-                display: 'flex', 
-                alignItems: 'center', 
-                justifyContent: 'center' 
-              }}>
-                <FlagOutlinedIcon sx={{ fontSize: 18, color: "text.secondary" }} />
-              </Box>
-            </ListItemIcon>
-            <ListItemText>Flagged</ListItemText>
+            <ListItemText>Running</ListItemText>
           </MenuItem>
           <MenuItem onClick={() => handleFilterOption("save")} sx={{ py: 1.5 }}>
             <ListItemIcon sx={{ mr: 2 }}>
@@ -141,7 +137,23 @@ const WorkflowHeader = ({ onAddNew, selectedTab, onTabChange }) => {
                 <SaveOutlinedIcon sx={{ fontSize: 18, color: "text.secondary" }} />
               </Box>
             </ListItemIcon>
-            <ListItemText>Save</ListItemText>
+            <ListItemText>Stopped</ListItemText>
+          </MenuItem>
+          <MenuItem onClick={() => handleFilterOption("critical")} sx={{ py: 1.5 }}>
+            <ListItemIcon sx={{ mr: 2 }}>
+              <Box sx={{ 
+                bgcolor: 'background.elevation1', 
+                borderRadius: '6px', 
+                width: 32, 
+                height: 32, 
+                display: 'flex', 
+                alignItems: 'center', 
+                justifyContent: 'center' 
+              }}>
+                <WarningAmberOutlinedIcon sx={{ fontSize: 18, color: "text.secondary" }} />
+              </Box>
+            </ListItemIcon>
+            <ListItemText>Broken</ListItemText>
           </MenuItem>
         </Menu>
     </Box>

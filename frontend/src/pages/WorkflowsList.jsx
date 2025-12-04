@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { Box, CircularProgress, Typography } from "@mui/material";
 import { styles } from "../styles/WorkflowsList.styles";
 import { fetchWorkflows } from "../utils/utils";
@@ -70,7 +70,7 @@ const formatTimeAgo = (dateString) => {
 };
 
 // Transform backend workflow data to frontend format
-const transformWorkflow = async (backendWorkflow) => {
+const transformWorkflow = (backendWorkflow, details = null) => {
   const pipeline = backendWorkflow.user_pipeline_version?.pipeline || {};
   const runtime = backendWorkflow.runtime || 0;
   const description = backendWorkflow.user_pipeline_version?.version_description || `Pipeline: ${backendWorkflow.name}`;
@@ -101,21 +101,12 @@ const transformWorkflow = async (backendWorkflow) => {
     }
   });
 
-  // Fetch pipeline details for creation time and alerts
-  let created_at = null;
-  let alertsCount = 0;
-  try {
-    const details = await fetchPipelineDetails(backendWorkflow._id);
-    if (details.status === "success") {
-      created_at = details.created_at;
-      alertsCount = details.alerts_count || details.alerts?.length || 0;
-    }
-  } catch (err) {
-    console.warn(`Failed to fetch details for pipeline ${backendWorkflow._id}:`, err);
-  }
+  // Use provided details or default values
+  const created_at = details?.created_at || backendWorkflow.user_pipeline_version?.version_created_at;
+  const alertsCount = details?.alerts_count || details?.alerts?.length || 0;
   
   return {
-    id: backendWorkflow._id,
+    id: backendWorkflow._id || backendWorkflow.id,
     name: backendWorkflow.name || "Unnamed Workflow",
     category: description, // Show description instead of "General"
     location: formatTimeAgo(backendWorkflow.last_updated), // Show time ago instead of "Default"
@@ -131,7 +122,7 @@ const transformWorkflow = async (backendWorkflow) => {
     last_updated: backendWorkflow.last_updated,
     runtime: runtime,
     avgRunningTime: backendWorkflow.runtime || 0,
-    created_at: created_at || backendWorkflow.user_pipeline_version?.version_created_at,
+    created_at: created_at,
     // Include user_pipeline_version for RecentWorkflowCard
     user_pipeline_version: backendWorkflow.user_pipeline_version,
     // Include original backend data for reference
@@ -143,44 +134,89 @@ const transformWorkflow = async (backendWorkflow) => {
 export const WorkflowsList = () => {
   const [selectedTab, setSelectedTab] = useState(0);
   const [selectedWorkflow, setSelectedWorkflow] = useState(null);
-  const [actionFilter, setActionFilter] = useState("critical"); // critical or low
+  const [actionFilter, setActionFilter] = useState("notifications"); // notifications, pending_actions, actions_taken
   const [globalSearchQuery, setGlobalSearchQuery] = useState("");
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  const { workflows, setWorkflows } = useGlobalState();
+  const [workflowDetailsCache, setWorkflowDetailsCache] = useState({});
+  const [transformedWorkflows, setTransformedWorkflows] = useState([]);
+  const { workflows } = useGlobalState();
   const { alerts, getAlertsForPipeline, isConnected, ws } = useWebSocket();
 
-  // Fetch workflows from backend on mount
+  // Fetch details for a specific workflow
+  const fetchWorkflowDetails = useCallback(async (workflowId) => {
+    if (workflowDetailsCache[workflowId]) {
+      return workflowDetailsCache[workflowId];
+    }
+
+    try {
+      const details = await fetchPipelineDetails(workflowId);
+      setWorkflowDetailsCache(prev => ({
+        ...prev,
+        [workflowId]: details
+      }));
+      return details;
+    } catch (err) {
+      console.warn(`Failed to fetch details for pipeline ${workflowId}:`, err);
+      return null;
+    }
+  }, [workflowDetailsCache]);
+
+  // Update transformed workflows with details when workflows change (debounced)
   useEffect(() => {
-    const loadWorkflows = async () => {
+    if (workflows.length === 0) {
+      setTransformedWorkflows([]);
+      if (selectedWorkflow) setSelectedWorkflow(null);
+      return;
+    }
+
+    const updateWorkflowsWithDetails = async () => {
       try {
         setLoading(true);
-        setError(null);
-        const response = await fetchWorkflows(0, 100); // Fetch up to 100 workflows
-        if (response.status === "success" && response.data) {
-          // Transform workflows (with async pipeline details fetching)
-          const transformedWorkflows = await Promise.all(
-            response.data.map(transformWorkflow)
+        // Only fetch details for workflows that don't have them cached
+        const workflowsToUpdate = workflows.filter(w => {
+          const workflowId = w.id || w._id;
+          return workflowId && !workflowDetailsCache[workflowId];
+        });
+        
+        // Fetch details for workflows that need them
+        if (workflowsToUpdate.length > 0) {
+          await Promise.all(
+            workflowsToUpdate.map(async (w) => {
+              const workflowId = w.id || w._id;
+              await fetchWorkflowDetails(workflowId);
+            })
           );
-          setWorkflows(transformedWorkflows);
-          // Set first workflow as selected if available
-          if (transformedWorkflows.length > 0) {
-            setSelectedWorkflow(transformedWorkflows[0]);
+        }
+
+        // Transform all workflows with cached details
+        const transformed = workflows.map(w => {
+          const workflowId = w.id || w._id;
+          const details = workflowId ? workflowDetailsCache[workflowId] || null : null;
+          return transformWorkflow(w, details);
+        });
+        
+        setTransformedWorkflows(transformed);
+        
+        // Update selected workflow if it exists
+        if (selectedWorkflow) {
+          const updated = transformed.find(w => w.id === selectedWorkflow.id);
+          if (updated) {
+            setSelectedWorkflow(updated);
           }
-        } else {
-          setError("Failed to load workflows");
+        } else if (transformed.length > 0) {
+          setSelectedWorkflow(transformed[0]);
         }
       } catch (err) {
-        console.error("Error fetching workflows:", err);
-        setError(err.message || "Failed to load workflows");
+        console.error("Error updating workflows with details:", err);
       } finally {
         setLoading(false);
       }
     };
 
-    loadWorkflows();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    const timeoutId = setTimeout(updateWorkflowsWithDetails, 300);
+    return () => clearTimeout(timeoutId);
+  }, [workflows, fetchWorkflowDetails]); // Update when workflows change
 
   // Handle WebSocket messages for workflow updates and alerts
   useEffect(() => {
@@ -192,39 +228,20 @@ export const WorkflowsList = () => {
         const messageType = data.message_type || data.type;
 
         // Handle workflow updates (status changes, runtime updates, etc.)
+        // Note: Workflows are managed by GlobalStateContext, so we just need to update transformed workflows
         if (messageType === "workflow" && data._id) {
           const workflowId = String(data._id);
           
-          setWorkflows(prevWorkflows => {
-            const hasChanges = prevWorkflows.some(w => {
-              if (w.id === workflowId) {
-                return (data.status && w.status !== data.status) ||
-                       (data.runtime !== undefined && w.runtime !== data.runtime) ||
-                       (data.last_updated && w.last_updated !== data.last_updated);
-              }
-              return false;
-            });
-            
-            if (!hasChanges) return prevWorkflows;
-            
-            return prevWorkflows.map(workflow => {
-              if (workflow.id === workflowId) {
-                // Update workflow with new data
-                return {
-                  ...workflow,
-                  status: data.status || workflow.status,
-                  runtime: data.runtime !== undefined ? data.runtime : workflow.runtime,
-                  last_updated: data.last_updated || workflow.last_updated,
-                  location: formatTimeAgo(data.last_updated || workflow.last_updated),
-                };
-              }
-              return workflow;
-            });
+          // Invalidate cache for this workflow to refetch details
+          setWorkflowDetailsCache(prev => {
+            const newCache = { ...prev };
+            delete newCache[workflowId];
+            return newCache;
           });
 
           // Update selected workflow if it's the one being updated
           setSelectedWorkflow(prev => {
-            if (prev && prev.id === workflowId) {
+            if (prev && (prev.id === workflowId || prev._id === workflowId)) {
               const hasChanges = (data.status && prev.status !== data.status) ||
                                (data.runtime !== undefined && prev.runtime !== data.runtime) ||
                                (data.last_updated && prev.last_updated !== data.last_updated);
@@ -255,9 +272,9 @@ export const WorkflowsList = () => {
 
   // Update workflow alerts in real-time from WebSocket
   useEffect(() => {
-    if (!isConnected || alerts.length === 0) return;
+    if (!isConnected) return;
 
-    setWorkflows(prevWorkflows => {
+    setTransformedWorkflows(prevWorkflows => {
       let hasChanges = false;
       const updated = prevWorkflows.map(workflow => {
         const workflowAlerts = getAlertsForPipeline(workflow.id);
@@ -276,7 +293,7 @@ export const WorkflowsList = () => {
       
       return hasChanges ? updated : prevWorkflows;
     });
-  }, [alerts.length, isConnected, getAlertsForPipeline, setWorkflows]);
+  }, [alerts.length, isConnected, getAlertsForPipeline]);
 
   // Update selected workflow alerts when alerts change
   useEffect(() => {
@@ -362,20 +379,16 @@ export const WorkflowsList = () => {
         }
       }
 
-      // Reload workflows to get the new one
-      const workflowsResponse = await fetchWorkflows(0, 100);
-      if (workflowsResponse.status === "success" && workflowsResponse.data) {
-        const transformedWorkflows = await Promise.all(
-          workflowsResponse.data.map(transformWorkflow)
-        );
-        setWorkflows(transformedWorkflows);
-        // Select the newly created workflow
-        if (newWorkflowId) {
-          const newWorkflow = transformedWorkflows.find(w => w.id === newWorkflowId);
+      // Workflows will be updated automatically via GlobalStateContext WebSocket
+      // Just select the newly created workflow if we can find it
+      if (newWorkflowId) {
+        // Wait a bit for WebSocket to update, then find the workflow
+        setTimeout(() => {
+          const newWorkflow = workflows.find(w => w.id === newWorkflowId || w._id === newWorkflowId);
           if (newWorkflow) {
             setSelectedWorkflow(newWorkflow);
           }
-        }
+        }, 1000);
       }
     } catch (err) {
       console.error("Error creating workflow:", err);
@@ -385,18 +398,32 @@ export const WorkflowsList = () => {
     }
   };
 
-  const filteredWorkflows = workflows.filter((workflow) => {
-    const matchesSearch =
-      workflow.name.toLowerCase().includes(globalSearchQuery.toLowerCase()) ||
-      workflow.category.toLowerCase().includes(globalSearchQuery.toLowerCase());
-    
-    // Filter by status based on selected tab
-    if (selectedTab === 0) return matchesSearch; // All workflows
-    if (selectedTab === 1) return matchesSearch && workflow.status === "Running"; // Running only
-    if (selectedTab === 2) return matchesSearch && (workflow.status === "Stopped" || workflow.status === "Broken"); // Stopped/Broken
-    
-    return matchesSearch;
-  });
+  // Filter workflows by status and search, limit to 10 max
+  const filteredWorkflows = useMemo(() => {
+    const filtered = transformedWorkflows.filter((workflow) => {
+      const matchesSearch =
+        workflow.name.toLowerCase().includes(globalSearchQuery.toLowerCase()) ||
+        workflow.category.toLowerCase().includes(globalSearchQuery.toLowerCase());
+      
+      // Filter by status based on selected tab
+      if (selectedTab === 0) return matchesSearch; // All workflows
+      if (selectedTab === 1) return matchesSearch && workflow.status === "Running"; // Running only
+      if (selectedTab === 2) return matchesSearch && workflow.status === "Stopped"; // Stopped only
+      if (selectedTab === 3) return matchesSearch && workflow.status === "Broken"; // Broken only
+      
+      return matchesSearch;
+    });
+
+    // Sort by last_updated (most recent first) and limit to 10
+    return filtered
+      .slice()
+      .sort((a, b) => {
+        const dateA = a.last_updated || a.created_at || new Date(0);
+        const dateB = b.last_updated || b.created_at || new Date(0);
+        return new Date(dateB) - new Date(dateA);
+      })
+      .slice(0, 10);
+  }, [transformedWorkflows, globalSearchQuery, selectedTab]);
 
   return (
     <Box
@@ -502,7 +529,6 @@ export const WorkflowsList = () => {
               workflow={selectedWorkflow}
               actionFilter={actionFilter}
               onActionFilterChange={setActionFilter}
-              actionItems={mockActionItems}
               logs={mockLogs}
             />
           )}
