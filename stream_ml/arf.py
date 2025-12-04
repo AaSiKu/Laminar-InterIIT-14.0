@@ -19,10 +19,6 @@ class ArfConfig(BaseModelConfig):
 
 
 class ArfRegressor(StreamBaseModel):
-    """
-    Uses River's ARFRegressor for incremental learning on streaming data.
-    """
-
     def __init__(
         self,
         in_features: int,

@@ -24,7 +24,6 @@ class ARFNode(_StreamingMLNode):
 
 
 class TiDENode(_StreamingMLNode):
-    """TiDE time-series streaming ML node"""
     node_id: Literal["tide_ml"] = "tide_ml"
     n_inputs: Literal[1] = 1
     
@@ -35,7 +34,6 @@ class TiDENode(_StreamingMLNode):
 
 
 class MambaNode(_StreamingMLNode):
-    """Mamba state-space streaming ML node"""
     node_id: Literal["mamba_ml"] = "mamba_ml"
     n_inputs: Literal[1] = 1
     

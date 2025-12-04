@@ -51,12 +51,12 @@ def test_arf_streaming_mapping():
     ################################################
 
     print(f"Loading data from {csv_path}...")
-    df_full = pd.read_csv(csv_path)
+    df_full = pd.read_csv(csv_path).reset_index(drop=True)
     df = df_full.head(limit_rows).copy()['close'].reset_index(drop=True)
     # Create list of (index, value) tuples
     df = [(i, val) for i, val in enumerate(df)]
     input_table = pw.io.python.read(
-        StreamingValueSubject(df, min_delay=0.01, max_delay=0.011),
+        StreamingValueSubject(df, min_delay=0.001, max_delay=0.0011),
         schema=InputSchema
     )
     # arf_node = ARFNode(
@@ -72,35 +72,35 @@ def test_arf_streaming_mapping():
     # )
     # result_table = arf_node_fn([input_table], arf_node)
 
-    # mamba_node = MambaNode(
-    #     channel_list = ["value"],
-    #     lookback = 5,
-    #     horizon = 1,
-    #     batch_size = 32,
-    #     epochs = 1,
-    #     d_model = 16,
-    #     num_layers = 2,
-    #     d_state = 16,
-    #     d_conv = 4,
-    #     expand = 4,
-    #     learning_rate = 0.01,
-    #     max_concurrent_training = 8
-    # )
-    # result_table = mamba_node_fn([input_table], mamba_node)
-
-    tide_node = TiDENode(
+    mamba_node = MambaNode(
         channel_list = ["value"],
         lookback = 5,
         horizon = 1,
         batch_size = 32,
         epochs = 1,
-        hidden_dim = 16,
-        optimizer = "adam",
+        d_model = 16,
+        num_layers = 2,
+        d_state = 16,
+        d_conv = 4,
+        expand = 4,
         learning_rate = 0.01,
-        clipnorm = 1.0,
         max_concurrent_training = 8
     )
-    result_table = tide_node_fn([input_table], tide_node)
+    result_table = mamba_node_fn([input_table], mamba_node)
+
+    # tide_node = TiDENode(
+    #     channel_list = ["value"],
+    #     lookback = 5,
+    #     horizon = 1,
+    #     batch_size = 32,
+    #     epochs = 1,
+    #     hidden_dim = 16,
+    #     optimizer = "adam",
+    #     learning_rate = 0.01,
+    #     clipnorm = 1.0,
+    #     max_concurrent_training = 8
+    # )
+    # result_table = tide_node_fn([input_table], tide_node)
 
     if os.path.exists(output_csv): os.remove(output_csv)
     pw.io.csv.write(

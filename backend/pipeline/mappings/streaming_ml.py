@@ -71,7 +71,7 @@ class StreamingMLOutputSchema(pw.Schema):
 
 class StreamingMLTransformer(pw.AsyncTransformer, output_schema=StreamingMLOutputSchema):
     def __init__(self, model_wrapper: ModelWrapper, **kwargs):
-        super().__init__(input_table = kwargs['input_table'], instance = kwargs['instance'])
+        super().__init__(**kwargs)
         self.model_wrapper = model_wrapper
         self.channel_list = model_wrapper.channel_list
 
@@ -187,53 +187,50 @@ def _apply_streaming_ml(input_table: pw.Table, node: _StreamingMLNode, model_nam
     training_callback = _create_training_subscriber(model_wrapper)
     pw.io.subscribe(input_table, on_change=training_callback)
 
-    # # OPTION 1: UDF Implementation (Active)
-    # # Subscribe to input table for training, this calls check_train on each new row
-    # predict_udf = _create_predict_udf(model_wrapper)
-    # channel_column_refs = [pw.this[col] for col in node.channel_list]
+    # OPTION 1: Sync UDF Implementation
+    # Subscribe to input table for training, this calls check_train on each new row
+    predict_udf = _create_predict_udf(model_wrapper)
+    channel_column_refs = [pw.this[col] for col in node.channel_list]
     
-    # result = input_table.with_columns(
-    #     model_output=predict_udf(*channel_column_refs)
-    # )
-    
-    # final_result = result.with_columns(
-    #     model_prediction=pw.this.model_output["prediction"],
-    #     model_latency_ms=pw.this.model_output["latency_ms"],
-    #     model_ram_mb=pw.this.model_output["ram_mb"],
-    #     model_error=pw.this.model_output["error"],
-    # ).without(pw.this.model_output)
-    # # End OPTION 1
-
-    # OPTION 2: Async Transformer Implementation
-    # Subscribe to input table for training (same as UDF approach)
-    transformer = StreamingMLTransformer(model_wrapper, input_table=input_table, instance = 0)
-    model_results = transformer.successful
-    final_result = input_table.join(
-        model_results, pw.left.id == pw.right.id
-    ).select(
-        *input_table,
-        model_prediction=model_results.prediction,
-        model_latency_ms=model_results.latency_ms,
-        model_ram_mb=model_results.ram_mb,
-        model_error=model_results.error,
+    result = input_table.with_columns(
+        model_output=predict_udf(*channel_column_refs)
     )
-    # End OPTION 2
+    
+    final_result = result.with_columns(
+        model_prediction=pw.this.model_output["prediction"],
+        model_latency_ms=pw.this.model_output["latency_ms"],
+        model_ram_mb=pw.this.model_output["ram_mb"],
+        model_error=pw.this.model_output["error"],
+    ).without(pw.this.model_output)
+    # End OPTION 1
+
+    # # OPTION 2: Async Transformer Implementation
+    # # Subscribe to input table for training (same as UDF approach)
+    # transformer = StreamingMLTransformer(model_wrapper, input_table=input_table, instance = 0)
+    # model_results = transformer.successful
+    # final_result = input_table.join(
+    #     model_results, pw.left.id == pw.right.id
+    # ).select(
+    #     *input_table,
+    #     model_prediction=model_results.prediction,
+    #     model_latency_ms=model_results.latency_ms,
+    #     model_ram_mb=model_results.ram_mb,
+    #     model_error=model_results.error,
+    # )
+    # # End OPTION 2
     
     return final_result
 
 
 def arf_node_fn(inputs: List[pw.Table], node: ARFNode) -> pw.Table:
-    """ARF (Adaptive Random Forest) streaming ML node function"""
     return _apply_streaming_ml(inputs[0], node, "arf")
 
 
 def tide_node_fn(inputs: List[pw.Table], node: TiDENode) -> pw.Table:
-    """TiDE (Time-series Dense Encoder) streaming ML node function"""
     return _apply_streaming_ml(inputs[0], node, "tide")
 
 
 def mamba_node_fn(inputs: List[pw.Table], node: MambaNode) -> pw.Table:
-    """Mamba (State Space Model) streaming ML node function"""
     return _apply_streaming_ml(inputs[0], node, "mamba")
 
 
