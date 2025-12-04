@@ -17,6 +17,8 @@ async def get_logs_for_trace_ids(trace_ids: Union[List[str], str], logs_table: T
     # Normalize trace_ids to list
     if isinstance(trace_ids, str):
         trace_ids = [trace_ids]
+    if not trace_ids:
+        return []
     
     # Build SQL query with proper escaping
     trace_ids_str = "', '".join(trace_ids)
@@ -30,7 +32,7 @@ async def get_logs_for_trace_ids(trace_ids: Union[List[str], str], logs_table: T
         _open_tel_service_name,
         _open_tel_service_namespace,
         scope_name
-    FROM {logs_table.table_name}
+    FROM {logs_table["table_name"]}
     WHERE _open_tel_trace_id IN ('{trace_ids_str}')
     ORDER BY observed_time_unix_nano
     """
@@ -41,7 +43,7 @@ async def get_logs_for_trace_ids(trace_ids: Union[List[str], str], logs_table: T
     
     return rows
 
-async def get_error_logs_for_trace_ids(trace_ids: Union[List[str], str], logs_table: TablePayload) -> List[Dict[str, Any]]:
+async def get_error_logs_for_trace_ids(trace_ids: Union[List[str], str], logs_table: TablePayload, severity_number: int) -> List[Dict[str, Any]]:
     """
     Query error logs for given trace IDs using SQLAlchemy.
     Filters for severity_number >= 13 (ERROR level and above).
@@ -56,7 +58,9 @@ async def get_error_logs_for_trace_ids(trace_ids: Union[List[str], str], logs_ta
     # Normalize trace_ids to list
     if isinstance(trace_ids, str):
         trace_ids = [trace_ids]
-    
+    if not trace_ids:
+        return []
+    print("Getting error logs for trace ids")
     # Build SQL query with proper escaping
     trace_ids_str = "', '".join(trace_ids)
     sql_query = f"""
@@ -71,16 +75,16 @@ async def get_error_logs_for_trace_ids(trace_ids: Union[List[str], str], logs_ta
         severity_number,
         severity_text,
         scope_name
-    FROM {logs_table.table_name}
+    FROM {logs_table["table_name"]}
     WHERE _open_tel_trace_id IN ('{trace_ids_str}')
-        AND severity_number >= 13
+        AND severity_number >= {severity_number}
     ORDER BY observed_time_unix_nano
     """
     
     with postgre_engine.connect() as conn:
         result = conn.execute(text(sql_query))
         rows = [dict(row._mapping) for row in result]
-    
+    print(f"Retreived error logs: {rows}")
     return rows
 
 async def get_parent_chain(span_id: str, trace_id: str, spans_table: TablePayload) -> List[Dict[str, Any]]:
@@ -105,7 +109,7 @@ async def get_parent_chain(span_id: str, trace_id: str, spans_table: TablePayloa
             status_message,
             scope_name,
             1 as depth
-        FROM {spans_table.table_name}
+        FROM {spans_table["table_name"]}
         WHERE _open_tel_span_id = '{span_id}' 
             AND _open_tel_trace_id = '{trace_id}'
         
@@ -126,7 +130,7 @@ async def get_parent_chain(span_id: str, trace_id: str, spans_table: TablePayloa
             s.status_message,
             s.scope_name,
             pc.depth + 1
-        FROM {spans_table.table_name} s
+        FROM {spans_table["table_name"]} s
         INNER JOIN parent_chain pc ON s._open_tel_span_id = pc._open_tel_parent_span_id
         WHERE s._open_tel_trace_id = '{trace_id}'
             AND pc._open_tel_parent_span_id != ''
@@ -165,7 +169,7 @@ async def get_child_tree(span_id: str, trace_id: str, spans_table: TablePayload)
             scope_name,
             0 as depth,
             _open_tel_span_id as path
-        FROM {spans_table.table_name}
+        FROM {spans_table["table_name"]}
         WHERE _open_tel_span_id = '{span_id}' 
             AND _open_tel_trace_id = '{trace_id}'
         
@@ -187,7 +191,7 @@ async def get_child_tree(span_id: str, trace_id: str, spans_table: TablePayload)
             s.scope_name,
             ct.depth + 1,
             ct.path || ' -> ' || s._open_tel_span_id
-        FROM {spans_table.table_name} s
+        FROM {spans_table["table_name"]} s
         INNER JOIN child_tree ct ON s._open_tel_parent_span_id = ct._open_tel_span_id
         WHERE s._open_tel_trace_id = '{trace_id}'
     )
@@ -229,7 +233,7 @@ async def get_full_span_tree(trace_id: str, spans_table: TablePayload) -> List[D
             0 as depth,
             _open_tel_span_id as path,
             ARRAY[start_time_unix_nano] as time_path
-        FROM {spans_table.table_name}
+        FROM {spans_table["table_name"]}
         WHERE _open_tel_trace_id = '{trace_id}'
             AND (_open_tel_parent_span_id = '' OR _open_tel_parent_span_id IS NULL)
         
@@ -255,7 +259,7 @@ async def get_full_span_tree(trace_id: str, spans_table: TablePayload) -> List[D
             st.depth + 1,
             st.path || ' -> ' || s._open_tel_span_id,
             st.time_path || s.start_time_unix_nano
-        FROM {spans_table.table_name} s
+        FROM {spans_table["table_name"]} s
         INNER JOIN span_tree st ON s._open_tel_parent_span_id = st._open_tel_span_id
         WHERE s._open_tel_trace_id = '{trace_id}'
     )
@@ -303,7 +307,7 @@ async def get_logs_in_time_window(
         severity_number,
         severity_text,
         scope_name
-    FROM {logs_table.table_name}
+    FROM {logs_table["table_name"]}
     WHERE observed_time_unix_nano >= {start_time}
         AND observed_time_unix_nano <= {end_time}
         AND severity_number >= {min_severity}
@@ -336,6 +340,8 @@ async def get_downtime_timestamps(
     # Normalize trace_ids to list
     if isinstance(trace_ids, str):
         trace_ids = [trace_ids]
+    if not trace_ids:
+        return []
     
     # Build SQL query to get timestamps
     # Assuming the SLA trigger table has a time column and the trace_id column
@@ -343,8 +349,8 @@ async def get_downtime_timestamps(
     sql_query = f"""
     SELECT 
         {column_name} as trace_id,
-        time as timestamp_unix_nano
-    FROM {sla_trigger_table.table_name}
+        time as start_time_unix_nano
+    FROM {sla_trigger_table["table_name"]}
     WHERE {column_name} IN ('{trace_ids_str}')
     ORDER BY time
     """

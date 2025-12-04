@@ -1,10 +1,12 @@
-from ..sql_tool import TablePayload
-from typing import List, Dict, Union, Literal
+from typing import List, Dict, Union, Literal, TypedDict, Any
 from .summarize import SummarizeOutput
 from .tools import get_error_logs_for_trace_ids, get_downtime_timestamps
-from .error_agent import analyze_error_logs, ErrorAnalysisOutput
-from .downtime_agent import analyze_downtime_incidents, DowntimeIncident, DowntimeAnalysisOutput
+from .error_agent import analyze_error_logs
+from .downtime_agent import analyze_downtime_incidents, DowntimeIncident
+from .output import RCAAnalysisOutput
 
+class TablePayload(TypedDict):
+    table_name: str
 class InitRCA(SummarizeOutput):
     # description of the metric
     description: str
@@ -14,6 +16,7 @@ class InitRCA(SummarizeOutput):
 
 
 async def rca(init_rca_request: InitRCA):
+    print("RCA invoked")
     if len(init_rca_request.trace_ids.keys()) == 1:
         # Get the single column name and its trace_ids
         column_name = list(init_rca_request.trace_ids.keys())[0]
@@ -24,7 +27,8 @@ async def rca(init_rca_request: InitRCA):
                 # Get error logs for analysis
                 error_logs = await get_error_logs_for_trace_ids(
                     trace_ids, 
-                    init_rca_request.table_data["logs"]
+                    init_rca_request.table_data["logs"],
+                    13
                 )
                 
                 # Group logs by trace_id
@@ -36,10 +40,9 @@ async def rca(init_rca_request: InitRCA):
                     logs_by_trace[trace_id].append(log)
                 
                 # Analyze error logs to find root cause
-                analysis: ErrorAnalysisOutput = await analyze_error_logs(logs_by_trace)
+                analysis: RCAAnalysisOutput = await analyze_error_logs(logs_by_trace)
                 
                 return {
-                    "metric_type": "error",
                     "analysis": analysis.model_dump()
                 }
             
@@ -60,7 +63,7 @@ async def rca(init_rca_request: InitRCA):
                 for row in timestamp_data:
                     incidents.append(DowntimeIncident(
                         trace_id=row["trace_id"],
-                        timestamp=row["timestamp_unix_nano"],
+                        timestamp=row["start_time_unix_nano"],
                         duration_ms=None
                     ))
                 
@@ -72,14 +75,13 @@ async def rca(init_rca_request: InitRCA):
                 
                 # Analyze downtime with 30-second window around each incident
                 # Uses parallel execution for individual incidents
-                analysis: DowntimeAnalysisOutput = await analyze_downtime_incidents(
+                analysis: RCAAnalysisOutput = await analyze_downtime_incidents(
                     incidents=incidents,
                     logs_table=init_rca_request.table_data["logs"],
                     window_seconds=30
                 )
                 
                 return {
-                    "metric_type": "uptime",
                     "analysis": analysis.model_dump()
                 }
             

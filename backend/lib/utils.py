@@ -1,10 +1,13 @@
 import inspect
-from typing import Dict, Literal, TypedDict, Optional, get_args, get_origin
+from typing import Dict, Literal, Optional, get_args, get_origin
+from typing_extensions import TypedDict
 from pydantic import BaseModel
 from . import io_nodes
 from . import tables
 from . import agents
 from . import trigger_rca
+from .open_tel import input_nodes
+from .types import RdKafkaSettings
 
 def get_node_class_map():
     """
@@ -17,7 +20,8 @@ def get_node_class_map():
         io_nodes,
         tables,
         agents,
-        trigger_rca
+        trigger_rca,
+        input_nodes
     ]
 
     for module in modules:
@@ -39,26 +43,6 @@ def get_node_class_map():
 
 node_map = get_node_class_map()
 
-class RdKafkaSettings(TypedDict, total=False):
-    """TypedDict for rdkafka configuration settings.
-    
-    Common settings:
-    - bootstrap.servers: Kafka broker addresses
-    - security.protocol: Security protocol (PLAINTEXT, SSL, SASL_SSL, etc.)
-    - sasl.mechanism: SASL mechanism (PLAIN, SCRAM-SHA-256, etc.)
-    - sasl.username: SASL username
-    - sasl.password: SASL password
-    - group.id: Consumer group ID
-    - auto.offset.reset: Offset reset policy (earliest, latest)
-    """
-    bootstrap_servers: str
-    security_protocol: Optional[str]
-    sasl_mechanism: Optional[str]
-    sasl_username: Optional[str]
-    sasl_password: Optional[str]
-    group_id: Optional[str]
-    auto_offset_reset: Optional[str] = "earliest"
-    # Add any other rdkafka settings as needed
 
 
 def convert_rdkafka_settings(settings: RdKafkaSettings) -> Dict[str, str]:

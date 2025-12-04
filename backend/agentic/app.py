@@ -1,12 +1,14 @@
 from dotenv import load_dotenv
 load_dotenv()
-from typing import List
+from typing import List, Any
 from fastapi import FastAPI, HTTPException
 from contextlib import asynccontextmanager
 from pydantic import BaseModel
 from langgraph.graph.state import CompiledStateGraph
 from .prompts import create_planner_executor, AgentPayload
-from .rca.summarize import init_summarize_agent, summarize
+from .rca.summarize import init_summarize_agent, summarize, SummarizeRequest
+from .alerts import generate_alert, AlertRequest
+from .rca.analyse import InitRCA, rca
 
 planner_executor: CompiledStateGraph = None
 
@@ -15,7 +17,7 @@ planner_executor: CompiledStateGraph = None
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    init_summarize_agent()
+    await init_summarize_agent()
     yield
 
 
@@ -37,10 +39,18 @@ async def build(request: InferModel):
 
     return {"status": "built"}
 
-@app.post("/generate-alert")()
+@app.post("/generate-alert")
+async def generate_alert_route(request: AlertRequest):
+    return await generate_alert(request)
 
-@app.post("/summarize")(summarize)
+@app.post("/summarize")
+async def summarize_route(request: SummarizeRequest):
+    return await summarize(request)
 
+@app.post("/rca")
+async def rca_route(request: InitRCA):
+    response= await rca(request)
+    return response
 class Prompt(BaseModel):
     role: str
     content: str

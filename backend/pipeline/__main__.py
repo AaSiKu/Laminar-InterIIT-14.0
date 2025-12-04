@@ -6,7 +6,7 @@ load_dotenv()
 
 from .agentic import build_agentic_graph
 from .graph_reader import read_and_validate_graph
-from .graph_builder import build_computational_graph
+from .graph_builder import build_computational_graph, persist_table_to_postgres
 from .agentic_setup import (
     setup_trigger_tables,
     setup_prompt_table,
@@ -47,13 +47,13 @@ def main():
     graph["node_outputs"] = node_outputs
     for metric_node_idx in graph["metric_node_descriptions"].keys():
         graph["metric_node_descriptions"][metric_node_idx]["special_columns_source_indexes"] = {
-            col: find_special_column_sources(metric_node_idx,col,graph) for col in node_outputs[metric_node_idx].column_names() if is_special_column(col)
+            col: find_special_column_sources(metric_node_idx,col,graph) for col in node_outputs[metric_node_idx].column_names() if is_special_column(col) and 'trace_id' in col
         }
     trigger_rca_nodes = [ind for ind in range(len(graph["nodes"])) if graph["nodes"][ind].node_id == "trigger_rca"]
 
     for rca_node_idx in trigger_rca_nodes:
-        trigger_rca(node_outputs[rca_node_idx], graph["nodes"][rca_node_idx], graph)
-        
+        rca_output_table = trigger_rca(node_outputs[graph["dependencies"][rca_node_idx][0]], graph["nodes"][rca_node_idx], graph)
+        persist_table_to_postgres(rca_output_table, graph["nodes"][rca_node_idx], rca_node_idx)
     # Build agentic graph
     graph_name = graph.get("name", "")
     

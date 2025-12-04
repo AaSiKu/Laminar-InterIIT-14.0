@@ -66,7 +66,7 @@ summarize_agent = None
 async def init_summarize_agent():
     global summarize_agent
     init_cache_db()
-    tools =  mcp_client.get_tools()
+    tools =  await mcp_client.get_tools()
     summarize_agent = create_agent(
         model=reasoning_model,
         tools=tools,
@@ -121,9 +121,9 @@ async def summarize(request: SummarizeRequest):
         }
     )
     
-    summarized = answer["structured_output"]
+    summarized = answer["structured_response"]
     
     # Cache the response
-    cache_response(full_prompt, )
+    cache_response(full_prompt, summarized)
     
     return {"status": "ok", "summarized": summarized, "cached": False}

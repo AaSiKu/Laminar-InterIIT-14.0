@@ -1,11 +1,11 @@
 from ..node import Node
-from lib.utils import RdKafkaSettings
+from ..types import RdKafkaSettings
 from typing import Literal
 
 
 class OpenTelInputNode(Node):
     category: Literal["io"]
-    n_inputs: Literal[1] = 1
+    n_inputs: Literal[1] = 0
     rdkafka_settings: RdKafkaSettings
 
 class OpenTelSpansNode(OpenTelInputNode):

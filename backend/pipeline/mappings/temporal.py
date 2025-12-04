@@ -76,7 +76,7 @@ def window_by(inputs: List[pw.Table], node: WindowByNode):
     reduce_kwargs = {}
     if instance is not None:
         reduce_kwargs[node.instance_col] = pw.this._pw_instance
-    _reducers = [(red["col"], red["reducer"], red["new_col"]) for red in node.reducers if not is_special_column(red["col"])]
+    _reducers = [(red["col"], red["reducer"], red["new_col"]) for red in node.reducers]
     
     reducers = {}
     for prev_col, reducer, new_col in _reducers:
@@ -93,7 +93,7 @@ def window_by(inputs: List[pw.Table], node: WindowByNode):
         pw.this._pw_window_end,
         **reducers,
         **{
-            f"_pw_windowed_{col}" : pw.reducers.ndarray(get_this_col(col)) for col in inputs[0].column_names() if col != node.instance_col and is_special_column(col)
+            f"_pw_windowed_{col}" : pw.reducers.tuple(get_this_col(col)) for col in inputs[0].column_names() if col != node.instance_col and is_special_column(col)
         },
         **reduce_kwargs
     )
@@ -101,7 +101,7 @@ def window_by(inputs: List[pw.Table], node: WindowByNode):
 temporal_mappings: dict[str, MappingValues] = {
     "window_by": {
         "node_fn": window_by,
-        "stringify": lambda node, inputs: f"Groups {inputs[0]} by {json.dumps(node.window)} window on {node.time_col}{'' if node.instance_col is None else f' with instance column {node.instance_col}'} and reduces with {', '.join([f"{reducer["new_col"]} = {reducer["reducer"]}({reducer["col"]})" for reducer in node.reducers])}"
+        "stringify": lambda node, inputs: f"Groups {inputs[0]} by {json.dumps(node.window)} window on {node.time_col}{'' if node.instance_col is None else f' with instance column {node.instance_col}'} and reduces with {', '.join([reducer['new_col'] + ' = ' +  reducer['reducer'] + '('+ reducer['col'] + ')' for reducer in node.reducers])}"
     },
     "asof_join": {
         "node_fn": asof_join,

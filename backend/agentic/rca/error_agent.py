@@ -1,7 +1,8 @@
-from pydantic import BaseModel, Field
-from typing import List, Dict, Literal
+from pydantic import Field
+from typing import List, Dict
 from langchain.agents import create_agent
-from ..chat_models import reasoning_model
+from ..chat_models import analyser_model
+from .output import RCAAnalysisOutput
 from datetime import datetime
 
 error_analysis_prompt = """
@@ -62,29 +63,9 @@ ANALYSIS GUIDELINES:
 Output a structured response with all required fields.
 """
 
-class ErrorCitation(BaseModel):
-    timestamp: str = Field(description="Timestamp of the log entry")
-    service: str = Field(description="Service or scope name where the error occurred")
-    message: str = Field(description="Relevant error message or excerpt from the log body")
 
-class ErrorAnalysisOutput(BaseModel):
-    severity: Literal["CRITICAL", "HIGH", "MEDIUM", "LOW"] = Field(
-        description="Impact severity of the failure"
-    )
-    affected_services: List[str] = Field(
-        description="List of services affected by this issue, with primary service first"
-    )
-    narrative: str = Field(
-        description="Clear, concise explanation of what happened and why (max 5 sentences)"
-    )
-    error_citations: List[ErrorCitation] = Field(
-        description="2-5 specific log entries that support the analysis",
-        min_length=2,
-        max_length=5
-    )
-    root_cause: str = Field(
-        description="Technical root cause of the failure (be specific and actionable)"
-    )
+
+
 
 error_analysis_agent = None
 
@@ -117,17 +98,11 @@ def format_logs_for_analysis(logs_by_trace: Dict[str, List[Dict]]) -> str:
     for trace_id, logs in sorted_traces:
         formatted_output.append(f"\n=== TRACE: {trace_id} ===\n")
         
-        # Sort logs within trace by observed_time_unix_nano
-        sorted_logs = sorted(logs, key=lambda x: x.get('observed_time_unix_nano', 0))
         
-        for log in sorted_logs:
+        for log in logs:
             timestamp = format_timestamp(log.get('observed_time_unix_nano', 0))
             service = log.get('_open_tel_service_name') or log.get('scope_name', 'unknown')
             body = log.get('body', '')
-            
-            # Handle body if it's a dict/json
-            if isinstance(body, dict):
-                body = str(body.get('stringValue', body))
             
             formatted_output.append(f"({timestamp}) ({service}) {body}")
         
@@ -139,13 +114,13 @@ async def init_error_analysis_agent():
     """Initialize the error analysis agent"""
     global error_analysis_agent
     error_analysis_agent = create_agent(
-        model=reasoning_model,
+        model=analyser_model,
         tools=[],  # No tools needed for this analysis
         system_prompt=error_analysis_prompt,
-        response_format=ErrorAnalysisOutput
+        response_format=RCAAnalysisOutput
     )
 
-async def analyze_error_logs(logs_by_trace: Dict[str, List[Dict]]) -> ErrorAnalysisOutput:
+async def analyze_error_logs(logs_by_trace: Dict[str, List[Dict]]) -> RCAAnalysisOutput:
     """
     Analyze error logs to identify root causes of failures.
     
@@ -156,8 +131,10 @@ async def analyze_error_logs(logs_by_trace: Dict[str, List[Dict]]) -> ErrorAnaly
         ErrorAnalysisOutput with structured analysis
     """
     if error_analysis_agent is None:
+        print("Initializing error analysis agent")
         await init_error_analysis_agent()
-    
+        print("Initialized error analysis agent")
+
     # Format logs for analysis
     formatted_logs = format_logs_for_analysis(logs_by_trace)
     
@@ -179,4 +156,4 @@ async def analyze_error_logs(logs_by_trace: Dict[str, List[Dict]]) -> ErrorAnaly
         }
     )
     
-    return result["structured_output"]
+    return result["structured_response"]

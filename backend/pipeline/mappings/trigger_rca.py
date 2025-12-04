@@ -4,11 +4,11 @@ from ..types import Graph, MetricNodeDescription
 import httpx
 import os
 from postgres_util import construct_table_name
-
+import json
 agentic_url = os.getenv("AGENTIC_URL")
 
 class RCAOutputSchema(pw.Schema):
-    analysis: str
+    analysis: pw.Json
 
 
 def trigger_rca(metric_table: pw.Table, node: TriggerRCANode, graph: Graph) -> pw.Table:
@@ -36,7 +36,7 @@ def trigger_rca(metric_table: pw.Table, node: TriggerRCANode, graph: Graph) -> p
                 },
             )
             resp.raise_for_status()
-            summarized_metric = resp.json()
+            summarized_metric = resp.json()["summarized"]
     if summarized_metric["metric_type"] == "error":
         if len(semantic_origins.keys()) > 1:
             raise Exception("Currently RCA on an error-rate metric derived from multiple traces is not supported")
@@ -60,15 +60,15 @@ def trigger_rca(metric_table: pw.Table, node: TriggerRCANode, graph: Graph) -> p
     tables_data = {
         "spans": {
             "table_name": construct_table_name(graph["nodes"][spans_node_idx].node_id, spans_node_idx),
-            "table_schema": graph["node_outputs"][spans_node_idx].schema.columns_to_json_serializable_dict()
+            # "table_schema": graph["node_outputs"][spans_node_idx].schema.columns_to_json_serializable_dict()
         },
         "logs": {
             "table_name": construct_table_name(graph["nodes"][logs_node_idx].node_id, logs_node_idx),
-            "table_schema": graph["node_outputs"][logs_node_idx].schema.columns_to_json_serializable_dict()
+            # "table_schema": graph["node_outputs"][logs_node_idx].schema.columns_to_json_serializable_dict()
         },
         "sla_metric_trigger": {
-            "table_name": construct_table_name(node,metric_node_idx),
-            "table_schema": metric_table.schema.columns_to_json_serializable_dict()
+            "table_name": construct_table_name(node.node_id,metric_node_idx),
+            # "table_schema": metric_table.schema.columns_to_json_serializable_dict()
         }
     }
 
@@ -77,20 +77,25 @@ def trigger_rca(metric_table: pw.Table, node: TriggerRCANode, graph: Graph) -> p
         def __init__(self, *args, **kwargs):
             super().__init__(*args, **kwargs)
         
-        async def invoke(self,**columns ) -> dict:
+        async def invoke(self,**columns) -> dict:
             
-            async with httpx.AsyncClient(timeout=300) as client:
+            request_data = {
+                "trace_ids": {
+                    special_column: (list(columns[special_column]) if isinstance(columns[special_column], tuple) else columns[special_column]) for special_column in semantic_origins.keys()
+                },
+                **summarized_metric,
+                "table_data": tables_data,
+                "description": metric["description"]
+            } 
+          
+            # raise Exception(json.dumps(request_data,indent=4))
+            async with httpx.AsyncClient(timeout=60) as client:
                 resp = await client.post(
                     f"{agentic_url.rstrip('/')}/rca",
-                    json={
-                        "trace_ids": {
-                            special_column: columns[special_column] for special_column in semantic_origins.keys()
-                        },
-                        **metric,
-                        "tables_data": tables_data
-                    },
+                    json=request_data,
                 )
-                resp.raise_for_status()
+                if resp.status_code != 200:
+                    raise Exception(f"Request Data: {json.dumps(request_data,indent=4)}\n\n{resp.text}")
                 data = resp.json()
                 return data
-    return RCATransformer(metric_table).successful
+    return RCATransformer(input_table=metric_table).successful

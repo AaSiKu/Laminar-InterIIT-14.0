@@ -5,6 +5,7 @@ from .temporal import temporal_mappings
 from .alerts import alert_node_fn
 from .trigger_rca import trigger_rca
 from .helpers import apply_datetime_conversions, MappingValues
+from .open_tel import open_tel_mappings
 from typing import Dict
 
 # Combine all mappings
@@ -13,6 +14,7 @@ mappings: Dict[str,MappingValues] = {
     **input_connector_mappings,
     **transform_mappings,
     **temporal_mappings,
+    **open_tel_mappings,
     "alert": {
         "node_fn": alert_node_fn
     },
@@ -28,5 +30,6 @@ __all__ = [
     "apply_datetime_conversions",
     "MappingValues",
     "parse_table_schema",
-    "trigger_rca"
+    "trigger_rca",
+    "open_tel_mappings"
 ]

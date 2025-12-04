@@ -25,7 +25,7 @@ def is_rename_node(node: Node) -> bool:
     transformation_types = {
         "join", "asof_join", "asof_now_join", 
         "interval_join", "window_join",
-        "groupby", "windowby"
+        "group_by", "window_by"
     }
     return node.node_id in transformation_types
 
@@ -143,10 +143,9 @@ def find_special_column_sources(
                     break
             else:
                 special_col = original_col
+        current_node_idx = incoming_edges.get(current_node_idx,[None])[0]
     if current_source is not None:
         sources.append(current_source)
-    
-    current_node_idx = incoming_edges.get(current_node_idx,[None])[0]
     return sources 
 
 
@@ -261,11 +260,11 @@ def pretty_print_metric_nodes(metric_descriptions: Dict[int,MetricNodeDescriptio
         print(f"Metric Node Index: {metric_idx}")
         print(f"{'='*80}")
         
-        if 'description' in metric:
+        if 'pipeline_description' in metric:
             print("\nPipeline Description:")
             print(metric['pipeline_description'])
         
-        if 'description_indexes_mapping' in metric:
+        if 'pipeline_description_indexes_mapping' in metric:
             print("\nNode Index Mapping:")
             for idx, pos in metric['pipeline_description_indexes_mapping'].items():
                 print(f"  Node {idx} -> Position ${pos}")

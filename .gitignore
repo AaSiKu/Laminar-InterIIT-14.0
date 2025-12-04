@@ -3,7 +3,7 @@ deploy/logs/
 deploy/pids
 __pycache__/
 rag/uploads
-flowchart.json
+*flowchart.json
 *.log
 prompts.csv
 .vscode

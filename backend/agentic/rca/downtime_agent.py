@@ -1,12 +1,20 @@
 from pydantic import BaseModel, Field
 from typing import List, Dict, Literal, Optional, TypedDict, Annotated
 from langchain.agents import create_agent
-from ..chat_models import reasoning_model
 from datetime import datetime
 from .tools import get_logs_in_time_window
 from ..sql_tool import TablePayload
+from .output import RCAAnalysisOutput
 from langgraph.graph import StateGraph, END
+from ..chat_models import analyser_model
 import operator
+
+# Downtime incident model
+class DowntimeIncident(BaseModel):
+    """Represents a single downtime incident"""
+    trace_id: str = Field(description="Trace ID of the downtime incident")
+    timestamp: int = Field(description="Unix timestamp in nanoseconds when downtime occurred")
+    duration_ms: Optional[int] = Field(default=None, description="Duration of the downtime in milliseconds")
 
 # Individual incident analysis prompt
 individual_incident_prompt = """
@@ -24,132 +32,111 @@ SEVERITY LEVELS (>= 20):
 - 20: FATAL - System is unusable
 - 21-24: FATAL+ - Critical system failures
 
-Your Analysis Must:
+Your Analysis Must Include (matching RCAAnalysisOutput schema for individual incidents):
 
-1. IDENTIFY IMMEDIATE CAUSE:
-   - What directly triggered this specific downtime
+1. ROOT_CAUSE: A concise summary of what caused this specific downtime incident (1-2 sentences)
+
+2. SEVERITY: Assess the severity for this incident
+   - "critical": Complete service unavailability, crash, or data loss
+   - "high": Significant degradation or partial unavailability
+   - "medium": Brief or intermittent unavailability
+
+3. AFFECTED_SERVICES: List of services that became unavailable in this incident
+
+4. ROOT_CAUSE_SERVICE: The service where the problem originated (may be same as affected or a dependency)
+
+5. ANALYSIS_TYPE: Set to "downtime"
+
+6. NARRATIVE: Technical explanation of this incident (2-3 sentences) covering:
    - Sequence of events leading to unavailability
-   - Which service(s) became unavailable
-
-2. DETERMINE ROOT CAUSE SERVICE:
-   - Where the problem originated
+   - How the failure manifested
    - Whether it cascaded from dependencies
 
-3. CITE EVIDENCE:
-   - 2-3 most critical log entries
-   - Include timestamps, services, and severity
-   - Show the progression of the failure
+7. CITATIONS: Provide 2-3 critical log entries with:
+   - timestamp: Human-readable timestamp from the log
+   - service: Service name from the log entry
+   - severity: Severity level (e.g., "FATAL", "FATAL+")
+   - message: The actual log message text
+   - relevance: Brief explanation of why this log entry is critical evidence
+
+8. RECOMMENDATION: Brief suggestion for preventing this type of incident (1 sentence)
+
+9. RELATED_INCIDENTS: Set to "independent" for individual analysis
 
 ANALYSIS GUIDELINES:
-- Focus on FATAL severity logs
-- Look for: "service unavailable", "connection refused", "timeout", "crash", "panic"
+- Focus on FATAL severity logs (severity >= 20)
+- Look for: "service unavailable", "connection refused", "timeout", "crash", "panic", "failed"
 - Distinguish between cause and effect in cascading failures
 - Be specific to THIS incident only
+- Cite actual log messages as evidence
 """
 
 aggregation_prompt = """
-You are an expert Site Reliability Engineer (SRE) performing aggregated root cause analysis. You will receive individual analyses of multiple downtime incidents that triggered an SLO breach.
+You are an expert Site Reliability Engineer (SRE) performing aggregated root cause analysis. You will receive individual RCA analyses of multiple downtime incidents that triggered an SLO breach.
 
-Your task is to synthesize these individual analyses into a comprehensive understanding of why the service experienced downtime.
+Your task is to synthesize these individual analyses into a comprehensive root cause analysis following the RCAAnalysisOutput schema exactly.
 
-Your Aggregated Analysis Must:
+Your Aggregated Analysis Must Include ALL Required Fields:
 
-1. DETERMINE SYSTEMIC ROOT CAUSE:
-   - Common underlying issue causing repeated downtimes
-   - Whether incidents are related or independent
-   - Infrastructure, application, or dependency failures
+1. ROOT_CAUSE: A clear, concise summary of the systemic underlying issue causing the downtime (2-3 sentences)
+   - Identify common patterns across incidents
+   - Distinguish between systemic issues vs independent failures
 
-2. ASSESS OVERALL SEVERITY:
-   - CRITICAL: Complete service unavailability, data loss
-   - HIGH: Partial unavailability, degraded to unusable state
-   - MEDIUM: Intermittent unavailability, some requests succeed
+2. SEVERITY: Overall severity assessment across all incidents
+   - "critical": Complete service unavailability, data loss, major business impact
+   - "high": Significant degradation, partial unavailability affecting many users
+   - "medium": Intermittent issues, some requests succeeded
 
-3. IDENTIFY AFFECTED SERVICES:
-   - Top-level service that went down (breaching SLO)
-   - Root cause service (where problem originated)
-   - All intermediate services affected
+3. AFFECTED_SERVICES: Array of ALL services impacted across all incidents
+   - Include the top-level service that breached SLO
+   - Include all intermediate services affected
 
-4. DETERMINE RELATIONSHIP:
-   - Are incidents related (same root cause)?
-   - Are they independent failures?
-   - Is there a pattern or progression?
+4. ROOT_CAUSE_SERVICE: The primary service where the systemic problem originated
+   - Identify the common origin point if incidents are related
+   - Choose the most critical origin service if multiple
 
-5. CONSTRUCT NARRATIVE:
-   - Overall story of why service experienced downtime
-   - Connect incidents if related
-   - Explain systemic vs one-off issues
-   - Keep under 6 sentences, technical but clear
+5. ANALYSIS_TYPE: Must be set to "downtime"
 
-6. CONSOLIDATE CITATIONS:
-   - Select 3-7 most critical citations from all incidents
-   - Ensure coverage across different incidents
-   - Prioritize evidence supporting the root cause
+6. NARRATIVE: A comprehensive technical explanation (4-6 sentences) that:
+   - Explains the overall story of why the service experienced downtime
+   - Connects related incidents showing progression or pattern
+   - Describes cascading failures if applicable
+   - Provides systemic context (infrastructure, application, or dependency issues)
+   - Explains the impact on service availability
 
-Be evidence-based, actionable, and synthesize patterns across incidents.
+7. CITATIONS: Consolidate 3-7 most critical log citations from ALL incidents:
+   - Ensure coverage across different incidents when possible
+   - Prioritize evidence that supports the root cause
+   - Include diverse evidence (initial trigger, cascading effects, final state)
+   - Each citation must have: timestamp, service, severity, message, relevance
+
+8. INCIDENT_ANALYSES: Must be set to null (will be populated programmatically with individual analyses)
+
+9. RECOMMENDATION: Brief actionable recommendation to prevent recurrence (1-2 sentences)
+   - Be specific and actionable
+   - Address the root cause, not just symptoms
+
+10. RELATED_INCIDENTS: Describe the relationship between incidents:
+    - "all_related": All incidents share the same root cause (e.g., same service crash)
+    - "partially_related": Some incidents share causes, others are independent
+    - "independent": Each incident has a distinct unrelated cause
+
+ANALYSIS APPROACH:
+- Synthesize patterns across incidents
+- Be evidence-based using log citations
+- Focus on systemic issues, not individual incidents
+- Distinguish between related cascading failures and independent issues
+- Provide actionable insights for prevention
 """
 
-class DowntimeIncident(BaseModel):
-    trace_id: str = Field(description="Trace ID where downtime was detected")
-    timestamp: int = Field(description="Unix nanoseconds when downtime occurred")
-    duration_ms: Optional[int] = Field(default=None, description="Duration of downtime in milliseconds if known")
-
-class DowntimeCitation(BaseModel):
-    incident_trace_id: str = Field(description="Which downtime incident this citation relates to")
-    timestamp: str = Field(description="Timestamp of the log entry")
-    service: str = Field(description="Service or scope name")
-    severity: str = Field(description="Severity level (FATAL, FATAL+)")
-    message: str = Field(description="Critical error message from log body")
-
-class IndividualIncidentAnalysis(BaseModel):
-    trace_id: str = Field(description="Trace ID of the incident")
-    timestamp: str = Field(description="Human-readable timestamp of incident")
-    immediate_cause: str = Field(description="What directly caused this downtime")
-    affected_service: str = Field(description="Service that became unavailable")
-    root_cause_service: Optional[str] = Field(description="Service where the problem originated (if different)")
-    citations: List[DowntimeCitation] = Field(
-        description="2-3 critical log entries for this incident",
-        min_length=2,
-        max_length=3
-    )
-
-class DowntimeAnalysisOutput(BaseModel):
-    severity: Literal["CRITICAL", "HIGH", "MEDIUM"] = Field(
-        description="Overall impact severity of the downtime events"
-    )
-    top_level_service: str = Field(
-        description="The top-level service that breached SLO (went down)"
-    )
-    root_cause_service: str = Field(
-        description="The service where the root cause originated"
-    )
-    affected_services: List[str] = Field(
-        description="All services affected by the downtime incidents"
-    )
-    aggregated_root_cause: str = Field(
-        description="The underlying systemic issue causing downtime across incidents"
-    )
-    incidents_related: bool = Field(
-        description="Whether the downtime incidents are related to each other"
-    )
-    aggregated_narrative: str = Field(
-        description="Overall explanation of why the service experienced downtime (max 6 sentences)"
-    )
-    incident_analyses: List[IndividualIncidentAnalysis] = Field(
-        description="Individual analysis for each downtime incident"
-    )
-    critical_citations: List[DowntimeCitation] = Field(
-        description="3-7 critical log entries supporting the analysis",
-        min_length=3,
-        max_length=7
-    )
 
 # State for LangGraph
 class DowntimeAnalysisState(TypedDict):
     incidents: List[DowntimeIncident]
     logs_table: TablePayload
     window_seconds: int
-    individual_analyses: Annotated[List[IndividualIncidentAnalysis], operator.add]
-    final_output: Optional[DowntimeAnalysisOutput]
+    individual_analyses: Annotated[List[RCAAnalysisOutput], operator.add]
+    final_output: Optional[RCAAnalysisOutput]
 
 individual_agent = None
 aggregation_agent = None
@@ -212,25 +199,25 @@ async def init_agents():
     
     if individual_agent is None:
         individual_agent = create_agent(
-            model=reasoning_model,
+            model=analyser_model,
             tools=[],
             system_prompt=individual_incident_prompt,
-            response_format=IndividualIncidentAnalysis
+            response_format=RCAAnalysisOutput
         )
     
     if aggregation_agent is None:
         aggregation_agent = create_agent(
-            model=reasoning_model,
+            model=analyser_model,
             tools=[],
             system_prompt=aggregation_prompt,
-            response_format=DowntimeAnalysisOutput
+            response_format=RCAAnalysisOutput
         )
 
 async def analyze_single_incident(
     incident: DowntimeIncident,
     logs_table: TablePayload,
     window_seconds: int
-) -> IndividualIncidentAnalysis:
+) -> RCAAnalysisOutput:
     """Analyze a single downtime incident"""
     if individual_agent is None:
         await init_agents()
@@ -251,10 +238,19 @@ async def analyze_single_incident(
     formatted_logs = format_incident_logs(incident, logs)
     
     analysis_prompt = (
-        f"Analyze this specific downtime incident:\n\n"
+        f"Analyze this specific downtime incident following the RCAAnalysisOutput schema:\n\n"
         f"{formatted_logs}\n\n"
-        f"Provide a focused analysis of this single incident, identifying the immediate cause, "
-        f"affected service, root cause service, and cite 2-3 critical log entries as evidence."
+        f"Provide a complete RCA analysis with ALL required fields:\n"
+        f"- root_cause: What caused this incident (1-2 sentences)\n"
+        f"- severity: critical/high/medium\n"
+        f"- affected_services: Services that became unavailable\n"
+        f"- root_cause_service: Where the problem originated\n"
+        f"- analysis_type: 'downtime'\n"
+        f"- narrative: Technical explanation (2-3 sentences)\n"
+        f"- citations: 2-3 critical log entries with timestamp, service, severity, message, relevance\n"
+        f"- recommendation: How to prevent this (1 sentence)\n"
+        f"- related_incidents: 'independent'\n"
+        f"- incident_analyses: null"
     )
     
     result = await individual_agent.ainvoke(
@@ -268,7 +264,14 @@ async def analyze_single_incident(
         }
     )
     
-    return result["structured_output"]
+    analysis: RCAAnalysisOutput = result["structured_response"]
+    
+    # Ensure required fields are set
+    analysis.analysis_type = "downtime"
+    analysis.related_incidents = "independent"
+    analysis.incident_analyses = None
+    
+    return analysis
 
 async def analyze_incidents_node(state: DowntimeAnalysisState) -> Dict:
     """Node that analyzes all incidents in parallel"""
@@ -298,33 +301,38 @@ async def aggregate_analyses_node(state: DowntimeAnalysisState) -> Dict:
         analyses_text.append(
             f"\n{'='*80}\n"
             f"INCIDENT #{idx} ANALYSIS\n"
-            f"Trace ID: {analysis.trace_id}\n"
-            f"Timestamp: {analysis.timestamp}\n"
-            f"Immediate Cause: {analysis.immediate_cause}\n"
-            f"Affected Service: {analysis.affected_service}\n"
-            f"Root Cause Service: {analysis.root_cause_service or 'Same as affected'}\n\n"
-            f"Evidence:\n"
+            f"Root Cause: {analysis.root_cause}\n"
+            f"Severity: {analysis.severity}\n"
+            f"Affected Services: {', '.join(analysis.affected_services)}\n"
+            f"Root Cause Service: {analysis.root_cause_service}\n"
+            f"Narrative: {analysis.narrative}\n"
+            f"Recommendation: {analysis.recommendation}\n\n"
+            f"Evidence (Citations):\n"
         )
         
         for citation in analysis.citations:
             analyses_text.append(
                 f"  - ({citation.timestamp}) {citation.service} [{citation.severity}]: {citation.message}\n"
+                f"    Relevance: {citation.relevance}\n"
             )
     
     formatted_analyses = "".join(analyses_text)
     
     aggregation_prompt_text = (
-        f"You have received {len(individual_analyses)} individual downtime incident analyses. "
-        f"Synthesize these into a comprehensive root cause analysis.\n\n"
+        f"You have received {len(individual_analyses)} individual downtime incident RCA analyses. "
+        f"Synthesize these into a comprehensive aggregated root cause analysis following the RCAAnalysisOutput schema.\n\n"
         f"{formatted_analyses}\n\n"
-        f"Provide an aggregated analysis that:\n"
-        f"1. Identifies the systemic root cause across all incidents\n"
-        f"2. Determines if incidents are related or independent\n"
-        f"3. Assesses overall severity and impact\n"
-        f"4. Identifies all affected services and the top-level service that breached SLO\n"
-        f"5. Constructs a cohesive narrative\n"
-        f"6. Consolidates the most critical 3-7 citations from all incidents\n"
-        f"7. Includes all individual incident analyses in the output"
+        f"Provide an aggregated analysis with ALL required fields:\n"
+        f"- root_cause: Systemic issue summary across all incidents (2-3 sentences)\n"
+        f"- severity: Overall severity (critical/high/medium)\n"
+        f"- affected_services: All services impacted across all incidents\n"
+        f"- root_cause_service: Primary origin service\n"
+        f"- analysis_type: 'downtime'\n"
+        f"- narrative: Comprehensive technical explanation (4-6 sentences)\n"
+        f"- citations: 3-7 most critical log citations from all incidents\n"
+        f"- incident_analyses: null (will be set programmatically)\n"
+        f"- recommendation: Actionable prevention recommendation (1-2 sentences)\n"
+        f"- related_incidents: all_related/partially_related/independent"
     )
     
     result = await aggregation_agent.ainvoke(
@@ -338,9 +346,10 @@ async def aggregate_analyses_node(state: DowntimeAnalysisState) -> Dict:
         }
     )
     
-    output: DowntimeAnalysisOutput = result["structured_output"]
+    output: RCAAnalysisOutput = result["structured_response"]
     
-    # Ensure individual analyses are included
+    # Ensure required fields are set and include individual analyses
+    output.analysis_type = "downtime"
     output.incident_analyses = individual_analyses
     
     return {"final_output": output}
@@ -367,7 +376,7 @@ async def analyze_downtime_incidents(
     incidents: List[DowntimeIncident],
     logs_table: TablePayload,
     window_seconds: int = 30
-) -> DowntimeAnalysisOutput:
+) -> RCAAnalysisOutput:
     """
     Analyze downtime incidents using parallel execution for individual analyses.
     
@@ -377,7 +386,7 @@ async def analyze_downtime_incidents(
         window_seconds: Time window in seconds to look before/after each incident (default 30s)
         
     Returns:
-        DowntimeAnalysisOutput with aggregated root cause analysis
+        RCAAnalysisOutput with aggregated root cause analysis
     """
     global downtime_graph
     
