@@ -24,7 +24,7 @@ WORKFLOW_COLLECTION = os.getenv("WORKFLOW_COLLECTION", "workflows")
 # Actions are actions from rule book, in our notation there are alerts which are a specific type of notifications
 ACTION_COLLECTION = os.getenv("ACTION_COLLECTION", "actions")
 NOTIFICATION_COLLECTION = os.getenv("NOTIFICATION_COLLECTION", "notifications")
-# LOG_COLLECTION = os.getenv("LOG_COLLECTION", "logs")  # Commented out - logs not implemented yet
+LOG_COLLECTION = os.getenv("LOG_COLLECTION", "logs")  # Commented out - logs not implemented yet
 VERSION_COLLECTION = os.getenv("VERSION_COLLECTION", "versions")
 # Global variables
 mongo_client = None
@@ -50,7 +50,7 @@ async def lifespan(app: FastAPI):
     workflow_collection = db[WORKFLOW_COLLECTION]
     version_collection = db[VERSION_COLLECTION]
     notification_collection = db[NOTIFICATION_COLLECTION]
-    # log_collection = db[LOG_COLLECTION]  # Commented out - logs not implemented yet
+    log_collection = db[LOG_COLLECTION]  # Commented out - logs not implemented yet
     action_collection = db[ACTION_COLLECTION]
     print(f"Connected to MongoDB, DB: {MONGO_DB}", flush=True)
 
@@ -72,7 +72,7 @@ async def lifespan(app: FastAPI):
     app.state.workflow_collection = workflow_collection
     app.state.version_collection = version_collection
     app.state.notification_collection = notification_collection
-    # app.state.log_collection = log_collection  # Commented out - logs not implemented yet
+    app.state.log_collection = log_collection  # Commented out - logs not implemented yet
     app.state.action_collection = action_collection
     app.state.mongo_client=mongo_client
     app.state.secret_key = os.getenv("SECRET_KEY", "default_secret_key")
@@ -83,10 +83,10 @@ async def lifespan(app: FastAPI):
     app.state.docker_client = docker.from_env()
 
     print(f"Connected to docker daemon")
-
+    print(log_collection)
     # All changes (notifications, workflows, logs) go through single global WebSocket connection
     # log_collection is None for now - logs not implemented yet
-    asyncio.create_task(watch_changes(notification_collection, None, workflow_collection))
+    asyncio.create_task(watch_changes(notification_collection, log_collection, workflow_collection))
     print("Started MongoDB change stream listener")
     ws_cleanup_task = asyncio.create_task(close_inactive_connections())
     print("Started WebSocket inactivity cleanup task")

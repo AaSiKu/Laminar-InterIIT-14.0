@@ -160,40 +160,42 @@ async def watch_workflows(workflow_collection):
     except Exception as e:
         logger.error(f"⚠ Workflow ChangeStream NOT running: {e}")
 
-# async def watch_logs(log_collection, workflow_collection):
-#     """
-#     Watch log collection for inserts and broadcast via WebSocket
-#     Logs are similar to notifications but for different purposes (debugging, system events, etc.)
-#     """
-#     condition = [{"$match": {"operationType": {"$in": ["insert", "update"]}}}]
-#     try:
-#         async with log_collection.watch(
-#             condition,
-#             full_document="updateLookup"
-#         ) as stream:
-#             logger.info("Log change stream listener started")
-#             async for change in stream:
-#                 doc = change.get("fullDocument")
-#                 if not doc:
-#                     continue
-# 
-#                 # Fetch workflow details
-#                 pipeline_id = doc.get("pipeline_id")
-#                 if pipeline_id:
-#                     try:
-#                         workflow = await workflow_collection.find_one(
-#                             {"_id": ObjectId(pipeline_id)}
-#                         )
-#                         # Attach workflow to message
-#                         doc["workflow"] = workflow or {}
-#                     except Exception as e:
-#                         logger.warning(f"Error fetching workflow for log: {e}")
-#                         doc["workflow"] = {}
-#                 
-#                 # Broadcast log
-#                 await broadcast(doc, message_type="log")
-#     except Exception as e:
-#         logger.error(f"⚠ Log ChangeStream NOT running: {e}")
+async def watch_logs(log_collection, workflow_collection):
+    """
+    Watch log collection for inserts and broadcast via WebSocket
+    Logs are similar to notifications but for different purposes (debugging, system events, etc.)
+    """
+    condition = [{"$match": {"operationType": {"$in": ["insert", "update"]}}}]
+    try:
+        async with log_collection.watch(
+            condition,
+            full_document="updateLookup"
+        ) as stream:
+            logger.info("Log change stream listener started")
+            async for change in stream:
+                print("Log change detected")
+                doc = change.get("fullDocument")
+                if not doc:
+                    continue
+
+                # Fetch workflow details
+                pipeline_id = doc.get("pipeline_id")
+                if pipeline_id:
+                    try:
+                        workflow = await workflow_collection.find_one(
+                            {"_id": ObjectId(pipeline_id)}
+                        )
+                        # Attach workflow to message
+                        doc["workflow"] = workflow or {}
+                    except Exception as e:
+                        logger.warning(f"Error fetching workflow for log: {e}")
+                        doc["workflow"] = {}
+                
+                # Broadcast log
+                print(doc)
+                await broadcast(doc, message_type="log")
+    except Exception as e:
+        logger.error(f"⚠ Log ChangeStream NOT running: {e}")
 
 async def watch_changes(notification_collection, log_collection, workflow_collection):
     """
@@ -213,10 +215,9 @@ async def watch_changes(notification_collection, log_collection, workflow_collec
     )
     
     # Logs watcher is commented out - logs not implemented yet
-    # if log_collection:
-    #     asyncio.create_task(
-    #         watch_logs(log_collection, workflow_collection)
-    #     )
+    asyncio.create_task(
+        watch_logs(log_collection, workflow_collection)
+    )
     
     logger.info("Started notification and workflow change stream watchers (all via global WebSocket)")
     # logger.info("Started notification, log, and workflow change stream watchers")
@@ -241,6 +242,7 @@ async def broadcast(message: dict, message_type: str = "notification"):
         try:
             # Add message type to the message
             message_with_type = {**message, "message_type": message_type}
+            print(f"Broadcasting {message_type} to user {ws_current_user.id}")
             await websocket.send_text(dumps(message_with_type))
                 
             # Update last activity
