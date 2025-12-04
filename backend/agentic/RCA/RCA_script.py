@@ -4,7 +4,7 @@ import numpy as np
 import os
 from dotenv import load_dotenv
 from typing import List, TypedDict, Annotated, Dict, Optional, Literal, Awaitable, TypeVar
-from pydantic.v1 import BaseModel, Field
+from langchain_core.pydantic_v1 import BaseModel, Field
 from langgraph.graph import StateGraph, END
 from langgraph.graph.message import add_messages
 from langchain_core.tools import tool
@@ -179,20 +179,26 @@ def get_top_latency_traces(
             # has a 'name' equal to the workflow_id. This might need adjustment
             # based on the actual span naming convention.
             query = """
-                SELECT
-                    trace_id,
-                    (MAX(end_time_unix_nano) - MIN(start_time_unix_nano)) AS duration_ns
-                FROM
-                    otel_spans
-                WHERE
-                    -- This condition is an assumption. You might need to join with
-                    -- a 'workflows' table or use a specific attribute to link spans
-                    -- to a workflow_id.
-                    attributes->>'workflow_id' = %s
-                    AND start_time_unix_nano >= (extract(epoch from %s::timestamp) * 1e9)
-                    AND end_time_unix_nano <= (extract(epoch from %s::timestamp) * 1e9)
-                GROUP BY
-                    trace_id
+                WITH TraceDurations AS (
+                    SELECT
+                        trace_id,
+                        (MAX(end_time_unix_nano) - MIN(start_time_unix_nano)) AS duration_ns,
+                        -- Check for error status in any of the trace's spans
+                        MAX(CASE WHEN status_code = 'ERROR' THEN 1 ELSE 0 END) as has_error,
+                        -- Get the name of the first node that errored
+                        (array_agg(name ORDER BY start_time_unix_nano) FILTER (WHERE status_code = 'ERROR'))[1] as error_node,
+                        -- Get the message from the first node that errored
+                        (array_agg(status_message ORDER BY start_time_unix_nano) FILTER (WHERE status_code = 'ERROR'))[1] as error_message
+                    FROM
+                        otel_spans
+                    WHERE
+                        attributes->>'workflow_id' = %s
+                        AND start_time_unix_nano >= (extract(epoch from %s::timestamp) * 1e9)
+                        AND end_time_unix_nano <= (extract(epoch from %s::timestamp) * 1e9)
+                    GROUP BY
+                        trace_id
+                )
+                SELECT * FROM TraceDurations
                 ORDER BY
                     duration_ns DESC
                 LIMIT %s;
@@ -347,7 +353,9 @@ def enrichment_node(state: RCAState) -> Dict:
     if not top_traces:
         # print("WARNING: No traces found for the given metric alert. Cannot proceed with RCA.")
         return {"sla_alerts": []}
-
+    topology = get_workflow_from_db(metric_alert.workflow_id)
+    # Assuming the trigger node is the one with no "parent" or a specific flag
+    trigger_node = next((node for node, data in topology.get("nodes", {}).items() if data.get("is_trigger")), "start")
     breach_magnitude = (metric_alert.breach_value / metric_alert.baseline_value) * 100
     
     sla_alerts = []
@@ -358,9 +366,13 @@ def enrichment_node(state: RCAState) -> Dict:
         alert = SLAAlert(
             workflow_id=metric_alert.workflow_id,
             execution_id=trace_id,
-            trigger_node="start", # This is a placeholder
+            trigger_node=trigger_node, 
             breach_magnitude=f"{breach_magnitude:.0f}% over baseline",
             trace_ids=[trace_id],
+            # Populate error fields from the enriched DB query
+            has_error=bool(trace.get('has_error')),
+            error_node=trace.get('error_node'),
+            error_message=trace.get('error_message')
         )
         sla_alerts.append(alert)
 
@@ -403,7 +415,8 @@ def context_builder_node(
     error_logs = []
     if alert.has_error and alert.error_node:
         error_logs = [{
-            "timestamp": "2025-11-30T10:05:30Z",
+            ### TODO: Timestamp can be fetched from error span
+            "timestamp": "N/A",
             "level": "ERROR",
             "node": alert.error_node,
             "message": alert.error_message,
