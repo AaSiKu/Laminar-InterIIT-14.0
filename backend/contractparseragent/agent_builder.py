@@ -9,9 +9,15 @@ import os
 import json
 import sys
 import re
+from collections import defaultdict
 from pathlib import Path
 from typing import List, Dict, Any, Optional, Tuple
+
+# Import layout utility for x/y assignment
+from contractparseragent.layout_utils import compute_layout
+from contractparseragent.node_tool import get_node_pydantic_schema
 from anthropic import Anthropic
+from dotenv import load_dotenv
 
 # Path setup
 BASE_DIR = Path(__file__).resolve().parent
@@ -21,6 +27,11 @@ sys.path.insert(0, str(BASE_DIR))
 sys.path.insert(0, str(BACKEND_ROOT))
 sys.path.insert(0, str(PROJECT_ROOT))
 
+# Ensure local .env loads (contains ANTHROPIC_API_KEY, etc.)
+ENV_PATH = BASE_DIR / ".env"
+if ENV_PATH.exists():
+    load_dotenv(ENV_PATH)
+
 from contractparseragent.agent_prompts import get_input_builder_prompt, METRIC_PLANNER_SYSTEM_PROMPT, METRIC_STEP_BUILDER_SYSTEM_PROMPT
 from contractparseragent.graph_builder import build_macro_plan, build_next_node
 from contractparseragent.ingestion import (
@@ -29,6 +40,9 @@ from contractparseragent.ingestion import (
     load_metrics_from_file,
 )
 from lib.utils import get_node_class_map
+
+DEFAULT_NODE_SIZE = {"width": 200, "height": 261}
+DEFAULT_VIEWPORT = {"x": 0, "y": 0, "zoom": 1}
 
 class AgenticPipelineBuilder:
     def __init__(self, api_key: Optional[str] = None):
@@ -40,6 +54,33 @@ class AgenticPipelineBuilder:
             raise RuntimeError("ANTHROPIC_API_KEY environment variable is required (or pass api_key)")
         self.client = Anthropic(api_key=self.api_key)
         self.model_name = "claude-sonnet-4-5-20250929"
+        self._schema_cache: Dict[str, Dict[str, Any]] = {}
+
+    def validate_output_structure(self, data: List[Dict[str, Any]]) -> bool:
+        """
+        Validate that the output matches the structure of sample_flowchart1.json.
+        Expected: List containing one object with keys: _id, user, path, pipeline, etc.
+        """
+        if not isinstance(data, list) or len(data) != 1:
+            print("Validation Error: Output must be a list of length 1.")
+            return False
+        
+        item = data[0]
+        required_keys = ["_id", "user", "path", "pipeline", "container_id", "host_port", "host_ip", "status"]
+        for key in required_keys:
+            if key not in item:
+                print(f"Validation Error: Missing key '{key}' in output object.")
+                return False
+        
+        if not isinstance(item["pipeline"], dict):
+            print("Validation Error: 'pipeline' must be a dictionary.")
+            return False
+            
+        if "nodes" not in item["pipeline"] or "edges" not in item["pipeline"]:
+            print("Validation Error: 'pipeline' must contain 'nodes' and 'edges'.")
+            return False
+            
+        return True
 
     def run_phase_1_input_builder(self, metrics_list: List[Dict[str, Any]]) -> Dict[str, Any]:
         """Phase 1: interactive chat to build input+filter flowchart for MULTIPLE metrics.
@@ -285,32 +326,25 @@ class AgenticPipelineBuilder:
         return {"nodes": new_nodes, "edges": new_edges}
 
     def merge_and_save(self, phase1_flowchart: Dict[str, Any], calc_graph: Dict[str, Any], output_dir: str = "./generated_flowcharts") -> Dict[str, Any]:
-        """Merge Phase1 (input+filters) and Phase2 (calculation graph) into a final flowchart.
-
-        Both inputs are expected to be flowchart-style graphs with "nodes" and "edges".
-        Phase2 nodes are appended with renumbered ids to avoid collision.
-        """
-        # Start from a deep copy-like merge of Phase1
+        """Merge Phase1 (input+filters) and Phase2 (calculation graph) into a final flowchart, assigning x/y positions."""
         final_nodes: List[Dict[str, Any]] = []
         final_edges: List[Dict[str, Any]] = []
-
         id_map: Dict[str, str] = {}
 
         # Copy Phase1 nodes/edges as-is
         for node in phase1_flowchart.get("nodes", []):
             nid = node.get("id")
             if nid in id_map:
-                # Should not happen, but guard anyway
                 new_id = f"{nid}_0"
                 id_map[nid] = new_id
                 node = dict(node)
                 node["id"] = new_id
             else:
                 id_map[nid] = nid
-            final_nodes.append(node)
+            final_nodes.append(dict(node))
 
         for edge in phase1_flowchart.get("edges", []):
-            final_edges.append(edge)
+            final_edges.append(dict(edge))
 
         # Determine next numeric suffix for new node ids if they follow nX pattern
         max_idx = 0
@@ -343,20 +377,171 @@ class AgenticPipelineBuilder:
                 new_edge["target"] = id_map[tgt]
                 final_edges.append(new_edge)
 
-        merged = {"nodes": final_nodes, "edges": final_edges, "agents": []}
+        # --- Assign x/y positions to all nodes ---
+        edges_dict: Dict[str, List[str]] = {}
+        for edge in final_edges:
+            src = edge.get("source")
+            tgt = edge.get("target")
+            if src is not None and tgt is not None:
+                edges_dict.setdefault(src, []).append(tgt)
+        positions = compute_layout(final_nodes, edges_dict)
+        for node in final_nodes:
+            nid = node.get("id")
+            pos = positions.get(nid, {"x": 0, "y": 0})
+            node["position"] = {"x": pos["x"], "y": pos["y"]}
+
+        normalized_nodes = [self._normalize_node_structure(node) for node in final_nodes]
+        normalized_edges = self._normalize_edges(final_edges)
+
+        merged = {
+            "nodes": normalized_nodes,
+            "edges": normalized_edges,
+            "agents": [],
+            "viewport": dict(DEFAULT_VIEWPORT),
+        }
 
         # Optional validation
         if not self.validate_flowchart_nodes(merged):
             print("Final flowchart has validation errors; saving anyway for inspection.")
 
+        # Wrap the output to match the format of tests/pipeline/sample_flowchart1.json
+        try:
+            from bson import ObjectId
+            oid = str(ObjectId())
+            user_id = str(ObjectId()) 
+            path_id = str(ObjectId())
+        except ImportError:
+            import uuid
+            oid = uuid.uuid4().hex[:24]
+            user_id = uuid.uuid4().hex[:24]
+            path_id = uuid.uuid4().hex[:24]
+
+        full_doc = {
+            "_id": { "$oid": oid },
+            "user": user_id,
+            "path": path_id,
+            "pipeline": merged,
+            "container_id": "",
+            "host_port": "",
+            "host_ip": "",
+            "status": False
+        }
+        
+        wrapped_output = [full_doc]
+
+        if not self.validate_output_structure(wrapped_output):
+            print("WARNING: Wrapped output structure validation failed!")
+
         output_path = Path(output_dir)
         output_path.mkdir(parents=True, exist_ok=True)
         out_file = output_path / "flowchart.json"
         with out_file.open("w", encoding="utf-8") as f:
-            json.dump(merged, f, indent=2)
+            json.dump(wrapped_output, f, indent=2)
         print(f"Flowchart saved to {out_file}")
 
         return merged
+
+    def _coerce_properties(self, raw_props: Any) -> Dict[str, Any]:
+        if isinstance(raw_props, dict):
+            return dict(raw_props)
+        if isinstance(raw_props, list):
+            props: Dict[str, Any] = {}
+            for item in raw_props:
+                if not isinstance(item, dict):
+                    continue
+                label = item.get("label")
+                if label is None:
+                    continue
+                props[label] = item.get("value")
+            return props
+        return {}
+
+    def _get_node_schema(self, node_id: Optional[str]) -> Dict[str, Any]:
+        if not node_id:
+            return {}
+        cache_key = node_id.lower()
+        if cache_key not in self._schema_cache:
+            schema_info = get_node_pydantic_schema(node_id)
+            self._schema_cache[cache_key] = schema_info.get("schema", {})
+        return self._schema_cache[cache_key]
+
+    def _apply_schema_defaults(
+        self,
+        props: Dict[str, Any],
+        schema_props: Dict[str, Any],
+        category: str,
+        node_id: str,
+    ) -> Dict[str, Any]:
+        normalized = dict(props)
+        normalized.setdefault("node_id", node_id)
+        normalized.setdefault("category", category)
+        n_inputs_const = schema_props.get("n_inputs", {}).get("const")
+        if n_inputs_const is not None:
+            normalized.setdefault("n_inputs", n_inputs_const)
+        for field, field_schema in schema_props.items():
+            if field in normalized:
+                continue
+            if "default" in field_schema:
+                normalized[field] = field_schema["default"]
+        normalized.setdefault("tool_description", "")
+        normalized.setdefault("trigger_description", "")
+        return normalized
+
+    def _normalize_node_structure(self, node: Dict[str, Any]) -> Dict[str, Any]:
+        node_id = node.get("node_id") or node.get("type") or node.get("id", "")
+        schema = self._get_node_schema(node_id)
+        schema_props = schema.get("properties", {})
+        category = node.get("category") or schema_props.get("category", {}).get("const", "table")
+        raw_props = node.get("data", {}).get("properties") or node.get("properties")
+        normalized_props = self._coerce_properties(raw_props)
+        normalized_props = self._apply_schema_defaults(normalized_props, schema_props, category, node_id)
+        ui = node.get("data", {}).get("ui", {})
+        label = ui.get("label") or normalized_props.get("name") or f"{node_id} Node"
+        icon_url = ui.get("iconUrl", "")
+        position = node.get("position") or {"x": 0, "y": 0}
+        measured = node.get("measured") or dict(DEFAULT_NODE_SIZE)
+        return {
+            "id": node.get("id"),
+            "type": node_id,
+            "position": position,
+            "node_id": node_id,
+            "category": category,
+            "schema": schema,
+            "data": {
+                "ui": {
+                    "label": label,
+                    "iconUrl": icon_url,
+                },
+                "properties": normalized_props,
+            },
+            "measured": measured,
+            "selected": node.get("selected", False),
+            "dragging": node.get("dragging", False),
+        }
+
+    def _normalize_edges(self, edges: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        target_handle_counters: Dict[str, int] = defaultdict(int)
+        normalized: List[Dict[str, Any]] = []
+        for edge in edges:
+            source = edge.get("source")
+            target = edge.get("target")
+            if not source or not target:
+                continue
+            source_handle = edge.get("sourceHandle") or "out"
+            target_handle = edge.get("targetHandle")
+            if not target_handle:
+                idx = target_handle_counters[target]
+                target_handle = f"in_{idx}"
+                target_handle_counters[target] += 1
+            normalized.append({
+                "source": source,
+                "sourceHandle": source_handle,
+                "target": target,
+                "targetHandle": target_handle,
+                "animated": edge.get("animated", True),
+                "id": edge.get("id") or f"xy-edge__{source}{source_handle}-{target}{target_handle}",
+            })
+        return normalized
 
 def _normalize_text(text: Optional[str]) -> str:
     if not text:
@@ -670,6 +855,35 @@ if __name__ == "__main__":
         output_path = Path("./generated_flowcharts")
         output_path.mkdir(parents=True, exist_ok=True)
         out_file = output_path / "flowchart.json"
+
+        # Wrap the output to match the format of tests/pipeline/sample_flowchart1.json
+        try:
+            from bson import ObjectId
+            oid = str(ObjectId())
+            user_id = str(ObjectId()) 
+            path_id = str(ObjectId())
+        except ImportError:
+            import uuid
+            oid = uuid.uuid4().hex[:24]
+            user_id = uuid.uuid4().hex[:24]
+            path_id = uuid.uuid4().hex[:24]
+
+        full_doc = {
+            "_id": { "$oid": oid },
+            "user": user_id,
+            "path": path_id,
+            "pipeline": final_graph,
+            "container_id": "",
+            "host_port": "",
+            "host_ip": "",
+            "status": False
+        }
+        
+        wrapped_output = [full_doc]
+
+        if not builder.validate_output_structure(wrapped_output):
+             print("WARNING: Wrapped output structure validation failed!")
+
         with out_file.open("w", encoding="utf-8") as f:
-            json.dump(final_graph, f, indent=2)
+            json.dump(wrapped_output, f, indent=2)
         print(f"Final Multi-Metric Flowchart saved to {out_file}")

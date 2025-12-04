@@ -33,10 +33,42 @@ MOCK_PHASE1_FLOWCHART = {
     "nodes": [
         {
             "id": "n1",
+            "schema": {
+                "properties": {
+                    "category": {"const": "io", "title": "Category", "type": "string"},
+                    "node_id": {"const": "open_tel_spans_input", "title": "Node Id", "type": "string"},
+                    "tool_description": {"default": "", "title": "Tool Description", "type": "string"},
+                    "trigger_description": {"default": "", "title": "Trigger Description", "type": "string"},
+                    "name": {"default": "", "title": "Name", "type": "string"},
+                    "n_inputs": {"const": 0, "default": 0, "title": "N Inputs", "type": "integer"},
+                    "topic": {"title": "Topic", "type": "string"},
+                    "rdkafka_settings": {
+                        "title": "Rdkafka Settings",
+                        "type": "object",
+                        "properties": {
+                            "bootstrap_servers": {"type": "string"},
+                            "group_id": {"type": "string"},
+                            "auto_offset_reset": {"enum": ["earliest", "latest"], "type": "string"}
+                        }
+                    }
+                },
+                "required": ["category", "node_id", "topic"],
+                "title": "OpenTelSpansInputNode",
+                "type": "object"
+            },
+            "type": "open_tel_spans_input",
+            "position": {"x": -861, "y": 179},
             "node_id": "open_tel_spans_input",
             "category": "io",
             "data": {
+                "ui": {"label": "OpenTelSpansInputNode Node", "iconUrl": ""},
                 "properties": {
+                    "category": "io",
+                    "node_id": "open_tel_spans_input",
+                    "tool_description": "",
+                    "trigger_description": "",
+                    "name": "",
+                    "n_inputs": 0,
                     "topic": "otlp_spans",
                     "rdkafka_settings": {
                         "bootstrap_servers": "localhost:9092",
@@ -44,24 +76,68 @@ MOCK_PHASE1_FLOWCHART = {
                         "auto_offset_reset": "earliest"
                     }
                 }
-            }
+            },
+            "measured": {"width": 200, "height": 249},
+            "selected": false
         },
         {
             "id": "n2",
+            "schema": {
+                "properties": {
+                    "category": {"const": "table", "title": "Category", "type": "string"},
+                    "node_id": {"const": "filter", "title": "Node Id", "type": "string"},
+                    "tool_description": {"default": "", "title": "Tool Description", "type": "string"},
+                    "trigger_description": {"default": "", "title": "Trigger Description", "type": "string"},
+                    "name": {"default": "", "title": "Name", "type": "string"},
+                    "n_inputs": {"const": 1, "default": 1, "title": "N Inputs", "type": "integer"},
+                    "filters": {
+                        "title": "Filters",
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "col": {"type": "string"},
+                                "op": {"type": "string"},
+                                "value": {"type": ["string", "number", "boolean"]}
+                            }
+                        }
+                    }
+                },
+                "required": ["category", "node_id", "filters"],
+                "title": "FilterNode",
+                "type": "object"
+            },
+            "type": "filter",
+            "position": {"x": -480, "y": 182},
             "node_id": "filter",
             "category": "table",
             "data": {
+                "ui": {"label": "FilterNode Node", "iconUrl": ""},
                 "properties": {
+                    "category": "table",
+                    "node_id": "filter",
+                    "tool_description": "",
+                    "trigger_description": "",
                     "name": "server_spans_filter",
+                    "n_inputs": 1,
                     "filters": [
                         {"col": "span.kind", "op": "==", "value": "SERVER"}
                     ]
                 }
-            }
+            },
+            "measured": {"width": 200, "height": 249},
+            "selected": false
         }
     ],
     "edges": [
-        {"source": "n1", "target": "n2"}
+        {
+            "source": "n1",
+            "sourceHandle": "out",
+            "target": "n2",
+            "targetHandle": "in_0",
+            "animated": true,
+            "id": "xy-edge__n1out-n2in_0"
+        }
     ]
 }
 
@@ -77,41 +153,136 @@ MOCK_MACRO_PLAN = {
 MOCK_NODES = [
     {
         "id": "n3",
+        "schema": {
+            "properties": {
+                "category": {"const": "table", "title": "Category", "type": "string"},
+                "node_id": {"const": "filter", "title": "Node Id", "type": "string"},
+                "tool_description": {"default": "", "title": "Tool Description", "type": "string"},
+                "trigger_description": {"default": "", "title": "Trigger Description", "type": "string"},
+                "name": {"default": "", "title": "Name", "type": "string"},
+                "n_inputs": {"const": 1, "default": 1, "title": "N Inputs", "type": "integer"},
+                "filters": {
+                    "title": "Filters",
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "col": {"type": "string"},
+                            "op": {"type": "string"},
+                            "value": {"type": ["string", "number", "boolean"]}
+                        }
+                    }
+                }
+            },
+            "required": ["category", "node_id", "filters"],
+            "title": "FilterNode",
+            "type": "object"
+        },
+        "type": "filter",
+        "position": {"x": -200, "y": 100},
         "node_id": "filter",
         "category": "table",
         "data": {
+            "ui": {"label": "FilterNode Node", "iconUrl": ""},
             "properties": {
+                "category": "table",
+                "node_id": "filter",
+                "tool_description": "",
+                "trigger_description": "",
                 "name": "failed_spans_filter",
+                "n_inputs": 1,
                 "filters": [
                     {"col": "status.code", "op": "==", "value": 2}
                 ]
             }
-        }
+        },
+        "measured": {"width": 200, "height": 249},
+        "selected": false
     },
     {
         "id": "n4",
+        "schema": {
+            "properties": {
+                "category": {"const": "table", "title": "Category", "type": "string"},
+                "node_id": {"const": "groupby", "title": "Node Id", "type": "string"},
+                "tool_description": {"default": "", "title": "Tool Description", "type": "string"},
+                "trigger_description": {"default": "", "title": "Trigger Description", "type": "string"},
+                "name": {"default": "", "title": "Name", "type": "string"},
+                "n_inputs": {"const": 1, "default": 1, "title": "N Inputs", "type": "integer"},
+                "groupby_columns": {"title": "Groupby Columns", "type": "array", "items": {"type": "string"}},
+                "aggregations": {
+                    "title": "Aggregations",
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "column": {"type": "string"},
+                            "function": {"type": "string"},
+                            "alias": {"type": "string"}
+                        }
+                    }
+                }
+            },
+            "required": ["category", "node_id", "groupby_columns", "aggregations"],
+            "title": "GroupbyNode",
+            "type": "object"
+        },
+        "type": "groupby",
+        "position": {"x": 50, "y": 100},
         "node_id": "groupby",
         "category": "table",
         "data": {
+            "ui": {"label": "GroupbyNode Node", "iconUrl": ""},
             "properties": {
+                "category": "table",
+                "node_id": "groupby",
+                "tool_description": "",
+                "trigger_description": "",
                 "name": "errors_by_service",
+                "n_inputs": 1,
                 "groupby_columns": ["service.name"],
                 "aggregations": [
                     {"column": "span_id", "function": "count", "alias": "error_count"}
                 ]
             }
-        }
+        },
+        "measured": {"width": 200, "height": 249},
+        "selected": false
     },
     {
         "id": "n5",
+        "schema": {
+            "properties": {
+                "category": {"const": "table", "title": "Category", "type": "string"},
+                "node_id": {"const": "select", "title": "Node Id", "type": "string"},
+                "tool_description": {"default": "", "title": "Tool Description", "type": "string"},
+                "trigger_description": {"default": "", "title": "Trigger Description", "type": "string"},
+                "name": {"default": "", "title": "Name", "type": "string"},
+                "n_inputs": {"const": 1, "default": 1, "title": "N Inputs", "type": "integer"},
+                "columns": {"title": "Columns", "type": "array", "items": {"type": "string"}}
+            },
+            "required": ["category", "node_id", "columns"],
+            "title": "SelectNode",
+            "type": "object"
+        },
+        "type": "select",
+        "position": {"x": 300, "y": 100},
         "node_id": "select",
         "category": "table",
         "data": {
+            "ui": {"label": "SelectNode Node", "iconUrl": ""},
             "properties": {
+                "category": "table",
+                "node_id": "select",
+                "tool_description": "",
+                "trigger_description": "",
                 "name": "error_rate_calc",
+                "n_inputs": 1,
                 "columns": ["service.name", "error_count"]
             }
-        }
+        },
+        "measured": {"width": 200, "height": 249},
+        "selected": false
     }
 ]
 
@@ -237,6 +408,7 @@ class MockWSAgenticSession:
             })
 
             # Iterate through mock nodes
+            last_node_id = "n2"  # Start from the filter node
             for step_index, mock_node in enumerate(MOCK_NODES):
                 if step_index >= len(MOCK_MACRO_PLAN["steps"]):
                     break
@@ -249,7 +421,14 @@ class MockWSAgenticSession:
                     "step": MOCK_MACRO_PLAN["steps"][step_index],
                 })
 
-                mock_edges = [{"source": "n2", "target": mock_node["id"]}]
+                mock_edges = [{
+                    "source": last_node_id,
+                    "sourceHandle": "out",
+                    "target": mock_node["id"],
+                    "targetHandle": "in_0",
+                    "animated": True,
+                    "id": f"xy-edge__{last_node_id}out-{mock_node['id']}in_0"
+                }]
 
                 await ws.send_json({
                     "type": "node_proposed",
@@ -291,6 +470,9 @@ class MockWSAgenticSession:
                         "message": f"[MOCK] Step {step_index + 1} approved",
                     })
 
+                    # Update last_node_id for chaining
+                    last_node_id = mock_node["id"]
+
                     # Save incremental flowchart
                     self._save_flowchart(step_index + 1)
 
@@ -315,10 +497,35 @@ class MockWSAgenticSession:
             "agents": []
         }
 
+        # Wrap the output to match the format of tests/pipeline/sample_flowchart1.json
+        try:
+            from bson import ObjectId
+            oid = str(ObjectId())
+            user_id = str(ObjectId()) 
+            path_id = str(ObjectId())
+        except ImportError:
+            import uuid
+            oid = uuid.uuid4().hex[:24]
+            user_id = uuid.uuid4().hex[:24]
+            path_id = uuid.uuid4().hex[:24]
+
+        full_doc = {
+            "_id": { "$oid": oid },
+            "user": user_id,
+            "path": path_id,
+            "pipeline": merged,
+            "container_id": "",
+            "host_port": "",
+            "host_ip": "",
+            "status": False
+        }
+        
+        wrapped_output = [full_doc]
+
         # Always save to flowchart.json
         out_file = self.output_dir / "flowchart.json"
         with out_file.open("w", encoding="utf-8") as f:
-            json.dump(merged, f, indent=2)
+            json.dump(wrapped_output, f, indent=2)
 
         # Also save step file if step_index provided
         if step_index is not None:

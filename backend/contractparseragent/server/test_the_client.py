@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+
 """
 Simple WebSocket test client for the new agentic server.
 """
@@ -9,6 +9,11 @@ import sys
 from pathlib import Path
 import websockets
 from anthropic import Anthropic
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+env_path = Path(__file__).resolve().parent.parent / ".env"
+load_dotenv(env_path)
 
 # Add backend to path for imports
 BACKEND_DIR = Path(__file__).resolve().parent.parent.parent

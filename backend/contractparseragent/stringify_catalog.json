@@ -100,7 +100,12 @@
     { "id": "questdb_write", "category": "io", "stringify": "Writes input <input_index> to QuestDB at '<host>:<port>'" },
 
     { "id": "alert", "category": "action", "stringify": "Generates intelligent alerts from input <input_index> using LLM-based analysis and publishes them to Kafka alerts topic for the pipeline" },
-    { "id": "trigger_rca", "category": "action", "stringify": "Performs root cause analysis on trigger data from input <input_index>" }
+    { 
+      "id": "trigger_rca", 
+      "category": "agent", 
+      "stringify": "Triggers root cause analysis on metric data from input <input_index> for '<metric_description>', extracting trace identifiers and correlating with pipeline topology",
+      "description": "Triggers root cause analysis (RCA) on SLA metric violations by extracting OpenTelemetry trace identifiers from metric data, correlating them with the pipeline topology that produced the metric, and generating comprehensive natural-language summaries that explain what telemetry entities contributed to the metric breach. The metric_description parameter defines the monitored condition, and the node automatically identifies semantic origins of trace identifiers through the transformation pipeline for deep diagnostic insights."
+    }
   ]
 }
 
