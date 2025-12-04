@@ -20,9 +20,8 @@ import random
 from backend.pipeline.mappings.streaming_ml import arf_node_fn, tide_node_fn, mamba_node_fn
 from backend.lib.tables.stream_ml import ARFNode, TiDENode, MambaNode
 
-
 class StreamingValueSubject(pw.io.python.ConnectorSubject):
-    def __init__(self, values: list[tuple], min_delay: float = 0.51, max_delay: float = 0.52):
+    def __init__(self, values: list[tuple], min_delay: float = 0.01, max_delay: float = 0.011):
         super().__init__()
         self.values = values
         self.min_delay = min_delay
@@ -47,54 +46,80 @@ def test_arf_streaming_mapping():
     output_csv = os.path.join(base_dir, "temp_mapping_output.csv")
     plot_dir = os.path.join(base_dir, "plots/") # Saving where original test saved
     os.makedirs(plot_dir, exist_ok=True)
+    limit_rows = 10000 # Reduced for faster testing
     
-    limit_rows = 500 # Reduced for faster testing
-    
-
-    if os.path.exists(output_csv): os.remove(output_csv)
+    ################################################
 
     print(f"Loading data from {csv_path}...")
     df_full = pd.read_csv(csv_path)
     df = df_full.head(limit_rows).copy()['close'].reset_index(drop=True)
     # Create list of (index, value) tuples
     df = [(i, val) for i, val in enumerate(df)]
-
-
-
     input_table = pw.io.python.read(
-        StreamingValueSubject(df, min_delay=0.5, max_delay=0.55),
+        StreamingValueSubject(df, min_delay=0.01, max_delay=0.011),
         schema=InputSchema
     )
+    # arf_node = ARFNode(
+    #     channel_list = ["value"],
+    #     lookback = 5,
+    #     horizon = 1,
+    #     batch_size = 32,
+    #     epochs = 1,
+    #     n_models = 15,
+    #     max_depth = 20,
+    #     seed = None,
+    #     max_concurrent_training = 8
+    # )
+    # result_table = arf_node_fn([input_table], arf_node)
 
-    arf_node = ARFNode(
+    # mamba_node = MambaNode(
+    #     channel_list = ["value"],
+    #     lookback = 5,
+    #     horizon = 1,
+    #     batch_size = 32,
+    #     epochs = 1,
+    #     d_model = 16,
+    #     num_layers = 2,
+    #     d_state = 16,
+    #     d_conv = 4,
+    #     expand = 4,
+    #     learning_rate = 0.01,
+    #     max_concurrent_training = 8
+    # )
+    # result_table = mamba_node_fn([input_table], mamba_node)
+
+    tide_node = TiDENode(
         channel_list = ["value"],
-        lookback = 1,
+        lookback = 5,
         horizon = 1,
-        batch_size = 1,
+        batch_size = 32,
         epochs = 1,
-        n_models = 15,
-        max_depth = 20,
-        seed = None,
+        hidden_dim = 16,
+        optimizer = "adam",
+        learning_rate = 0.01,
+        clipnorm = 1.0,
         max_concurrent_training = 8
     )
-
-    result_table = arf_node_fn([input_table], arf_node)
+    result_table = tide_node_fn([input_table], tide_node)
 
     if os.path.exists(output_csv): os.remove(output_csv)
-    
     pw.io.csv.write(
         result_table,
         output_csv,
     )
-
     pw.run()
 
+    #################################################
 
     # Plot results
-
-
     print(f"Plotting results from {output_csv}...")
-    df_results = pd.read_csv(output_csv)[10:]
+    df_results = pd.read_csv(output_csv)
+    
+    # Sort by idx to ensure correct plotting order
+    #if 'idx' in df_results.columns:
+    #    df_results = df_results.sort_values('idx')
+    
+    df_results = df_results[-limit_rows//5:]
     
     # Parse model_prediction from string to list and extract first value
     df_results['prediction'] = df_results['model_prediction'].apply(
@@ -121,7 +146,7 @@ def test_arf_streaming_mapping():
     ax2.grid(True, alpha=0.3)
     
     plt.tight_layout()
-    plot_path = os.path.join(plot_dir, "arf_streaming_results.png")
+    plot_path = os.path.join(plot_dir, "streaming_results.png")
     plt.savefig(plot_path, dpi=150)
     print(f"Plot saved to {plot_path}")
     plt.show()

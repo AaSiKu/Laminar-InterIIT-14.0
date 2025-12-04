@@ -77,8 +77,6 @@ class MultivariateMamba(nn.Module):
         for layer in self.layers: x = layer(x) + x
         return self.head(self.norm(x)[:, -1, :])
     
-    
-
 
 class MambaModel(StreamBaseModel):
     def __init__(
@@ -120,32 +118,51 @@ class MambaModel(StreamBaseModel):
         batch_size = inputs.shape[0]
         x_tensor = torch.tensor(inputs, dtype=torch.float32).to(self.device)
         y_tensor = torch.tensor(truths, dtype=torch.float32).to(self.device)
+        
+        # Instance Normalization (RevIN style)
+        # Calculate mean and std per instance over the time dimension (dim=1)
+        # x_tensor: [Batch, Lookback, Features]
+        seq_mean = torch.mean(x_tensor, dim=1, keepdim=True)
+        seq_std = torch.std(x_tensor, dim=1, keepdim=True) + 1e-5
+        
+        x_norm = (x_tensor - seq_mean) / seq_std
+        y_norm = (y_tensor - seq_mean) / seq_std
+        
         mem_before = psutil.Process(os.getpid()).memory_info().rss / (1024 ** 2)
         start_time = time.time()
 
         with torch.no_grad():
-            predictions = self.model(x_tensor)
-            mae = torch.mean(torch.abs(predictions - y_tensor[:, 0, :])).item() # mae on first horizon step
+            predictions = self.model(x_norm)
+            # Check for NaNs in predictions
+            if torch.isnan(predictions).any():
+                 mae = float('nan')
+            else:
+                 pred_denorm = predictions * seq_std[:, 0, :] + seq_mean[:, 0, :] # predictions is [Batch, Features] (horizon step 1)
+                 mae = torch.mean(torch.abs(pred_denorm - y_tensor[:, 0, :])).item()
+            
             self.optimizer.zero_grad()
         for epoch in range(self.epochs):
             self.optimizer.zero_grad()
-            current_input = x_tensor.clone()  # [batch, lookback, input_dim]
+            current_input = x_norm.clone()  # [batch, lookback, input_dim]
             total_loss = torch.tensor(0.0).to(self.device)
             
             # Train autoregressively over the horizon
             for h in range(self.horizon):
                 preds = self.model(current_input)  # [batch, output_dim]
-                # Calculate loss against h-th horizon ground truth
-                loss = self.criterion(preds, y_tensor[:, h, :])
+                # Calculate loss against h-th horizon ground truth (normalized)
+                loss = self.criterion(preds, y_norm[:, h, :])
+                if torch.isnan(loss):
+                     continue
                 total_loss += loss
                 pred_expanded = preds.unsqueeze(1)  # [batch, 1, output_dim]
                 current_input = torch.cat([current_input[:, 1:, :], pred_expanded], dim=1)
                 
             # Backpropagate accumulated loss
             total_loss = total_loss / self.horizon
-            total_loss.backward()
-            torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=1.0)
-            self.optimizer.step()
+            if not torch.isnan(total_loss) and total_loss.item() != 0.0:
+                total_loss.backward()
+                torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=1.0)
+                self.optimizer.step()
 
         end_time = time.time()
         mem_after = psutil.Process(os.getpid()).memory_info().rss / (1024 ** 2)
@@ -166,15 +183,29 @@ class MambaModel(StreamBaseModel):
         
         input_sequence = np.array(self.context_history[-self.lookback:], dtype=np.float32)
         x_tensor = torch.tensor(input_sequence, dtype=torch.float32).unsqueeze(0).to(self.device)
+        
+        # Instance Normalization
+        seq_mean = torch.mean(x_tensor, dim=1, keepdim=True)
+        seq_std = torch.std(x_tensor, dim=1, keepdim=True) + 1e-5
+        x_norm = (x_tensor - seq_mean) / seq_std
+        
         mem_usage = psutil.Process(os.getpid()).memory_info().rss / (1024 ** 2)
         start_time = time.time()
         with torch.no_grad():
-            prediction = self.model(x_tensor)
+            prediction_norm = self.model(x_norm)
         latency = time.time() - start_time
+        
+        # Denormalize prediction
+        # prediction_norm is [1, Output_Dim]
+        # seq_std is [1, 1, Features] -> squeeze to [1, Features]
+        prediction = prediction_norm * seq_std.squeeze(1) + seq_mean.squeeze(1)
+        
         y_pred = prediction[0].cpu().numpy()
         
-        # Calculate error based on first horizon step against current input
-        error = np.mean(np.abs(input - y_pred[0]))
+        if np.isnan(y_pred).any():
+             error = float('nan')
+        else:
+             error = np.mean(np.abs(input - y_pred[0])) # This error metric is still weird as discussed, but keeping logic
 
         self.context_history.append(input)
         if len(self.context_history) > self.lookback:
