@@ -4,12 +4,13 @@ import CloseIcon from "@mui/icons-material/Close";
 import Playground from "../workflow/Playground";
 import StepSidebar, { STEP_SIDEBAR_COLLAPSED_WIDTH } from "./StepSidebar";
 import BasicInformationForm from "./BasicInformationForm";
+import AddAIAgent from "./AddAIAgent";
 
 // Stepper steps configuration
 const steps = [
   { id: 1, label: "Basic Information" },
   { id: 2, label: "AI Assistant" },
-  { id: 3, label: "Nodes Setup" },
+  { id: 3, label: "Add AI Agents" },
   { id: 4, label: "Done" },
 ];
 
@@ -21,6 +22,7 @@ const CreateWorkflowDrawer = ({ open, onClose, onComplete }) => {
     description: "",
     members: "",
     document: null,
+    agent: "",
   });
 
   // Pipeline nodes and edges state (managed here, passed to Playground)
@@ -34,13 +36,22 @@ const CreateWorkflowDrawer = ({ open, onClose, onComplete }) => {
   useEffect(() => {
     if (open) {
       setCurrentStep(1);
-      setFormData({ name: "", description: "", members: "", document: null });
+      setFormData({ name: "", description: "", members: "", document: null, agent: "" });
       setNodes([]);
       setEdges([]);
       setIsGenerating(false);
       setIsSidebarCollapsed(true);
     }
   }, [open]);
+
+  // Automatically open sidebar when reaching step 2, close on step 3
+  useEffect(() => {
+    if (currentStep === 2) {
+      setIsSidebarCollapsed(false);
+    } else if (currentStep === 3) {
+      setIsSidebarCollapsed(true);
+    }
+  }, [currentStep]);
 
   const handleBack = () => {
     if (currentStep > 1) {
@@ -65,6 +76,13 @@ const CreateWorkflowDrawer = ({ open, onClose, onComplete }) => {
   };
 
   const handleInputChange = (field) => (event) => {
+    setFormData({
+      ...formData,
+      [field]: event.target.value,
+    });
+  };
+
+  const handleSelectChange = (field) => (event) => {
     setFormData({
       ...formData,
       [field]: event.target.value,
@@ -406,39 +424,51 @@ const CreateWorkflowDrawer = ({ open, onClose, onComplete }) => {
                 </Box>
               )}
 
-              {/* Step 3: Nodes Setup - Playground Canvas */}
+              {/* Step 3: Nodes Setup - Add AI Agent Form */}
               {currentStep === 3 && (
                 <Box
                   sx={{
                     display: "flex",
                     flexDirection: "column",
                     flex: 1,
-                    overflow: "hidden",
+                    overflow: "auto",
+                    px: 3,
+                    py: 4,
+                    position: "relative",
+                    zIndex: 1,
+                    pointerEvents: "auto",
+                    alignItems: "center",
                   }}
                 >
-                  <Box sx={{ flex: 1, minHeight: 0 }}>
-                    <Playground
-                      nodes={nodes}
-                      edges={edges}
-                      onNodesChange={handleNodesChange}
-                      onEdgesChange={handleEdgesChange}
-                      showToolbar={true}
-                      showFullscreenButton={true}
-                      height="100%"
-                      drawerZIndex={10001}
+                  <Box sx={{ width: "100%", maxWidth: 600 }}>
+                    <Typography
+                      variant="h5"
+                      sx={{
+                        fontWeight: 700,
+                        color: "text.primary",
+                        mb: 3,
+                      }}
+                    >
+                      Add AI Agents
+                    </Typography>
+                    
+                    <AddAIAgent
+                      formData={formData}
+                      onInputChange={handleInputChange}
+                      onSelectChange={handleSelectChange}
                     />
                   </Box>
                   
-                  {/* Navigation Buttons for Canvas */}
+                  {/* Navigation Buttons */}
                   <Box
                     sx={{
                       display: "flex",
                       justifyContent: "space-between",
                       gap: 1.5,
                       p: 2,
-                      borderTop: "1px solid",
-                      borderColor: "divider",
                       bgcolor: "background.paper",
+                      width: "100%",
+                      maxWidth: 600,
                     }}
                   >
                     <Button
