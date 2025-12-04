@@ -261,10 +261,8 @@ def get_node_parameters_concise(node_name: str) -> Dict[str, Any]:
     }
     
     # CRITICAL: Map Pydantic field names to flowchart JSON field names
-    # input_schema (Pydantic) -> table_schema (Flowchart JSON)
-    field_name_mapping = {
-        "input_schema": "table_schema"
-    }
+    # input_schema (Pydantic) -> input_schema (Flowchart JSON) - NO MAPPING NEEDED
+    field_name_mapping = {}
     
     # Add each field with type info and examples
     for field_name, field_info in all_properties.items():
@@ -303,9 +301,13 @@ def get_node_parameters_concise(node_name: str) -> Dict[str, Any]:
         
         # Add example value based on type
         if "example" not in field_spec and "value" not in field_spec:
-            # Special handling for table_schema (was input_schema)
-            if output_field_name == "table_schema":
-                field_spec["example"] = {"column1": "str", "column2": "int", "timestamp": "int"}
+            # Special handling for input_schema
+            if output_field_name == "input_schema":
+                field_spec["example"] = [
+                    {"key": "column1", "value": "str"},
+                    {"key": "column2", "value": "int"},
+                    {"key": "timestamp", "value": "int"}
+                ]
             else:
                 field_spec["example"] = _generate_example_value(field_info, definitions)
         

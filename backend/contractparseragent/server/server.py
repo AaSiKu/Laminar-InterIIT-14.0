@@ -476,7 +476,8 @@ async def websocket_endpoint(ws: WebSocket):
         # Wait for initial message with metric/description
         init_msg = await ws.receive_text()
         init_data = json.loads(init_msg)
-        output_dir = init_data.get("metrics_output_dir", "./generated_flowcharts")
+        # Always use the default output dir inside server folder
+        output_dir = str(DEFAULT_OUTPUT_DIR)
         api_key = init_data.get("anthropic_api_key")
 
         # Create a unique session id for this websocket connection and

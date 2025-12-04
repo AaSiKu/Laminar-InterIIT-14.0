@@ -14,10 +14,12 @@ def get_input_builder_prompt() -> str:
     
     spans_schema = get_node_pydantic_schema("open_tel_spans_input")
     filter_schema = get_node_pydantic_schema("filter")
+    trigger_rca_schema = get_node_pydantic_schema("trigger_rca")
     
     return INPUT_BUILDER_SYSTEM_PROMPT_TEMPLATE.format(
         open_tel_spans_schema=json.dumps(spans_schema.get("schema", {}), indent=2),
-        filter_schema=json.dumps(filter_schema.get("schema", {}), indent=2)
+        filter_schema=json.dumps(filter_schema.get("schema", {}), indent=2),
+        trigger_rca_schema=json.dumps(trigger_rca_schema.get("schema", {}), indent=2)
     )
 
 
@@ -49,6 +51,13 @@ BASE RULES (CRITICAL - ALWAYS FOLLOW):
    - The trace ID column is ALWAYS '_open_tel_trace_id' (not 'trace_id')
    - Similarly: '_open_tel_span_id', '_open_tel_start_time', '_open_tel_end_time', etc.
    - When joining or correlating spans, use '_open_tel_trace_id'
+
+2. ALLOWED REDUCERS for aggregations (group_by/window_by) - ONLY these are valid:
+    argmax, argmin, avg, count, count_distinct, count_distinct_approximate, 
+   earliest, latest, max, min, ndarray, sorted_tuple, stateful_many, stateful_single, 
+   sum, tuple, unique
+   - DO NOT use: p95, p99, percentile, median, or any other reducer not in this list
+   - For percentile calculations, you must use alternative approaches
 
 TASK:
 1. Propose a macro plan as a small ordered list of steps that transform the already-filtered spans into the final SLA metric.
@@ -95,10 +104,20 @@ CURRENT STEP TO IMPLEMENT:
 AVAILABLE NODE TYPES (with behavior descriptions):
 {catalog_block}
 
+ALLOWED REDUCERS (if using group_by or window_by):
+When selecting group_by or window_by nodes, remember that ONLY these reducer values are valid:
+any, argmax, argmin, avg, count, count_distinct, count_distinct_approximate, earliest, latest, 
+max, min, ndarray, sorted_tuple, stateful_many, stateful_single, sum, tuple, unique
+DO NOT plan to use: p95, p99, percentile, median, or any other reducer.
+
+ALLOWED FILTER OPERATORS (if using filter):
+For filter nodes, ONLY these operators are valid: "==", "!=", "<", "<=", ">", ">=", "startswith", "endswith", "find"
+
 TASK:
 1. Optionally refine the macro plan if you realize a better decomposition.
 2. Decide which ONE node type from the catalog would best implement the current step.
 3. Identify which existing nodes this new node should connect to (by their node ids).
+4. If choosing group_by or window_by, ensure your plan only uses allowed reducers.
 
 OUTPUT FORMAT (STRICT JSON ONLY):
 {{
@@ -122,6 +141,44 @@ CORRECT: Filter on trace: {{"col": "_open_tel_trace_id", "op": "==", "value": ".
 CORRECT: Time column: {{"time_col": "_open_tel_start_time"}}
 
 NEVER USE: "trace_id", "span_id", "start_time" without the '_open_tel_' prefix!
+
+ALLOWED REDUCERS (FOR group_by AND window_by NODES ONLY):
+When creating 'reducers' lists in group_by or window_by nodes, the 'reducer' field MUST be one of these EXACT values:
+- "argmax" - Returns the argument (row) with the maximum value
+- "argmin" - Returns the argument (row) with the minimum value
+- "avg" - Calculates the average (mean) of values
+- "count" - Counts the number of rows in the group
+- "count_distinct" - Counts the number of distinct values
+- "count_distinct_approximate" - Approximate count of distinct values (faster)
+- "earliest" - Returns the earliest value based on processing time
+- "latest" - Returns the latest value based on processing time
+- "max" - Returns the maximum value
+- "min" - Returns the minimum value
+- "ndarray" - Collects values into a NumPy array
+- "sorted_tuple" - Collects values into a sorted tuple
+- "stateful_many" - Custom stateful aggregation returning multiple values
+- "stateful_single" - Custom stateful aggregation returning a single value
+- "sum" - Calculates the sum of values
+- "tuple" - Collects values into a tuple
+- "unique" - Returns unique values (fails if multiple distinct values exist)
+
+DO NOT use any reducer names not in this list (e.g., NO "p95", "p99", "percentile", "median", etc.).
+For percentiles, you must use a different approach or post-processing.
+
+ALLOWED FILTER OPERATORS (FOR filter NODES ONLY):
+When creating 'filters' lists in filter nodes, the 'op' field MUST be one of these EXACT values:
+- "==" - Equal to (for any type)
+- "!=" - Not equal to (for any type)
+- "<" - Less than (for numeric types)
+- "<=" - Less than or equal to (for numeric types)
+- ">" - Greater than (for numeric types)
+- ">=" - Greater than or equal to (for numeric types)
+- "startswith" - String starts with (for string columns only)
+- "endswith" - String ends with (for string columns only)
+- "find" - String contains (for string columns only)
+
+DO NOT use any operators not in this list (e.g., NO "contains", "in", "like", "matches", etc.).
+For string matching, use "startswith", "endswith", or "find".
 
 PYDANTIC SCHEMA FOR '{selected_node_id}':
 {pydantic_schema}
@@ -147,6 +204,7 @@ CRITICAL TIME DURATION RULE:
 - For any time-based parameters: use nanoseconds (large numbers are expected and correct)
 
 OTHER CRITICAL INSTRUCTIONS:
+
 1. Your output 'properties' dict MUST match the field names in schema['properties'] EXACTLY
 2. For nested types (objects with $ref), look in schema['$defs'] for the structure
 3. Pay attention to required vs optional fields
@@ -154,6 +212,7 @@ OTHER CRITICAL INSTRUCTIONS:
    - For window_by: use 'duration' and 'window_type' (NOT 'length' and 'type')
    - For joins: use tuples like [["col1", "col2"]] in the 'on' field
 5. Exclude these structural fields from properties: node_id, category, n_inputs
+
 
 CONTEXT:
 - New node will be: {new_node_internal_id}
@@ -177,7 +236,8 @@ Your ONLY responsibility in this phase is to:
 3. When ready, output a VALID FLOWCHART JSON that contains:
    - Exactly ONE input node of type "open_tel_spans_input".
    - One or more "filter" nodes that select the relevant spans for the metrics.
-   - Edges from the input node to each filter node.
+   - Exactly ONE "trigger_rca" node at the end (for root cause analysis).
+   - Edges from the input node to each filter node, and from ALL filter nodes to the trigger_rca node.
 
 ALL DATA COMES FROM A SINGLE SPANS INPUT NODE:
 - Node type: "open_tel_spans_input" (OpenTelSpansNode)
@@ -187,17 +247,33 @@ YOU MUST USE FILTER NODES TO SELECT SPECIFIC SPAN STREAMS:
 - Node type: "filter" (FilterNode)
 - Semantics: filters rows based on column conditions.
 
+YOU MUST INCLUDE A TRIGGER_RCA NODE AT THE END:
+- Node type: "trigger_rca" (TriggerRCANode)
+- Semantics: triggers root cause analysis on SLA metric violations by correlating trace identifiers.
+- This node receives data from ALL filter nodes to monitor for SLA violations and generate diagnostic insights.
+
 PYDANTIC SCHEMA FOR 'open_tel_spans_input':
 {open_tel_spans_schema}
 
 PYDANTIC SCHEMA FOR 'filter':
 {filter_schema}
 
+PYDANTIC SCHEMA FOR 'trigger_rca':
+{trigger_rca_schema}
+
+ALLOWED FILTER OPERATORS:
+When creating filter nodes, the 'op' field in each filter condition MUST be one of these EXACT values:
+- "==" (equal), "!=" (not equal)
+- "<", "<=", ">", ">=" (numeric comparisons)
+- "startswith", "endswith", "find" (string operations)
+DO NOT use: "contains", "in", "like", "matches", or any other operator.
+
 CRITICAL INSTRUCTIONS FOR NODE PROPERTIES:
 1. Your output 'properties' dict MUST match the field names in the Pydantic schemas EXACTLY
 2. For nested types (objects with $ref), look in schema['$defs'] for the structure
 3. Pay attention to required vs optional fields
 4. For filter nodes, the 'filters' field expects a list of objects with 'col', 'op', 'value'
+   where 'op' MUST be one of the allowed operators listed above
 5. Exclude these structural fields from properties: node_id, category, n_inputs
 
 GLOBAL SPANS TABLE (conceptual columns available after open_tel_spans_input):
@@ -228,11 +304,13 @@ INTERACTION STYLE (NEGOTIATION):
   - You: "Got it. Now for the second metric..."
 
 SCOPE LIMITATION (VERY IMPORTANT):
-- DO NOT create any nodes other than:
-  - "open_tel_spans_input"
-  - "filter"
-- DO NOT perform joins, windowing, aggregations, or alerts in this phase.
+- You MUST create exactly these node types:
+  - ONE "open_tel_spans_input" node
+  - One or more "filter" nodes (one per metric or shared if appropriate)
+  - ONE "trigger_rca" node at the end
+- DO NOT perform joins, windowing, or aggregations in this phase.
   That work happens in a later phase.
+- The trigger_rca node is REQUIRED and must be connected to ALL filter nodes.
 
 FINAL OUTPUT FORMAT (STRICT):
 - When you have gathered enough information and confirmed it with the user, you MUST output exactly one JSON object with this shape:
@@ -277,19 +355,37 @@ FINAL OUTPUT FORMAT (STRICT):
           "filters": [...]
         }}
       }}
-    }}
+    }},
     // one filter node per metric (or shared if appropriate)
+    {{
+      "id": "n3",
+      "node_id": "trigger_rca",
+      "category": "agent",
+      "data": {{
+        "properties": {{
+          "metric_description": "Monitor OpenTelemetry spans for SLA violations and trigger root cause analysis when thresholds are exceeded."
+        }}
+      }}
+    }}
   ],
   "edges": [
     {{"source": "n0", "target": "n1"}},
-    {{"source": "n0", "target": "n2"}}
-    // one edge from the input node to each filter node
+    {{"source": "n0", "target": "n2"}},
+    // edges from input node to each filter node
+    {{"source": "n1", "target": "n3"}},
+    {{"source": "n2", "target": "n3"}}
+    // edges from ALL filter nodes to the trigger_rca node
   ]
 }}
 
 VALIDITY RULES:
-- "node_id" MUST be exactly "open_tel_spans_input" or "filter".
-- "category" MUST match the Pydantic schema ("io" for open_tel_spans_input, "table" for filter).
+- "node_id" MUST be exactly "open_tel_spans_input", "filter", or "trigger_rca".
+- "category" MUST match the Pydantic schema:
+  - "io" for open_tel_spans_input
+  - "table" for filter
+  - "agent" for trigger_rca
+- You MUST include exactly ONE trigger_rca node as the final node in the pipeline.
+
 - The "data.properties" object for each node MUST be consistent with the Pydantic model schemas for OpenTelSpansNode and FilterNode.
   - Use only field names that appear in those schemas.
   - For "filters", use only valid operators (==, !=, <, <=, >, >=, startswith, endswith, find).
@@ -345,8 +441,8 @@ TASK:
 EXAMPLE STEPS:
 - "Join charge spans with send-webhook spans on _open_tel_trace_id"
 - "Compute latency = right_start_time_unix_nano - left_start_time_unix_nano"
-- "Window by 1-hour tumbling windows on _pw_left_start_time_unix_nano and compute p95(latency)"
-- "Filter windows where p95_latency >= 2 seconds"
+- "Window by 1-hour tumbling windows on _pw_left_start_time_unix_nano and compute max(latency)"
+- "Filter windows where max_latency >= 2 seconds"
 - "Trigger RCA alert for windows exceeding the SLA threshold"
 
 OUTPUT FORMAT (STRICT JSON, NO EXTRA TEXT):
@@ -364,6 +460,9 @@ RULES:
 - Each string in "macro_plan" MUST describe an operation that can be built with the existing node catalog.
 - Do NOT mention any node_id that does not appear in the catalog.
 - Do NOT invent new reducers, functions, or magic nodes.
+- For aggregations, ONLY use these valid reducers: any, argmax, argmin, avg, count, count_distinct, 
+  count_distinct_approximate, earliest, latest, max, min, ndarray, sorted_tuple, stateful_many, 
+  stateful_single, sum, tuple, unique. DO NOT use p95, p99, percentile, or median.
 - Do NOT output markdown, comments, or explanation outside the JSON object.
 """
 
@@ -379,6 +478,11 @@ YOU MUST OBEY THESE CONSTRAINTS:
 - You must obey the Pydantic schemas provided for those nodes (field names, types, required flags).
 - You must connect the new node to existing nodes using valid node ids or well-defined stream names.
 - You MUST NOT invent new node types or fields.
+- For group_by and window_by nodes: the 'reducer' field in ReducerDict MUST be one of these EXACT values:
+  any, argmax, argmin, avg, count, count_distinct, count_distinct_approximate, 
+  earliest, latest, max, min, ndarray, sorted_tuple, stateful_many, stateful_single, 
+  sum, tuple, unique
+  DO NOT use p95, p99, percentile, median, or any other reducer not in this list.
 
 CONTEXT PROVIDED TO YOU:
 - FULL MACRO PLAN: ordered list of steps.
@@ -442,6 +546,10 @@ GLOBAL SPANS TABLE COLUMNS:
 - attributes (json)
 - resource_attributes (json)
 - scope_name
+
+ALLOWED FILTER OPERATORS:
+The 'op' field MUST be one of: "==", "!=", "<", "<=", ">", ">=", "startswith", "endswith", "find"
+DO NOT use any other operators.
 
 TASK:
 Generate a JSON object representing a "filter" node that isolates the spans needed for this metric.
