@@ -49,7 +49,7 @@ async def lifespan(app: FastAPI):
     version_collection = db[VERSION_COLLECTION]
     notification_collection = db[NOTIFICATION_COLLECTION]
     action_collection = db[ACTION_COLLECTION]
-    print(f"Connected to MongoDB at {MONGO_URI}, DB: {MONGO_DB}", flush=True)
+    print(f"Connected to MongoDB, DB: {MONGO_DB}", flush=True)
 
     # Create SQL database tables for users
     try:

@@ -10,7 +10,6 @@ connection_string= {
     "dbname": os.getenv("POSTGRES_DB", "db"),
     "user": os.getenv("POSTGRES_USER"),
     "password": os.getenv("POSTGRES_PASSWORD"),
-    
 }
 
 
