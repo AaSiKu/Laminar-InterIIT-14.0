@@ -28,6 +28,13 @@ class UserOut(BaseModel):
     full_name: Optional[str] = None
     role: Optional[str] = None
 
+class UserListOut(BaseModel):
+    id: str
+    email: EmailStr
+    full_name: Optional[str] = None
+    role: str
+    is_active: bool
+
 class Token(BaseModel):
     access_token: str
     token_type: str = "bearer"

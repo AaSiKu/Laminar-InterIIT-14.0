@@ -1,5 +1,6 @@
-import { createContext, useContext, useState } from "react";
+import { createContext, useContext, useState, useEffect } from "react";
 import { AuthContext } from "./AuthContext";
+import { fetchAllWorkflows, fetchPreviousNotifications } from "../utils/developerDashboard.api";
 
 const GlobalContext = createContext();
 
@@ -15,7 +16,10 @@ export const GlobalContextProvider = ({ children }) => {
   const { login, user, logout, isAuthenticated } = useContext(AuthContext);
   const [sidebarOpen, setSideBarOpen] = useState(false);
   const { fileStructure, setFileStructure } = useState({});
-  const [agentContainerId, setAgentContainerId] = useState(null);
+  const [workflows, setWorkflows] = useState([]);
+  const [notifications, setNotifications] = useState([]);
+  const [currentVersionId, setCurrentVersionId] = useState(null);
+  const [agentContainerId, setAgentContainerId]=useState(null);
 
   const globalContextValue = {
     user,
@@ -36,7 +40,31 @@ export const GlobalContextProvider = ({ children }) => {
     fileStructure,
     setFileStructure,
     logout,
+    workflows,
+    setWorkflows,
+    notifications,
+    setNotifications,
   };
+
+  // Fetch workflows and notifications on mount
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        const workflowResponse = await fetchAllWorkflows();
+        if (workflowResponse.status === "success" && workflowResponse.data) {
+          setWorkflows(workflowResponse.data);
+        }
+
+        const previousNotifications = await fetchPreviousNotifications();
+        setNotifications(previousNotifications);
+      } catch (err) {
+        console.error("Error loading workflows and notifications:", err);
+        setError(err.message || "Failed to load data");
+      }
+    };
+
+    loadData();
+  }, []);
 
   return (
     <GlobalContext.Provider value={globalContextValue}>

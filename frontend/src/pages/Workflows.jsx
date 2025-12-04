@@ -13,6 +13,7 @@ import {
   saveDraftsAPI,
   fetchAndSetPipeline,
 } from "../utils/pipelineUtils";
+import { fetchAllWorkflows } from "../utils/developerDashboard.api";
 import PipelineNavBar from "../components/workflow/PipelineNavBar";
 import Playground from "../components/workflow/Playground";
 import RunBook from "../components/workflow/RunBook";
@@ -51,6 +52,8 @@ export default function WorkflowPage() {
     containerId,
     setContainerId,
     user,
+    setViewport,
+    workflows,
   } = useGlobalContext();
 
   const {
@@ -66,10 +69,14 @@ export default function WorkflowPage() {
     rfInstance,
     versionId: currentVersionId,
     setVersionId: setCurrentVersionId,
-    setViewport,
   } = useGlobalWorkflow();
 
-  // Auto-save drafts when pipeline changes, TODO: check for debounce
+  // Track loaded pipeline to prevent re-loading
+  const loadedPipelineRef = useRef(null);
+  const isLoadingRef = useRef(false);
+  const viewportDataRef = useRef(null); // Store viewport data for applying when rfInstance is ready
+
+  // Load pipeline data when pipelineId changes (from URL), TODO: check for debounce
 
   /*
       setCurrentEdges,
@@ -84,19 +91,172 @@ export default function WorkflowPage() {
    */
 
   useEffect(() => {
-    if (currentPipelineId) {
-      setLoading(true);
-
-      saveDraftsAPI(
-        currentVersionId,
-        rfInstance,
-        setCurrentVersionId,
-        setLoading,
-        setError,
-      )
-        .catch((err) => setError(err.message))
-        .finally(() => setLoading(false));
+    // Skip if no pipelineId
+    if (!pipelineId) {
+      return;
     }
+
+    // Skip if already loading or already loaded this pipeline
+    if (isLoadingRef.current || loadedPipelineRef.current === pipelineId) {
+      return;
+    }
+
+    let isMounted = true;
+    isLoadingRef.current = true;
+
+    const loadPipelineData = async () => {
+      setLoading(true);
+      setError(null);
+
+      try {
+        // First, try to find the workflow in the workflows list to get current_version_id
+        let versionId = null;
+        const workflow = workflows?.find((w) => w._id === pipelineId);
+
+        if (workflow && workflow.current_version_id) {
+          versionId = workflow.current_version_id;
+        } else {
+          // If not found in workflows list, fetch from retrieve_all
+          const workflowResponse = await fetchAllWorkflows();
+          if (workflowResponse.status === "success" && workflowResponse.data) {
+            const foundWorkflow = workflowResponse.data.find(
+              (w) => w._id === pipelineId
+            );
+            if (foundWorkflow && foundWorkflow.current_version_id) {
+              versionId = foundWorkflow.current_version_id;
+            }
+          }
+        }
+
+        if (!versionId) {
+          throw new Error(
+            "Could not find version ID for this pipeline. The pipeline may not exist or you may not have access to it."
+          );
+        }
+
+        // Use fetchAndSetPipeline to load the pipeline data
+        const result = await fetchAndSetPipeline(pipelineId, versionId, {
+          setCurrentPipelineId,
+          setCurrentVersionId,
+          setError,
+          setLoading,
+          setCurrentEdges,
+          setCurrentNodes,
+          setViewport: null, // Don't use setViewport from context, we'll apply it via rfInstance
+          setCurrentPipelineStatus,
+          setContainerId,
+        });
+
+        // Store viewport data for applying when rfInstance is ready
+        if (result?.version?.pipeline?.viewport) {
+          viewportDataRef.current = result.version.pipeline.viewport;
+        }
+
+        // Mark as loaded
+        if (isMounted) {
+          loadedPipelineRef.current = pipelineId;
+        }
+      } catch (err) {
+        console.error("Error loading pipeline:", err);
+        if (isMounted) {
+          setError(err.message || "Failed to load pipeline data");
+          setLoading(false);
+        }
+      } finally {
+        if (isMounted) {
+          isLoadingRef.current = false;
+        }
+      }
+    };
+
+    loadPipelineData();
+
+    return () => {
+      isMounted = false;
+      isLoadingRef.current = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pipelineId]); // Only depend on pipelineId to avoid infinite loops
+
+  // Reset loaded ref when pipelineId changes
+  useEffect(() => {
+    if (pipelineId && loadedPipelineRef.current !== pipelineId) {
+      loadedPipelineRef.current = null;
+      viewportDataRef.current = null;
+    }
+  }, [pipelineId]);
+
+  // Apply viewport when rfInstance and nodes are ready
+  useEffect(() => {
+    if (rfInstance && viewportDataRef.current && currentNodes.length > 0) {
+      const viewport = viewportDataRef.current;
+      try {
+        if (rfInstance.setViewport) {
+          rfInstance.setViewport(viewport, { duration: 0 });
+          viewportDataRef.current = null; // Clear after applying
+        } else if (rfInstance.fitView) {
+          // Fallback to fitView if setViewport not available
+          rfInstance.fitView({ padding: 0.2, maxZoom: 0.9, duration: 0 });
+          viewportDataRef.current = null;
+        }
+      } catch (error) {
+        console.error("Error applying viewport:", error);
+      }
+    }
+  }, [rfInstance, currentNodes]);
+
+  // Debug: Log nodes and edges when they change
+  useEffect(() => {
+    console.log("Current nodes in Workflows page:", {
+      count: currentNodes.length,
+      nodes: currentNodes,
+      edges: currentEdges,
+    });
+  }, [currentNodes, currentEdges]);
+
+  // Auto-save drafts when pipeline changes (skip initial load)
+  const isInitialLoadRef = useRef(true);
+  const lastSavedRef = useRef({ pipelineId: null, versionId: null });
+
+  useEffect(() => {
+    // Skip auto-save on initial load
+    if (isInitialLoadRef.current) {
+      isInitialLoadRef.current = false;
+      lastSavedRef.current = {
+        pipelineId: currentPipelineId,
+        versionId: currentVersionId,
+      };
+      return;
+    }
+
+    // Skip if already saved for this pipeline/version combination
+    if (
+      lastSavedRef.current.pipelineId === currentPipelineId &&
+      lastSavedRef.current.versionId === currentVersionId
+    ) {
+      return;
+    }
+
+    // Skip if loading or missing required data
+    if (loading || !currentPipelineId || !currentVersionId || !rfInstance) {
+      return;
+    }
+
+    // Update last saved ref before saving
+    lastSavedRef.current = {
+      pipelineId: currentPipelineId,
+      versionId: currentVersionId,
+    };
+
+    saveDraftsAPI(
+      currentVersionId,
+      rfInstance,
+      setCurrentVersionId,
+      setLoading,
+      setError
+    )
+      .catch((err) => setError(err.message))
+      .finally(() => setLoading(false));
   }, [
     currentPipelineId,
     currentVersionId,
@@ -106,22 +266,19 @@ export default function WorkflowPage() {
     setError,
   ]);
 
-  useEffect(()=>{
-    fetchAndSetPipeline(
-        currentPipelineId,
-        currentVersionId,
-        {
-          setCurrentPipelineId,
-          setCurrentVersionId,
-          setError,
-          setLoading,
-          setCurrentEdges,
-          setCurrentNodes,
-          setViewport,
-          setCurrentPipelineStatus,
-          setContainerId,
-        }
-      )}, [])
+  useEffect(() => {
+    fetchAndSetPipeline(currentPipelineId, currentVersionId, {
+      setCurrentPipelineId,
+      setCurrentVersionId,
+      setError,
+      setLoading,
+      setCurrentEdges,
+      setCurrentNodes,
+      setViewport,
+      setCurrentPipelineStatus,
+      setContainerId,
+    });
+  }, []);
 
   // Pipeline status toggle handler
   const handleToggleStatus = useCallback(async () => {

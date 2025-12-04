@@ -27,13 +27,16 @@ export function AvatarStack({ count }) {
           },
         }}
       >
-      {Array.from({ length: displayCount }).map((_, i) => (
+      {Array.from({ length: displayCount }).map((_, i) => {
+        const avatarUrl = `https://avatar.iran.liara.run/public/boy?username=${encodeURIComponent(`member${i}`)}&size=32`;
+        return (
           <Avatar
             key={i}
-            src={`https://i.pravatar.cc/40?img=${i + 10}`}
+            src={avatarUrl}
             alt="Member"
           />
-      ))}
+        );
+      })}
       {extraCount > 0 && (
           <Avatar
             sx={{

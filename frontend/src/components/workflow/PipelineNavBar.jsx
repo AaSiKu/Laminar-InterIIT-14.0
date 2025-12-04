@@ -1,4 +1,4 @@
-import { useState, useContext } from "react";
+import { useState, useContext, useEffect } from "react";
 import { AppBar, Toolbar, Box, IconButton, Typography, Button, Menu, MenuItem, CircularProgress, Tooltip, Avatar, Badge, ListItemIcon, ListItemText, Divider, Switch, styled } from "@mui/material";
 import { ArrowBack as ArrowBackIcon, Share as ShareIcon, Fullscreen as FullscreenIcon, KeyboardArrowDown as KeyboardArrowDownIcon, DarkMode as DarkModeIcon, LightMode as LightModeIcon, Logout as LogoutIcon } from "@mui/icons-material";
 import { useTheme, useColorScheme } from "@mui/material/styles";
@@ -61,6 +61,8 @@ const PipelineNavBar = ({
   const [avatarAnchorEl, setAvatarAnchorEl] = useState(null);
   const avatarOpen = Boolean(avatarAnchorEl);
   const [shareDialogOpen, setShareDialogOpen] = useState(false);
+  const [currentUser, setCurrentUser] = useState(null);
+  const [loadingUser, setLoadingUser] = useState(false);
 
   // Generate avatar URL from the service
   const getAvatarUrl = () => {
@@ -68,6 +70,30 @@ const PipelineNavBar = ({
     const identifier = user?.id || user?.name || userAvatar || 'default';
     return `https://avatar.iran.liara.run/public/boy?username=${encodeURIComponent(identifier)}&size=32`;
   };
+
+  // Fetch current user details when menu opens
+  useEffect(() => {
+    if (avatarOpen && !currentUser && !loadingUser) {
+      const fetchUser = async () => {
+        setLoadingUser(true);
+        try {
+          const response = await fetch(
+            `${import.meta.env.VITE_API_SERVER}/auth/me`,
+            { credentials: "include" }
+          );
+          if (response.ok) {
+            const userData = await response.json();
+            setCurrentUser(userData);
+          }
+        } catch (error) {
+          console.error("Error fetching user details:", error);
+        } finally {
+          setLoadingUser(false);
+        }
+      };
+      fetchUser();
+    }
+  }, [avatarOpen, currentUser, loadingUser]);
 
   const handleAvatarClick = (event) => {
     setAvatarAnchorEl(event.currentTarget);
@@ -436,6 +462,70 @@ const PipelineNavBar = ({
               },
             }}
           >
+            {/* User Info Section */}
+            <Box
+              sx={{
+                px: 2,
+                py: 2,
+                mx: 1,
+                my: 0.5,
+                borderRadius: 1,
+                bgcolor: 'action.hover',
+              }}
+            >
+              {loadingUser ? (
+                <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+                  Loading...
+                </Typography>
+              ) : currentUser ? (
+                <Box>
+                  <Typography
+                    variant="body2"
+                    sx={{
+                      fontWeight: 600,
+                      color: 'text.primary',
+                      mb: 0.5,
+                    }}
+                  >
+                    {currentUser.full_name || 'User'}
+                  </Typography>
+                  <Typography
+                    variant="caption"
+                    sx={{
+                      color: 'text.secondary',
+                      fontSize: '0.75rem',
+                    }}
+                  >
+                    {currentUser.email || ''}
+                  </Typography>
+                </Box>
+              ) : (
+                <Box>
+                  <Typography
+                    variant="body2"
+                    sx={{
+                      fontWeight: 600,
+                      color: 'text.primary',
+                      mb: 0.5,
+                    }}
+                  >
+                    {user?.name || user?.full_name || 'User'}
+                  </Typography>
+                  <Typography
+                    variant="caption"
+                    sx={{
+                      color: 'text.secondary',
+                      fontSize: '0.75rem',
+                    }}
+                  >
+                    {user?.email || ''}
+                  </Typography>
+                </Box>
+              )}
+            </Box>
+            <Divider sx={{ my: 0.5 }} />
+            
+            {/* Dark Mode Toggle */}
             <Box
               sx={{
                 display: 'flex',

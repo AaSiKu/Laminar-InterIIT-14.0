@@ -1,7 +1,18 @@
 import { useState, useEffect, useCallback } from "react";
-import { Typography, Slide, Box, IconButton, Button, CircularProgress } from "@mui/material";
+import {
+  Typography,
+  Button,
+  IconButton,
+  Slide,
+  Box,
+  CircularProgress,
+  Snackbar,
+  Alert,
+  useTheme,
+} from "@mui/material";
 import CloseIcon from "@mui/icons-material/Close";
 import Playground from "../workflow/Playground";
+import { fetchAllUsers, createPipelineWithDetails } from "../../utils/developerDashboard.api";
 import StepSidebar, { STEP_SIDEBAR_COLLAPSED_WIDTH } from "./StepSidebar";
 import BasicInformationForm from "./BasicInformationForm";
 
@@ -21,23 +32,31 @@ const CreateWorkflowDrawer = ({ open, onClose, onComplete }) => {
     description: "",
     members: "",
     document: null,
+    selectedMembers: [],
   });
+  const [snackbar, setSnackbar] = useState({ open: false, message: "", severity: "success" });
 
   // Pipeline nodes and edges state (managed here, passed to Playground)
   const [nodes, setNodes] = useState([]);
   const [edges, setEdges] = useState([]);
-  
+  const [allUsers, setAllUsers] = useState([]);
+  const [loadingUsers, setLoadingUsers] = useState(false);
+
   // AI chatbot state
   const [isGenerating, setIsGenerating] = useState(false);
 
-  // Reset form when drawer opens
+  // TODO: not to do so Reset form when drawer opens
   useEffect(() => {
     if (open) {
       setCurrentStep(1);
-      setFormData({ name: "", description: "", members: "", document: null });
+      setFormData({ name: "", description: "", members: "",  document: null, selectedMembers: [] });
       setNodes([]);
       setEdges([]);
       setIsGenerating(false);
+    } else {
+      // Reset users list when drawer closes to fetch fresh data next time
+      setAllUsers([])
+      setLoadingUsers(false);
     }
   }, [open]);
 
@@ -51,16 +70,65 @@ const CreateWorkflowDrawer = ({ open, onClose, onComplete }) => {
     if (currentStep < steps.length) {
       setCurrentStep(currentStep + 1);
     } else {
-      // Complete workflow creation
-      if (onComplete) {
-        onComplete({
-          ...formData,
-          nodes,
-          edges,
+      // Step 3: Create workflow with all details using the new API
+      try {
+        // Extract viewer IDs from selected members
+        const viewerIds = formData.selectedMembers.map((user) => String(user.id));
+        
+        // Build pipeline structure from nodes and edges
+        const pipeline = {
+          nodes: nodes || [],
+          edges: edges || [],
+          viewport: {
+            x: 0,
+            y: 0,
+            zoom: 1
+          }
+        };
+
+        // Call the new API to create pipeline with all details
+        const result = await createPipelineWithDetails(
+          formData.name,
+          formData.description,
+          viewerIds,
+          pipeline
+        );
+
+        // Show success message
+        setSnackbar({
+          open: true,
+          message: "Pipeline created successfully!",
+          severity: "success",
+        });
+
+        // Complete workflow creation
+        if (onComplete) {
+          onComplete({
+            ...formData,
+            nodes,
+            edges,
+            pipelineId: result.pipeline_id,
+            versionId: result.version_id,
+          });
+        }
+
+        // Close drawer after a short delay to show the success message
+        setTimeout(() => {
+          onClose();
+        }, 1500);
+      } catch (error) {
+        console.error("Error creating workflow:", error);
+        setSnackbar({
+          open: true,
+          message: `Failed to create pipeline: ${error.message}`,
+          severity: "error",
         });
       }
-      onClose();
     }
+  };
+
+  const handleCloseSnackbar = () => {
+    setSnackbar({ ...snackbar, open: false });
   };
 
   const handleInputChange = (field) => (event) => {
@@ -251,6 +319,10 @@ const CreateWorkflowDrawer = ({ open, onClose, onComplete }) => {
                       formData={formData}
                       onInputChange={handleInputChange}
                       onFileChange={handleFileChange}
+                      allUsers={allUsers}
+                      setAllUsers={setAllUsers}
+                      loadingUsers={loadingUsers}
+                      setLoadingUsers={setLoadingUsers}
                     />
 
                     {/* Navigation Buttons */}
@@ -574,6 +646,22 @@ const CreateWorkflowDrawer = ({ open, onClose, onComplete }) => {
           </Box>
         </Box>
       </Slide>
+
+      {/* Snackbar for notifications */}
+      <Snackbar
+        open={snackbar.open}
+        autoHideDuration={4000}
+        onClose={handleCloseSnackbar}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+      >
+        <Alert 
+          onClose={handleCloseSnackbar} 
+          severity={snackbar.severity} 
+          sx={{ borderRadius: 2 }}
+        >
+          {snackbar.message}
+        </Alert>
+      </Snackbar>
     </>
   );
 };
