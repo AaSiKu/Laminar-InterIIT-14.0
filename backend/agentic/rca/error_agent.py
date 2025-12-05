@@ -1,5 +1,5 @@
 from typing import List, Dict
-from langchain.agents import create_agent
+from langchain_core.messages import HumanMessage, SystemMessage
 from .output import RCAAnalysisOutput
 from datetime import datetime
 from ..llm_factory import create_analyser_model
@@ -71,7 +71,7 @@ Output a structured response with all required fields.
 
 
 
-error_analysis_agent = None
+structured_analyser_model = None
 input_scanner = None
 
 def format_timestamp(unix_nano: int) -> str:
@@ -116,37 +116,34 @@ def format_logs_for_analysis(logs_by_trace: Dict[str, List[Dict]]) -> str:
     return "\n".join(formatted_output)
 
 async def init_error_analysis_agent():
-    """Initialize the error analysis agent"""
-    global error_analysis_agent, input_scanner
-    error_analysis_agent = create_agent(
-        model=analyser_model,
-        tools=[],  # No tools needed for this analysis
-        system_prompt=error_analysis_prompt,
-        response_format=RCAAnalysisOutput
-    )
+    """Initialize the error analysis model with structured output"""
+    global structured_analyser_model, input_scanner
+    # Use direct structured output instead of agent framework for simpler, more reliable parsing
+    structured_analyser_model = analyser_model.with_structured_output(RCAAnalysisOutput)
     input_scanner = InputScanner()
     await input_scanner.preload_models()
 
-async def analyze_error_logs(logs_by_trace: Dict[str, List[Dict]]) -> RCAAnalysisOutput:
+async def analyze_error_logs(logs_by_trace: Dict[str, List[Dict]], skip_security_scan: bool = False) -> RCAAnalysisOutput:
     """
     Analyze error logs to identify root causes of failures.
     
     Args:
         logs_by_trace: Dictionary mapping trace_id to list of log dictionaries
+        skip_security_scan: If True, skip security scanning (use for trusted internal log data)
         
     Returns:
-        ErrorAnalysisOutput with structured analysis
+        RCAAnalysisOutput with structured analysis
     """
-    if error_analysis_agent is None:
-        print("Initializing error analysis agent")
+    if structured_analyser_model is None:
+        print("Initializing error analysis model")
         await init_error_analysis_agent()
-        print("Initialized error analysis agent")
+        print("Initialized error analysis model")
 
     # Format logs for analysis
     formatted_logs = format_logs_for_analysis(logs_by_trace)
     
-    # Scan formatted logs
-    if input_scanner:
+    # Scan formatted logs (skip for trusted internal data like system logs)
+    if input_scanner and not skip_security_scan:
         scan_result = await input_scanner.scan(formatted_logs)
         if not scan_result.is_safe:
             raise ValueError(f"Security scan failed: {scan_result.sanitized_input}")
@@ -159,15 +156,10 @@ async def analyze_error_logs(logs_by_trace: Dict[str, List[Dict]]) -> RCAAnalysi
         f"a clear narrative, and cite specific log entries as evidence."
     )
     
-    result = await error_analysis_agent.ainvoke(
-        {
-            "messages": [
-                {
-                    "role": "user",
-                    "content": analysis_prompt
-                }
-            ]
-        }
-    )
+    # Use direct LLM call with structured output - simpler and more reliable than agent framework
+    result = await structured_analyser_model.ainvoke([
+        SystemMessage(content=error_analysis_prompt),
+        HumanMessage(content=analysis_prompt)
+    ])
     
-    return result["structured_response"]
+    return result
