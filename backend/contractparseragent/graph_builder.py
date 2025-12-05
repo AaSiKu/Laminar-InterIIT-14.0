@@ -14,11 +14,10 @@ if backend_root_str not in sys.path:
     sys.path.insert(0, backend_root_str)
 
 from lib.utils import get_node_class_map
-from contractparseragent.node_tool import get_node_parameters_concise, get_node_pydantic_schema
+from contractparseragent.node_tool import get_node_pydantic_schema
 from contractparseragent.agent_prompts import MACRO_PLAN_PROMPT_TEMPLATE, STEP1_PROMPT_TEMPLATE, STEP2_PROMPT_TEMPLATE
 
 NODE_CATALOG_PATH = BASE_DIR / "node_catalog.json"
-NODE_SCHEMAS_PATH = BASE_DIR / "node_schemas.json"
 
 CLAUDE_MODEL = "claude-sonnet-4-5-20250929"
 
@@ -29,43 +28,11 @@ if not API_KEY:
 client = Anthropic(api_key=API_KEY)
 
 
-def refresh_node_schemas() -> Dict[str, Any]:
-    """Generate and persist concise schemas for all non-input nodes.
-
-    This now delegates to get_node_parameters_concise so that the prompt
-    format matches the flowchart JSON structure expected by the system.
-    """
-    node_map = get_node_class_map()
-    schemas: Dict[str, Any] = {}
-
-    for node_id in node_map.keys():
-        # Skip IO readers (we only want non-input and writer/transform/action nodes)
-        concise = get_node_parameters_concise(node_id)
-        if "error" in concise:
-            continue
-        # Basic heuristic: ignore pure input connectors except open_tel spans/metrics/logs
-        cat = concise.get("category", {}).get("value", "")
-        if cat == "io" and node_id not in ["open_tel_spans_input", "open_tel_metrics_input", "open_tel_logs_input"]:
-            continue
-        schemas[node_id] = concise
-
-    NODE_SCHEMAS_PATH.write_text(json.dumps(schemas, indent=2), encoding="utf-8")
-    return schemas
-
-
-def load_node_catalog() -> Dict[str, Any]:
-    with NODE_CATALOG_PATH.open("r", encoding="utf-8") as f:
-        return json.load(f)
-
-
-def load_node_schemas() -> Dict[str, Any]:
-    if not NODE_SCHEMAS_PATH.exists():
-        return refresh_node_schemas()
-    with NODE_SCHEMAS_PATH.open("r", encoding="utf-8") as f:
-        return json.load(f)
-
-
 def load_stringify_catalog() -> Dict[str, Any]:
+    """Load the stringified node catalog for concise descriptions."""
+    stringify_path = BASE_DIR / "stringify_catalog.json"
+    with stringify_path.open("r", encoding="utf-8") as f:
+        return json.load(f)
     """Load the stringified node catalog for concise descriptions."""
     stringify_path = BASE_DIR / "stringify_catalog.json"
     with stringify_path.open("r", encoding="utf-8") as f:
@@ -127,12 +94,7 @@ def stringify_pipeline(graph: Dict[str, Any]) -> str:
     return "\n".join(lines)
 
 
-def build_macro_plan(
-    metric_name: str,
-    metric_desc: str,
-    extraction_plan: Dict[str, Any],
-    filter_context: str = ""
-) -> Dict[str, Any]:
+def build_macro_plan(metric_name: str, metric_desc: str, extraction_plan: Dict[str, Any], filter_context: str = "") -> Dict[str, Any]:
     """Use the node stringified catalog to build a high-level macro plan.
 
     Returns a dict like {"steps": [...], "metric_description": "..."}.
@@ -178,12 +140,7 @@ def build_macro_plan(
         return {"metric_description": metric_desc, "steps": []}
 
 
-def build_next_node(
-    current_graph: Dict[str, Any],
-    macro_plan: List[str],
-    step_index: int,
-    filter_context: str = ""
-) -> Dict[str, Any]:
+def build_next_node(current_graph: Dict[str, Any], macro_plan: List[str], step_index: int, filter_context: str = "", user_feedback: str = "") -> Dict[str, Any]:
     """Ask the LLM for the next node (or tiny subgraph) to add.
 
     Uses a two-step process:
@@ -228,7 +185,8 @@ def build_next_node(
         graph_stringified=graph_stringified,
         current_step=current_step,
         catalog_block=catalog_block,
-        filter_context=filter_context or "(use the spans input if no filters exist)"
+        filter_context=filter_context or "(use the spans input if no filters exist)",
+        user_feedback=user_feedback or "(no previous feedback)"
     )
 
     response = client.messages.create(
@@ -327,9 +285,3 @@ def build_next_node(
         "next_node": next_node,
         "next_edges": next_edges
     }
-
-
-if __name__ == "__main__":
-    # Regenerate node_schemas.json when run directly
-    refresh_node_schemas()
-    print(f"node_schemas.json refreshed at {NODE_SCHEMAS_PATH}")
