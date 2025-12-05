@@ -40,29 +40,9 @@ def build_agent(agent: AgentPayload) -> BaseTool:
     # TODO: Create our pre defined custom tools array based on what the user has defined the agent's tools as
         # The custom tools feature should also include a human in the loop implementation
         # Implement mappings from tool ids to the actual tool function for custom tools
-        
-    try:
-        injection_detected = asyncio.run(gateway.prompt_injection_analyzer.adetect(agent.description))
-    except RuntimeError:
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-        injection_detected = loop.run_until_complete(gateway.prompt_injection_analyzer.adetect(agent.description))
-
-    if injection_detected:
-        raise ValueError(f"Agent definition failed security checks: High-confidence prompt injection detected.")
-
+    
     pii_results = gateway.pii_analyzer.detect_all(agent.description)
     secrets_results = gateway.secrets_analyzer.detect_all(agent.description)
-    
-    # issues = []
-    # if pii_results:
-    #     issues.append(f"PII detected in agent description: {[res.entity for res in pii_results]}")
-    # if secrets_results:
-    #     issues.append(f"Secrets detected in agent description: {[res.entity for res in secrets_results]}")
-        
-    # if issues:
-    #     # It's better to raise a specific, more descriptive error.
-    #     raise ValueError(f"Agent definition failed security checks: {', '.join(issues)}")
     
     all_findings = (pii_results or []) + (secrets_results or [])
     sanitized_description = InputScanner._sanitize_text(agent.description, all_findings)

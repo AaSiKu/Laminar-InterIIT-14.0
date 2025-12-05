@@ -1,7 +1,7 @@
 import asyncio
 from dataclasses import dataclass, field
 from typing import List, Tuple
-from gateway import (
+from .gateway import (
     DetectorResult,
     PII_Analyzer,
     PromptInjectionAnalyzer,
@@ -48,13 +48,18 @@ class InputScanner:
             A ScanResult object containing the outcome.
         """
         try:
+            # Run async detectors in parallel
+            # Note: PromptInjectionAnalyzer.adetect returns bool, PII_Analyzer.adetect returns list
             injection_task = self.prompt_injection_detector.adetect(text)
-            pii_task = self.pii_detector.adetect_all(text)
-            secrets_task = self.secrets_detector.detect_all(text)
+            pii_task = self.pii_detector.adetect(text)  # Fixed: use adetect not adetect_all
 
-            injection_detected, pii_results, secrets_results = await asyncio.gather(
-                injection_task, pii_task, secrets_task
+            injection_detected, pii_results = await asyncio.gather(
+                injection_task, pii_task
             )
+            
+            # Run synchronous secrets detector separately
+            secrets_results = self.secrets_detector.detect_all(text)
+            
             if injection_detected:
                 return ScanResult(is_safe=False, sanitized_input="Invalid input.", findings=[injection_detected])
 

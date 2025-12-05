@@ -1,5 +1,5 @@
 from .base import (
-    BaseDetectorase, 
+    BaseDetector, 
     Extra, 
     ExtrasImport,
     BaseDetector,

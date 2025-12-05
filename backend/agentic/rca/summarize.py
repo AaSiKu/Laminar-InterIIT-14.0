@@ -5,6 +5,7 @@ from langchain_mcp_adapters.client import MultiServerMCPClient
 from langchain.agents import create_agent
 import os
 from ..llm_factory import create_summarization_model
+from ..guardrails.before_agent import InputScanner
 
 reasoning_model = create_summarization_model()
 summarize_prompt = """
@@ -63,10 +64,11 @@ mcp_client = MultiServerMCPClient({
 })
 
 summarize_agent = None
+input_scanner = None
 
 
 async def init_summarize_agent():
-    global summarize_agent
+    global summarize_agent, input_scanner
     init_cache_db()
     tools =  await mcp_client.get_tools()
     summarize_agent = create_agent(
@@ -75,12 +77,28 @@ async def init_summarize_agent():
         system_prompt=summarize_prompt,
         response_format=SummarizeOutput
     )
+    input_scanner = InputScanner()
+    await input_scanner.preload_models()
 
 
 async def summarize(request: SummarizeRequest):
     """
     Generate natural language descriptions for special columns in SLA metric tables.
     """
+    global input_scanner
+    if input_scanner is None:
+        await init_summarize_agent()
+
+    # Scan inputs
+    scan_result_metric = await input_scanner.scan(request.metric_description)
+    if not scan_result_metric.is_safe:
+        return {"status": "error", "message": "Unsafe content detected in metric description"}
+    request.metric_description = scan_result_metric.sanitized_input
+
+    scan_result_pipeline = await input_scanner.scan(request.pipeline_description)
+    if not scan_result_pipeline.is_safe:
+        return {"status": "error", "message": "Unsafe content detected in pipeline description"}
+    request.pipeline_description = scan_result_pipeline.sanitized_input
     
     # Format semantic origins for the prompt
     semantic_origins_text = "\n".join(
