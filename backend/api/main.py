@@ -9,7 +9,7 @@ from fastapi import FastAPI, Request, status, HTTPException, WebSocket, WebSocke
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware 
 from fastapi.security import OAuth2PasswordBearer
-from typing import Any, Dict, List, Union, Optional, Type
+from typing import Any, Dict, List, Union, Optional, Type, get_args, get_origin, Literal
 from pydantic import BaseModel, Field
 from contextlib import asynccontextmanager
 import inspect
@@ -137,14 +137,21 @@ def schema_index(request: Request):
     """
     Returns category wise list of all available node types.
     """
-    io_node_ids = [node_id for node_id, cls in NODES.items() if cls.__module__.startswith('backend.lib.io_nodes')]
-    table_ids = [node_id for node_id, cls in NODES.items() if cls.__module__.startswith('backend.lib.tables')]
-    agent_ids = [node_id for node_id, cls in NODES.items() if cls.__module__.startswith('backend.lib.agents')]
-    return {
-        "io_nodes": io_node_ids,
-        "table_nodes": table_ids,
-        "agent_nodes": agent_ids,
-    }
+    result: Dict[str, List[str]] = {}
+    for node_id, cls in NODES.items():
+        category = 'uncategorized'
+        if 'category' in cls.model_fields:
+            field_info = cls.model_fields['category']
+            # Check if it is a Literal
+            if get_origin(field_info.annotation) is Literal:
+                 args = get_args(field_info.annotation)
+                 if args:
+                     category = args[0]
+        
+        if category not in result:
+            result[category] = []
+        result[category].append(node_id)
+    return result
 
 def get_schema_for_node(node: Union[str, Type[Any]]) -> dict:
     """

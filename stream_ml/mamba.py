@@ -191,24 +191,36 @@ class MambaModel(StreamBaseModel):
         
         mem_usage = psutil.Process(os.getpid()).memory_info().rss / (1024 ** 2)
         start_time = time.time()
+        
+        predictions_list = []
+        current_input = x_norm.clone()
+
         with torch.no_grad():
-            prediction_norm = self.model(x_norm)
+            for _ in range(self.horizon):
+                prediction_norm = self.model(current_input)
+                predictions_list.append(prediction_norm)
+                
+                # Autoregressive step
+                pred_expanded = prediction_norm.unsqueeze(1)
+                current_input = torch.cat([current_input[:, 1:, :], pred_expanded], dim=1)
+
         latency = time.time() - start_time
         
-        # Denormalize prediction
-        # prediction_norm is [1, Output_Dim]
-        # seq_std is [1, 1, Features] -> squeeze to [1, Features]
-        prediction = prediction_norm * seq_std.squeeze(1) + seq_mean.squeeze(1)
+        # Stack predictions along time dimension
+        prediction_norm_all = torch.stack(predictions_list, dim=1) # [1, horizon, out_features]
         
-        y_pred = prediction[0].cpu().numpy()
+        # Denormalize prediction
+        prediction = prediction_norm_all * seq_std + seq_mean
+        
+        y_pred = prediction[0].cpu().numpy() # [horizon, out_features]
         
         if np.isnan(y_pred).any():
              error = float('nan')
         else:
-             error = np.mean(np.abs(input - y_pred[0])) # This error metric is still weird as discussed, but keeping logic
+             error = np.mean(np.abs(input - y_pred[0])) 
 
         self.context_history.append(input)
         if len(self.context_history) > self.lookback:
             self.context_history.pop(0)
 
-        return mem_usage, latency, float(error), y_pred.reshape(self.horizon, self.out_features)
+        return mem_usage, latency, float(error), y_pred

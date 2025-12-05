@@ -1,5 +1,0 @@
-google-genai
-python-dotenv
-invariant-ai
-colorama
-requests

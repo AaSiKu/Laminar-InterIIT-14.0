@@ -1,5 +1,0 @@
-litellm
-fastmcp
-pytest
-google-generativeai
-python-dotenv
