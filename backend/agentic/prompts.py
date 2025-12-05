@@ -51,11 +51,11 @@ def build_agent(agent: AgentPayload) -> BaseTool:
 
     if pii_results:
         pass
-        # TODO: custom_logger.critical("PII Data detected in agent description")
+        # custom_logger.critical("PII Data detected in agent description")
     
     if secrets_results:
         pass
-        # TODO: custom_logger.critical("Secret Data detected in agent description")
+        # custom_logger.critical("Secret Data detected in agent description")
 
     all_findings = (pii_results or []) + (secrets_results or [])
     sanitized_description = InputScanner._sanitize_text(agent.description, all_findings)
