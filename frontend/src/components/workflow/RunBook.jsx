@@ -21,17 +21,25 @@ import {
   InputLabel,
   Divider,
   ButtonGroup,
+  Chip,
 } from "@mui/material";
 import CloseIcon from "@mui/icons-material/Close";
 import ExpandLessIcon from "@mui/icons-material/ExpandLess";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import AutoAwesomeIcon from "@mui/icons-material/AutoAwesome";
 import ContentCopyIcon from "@mui/icons-material/ContentCopy";
+import DeleteIcon from "@mui/icons-material/Delete";
 import AddIcon from "@mui/icons-material/Add";
 import CloudUploadIcon from "@mui/icons-material/CloudUpload";
+import actionsDta from "../../../actionsdata.js";
+import { useGlobalWorkflow } from "../../context/GlobalWorkflowContext";
 
 const RunBook = ({ open, onClose, formData = {}, onSave }) => {
   const [activeTab, setActiveTab] = useState(0);
+  const { id: currentPipelineId } = useGlobalWorkflow();
+  
+  // Get all actions from actionsDta for dropdown
+  const allActionsForDropdown = actionsDta.actions || [];
   const [name, setName] = useState(formData.name || "");
   const [userConfirmation, setUserConfirmation] = useState(
     formData.userConfirmation || false
@@ -178,15 +186,15 @@ const RunBook = ({ open, onClose, formData = {}, onSave }) => {
 
       console.log("Run Book Data:", JSON.stringify(runBookData, null, 2));
       console.log("runBookData", runBookData);
-      try {
-        const response = await fetch(
-          `${import.meta.env.VITE_API_SERVER}/book/add_action`,
-          {
-            method: "POST",
-            credentials: "include",
-            headers: {
-              "Content-Type": "application/json",
-            },
+    try {
+      const response = await fetch(
+        `${import.meta.env.VITE_API_SERVER}/book/add_action`,
+        {
+          method: "POST",
+          credentials: "include",
+          headers: {
+            "Content-Type": "application/json",
+          },
             body: JSON.stringify(runBookData),
           }
         );
@@ -368,9 +376,18 @@ const RunBook = ({ open, onClose, formData = {}, onSave }) => {
     };
 
     console.log("actionData", actionData);
+    
+    // Get pipelineId from context or formData
+    const pipelineId = currentPipelineId || formData.pipelineId || formData.pipeline_id || "";
+    
+    if (!pipelineId) {
+      console.error("Pipeline ID is required");
+      return;
+    }
+    
     try {
       const response = await fetch(
-        "http://cache-service:8080/v1/actions",
+        `${import.meta.env.VITE_API_SERVER}/actions/${pipelineId}/v1/actions`,
         {
           method: "POST",
           credentials: "include",
@@ -460,7 +477,7 @@ const RunBook = ({ open, onClose, formData = {}, onSave }) => {
 
         {/* Main Content - Two Column Layout */}
         <Box sx={{ display: "flex", flex: 1, minHeight: 0 }}>
-          {/* Left Panel - Protocol Cards */}
+          {/* Left Panel - Protocol Cards or Action Cards */}
           <Box
             sx={{
               width: "50%",
@@ -469,15 +486,17 @@ const RunBook = ({ open, onClose, formData = {}, onSave }) => {
               bgcolor: "background.paper",
             }}
           >
-            {protocols.map((protocol) => (
+            {activeTab === 0 ? (
+              // Protocol Cards for Run Book tab
+              protocols.map((protocol) => (
               <Card
                 key={protocol.id}
                 sx={{
                   mb: 2,
-                  bgcolor: "background.elevation1",
+                    bgcolor: "background.elevation1",
                   borderRadius: 2,
                   border: 1,
-                  borderColor: "background.elevation1",
+                    borderColor: "background.elevation1",
                 }}
               >
                 <CardContent>
@@ -515,7 +534,149 @@ const RunBook = ({ open, onClose, formData = {}, onSave }) => {
                   </Typography>
                 </CardContent>
               </Card>
-            ))}
+              ))
+            ) : (
+              // Action Cards for Actions tab
+              (() => {
+                // Get all actions from actionsDta
+                const allActions = actionsDta.actions || [];
+                return allActions.map((action, index) => {
+                  const handleCopy = async () => {
+                    try {
+                      await navigator.clipboard.writeText(JSON.stringify(action, null, 2));
+                    } catch (err) {
+                      console.error("Failed to copy:", err);
+                    }
+                  };
+
+                  const handleDelete = async () => {
+                    const pipelineId = currentPipelineId || formData.pipelineId || formData.pipeline_id || "";
+                    
+                    if (!pipelineId) {
+                      console.error("Pipeline ID is required");
+                      return;
+                    }
+
+                    if (!action.action_id) {
+                      console.error("Action ID is required");
+                      return;
+                    }
+
+                    try {
+                      const response = await fetch(
+                        `${import.meta.env.VITE_API_SERVER}/actions/${pipelineId}/v1/actions/delete/${action.action_id}`,
+                        {
+                          method: "DELETE",
+                          credentials: "include",
+                          headers: {
+                            "Content-Type": "application/json",
+                          },
+                        }
+                      );
+
+                      if (!response.ok) {
+                        const errorText = await response.text();
+                        throw new Error(
+                          `Failed to delete action: ${errorText || response.status}`
+                        );
+                      }
+
+                      const result = await response.json();
+                      console.log("action deleted successfully:", result);
+                      
+                      // Optionally refresh the actions list or show a success message
+                    } catch (error) {
+                      console.error("Error deleting action:", error);
+                    }
+                  };
+
+                  return (
+                    <Card
+                      key={`${action.action_id}-${index}`}
+                      sx={{
+                        mb: 2,
+                        bgcolor: "background.elevation1",
+                        borderRadius: 2,
+                        border: 1,
+                        borderColor: "background.elevation1",
+                        position: "relative",
+                      }}
+                    >
+                      <CardContent sx={{ position: "relative", pb: 4 }}>
+                        <Box sx={{ position: "absolute", top: 8, right: 8, display: "flex", gap: 0.5, zIndex: 10 }}>
+                          <IconButton
+                            onClick={handleCopy}
+                            size="small"
+                            sx={{
+                              width: 32,
+                              height: 32,
+                              bgcolor: "primary.lighter",
+                              "&:hover": {
+                                bgcolor: "primary.light",
+                              },
+                              "& svg": {
+                                fontSize: "1rem",
+                              },
+                            }}
+                          >
+                            <ContentCopyIcon />
+                          </IconButton>
+                          <IconButton
+                            onClick={handleDelete}
+                            size="small"
+                            sx={{
+                              width: 32,
+                              height: 32,
+                              bgcolor: "error.lighter",
+                              "&:hover": {
+                                bgcolor: "error.light",
+                              },
+                              "& svg": {
+                                fontSize: "1rem",
+                              },
+                            }}
+                          >
+                            <DeleteIcon />
+                          </IconButton>
+                        </Box>
+                        <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 0.125 }}>
+                          <Typography variant="h6">
+                            {action.action_id || "No Action ID"}
+                          </Typography>
+                        </Box>
+                        <Typography variant="body2" color="text.secondary" sx={{ mb: 2, fontWeight: 500, fontSize: "0.75rem" }}>
+                          service name: {action.service || "No Service"}
+                        </Typography>
+                        <Typography variant="body2" color="text.secondary">
+                          {action.definition || "No definition"}
+                        </Typography>
+                        {action.risk_level && (
+                          <Chip
+                            label={`${action.risk_level} risk`}
+                            sx={{
+                              position: "absolute",
+                              bottom: 8,
+                              right: 8,
+                              borderRadius: "12px",
+                              height: "20px",
+                              fontSize: "0.6875rem",
+                              fontWeight: 600,
+                              bgcolor: "#F5E8D7",
+                              color: "#8B572A",
+                              border: "1px solid #E0C7A8",
+                              "& .MuiChip-label": {
+                                px: 1,
+                                py: 0,
+                              },
+                            }}
+                          />
+                        )}
+                      </CardContent>
+                    </Card>
+                  );
+                });
+              })()
+            )}
           </Box>
 
           {/* Right Panel - Run Book Form */}
@@ -654,10 +815,14 @@ const RunBook = ({ open, onClose, formData = {}, onSave }) => {
                         <MenuItem value="" disabled>
                           Select an action
                         </MenuItem>
-                        <MenuItem value="a">a</MenuItem>
-                        <MenuItem value="b">b</MenuItem>
-                        <MenuItem value="c">c</MenuItem>
-                        <MenuItem value="d">d</MenuItem>
+                        {allActionsForDropdown.map((actionItem, actionIndex) => {
+                          const menuItemText = `${actionItem.action_id || "No Action ID"} (${actionItem.service || "No Service"}): ${actionItem.definition || "No definition"}`;
+                          return (
+                            <MenuItem key={`${actionItem.action_id}-${actionIndex}`} value={actionItem.action_id || ""}>
+                              {menuItemText}
+                            </MenuItem>
+                          );
+                        })}
                       </Select>
                     </FormControl>
                     {index === actions.length - 1 && action && (
