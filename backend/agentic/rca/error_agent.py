@@ -4,7 +4,12 @@ from .output import RCAAnalysisOutput
 from datetime import datetime
 from ..llm_factory import create_analyser_model
 from ..guardrails.before_agent import InputScanner
+from backend.agentic.guardrails.gateway import MCPSecurityGateway
+from backend.pipeline.logger import custom_logger
+from backend.agentic.guardrails.batch import PromptInjectionAnalyzer
+from backend.agentic.guardrails.before_agent import detect
 
+gateway = MCPSecurityGateway()
 
 # Create the analyzer model instance
 analyser_model = create_analyser_model()
@@ -123,7 +128,7 @@ async def init_error_analysis_agent():
     input_scanner = InputScanner()
     await input_scanner.preload_models()
 
-async def analyze_error_logs(logs_by_trace: Dict[str, List[Dict]], skip_security_scan: bool = False) -> RCAAnalysisOutput:
+async def analyze_error_logs(logs_by_trace: Dict[str, List[Dict]], skip_injection_scan: bool = True) -> RCAAnalysisOutput:
     """
     Analyze error logs to identify root causes of failures.
     
@@ -135,23 +140,32 @@ async def analyze_error_logs(logs_by_trace: Dict[str, List[Dict]], skip_security
         RCAAnalysisOutput with structured analysis
     """
     if structured_analyser_model is None:
-        print("Initializing error analysis model")
+        custom_logger.info("Initializing error analysis model")
         await init_error_analysis_agent()
-        print("Initialized error analysis model")
+        custom_logger.info("Initialized error analysis model")
 
     # Format logs for analysis
     formatted_logs = format_logs_for_analysis(logs_by_trace)
     
+    sanitized_description = detect(formatted_logs)
+    
     # Scan formatted logs (skip for trusted internal data like system logs)
-    if input_scanner and not skip_security_scan:
-        scan_result = await input_scanner.scan(formatted_logs)
-        if not scan_result.is_safe:
-            raise ValueError(f"Security scan failed: {scan_result.sanitized_input}")
-        formatted_logs = scan_result.sanitized_input
+    # if input_scanner and not skip_security_scan:
+    #     scan_result = await input_scanner.scan(formatted_logs)
+    #     if not scan_result.is_safe:
+    #         raise ValueError(f"Security scan failed: {scan_result.sanitized_input}")
+    #     formatted_logs = scan_result.sanitized_input
+        
+    if not skip_injection_scan:
+        
+        injection_detected = await gateway.prompt_injection_analyzer.adetect(formatted_logs)
+        if injection_detected:
+            custom_logger.critical("High-confidence prompt injection detected in log data. Halting analysis.")
+            raise ValueError(f"Data failed security checks: High-confidence prompt injection detected.")
 
     analysis_prompt = (
         f"Analyze the following error logs from traces that triggered an SLA threshold violation:\n\n"
-        f"{formatted_logs}\n\n"
+        f"{sanitized_description}\n\n"
         f"Provide a structured analysis identifying the root cause, severity, affected services, "
         f"a clear narrative, and cite specific log entries as evidence."
     )

@@ -10,7 +10,12 @@ from .output import RCAAnalysisOutput
 from datetime import datetime, timedelta
 import asyncio
 from ..llm_factory import create_analyser_model
+from backend.pipeline.logger import custom_logger
+from backend.agentic.guardrails.gateway import MCPSecurityGateway
 from ..guardrails.before_agent import InputScanner
+from backend.agentic.guardrails.before_agent import detect
+
+gateway = MCPSecurityGateway()
 
 load_dotenv()
 
@@ -166,7 +171,6 @@ async def enrichment_node(state: RCAState) -> Dict:
 
     return {"sla_alerts": sla_alerts}
 
-
 async def analysis_agent_node(state: SLAAlert) -> Dict:
     """
     Analyzes a single trace to form a hypothesis about the root cause.
@@ -176,28 +180,19 @@ async def analysis_agent_node(state: SLAAlert) -> Dict:
 
     scanner = await get_scanner()
     
-    scan_result_logs = await scanner.scan(log_context)
-    if not scan_result_logs.is_safe:
-        raise ValueError(f"Security scan failed for logs: {scan_result_logs.sanitized_input}")
-    log_context = scan_result_logs.sanitized_input
-
-    scan_result_topology = await scanner.scan(topology_context)
-    if not scan_result_topology.is_safe:
-        raise ValueError(f"Security scan failed for topology: {scan_result_topology.sanitized_input}")
-    topology_context = scan_result_topology.sanitized_input
+    sanitized_log_description = detect(log_context)
+    
+    sanitized_topology_description = detect(topology_context)
 
     error_context = ""
     if state.get("has_error"):
         error_msg = state.get('error_message', 'No message')
-        scan_result_error = await scanner.scan(error_msg)
-        if not scan_result_error.is_safe:
-             raise ValueError(f"Security scan failed for error message: {scan_result_error.sanitized_input}")
-        error_msg = scan_result_error.sanitized_input
+        sanitized_error_msg = detect(error_msg)
 
         error_context = f"""
     **Error Information:**
     - Error Span: {state.get('error_span', 'Unknown')}
-    - Error Message: {error_msg}
+    - Error Message: {sanitized_error_msg}
         """
 
     prompt = f"""
@@ -211,10 +206,10 @@ Your task is to identify the root cause of an SLA breach.
 {error_context}
 
 **Topology (Span Tree):**
-{topology_context}
+{sanitized_topology_description}
 
 **Error Logs:**
-{log_context}
+{sanitized_log_description}
 
 **Previous Analysis:**
 {state.get('validation_result', 'This is the first analysis attempt.')}
@@ -264,16 +259,10 @@ async def validate_hypothesis_with_llm(state: SLAAlert) -> Dict:
     scanner = await get_scanner()
     
     logs_text = format_logs(state.get("logs", []))
-    scan_result_logs = await scanner.scan(logs_text)
-    if not scan_result_logs.is_safe:
-        raise ValueError(f"Security scan failed for logs: {scan_result_logs.sanitized_input}")
-    logs_text = scan_result_logs.sanitized_input
+    sanitized_log_text = detect(logs_text)
 
     topology_text = format_topology(state.get("topology", []))
-    scan_result_topology = await scanner.scan(topology_text)
-    if not scan_result_topology.is_safe:
-        raise ValueError(f"Security scan failed for topology: {scan_result_topology.sanitized_input}")
-    topology_text = scan_result_topology.sanitized_input
+    sanitized_topology_text = detect(topology_text)
 
     prompt = f"""
 You are a validation agent. Determine if the hypothesis is well-supported by the evidence.
@@ -288,10 +277,10 @@ You are a validation agent. Determine if the hypothesis is well-supported by the
 - Error Message: {state.get("error_message", "None")}
 
 **Topology:**
-{topology_text}
+{sanitized_topology_text}
 
 **Logs:**
-{logs_text}
+{sanitized_log_text}
 
 **Question:**
 Does the evidence clearly support and confirm the hypothesis? Consider:
@@ -451,12 +440,6 @@ async def synthesis_node(state: RCAState) -> Dict:
     
     error_logs_context = format_logs(all_error_logs[:10])  # Limit to 10 total
     
-    scanner = await get_scanner()
-    scan_result_logs = await scanner.scan(error_logs_context)
-    if not scan_result_logs.is_safe:
-        raise ValueError(f"Security scan failed for logs: {scan_result_logs.sanitized_input}")
-    error_logs_context = scan_result_logs.sanitized_input
-
     prompt = f"""
 You are a senior SRE synthesizing root cause analysis findings.
 

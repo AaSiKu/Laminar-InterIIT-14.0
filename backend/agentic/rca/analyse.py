@@ -6,7 +6,11 @@ from .downtime_agent import analyze_downtime_incidents, DowntimeIncident
 from .latency_agent import build_graph, MetricAlert
 from .output import RCAAnalysisOutput
 from ..guardrails.before_agent import InputScanner
+from backend.agentic.guardrails.gateway import MCPSecurityGateway
+from backend.pipeline.logger import custom_logger
+from backend.agentic.guardrails.before_agent import detect 
 
+gateway = MCPSecurityGateway()
 
 class InitRCA(SummarizeOutput):
     # description of the metric
@@ -27,11 +31,8 @@ async def rca(init_rca_request: InitRCA):
         input_scanner = InputScanner()
         await input_scanner.preload_models()
 
-    scan_result = await input_scanner.scan(init_rca_request.description)
-    if not scan_result.is_safe:
-        raise ValueError(f"Security scan failed: {scan_result.sanitized_input}")
-    init_rca_request.description = scan_result.sanitized_input
-
+    sanitized_description = detect(init_rca_request.description)
+    
     if len(init_rca_request.trace_ids.keys()) == 1:
         # Get the single column name and its trace_ids
         column_name = list(init_rca_request.trace_ids.keys())[0]

@@ -6,6 +6,11 @@ from langchain.agents import create_agent
 import os
 from ..llm_factory import create_summarization_model
 from ..guardrails.before_agent import InputScanner
+from backend.pipeline.logger import create_logger
+from backend.agentic.guardrails.gateway import MCPSecurityGateway
+from backend.agentic.guardrails.before_agent import detect
+
+gateway = MCPSecurityGateway()
 
 reasoning_model = create_summarization_model()
 summarize_prompt = """
@@ -90,15 +95,9 @@ async def summarize(request: SummarizeRequest):
         await init_summarize_agent()
 
     # Scan inputs
-    scan_result_metric = await input_scanner.scan(request.metric_description)
-    if not scan_result_metric.is_safe:
-        return {"status": "error", "message": "Unsafe content detected in metric description"}
-    request.metric_description = scan_result_metric.sanitized_input
+    request.metric_description = detect(request.metric_description)
 
-    scan_result_pipeline = await input_scanner.scan(request.pipeline_description)
-    if not scan_result_pipeline.is_safe:
-        return {"status": "error", "message": "Unsafe content detected in pipeline description"}
-    request.pipeline_description = scan_result_pipeline.sanitized_input
+    request.pipeline_description = detect(request.pipeline_description)
     
     # Format semantic origins for the prompt
     semantic_origins_text = "\n".join(
