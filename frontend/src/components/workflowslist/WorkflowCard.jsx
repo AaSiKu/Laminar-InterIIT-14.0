@@ -5,11 +5,9 @@ import { useTheme } from "@mui/material/styles";
 const WorkflowCard = ({ workflow, isSelected, onClick }) => {
   const theme = useTheme();
 
-  // Generate different avatar images for each member
+  // Generate avatar URL using the same service as WorkflowDetails
   const getAvatarUrl = (member, index) => {
-    // Use different image numbers based on member id or index to get varied avatars
-    const imgNumber = (member.id?.charCodeAt(0) || index * 7) % 70 + 1; // Range 1-70
-    return `https://i.pravatar.cc/150?img=${imgNumber}`;
+    return `https://avatar.iran.liara.run/public/boy?username=${encodeURIComponent(member.name || member.display_name || member.id || `user${index}`)}&size=24`;
   };
 
   return (

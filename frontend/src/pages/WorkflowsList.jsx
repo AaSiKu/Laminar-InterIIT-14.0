@@ -151,7 +151,13 @@ export const WorkflowsList = () => {
     }
 
     try {
-      const details = await fetchPipelineDetails(workflowId);
+      // Ensure workflowId is a string
+      const idString = typeof workflowId === 'string' ? workflowId : String(workflowId?.id || workflowId?._id || workflowId || '');
+      if (!idString || idString === '[object Object]') {
+        console.warn(`Invalid workflow ID for fetchPipelineDetails:`, workflowId);
+        return null;
+      }
+      const details = await fetchPipelineDetails(idString);
       setWorkflowDetailsCache(prev => ({
         ...prev,
         [workflowId]: details
@@ -173,7 +179,7 @@ export const WorkflowsList = () => {
 
     // Immediately show workflows even without details (details will load in background)
     const transformed = workflows.map(w => {
-      const workflowId = w.id || w._id;
+      const workflowId = String(w.id || w._id || '');
       const details = workflowId ? workflowDetailsCache[workflowId] || null : null;
       return transformWorkflow(w, details);
     });
@@ -195,8 +201,8 @@ export const WorkflowsList = () => {
       try {
         // Only fetch details for workflows that don't have them cached
         const workflowsToUpdate = workflows.filter(w => {
-          const workflowId = w.id || w._id;
-          return workflowId && !workflowDetailsCache[workflowId];
+          const workflowId = String(w.id || w._id || '');
+          return workflowId && workflowId !== '[object Object]' && !workflowDetailsCache[workflowId];
         });
         
         // Fetch details for workflows that need them
@@ -204,14 +210,16 @@ export const WorkflowsList = () => {
           // Don't block UI - fetch in background
           Promise.all(
             workflowsToUpdate.map(async (w) => {
-              const workflowId = w.id || w._id;
-              await fetchWorkflowDetails(workflowId);
+              const workflowId = String(w.id || w._id || '');
+              if (workflowId && workflowId !== '[object Object]') {
+                await fetchWorkflowDetails(workflowId);
+              }
             })
           ).then(() => {
             // Update transformed workflows again with newly loaded details
             const updatedTransformed = workflows.map(w => {
-              const workflowId = w.id || w._id;
-              const details = workflowId ? workflowDetailsCache[workflowId] || null : null;
+              const workflowId = String(w.id || w._id || '');
+              const details = workflowId && workflowId !== '[object Object]' ? workflowDetailsCache[workflowId] || null : null;
               return transformWorkflow(w, details);
             });
             setTransformedWorkflows(updatedTransformed);

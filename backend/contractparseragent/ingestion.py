@@ -67,7 +67,7 @@ def extract_sla_metrics_with_claude(
     
     context_section = ""
     if additional_context and additional_context.strip():
-        context_section = f"\n\nAdditional Context/Requirements:\n{additional_context.strip()}\n\nUse this additional context to better understand the requirements and extract relevant metrics."
+        context_section = f"\n\nAdditional Context/Requirements:\n{additional_context.strip()}\n\nIMPORTANT: Use BOTH the contract text above AND this additional context/description to extract and understand the metrics. Combine information from both sources to get a complete picture of the requirements. The additional context may provide clarification, specific requirements, or additional details that complement the contract text."
 
     user_prompt = f"""Extract all SLA (Service Level Agreement) metrics from the following contract text that can be classified into one of three performance categories.{context_section}
 

@@ -49,8 +49,12 @@ export class ContractParserWebSocket {
                 // Legacy format: array of metrics
                 payload = { metrics: initialData };
               } else if (initialData.pdf_path) {
-                // PDF path provided
+                // PDF path provided - include description if available
                 payload = { pdf_path: initialData.pdf_path };
+                if (initialData.description && initialData.description.trim()) {
+                  payload.description = initialData.description;
+                  console.log("Including description with PDF for combined metric extraction");
+                }
                 if (initialData.anthropic_api_key) {
                   payload.anthropic_api_key = initialData.anthropic_api_key;
                 }

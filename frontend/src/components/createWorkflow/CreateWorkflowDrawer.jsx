@@ -901,8 +901,8 @@ const CreateWorkflowDrawer = ({ open, onClose, onComplete }) => {
             edges: currentEdges,
             pipelineId: pipelineId,
             versionId: versionId,
-          });
-        }
+        });
+      }
 
         // Close drawer and navigate to workflows page
       onClose();
@@ -1045,7 +1045,7 @@ const CreateWorkflowDrawer = ({ open, onClose, onComplete }) => {
               chatMessages={chatMessages}
               onSendMessage={handleChatbotMessage}
               awaitingInput={awaitingInput}
-            />
+                        />
 
             {/* Main Content - Full width, sidebar overlays for step 2+ */}
             <Box
@@ -1136,8 +1136,8 @@ const CreateWorkflowDrawer = ({ open, onClose, onComplete }) => {
                           gap: 1.5,
                           mt: 2,
                         mb: 4,
-                        }}
-                      >
+                          }}
+                        >
                         <Button
                           variant="text"
                           onClick={handleBack}
@@ -1179,7 +1179,7 @@ const CreateWorkflowDrawer = ({ open, onClose, onComplete }) => {
                           "&:disabled": {
                             bgcolor: "action.disabledBackground",
                             color: "action.disabled",
-                          },
+                              },
                         }}
                       >
                         {isGenerating ? (
@@ -1204,8 +1204,8 @@ const CreateWorkflowDrawer = ({ open, onClose, onComplete }) => {
                     flexDirection: "column",
                     flex: 1,
                     overflow: "hidden",
-                  }}
-                >
+                          }}
+                        >
                   <Box sx={{ flex: 1, minHeight: 0, position: "relative" }}>
                     <Playground
                       nodes={nodes}
