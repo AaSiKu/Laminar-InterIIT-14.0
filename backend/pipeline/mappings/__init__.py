@@ -4,6 +4,7 @@ from .transforms import transform_mappings
 from .temporal import temporal_mappings
 from .streaming_ml import ml_mappings
 from .alerts import alert_node_fn
+from .rag import rag_mappings
 from .trigger_rca import trigger_rca
 from .helpers import apply_datetime_conversions, MappingValues
 from typing import Dict
@@ -14,6 +15,7 @@ mappings: Dict[str,MappingValues] = {
     **input_connector_mappings,
     **transform_mappings,
     **temporal_mappings,
+    **rag_mappings,
     "alert": {
         "node_fn": alert_node_fn
     },
@@ -29,6 +31,7 @@ __all__ = [
     "output_connector_mappings",
     "transform_mappings",
     "temporal_mappings",
+    "rag_mappings",
     "alert_node_fn",
     "apply_datetime_conversions",
     "MappingValues",
