@@ -1,8 +1,7 @@
-
 """
 Two-Phase Agentic Pipeline Builder
-Phase 1: Input Builder (Interactive Chat) - Multi-Metric
-Phase 2: Metric Builder (Graph Generation) - Multi-Metric
+Phase 1: Input Builder (Interactive Chat) 
+Phase 2: Metric Builder (Graph Generation)
 """
 
 import os
@@ -14,7 +13,7 @@ from pathlib import Path
 from typing import List, Dict, Any, Optional, Tuple
 
 # Import layout utility for x/y assignment
-from contractparseragent.layout_utils import compute_layout
+from contractparseragent.layout_utils import apply_layout
 from contractparseragent.node_tool import get_node_pydantic_schema
 from anthropic import Anthropic
 from dotenv import load_dotenv
@@ -27,18 +26,13 @@ sys.path.insert(0, str(BASE_DIR))
 sys.path.insert(0, str(BACKEND_ROOT))
 sys.path.insert(0, str(PROJECT_ROOT))
 
-# Ensure local .env loads (contains ANTHROPIC_API_KEY, etc.)
 ENV_PATH = BASE_DIR / ".env"
 if ENV_PATH.exists():
     load_dotenv(ENV_PATH)
 
-from contractparseragent.agent_prompts import get_input_builder_prompt, METRIC_PLANNER_SYSTEM_PROMPT, METRIC_STEP_BUILDER_SYSTEM_PROMPT
+from contractparseragent.agent_prompts import get_input_builder_prompt
 from contractparseragent.graph_builder import build_macro_plan, build_next_node
-from contractparseragent.ingestion import (
-    generate_metrics_from_pdf,
-    gather_metrics_via_cli,
-    load_metrics_from_file,
-)
+from contractparseragent.ingestion import generate_metrics_from_pdf, gather_metrics_via_cli, load_metrics_from_file
 from lib.utils import get_node_class_map
 
 DEFAULT_NODE_SIZE = {"width": 200, "height": 261}
@@ -46,15 +40,14 @@ DEFAULT_VIEWPORT = {"x": 0, "y": 0, "zoom": 1}
 
 class AgenticPipelineBuilder:
     def __init__(self, api_key: Optional[str] = None):
-        # Prefer an explicitly provided api_key, otherwise read from environment.
-        # Do NOT fall back to any hard-coded secret values. If the key is
-        # missing, raise an informative error.
+       
         self.api_key = api_key or os.getenv("ANTHROPIC_API_KEY")
         if not self.api_key:
             raise RuntimeError("ANTHROPIC_API_KEY environment variable is required (or pass api_key)")
         self.client = Anthropic(api_key=self.api_key)
         self.model_name = "claude-sonnet-4-5-20250929"
         self._schema_cache: Dict[str, Dict[str, Any]] = {}
+        self.feedback_history: List[str] = []  # List of feedback strings from rejections
 
     def validate_output_structure(self, data: List[Dict[str, Any]]) -> bool:
         """
@@ -80,10 +73,18 @@ class AgenticPipelineBuilder:
             print("Validation Error: 'pipeline' must contain 'nodes' and 'edges'.")
             return False
             
+        if not isinstance(item["pipeline"]["nodes"], list):
+            print("Validation Error: 'pipeline.nodes' must be a list.")
+            return False
+            
+        if not isinstance(item["pipeline"]["edges"], list):
+            print("Validation Error: 'pipeline.edges' must be a list.")
+            return False
+            
         return True
 
     def run_phase_1_input_builder(self, metrics_list: List[Dict[str, Any]]) -> Dict[str, Any]:
-        """Phase 1: interactive chat to build input+filter flowchart for MULTIPLE metrics.
+        """Phase 1: interactive chat to build input+filter flowchart for multiple SLA metrics.
 
         Returns a partial flowchart JSON with:
           - open_tel_spans_input node
@@ -91,7 +92,7 @@ class AgenticPipelineBuilder:
           - edges wiring spans input -> filters
         """
         print("\n" + "=" * 70)
-        print("PHASE 1: INPUT BUILDER AGENT (Multi-Metric)")
+        print("PHASE 1: INPUT BUILDER AGENT")
         print("=" * 70)
         print(f"Found {len(metrics_list)} metrics to configure.")
         for m in metrics_list:
@@ -113,7 +114,7 @@ class AgenticPipelineBuilder:
         Here is the LIST OF METRICS I need to build filters for:
         {metrics_text}
 
-        Let's start negotiating the filters for these metrics."""
+        Let's start finding out the appropriate filters for these metrics."""
                 
         response = self.client.messages.create(
             model=self.model_name,
@@ -131,39 +132,56 @@ class AgenticPipelineBuilder:
 
         while True:
             text = response_text
-            # Accept either raw JSON or fenced ```json blocks
-            candidate = text
-            if "```json" in text:
+            
+            flowchart_data = None
+            mapping_data = None
+            
+            # Extract all JSON blocks
+            json_blocks = re.findall(r"```json(.*?)```", text, re.DOTALL)
+            
+            # Also try to parse the whole text if it's raw JSON
+            if not json_blocks:
                 try:
-                    start = text.find("```json") + 7
-                    end = text.find("```", start)
-                    candidate = text[start:end].strip()
-                except Exception:
-                    candidate = text
+                    json.loads(text)
+                    json_blocks = [text]
+                except:
+                    pass
 
-            try:
-                data = json.loads(candidate)
-                if "nodes" in data and "edges" in data:
-                    # Post-process: ensure open_tel_spans_input has required fields
-                    for node in data.get("nodes", []):
-                        if node.get("node_id") == "open_tel_spans_input":
-                            props = node.get("data", {}).get("properties", {})
-                            # Add default rdkafka_settings if missing
-                            if "rdkafka_settings" not in props:
-                                props["rdkafka_settings"] = {
-                                    "bootstrap_servers": "localhost:9092",
-                                    "group_id": "pathway-consumer",
-                                    "auto_offset_reset": "earliest"
-                                }
-                            # Add default topic if missing
-                            if "topic" not in props:
-                                props["topic"] = "otlp_spans"
-                            node["data"]["properties"] = props
-                    flowchart = data
-                    print("\nPhase 1 Complete: Input+Filter flowchart generated.")
-                    break
-            except Exception:
-                pass
+            for block in json_blocks:
+                try:
+                    data = json.loads(block.strip())
+                    if "nodes" in data and "edges" in data:
+                        flowchart_data = data
+                        if "metric_mapping" in data:
+                            mapping_data = {"metric_mapping": data["metric_mapping"]}
+                    elif "metric_mapping" in data:
+                        mapping_data = data
+                except Exception:
+                    pass
+
+            if flowchart_data:
+                # Post-process: ensure open_tel_spans_input has required fields
+                for node in flowchart_data.get("nodes", []):
+                    if node.get("node_id") == "open_tel_spans_input":
+                        props = node.get("data", {}).get("properties", {})
+                        # Add default rdkafka_settings if missing
+                        if "rdkafka_settings" not in props:
+                            props["rdkafka_settings"] = {
+                                "bootstrap_servers": "localhost:9092",
+                                "group_id": "pathway-consumer",
+                                "auto_offset_reset": "earliest"
+                            }
+                        # Add default topic if missing
+                        if "topic" not in props:
+                            props["topic"] = "otlp_spans"
+                        node["data"]["properties"] = props
+                
+                if mapping_data and "metric_mapping" in mapping_data:
+                    flowchart_data["metric_mapping"] = mapping_data["metric_mapping"]
+                    
+                flowchart = flowchart_data
+                print("\nPhase 1 Complete: Input+Filter flowchart generated.")
+                break
 
             # Get user input
             user_input = input("\nYou: ").strip()
@@ -171,10 +189,8 @@ class AgenticPipelineBuilder:
                 print("Exiting...")
                 sys.exit(0)
 
-            # Add user message to history
             conversation_history.append({"role": "user", "content": user_input})
             
-            # Get Claude's response
             response = self.client.messages.create(
                 model=self.model_name,
                 max_tokens=4000,
@@ -182,8 +198,7 @@ class AgenticPipelineBuilder:
             )
             response_text = response.content[0].text
             print(f"Agent: {response_text}")
-            
-            # Add assistant response to history
+       
             conversation_history.append({"role": "assistant", "content": response_text})
 
         return flowchart
@@ -224,13 +239,7 @@ class AgenticPipelineBuilder:
 
         return True
 
-    def run_phase_2_metric_builder(
-        self,
-        metric_name: str,
-        metric_desc: str,
-        extraction_plan: Dict[str, Any],
-        filter_context: str = ""
-    ) -> Dict[str, Any]:
+    def run_phase_2_metric_builder(self, metric_name: str, metric_desc: str, extraction_plan: Dict[str, Any], filter_context: str = "") -> Dict[str, Any]:
         """Phase 2: build macro plan then iteratively construct calculation graph.
 
         This uses build_macro_plan + build_next_node and does
@@ -264,18 +273,41 @@ class AgenticPipelineBuilder:
         step_index = 0
         new_nodes = []
         new_edges = []
+        retry_count = 0
 
         while step_index < len(macro_plan):
             print(f"Building node(s) for step {step_index + 1}: {macro_plan[step_index]}")
 
-            llm_result = build_next_node(current_graph, macro_plan, step_index, filter_context)
+            # Save original macro_plan for potential retry
+            original_macro_plan = macro_plan.copy() if isinstance(macro_plan, list) else macro_plan
+
+            # Prepare user feedback
+            user_feedback = ""
+            if self.feedback_history:
+                user_feedback = "\n".join(f"- {f}" for f in self.feedback_history)
+
+            llm_result = build_next_node(current_graph, macro_plan, step_index, filter_context, user_feedback)
             macro_plan = llm_result.get("macro_plan", macro_plan)
             next_node = llm_result.get("next_node")
             next_edges_step = llm_result.get("next_edges", [])
 
+            # Validate the returned node immediately
+            if next_node:
+                temp_flowchart = {"nodes": [next_node]}
+                if not self.validate_flowchart_nodes(temp_flowchart):
+                    print(" LLM returned invalid node. Treating as no node returned.")
+                    next_node = None
+
             if not next_node:
-                print(" LLM did not return a node for this step. Aborting.")
-                break
+                if retry_count < 1:
+                    print(" LLM did not return a node for this step. Retrying once...")
+                    retry_count += 1
+                    # Use original macro_plan for retry to ensure identical conditions
+                    macro_plan = original_macro_plan
+                    continue
+                else:
+                    print(" LLM did not return a node for this step after retry. Aborting.")
+                    break
 
             # Preview proposed change
             print("Proposed new nodes:")
@@ -296,24 +328,50 @@ class AgenticPipelineBuilder:
                     new_edges.extend(next_edges_step)
                     
                     print(" Changes accepted.")
+                    retry_count = 0  # Reset retry count on success
                     step_index += 1
                     break
                 elif choice in ("n", "no"):
+                    feedback = input("Why do you want to reject this node? (optional feedback): ").strip()
+                    if feedback:
+                        self.feedback_history.append(feedback)
+                        print(f"Feedback recorded: {feedback}")
+                    
                     print("Re-asking LLM to propose a different node for this step...")
-                    llm_result = build_next_node(current_graph, macro_plan, step_index, filter_context)
+                    
+                    # Prepare user feedback
+                    user_feedback = ""
+                    if self.feedback_history:
+                        user_feedback = "\n".join(f"- {f}" for f in self.feedback_history)
+                    
+                    llm_result = build_next_node(current_graph, original_macro_plan, step_index, filter_context, user_feedback)
                     macro_plan = llm_result.get("macro_plan", macro_plan)
                     next_node = llm_result.get("next_node")
                     next_edges_step = llm_result.get("next_edges", [])
 
+                    # Validate the re-proposed node
+                    if next_node:
+                        temp_flowchart = {"nodes": [next_node]}
+                        if not self.validate_flowchart_nodes(temp_flowchart):
+                            print(" LLM returned invalid node on retry. Treating as no node returned.")
+                            next_node = None
+
                     if not next_node:
-                        print("LLM again did not return a node. Aborting.")
-                        step_index = len(macro_plan)
+                        if retry_count < 1:
+                            print(" LLM did not return a node for this step. Retrying once...")
+                            retry_count += 1
+                            # Use original macro_plan for retry to ensure identical conditions
+                            macro_plan = original_macro_plan
+                            continue
+                        else:
+                            print(" LLM did not return a node for this step after retry. Aborting.")
                         break
 
                     print("New proposed nodes:")
                     print(json.dumps(next_node, indent=2))
                     print("New proposed edges:")
                     print(json.dumps(next_edges_step, indent=2))
+                    retry_count = 0
                     continue
                 elif choice in ("q", "quit", "exit"):
                     print("Exiting metric builder loop early by user request.")
@@ -377,21 +435,11 @@ class AgenticPipelineBuilder:
                 new_edge["target"] = id_map[tgt]
                 final_edges.append(new_edge)
 
-        # --- Assign x/y positions to all nodes ---
-        edges_dict: Dict[str, List[str]] = {}
-        for edge in final_edges:
-            src = edge.get("source")
-            tgt = edge.get("target")
-            if src is not None and tgt is not None:
-                edges_dict.setdefault(src, []).append(tgt)
-        positions = compute_layout(final_nodes, edges_dict)
-        for node in final_nodes:
-            nid = node.get("id")
-            pos = positions.get(nid, {"x": 0, "y": 0})
-            node["position"] = {"x": pos["x"], "y": pos["y"]}
+        merged_flowchart = {"nodes": final_nodes, "edges": final_edges}
+        apply_layout(merged_flowchart)
 
-        normalized_nodes = [self._normalize_node_structure(node) for node in final_nodes]
-        normalized_edges = self._normalize_edges(final_edges)
+        normalized_nodes = [self._normalize_node_structure(node) for node in merged_flowchart["nodes"]]
+        normalized_edges = self._normalize_edges(merged_flowchart["edges"])
 
         merged = {
             "nodes": normalized_nodes,
@@ -400,7 +448,7 @@ class AgenticPipelineBuilder:
             "viewport": dict(DEFAULT_VIEWPORT),
         }
 
-        # Optional validation
+        # Final validation
         if not self.validate_flowchart_nodes(merged):
             print("Final flowchart has validation errors; saving anyway for inspection.")
 
@@ -465,13 +513,7 @@ class AgenticPipelineBuilder:
             self._schema_cache[cache_key] = schema_info.get("schema", {})
         return self._schema_cache[cache_key]
 
-    def _apply_schema_defaults(
-        self,
-        props: Dict[str, Any],
-        schema_props: Dict[str, Any],
-        category: str,
-        node_id: str,
-    ) -> Dict[str, Any]:
+    def _apply_schema_defaults(self, props: Dict[str, Any], schema_props: Dict[str, Any], category: str, node_id: str) -> Dict[str, Any]:
         normalized = dict(props)
         normalized.setdefault("node_id", node_id)
         normalized.setdefault("category", category)
@@ -549,12 +591,12 @@ def _normalize_text(text: Optional[str]) -> str:
     return re.sub(r"[^a-z0-9]+", " ", text.lower()).strip()
 
 
-def auto_assign_filters_to_metrics(
-    metrics_list: List[Dict[str, Any]],
-    filter_nodes: List[Dict[str, Any]],
-    input_node_id: Optional[str],
-) -> Dict[str, List[str]]:
-    """Automatically map each metric to one or more filters based on text similarity."""
+def auto_assign_filters_to_metrics(metrics_list: List[Dict[str, Any]], filter_nodes: List[Dict[str, Any]], input_node_id: Optional[str], explicit_mapping: Optional[Dict[str, List[str]]] = None) -> Dict[str, List[str]]:
+    """Automatically map each metric to one or more filters based on explicit mapping returned by Phase-I LLM or a text-similarity fallback."""
+
+    if explicit_mapping:
+        print("\nUsing explicit metric-to-filter mapping from Phase 1.")
+        return explicit_mapping
 
     if not metrics_list:
         return {}
@@ -606,11 +648,7 @@ def auto_assign_filters_to_metrics(
     return metric_filter_map
 
 
-def summarize_filter_context(
-    filter_ids: List[str],
-    filter_index: Dict[str, Dict[str, Any]],
-    input_node_id: Optional[str]
-) -> str:
+def summarize_filter_context(filter_ids: List[str], filter_index: Dict[str, Dict[str, Any]], input_node_id: Optional[str]) -> str:
     """Create a human-readable summary of the filter nodes for prompt context."""
 
     if filter_ids:
@@ -759,7 +797,14 @@ if __name__ == "__main__":
 
         filter_nodes.sort(key=_node_sort_key)
         filter_index = {node.get("id"): node for node in filter_nodes}
-        metric_filter_map = auto_assign_filters_to_metrics(metrics_list, filter_nodes, input_node_id)
+        
+        explicit_mapping = phase1_graph.get("metric_mapping")
+        metric_filter_map = auto_assign_filters_to_metrics(
+            metrics_list, 
+            filter_nodes, 
+            input_node_id, 
+            explicit_mapping=explicit_mapping
+        )
 
         final_graph = {
             "nodes": list(phase1_graph.get("nodes", [])),
