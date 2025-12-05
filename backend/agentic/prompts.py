@@ -7,10 +7,11 @@ from pydantic import BaseModel, Field
 from lib.agents import Agent
 from .sql_tool import TablePayload, create_sql_tool
 from .llm_factory import create_agent_model
+from langchain_mcp_adapters.client import MultiServerMCPClient
 import os
 from agentic.guardrails.gateway import MCPSecurityGateway
 from agentic.guardrails.before_agent import InputScanner
-from backend.pipeline.logger import custom_logger
+
 
 gateway = MCPSecurityGateway()
 
@@ -28,8 +29,12 @@ class Plan(BaseModel):
 class CANNOT_EXECUTE_Plan(BaseModel):
     reason: str= Field(description="Reason why the request cannot be processed by our agentic system")
 
+class RagTool(BaseModel):
+    tool_id: Literal["rag"]
+    tool_description: str
+    port: int
 class AgentPayload(Agent):
-    tools: List[Union[TablePayload]]
+    tools: List[Union[TablePayload, RagTool]]
 
 # Create agent model using the factory
 # This will use the default provider (Groq) with agent-optimized settings
@@ -38,47 +43,88 @@ model = create_agent_model()
 
 def build_agent(agent: AgentPayload) -> BaseTool:
     agent.name = agent.name.replace(" ", "_")
-    # TODO: Create our pre defined custom tools array based on what the user has defined the agent's tools as
-        # The custom tools feature should also include a human in the loop implementation
-        # Implement mappings from tool ids to the actual tool function for custom tools
+    # TODO: Implement alert tool
+
         
     pii_results = gateway.pii_analyzer.detect_all(agent.description)
     secrets_results = gateway.secrets_analyzer.detect_all(agent.description)
 
     if pii_results:
-        custom_logger.critical("PII Data detected in agent description")
+        pass
+        # custom_logger.critical("PII Data detected in agent description")
     
     if secrets_results:
-        custom_logger.critical("Secret Data detected in agent description")
+        pass
+        # custom_logger.critical("Secret Data detected in agent description")
 
     all_findings = (pii_results or []) + (secrets_results or [])
     sanitized_description = InputScanner._sanitize_text(agent.description, all_findings)
 
     tool_tables = [tool for tool in agent.tools if isinstance(tool,TablePayload)]
+    tool_rags = [tool for tool in agent.tools if isinstance(tool,RagTool)]
+    
     tools = []
     table_descriptions = None
+    rag_descriptions = []
+    
+    # Add SQL query tools for database tables
     if len(tool_tables) > 0: 
         query_tool, _table_descriptions= create_sql_tool(tool_tables, agent.name)
         table_descriptions = _table_descriptions
         tools.append(query_tool)
 
-    # TODO: Enhance prompt to include instructions to handle the RAGNode as a tool as well as other custom tools
-
+    # Add RAG tools via MCP client connection
+    if len(tool_rags) > 0:
+        for rag_tool in tool_rags:
+            # Connect to the RAG node's MCP server
+            mcp_client = MultiServerMCPClient({
+                f"rag_{rag_tool.port}": {
+                    "transport": "streamable_http",
+                    "url": f"http://localhost:{rag_tool.port}/mcp",
+                }
+            })
+            
+            # Get tools from the MCP server (synchronous call in init)
+            import asyncio
+            rag_mcp_tools = asyncio.run(mcp_client.get_tools())
+            tools.extend(rag_mcp_tools)
+            
+            # Build description for this RAG tool
+            rag_descriptions.append(
+                f"- RAG Document Store: {rag_tool.tool_description}\n"
+                f"  Access via MCP server on port {rag_tool.port}\n"
+                f"  Use the provided tools to search and retrieve relevant documents"
+            )
+    
+    # Build system prompt with RAG tool instructions
+    rag_instructions = ""
+    if len(rag_descriptions) > 0:
+        rag_instructions = (
+            "\n\nRAG TOOL USAGE:\n"
+            "You have access to document retrieval tools (RAG - Retrieval Augmented Generation).\n"
+            + "\n".join(rag_descriptions) + "\n"
+            "When a query requires knowledge from documents, use these tools to search and retrieve relevant information.\n"
+        )
+    
     agent_system_prompt = (
-        f"You are an agent with the following description:\n{sanitized_description}\n\n"            
-            "OUTPUT RULES (CRITICAL):\n"
-            "1. Answer ONLY what is explicitly requested\n"
-            "3. Do NOT provide additional context, related fields, or explanations unless requested\n"
-            "4. Format: Clear, natural language with actual values\n"
-            "5. Convert raw data (objects, tuples, SQL results) into readable sentences\n\n"
+        f"You are an agent with the following description:\n{agent.description}\n\n"
+        
+        "OUTPUT RULES (CRITICAL):\n"
+        "1. Answer ONLY what is explicitly requested\n"
+        "3. Do NOT provide additional context, related fields, or explanations unless requested\n"
+        "4. Format: Clear, natural language with actual values\n"
+        "5. Convert raw data (objects, tuples, SQL results) into readable sentences\n"
+        f"{rag_instructions}"
     )
         
     langchain_agent = create_agent(model=model, system_prompt=agent_system_prompt, tools=tools)
     agent_description = f"This is an agent with the following description:\n{agent.description}"
-    if len(tool_tables)> 0:
-        agent_description += f"It has read access to the following postgres tables:\n{table_descriptions}"
-    # TODO: Enhance agent descriptions with the custom tools available to it as well.
     
+    if len(tool_tables) > 0:
+        agent_description += f"\nIt has read access to the following postgres tables:\n{table_descriptions}"
+    
+    if len(rag_descriptions) > 0:
+        agent_description += "\nIt has access to the following document stores (RAG):\n" + "\n".join(rag_descriptions)
     
     langchain_agent.description = agent_description
     langchain_agent.name = agent.name

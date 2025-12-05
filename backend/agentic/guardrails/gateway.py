@@ -21,7 +21,6 @@ import nh3
 # from detect_secrets.core.secrets_collection import SecretsCollection
 import ipaddress
 import socket
-from backend.pipeline.logger import custom_logger
 
 from .base import DetectorResult, BaseDetector, ExtrasImport, Extra
 from .batch import PromptInjectionAnalyzer, PRESIDIO_EXTRA, transformers_extra
@@ -99,7 +98,6 @@ class UnicodeDetector(BaseDetector):
         return res
 
 SECRETS_PATTERNS = {
-    ### TODO: add more token patterns to restrict
     "GITHUB_TOKEN": [
         re.compile(r'(ghp|gho|ghu|ghs|ghr)_[A-Za-z0-9_]{36}'),
     ],
@@ -160,7 +158,6 @@ class MCPSecurityGateway:
         self._init_rate_limits()
         self._init_permissions()
         self.allowed_domains = {
-            # TODO: Add more domains as needed
         }
         logging.basicConfig(level=logging.INFO)
         self.logger = logging.getLogger("MCP_Security")
@@ -244,7 +241,6 @@ class MCPSecurityGateway:
 
         if len(self.request_counts[user_id]) >= self.MAX_REQUESTS_PER_MINUTE:
             self.logger.warning(f"Rate limit exceeded for user {user_id}")
-            # TODO: "Dead Letter Queue" or HITL
             return False
         
         self.request_counts[user_id].append(current_time)
@@ -408,7 +404,6 @@ class MCPSecurityGateway:
             "flagged_reason": reason,
             "timestamp": time.time()
         }
-        # TODO: push this dict to an SQS Queue or a Slack Webhook
         self.logger.warning(f"HITL TRIGGERED: {alert}")
         return {"status": 202, "message": "Request queued for manual security review."}
 

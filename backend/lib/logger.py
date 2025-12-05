@@ -9,6 +9,10 @@ from sqlalchemy.orm import sessionmaker, declarative_base
 from sqlalchemy.exc import SQLAlchemyError
 from pymongo import MongoClient
 from pymongo.errors import PyMongoError
+import sys
+from pathlib import Path
+# Add parent directory to path to import postgres_util
+sys.path.insert(0, str(Path(__file__).parent.parent))
 from postgres_util import postgre_url
 from zoneinfo import ZoneInfo
 

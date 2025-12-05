@@ -137,7 +137,7 @@ def rag_node(inputs: List[pw.Table], node: RAGNode):
     print(f"[RAG Node] Embedder: {node.embedder_type} ({node.embedder_model})")
     print(f"[RAG Node] Retriever: {node.retriever_type}")
     
-    
+    return mcp_port
 
 
 rag_mappings: dict[str, MappingValues] = {

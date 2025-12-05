@@ -1,11 +1,12 @@
 from dotenv import load_dotenv
 load_dotenv()
-from typing import List, Any
+from typing import List, Any, Optional, Dict
 from datetime import datetime, timezone
 import logging
+import os
 from fastapi import FastAPI, HTTPException
 from contextlib import asynccontextmanager
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from langgraph.graph.state import CompiledStateGraph
 from .prompts import create_planner_executor, AgentPayload
 from .rca.summarize import init_summarize_agent, summarize, SummarizeRequest
@@ -20,19 +21,102 @@ from .report_generation.api.schemas import (
 )
 from .report_generation.core.report_generator import generate_incident_report
 from .report_generation.core.weekly_generator import generate_weekly_report
+from postgres_util import postgre_url
+
+logger = logging.getLogger(__name__)
+# Runbook imports
+try:
+    from .runbook_src.core.remediation_orchestrator import RemediationOrchestrator
+    from .runbook_src.core.llm_suggestion_service import LLMSuggestionService
+    from .runbook_src.execution.execution_engine import ActionExecutor
+    from .runbook_src.core.runbook_registry import RunbookRegistry, RemediationAction
+    from .runbook_src.execution.safety_validator import SafetyValidator
+    from .runbook_src.services.secrets_manager import SecretsManager, get_secrets_manager
+    from .runbook_src.services.ssh_client import SSHClientFactory
+    from .runbook_src.agents.llm_discovery_agent import LLMDiscoveryAgent, RegistryIntegration
+    RUNBOOK_AVAILABLE = True
+except ImportError as e:
+    logger.warning(f"Runbook modules not available: {e}")
+    RUNBOOK_AVAILABLE = False
 
 # Configure logging
-logger = logging.getLogger(__name__)
 
 planner_executor: CompiledStateGraph = None
+
+# Runbook global instances
+orchestrator: Optional[Any] = None
+discovery_agent: Optional[LLMDiscoveryAgent] = None
+registry: Optional[Any] = None
 
 # Use OpenAI's o1 reasoning model for complex analysis
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    global orchestrator, discovery_agent, registry
+    
+    # Initialize existing agentic components
     await init_summarize_agent()
+    
+    # Initialize runbook components if available
+    if RUNBOOK_AVAILABLE:
+        try:
+            logger.info("Initializing runbook components...")
+            
+            # Initialize SSH client factory for discovery
+            ssh_factory = SSHClientFactory(max_connections_per_host=3)
+            
+            def ssh_client_factory(host: str, credentials: Dict[str, Any]):
+                port = int(credentials.get('port', 22)) if credentials.get('port') else 22
+                return ssh_factory.create_client(
+                    host=host,
+                    credentials=credentials,
+                    port=port,
+                    timeout=30
+                )
+            
+            # Initialize discovery agent with SSH support
+            discovery_agent = LLMDiscoveryAgent(ssh_client_factory=ssh_client_factory)
+            logger.info("Discovery agent initialized successfully")
+            
+            # Try to initialize DB components (optional)
+            try:
+                db_url = postgre_url
+                
+                registry = RunbookRegistry(database_url=db_url)
+                await registry.initialize()
+                
+                validator = SafetyValidator(otel_client=None, metrics_client=None)
+                secrets_mgr = SecretsManager()
+                executor = ActionExecutor(validator, secrets_mgr, None)
+                
+                try:
+                    suggestion_service = LLMSuggestionService()
+                    logger.info("LLM suggestion service initialized")
+                except Exception as llm_error:
+                    logger.warning(f"Could not initialize LLM suggestion service: {llm_error}")
+                    suggestion_service = None
+                
+                pathway_url = os.getenv("PATHWAY_API_URL", "http://localhost:8000")
+                orchestrator = RemediationOrchestrator(
+                    pathway_api_url=pathway_url,
+                    runbook_registry=registry,
+                    action_executor=executor,
+                    confidence_thresholds={'high': 0.3, 'medium': 0.5},
+                    suggestion_service=suggestion_service
+                )
+                logger.info("Runbook orchestrator initialized successfully")
+                
+            except Exception as db_error:
+                logger.warning(f"Could not initialize orchestrator (DB may not be ready): {db_error}")
+                logger.info("Discovery endpoints will still work without orchestrator")
+        
+        except Exception as e:
+            logger.error(f"Failed to initialize runbook components: {e}")
+    
     yield
+    
+    logger.info("Shutting down...")
 
 
 app = FastAPI(title="Agentic API", lifespan=lifespan)
@@ -119,13 +203,9 @@ async def create_incident_report(request: IncidentReportRequest):
     start_time = datetime.now()
     
     try:
-        # Get primary affected service for logging
-        primary_service = (request.rca_output.affected_services[0] 
-                          if request.rca_output.affected_services 
-                          else "unknown")
         
         logger.info(
-            f"Received incident report request for service: {primary_service} "
+            f"Received incident report request"
             f"(severity: {request.rca_output.severity})"
         )
         
@@ -287,3 +367,543 @@ async def create_weekly_report(request: WeeklyReportRequest):
                 "details": {"error": str(e)}
             }
         )
+
+
+# ============ Runbook Remediation Endpoints ============
+
+if RUNBOOK_AVAILABLE:
+    # Runbook Request/Response Models
+    class RemediationRequest(BaseModel):
+        error_message: str = Field(..., description="Error message to remediate")
+        auto_execute: bool = Field(True, description="Auto-execute high confidence matches")
+        require_approval_medium: bool = Field(True, description="Require approval for medium confidence")
+
+    class ApprovalRequest(BaseModel):
+        request_id: str = Field(..., description="Approval request ID")
+        approved_by: str = Field(default="api_user", description="Who approved the request")
+
+    class ActionSuggestionItem(BaseModel):
+        action_id: str
+        reason: str
+
+    class ErrorSuggestion(BaseModel):
+        error_name: str
+        description: str
+        suggested_actions: List[ActionSuggestionItem]
+        confidence_reasoning: str
+        feasible: bool
+        additional_actions_needed: Optional[str] = None
+
+    class RemediationResponse(BaseModel):
+        status: str
+        error: str
+        matched_error: Optional[str] = None
+        distance: Optional[float] = None
+        confidence: Optional[str] = None
+        actions_executed: Optional[int] = None
+        execution_results: Optional[List[Dict[str, Any]]] = None
+        overall_success: Optional[bool] = None
+        message: Optional[str] = None
+        request_id: Optional[str] = None
+        actions: Optional[List[str]] = None
+        description: Optional[str] = None
+        suggestion: Optional[ErrorSuggestion] = None
+
+    class RunbookHealthResponse(BaseModel):
+        status: str
+        pathway_api: str
+        timestamp: str
+
+    class ManualActionRequest(BaseModel):
+        action_id: str = Field(..., description="Unique action identifier")
+        service: str = Field(..., description="Service name")
+        method: str = Field(..., description="Execution method")
+        definition: str = Field(..., description="Action description")
+        risk_level: str = Field(..., description="Risk level")
+        requires_approval: bool = Field(False, description="Requires approval")
+        execution: Dict[str, Any] = Field(default_factory=dict)
+        parameters: Dict[str, Any] = Field(default_factory=dict)
+        secrets: List[str] = Field(default_factory=list)
+        action_metadata: Dict[str, Any] = Field(default_factory=dict)
+
+    class DiscoverSwaggerRequest(BaseModel):
+        swagger_url: Optional[str] = None
+        swagger_doc: Optional[Dict[str, Any]] = None
+        service_name: str
+
+    class DiscoverScriptsRequest(BaseModel):
+        scripts: List[Dict[str, str]]
+        service_name: str
+
+    class DiscoverSSHRequest(BaseModel):
+        host: str
+        scripts_path: str
+        credentials: Dict[str, str]
+        service_name: str
+
+    class DiscoverDocsRequest(BaseModel):
+        documentation: str
+        service_name: str
+
+    class SecretDefinition(BaseModel):
+        key: str
+        description: str
+        source: str
+        required: bool
+        value: Optional[str] = None
+
+    class SecretsProvisionRequest(BaseModel):
+        service_name: str
+        secrets: List[SecretDefinition]
+
+    class SecretsProvisionResponse(BaseModel):
+        status: str
+        secrets_saved: int
+        secrets_skipped: int
+        errors: Optional[List[str]] = None
+
+    class DiscoveryResponse(BaseModel):
+        status: str
+        actions_discovered: int
+        actions: List[Dict]
+        registered: bool
+        summary: Dict = {}
+        secrets_required: Optional[List[SecretDefinition]] = None
+
+    # Runbook Endpoints
+    @app.get("/runbook/health", response_model=RunbookHealthResponse, tags=["runbook"])
+    async def runbook_health():
+        """Health check for runbook orchestrator"""
+        return RunbookHealthResponse(
+            status="healthy" if orchestrator else "initializing",
+            pathway_api="connected" if orchestrator else "unknown",
+            timestamp=datetime.now().isoformat()
+        )
+
+    @app.post("/runbook/remediate", response_model=RemediationResponse, tags=["runbook"])
+    async def remediate_error(request: RemediationRequest):
+        """Execute automated remediation for an error"""
+        if not orchestrator:
+            raise HTTPException(status_code=503, detail="Orchestrator not initialized")
+        
+        try:
+            logger.info(f"Received remediation request for: {request.error_message}")
+            result = await orchestrator.execute_remediation(
+                error_message=request.error_message,
+                auto_execute_high_confidence=request.auto_execute,
+                require_approval_medium=request.require_approval_medium
+            )
+            return RemediationResponse(**result)
+        except Exception as e:
+            logger.error(f"Remediation failed: {e}")
+            raise HTTPException(status_code=500, detail=str(e))
+
+    @app.post("/runbook/remediate/approve", response_model=RemediationResponse, tags=["runbook"])
+    async def execute_with_approval(request: ApprovalRequest):
+        """Execute approved actions for medium confidence matches"""
+        if not orchestrator:
+            raise HTTPException(status_code=503, detail="Orchestrator not initialized")
+        
+        try:
+            logger.info(f"Executing approved request: {request.request_id}")
+            result = await orchestrator.execute_with_approval(
+                request_id=request.request_id,
+                approved_by=request.approved_by
+            )
+            return RemediationResponse(**result)
+        except Exception as e:
+            logger.error(f"Approved execution failed: {e}")
+            raise HTTPException(status_code=500, detail=str(e))
+
+    @app.get("/runbook/query-errors", tags=["runbook"])
+    async def query_errors(error_message: str, k: int = 5):
+        """Query Pathway API for matching errors without execution"""
+        if not orchestrator:
+            raise HTTPException(status_code=503, detail="Orchestrator not initialized")
+        
+        try:
+            matches = await orchestrator.query_error_actions(error_message, k=k)
+            return {
+                'query': error_message,
+                'matches': [
+                    {
+                        'error': m.error,
+                        'actions': m.actions,
+                        'description': m.description,
+                        'distance': m.distance,
+                        'confidence': m.confidence.value,
+                        'is_actionable': m.is_actionable
+                    }
+                    for m in matches
+                ]
+            }
+        except Exception as e:
+            logger.error(f"Query failed: {e}")
+            raise HTTPException(status_code=500, detail=str(e))
+
+    @app.get("/runbook/actions", tags=["runbook"])
+    async def list_actions(service: Optional[str] = None, method: Optional[str] = None, validated_only: bool = False):
+        """List all actions with optional filtering"""
+        if not registry:
+            raise HTTPException(status_code=503, detail="Registry not initialized")
+        
+        try:
+            if service:
+                actions = await registry.get_by_service(service)
+            elif method:
+                actions = await registry.get_by_method(method)
+            else:
+                actions = await registry.list_all()
+            
+            if validated_only:
+                actions = [a for a in actions if a.validated]
+            
+            return {'total': len(actions), 'actions': [a.model_dump() for a in actions]}
+        except Exception as e:
+            logger.error(f"Failed to list actions: {e}")
+            raise HTTPException(status_code=500, detail=str(e))
+
+    @app.get("/runbook/actions/{action_id}", tags=["runbook"])
+    async def get_action(action_id: str):
+        """Get specific action by ID"""
+        if not registry:
+            raise HTTPException(status_code=503, detail="Registry not initialized")
+        
+        try:
+            action = await registry.get(action_id)
+            if not action:
+                raise HTTPException(status_code=404, detail="Action not found")
+            return action.model_dump()
+        except HTTPException:
+            raise
+        except Exception as e:
+            logger.error(f"Failed to get action: {e}")
+            raise HTTPException(status_code=500, detail=str(e))
+
+    @app.post("/runbook/actions/add", tags=["runbook"])
+    async def add_manual_action(request: ManualActionRequest):
+        """Manually add a remediation action to the registry"""
+        if not registry:
+            raise HTTPException(status_code=503, detail="Registry not initialized")
+        
+        try:
+            action = RemediationAction(
+                action_id=request.action_id,
+                service=request.service,
+                method=request.method,
+                definition=request.definition,
+                risk_level=request.risk_level,
+                requires_approval=request.requires_approval,
+                validated=False,
+                execution=request.execution,
+                parameters=request.parameters,
+                secrets=request.secrets,
+                action_metadata=request.action_metadata
+            )
+            await registry.save(action)
+            return {'status': 'success', 'message': f'Successfully added action: {request.action_id}', 'action': action.model_dump()}
+        except Exception as e:
+            logger.error(f"Failed to add manual action: {e}")
+            raise HTTPException(status_code=500, detail=str(e))
+
+    @app.delete("/runbook/actions/{action_id}", tags=["runbook"])
+    async def delete_action(action_id: str):
+        """Delete a specific action by ID"""
+        if not registry:
+            raise HTTPException(status_code=503, detail="Registry not initialized")
+        
+        try:
+            action = await registry.get(action_id)
+            if not action:
+                raise HTTPException(status_code=404, detail="Action not found")
+            await registry.delete(action_id)
+            return {'status': 'success', 'message': f'Successfully deleted action: {action_id}'}
+        except HTTPException:
+            raise
+        except Exception as e:
+            logger.error(f"Failed to delete action: {e}")
+            raise HTTPException(status_code=500, detail=str(e))
+
+    @app.put("/runbook/actions/{action_id}", tags=["runbook"])
+    async def update_action(action_id: str, request: ManualActionRequest):
+        """Update an existing action"""
+        if not registry:
+            raise HTTPException(status_code=503, detail="Registry not initialized")
+        
+        try:
+            existing = await registry.get(action_id)
+            if not existing:
+                raise HTTPException(status_code=404, detail="Action not found")
+            
+            action = RemediationAction(
+                action_id=action_id,
+                service=request.service,
+                method=request.method,
+                definition=request.definition,
+                risk_level=request.risk_level,
+                requires_approval=request.requires_approval,
+                validated=existing.validated,
+                execution=request.execution,
+                parameters=request.parameters,
+                secrets=request.secrets,
+                action_metadata=request.action_metadata
+            )
+            await registry.save(action)
+            return {'status': 'success', 'message': f'Successfully updated action: {action_id}', 'action': action.model_dump()}
+        except HTTPException:
+            raise
+        except Exception as e:
+            logger.error(f"Failed to update action: {e}")
+            raise HTTPException(status_code=500, detail=str(e))
+
+    @app.post("/runbook/discover/swagger", response_model=DiscoveryResponse, tags=["runbook"])
+    async def discover_from_swagger(request: DiscoverSwaggerRequest):
+        """Discover remediation actions from Swagger/OpenAPI specification"""
+        if not discovery_agent:
+            raise HTTPException(status_code=503, detail="Discovery agent not initialized")
+        
+        try:
+            base_url = None
+            if request.swagger_url:
+                import aiohttp
+                from urllib.parse import urlparse
+                parsed = urlparse(request.swagger_url)
+                base_url = f"{parsed.scheme}://{parsed.netloc}"
+                async with aiohttp.ClientSession() as session:
+                    async with session.get(request.swagger_url) as resp:
+                        if resp.status != 200:
+                            raise HTTPException(status_code=400, detail="Failed to fetch Swagger spec")
+                        swagger_doc = await resp.json()
+            elif request.swagger_doc:
+                swagger_doc = request.swagger_doc
+            else:
+                raise HTTPException(status_code=400, detail="Provide either swagger_url or swagger_doc")
+            
+            actions = await discovery_agent.discover_from_swagger(swagger_doc, request.service_name, base_url=base_url)
+            
+            registered = False
+            summary = {}
+            if registry:
+                try:
+                    integration = RegistryIntegration(registry)
+                    summary = await integration.register_actions(actions)
+                    registered = True
+                except Exception as reg_error:
+                    logger.warning(f"Could not register actions in DB: {reg_error}")
+            
+            secrets_required = []
+            seen_secrets = set()
+            for action in actions:
+                for secret_name in action.secrets:
+                    if secret_name not in seen_secrets:
+                        seen_secrets.add(secret_name)
+                        description = f"Secret '{secret_name}' for {action.action_id}"
+                        if 'api_key' in secret_name.lower():
+                            description = f"API key for {action.service}"
+                        elif 'token' in secret_name.lower():
+                            description = f"Authentication token for {action.service}"
+                        elif 'password' in secret_name.lower():
+                            description = f"Password for {action.service}"
+                        secrets_required.append(SecretDefinition(
+                            key=secret_name,
+                            description=description,
+                            source="openapi",
+                            required=True,
+                            value=None
+                        ))
+            
+            return DiscoveryResponse(
+                status="pending_secrets" if secrets_required else "completed",
+                actions_discovered=len(actions),
+                actions=[a.model_dump() for a in actions],
+                registered=registered,
+                summary=summary,
+                secrets_required=secrets_required if secrets_required else None
+            )
+        except HTTPException:
+            raise
+        except Exception as e:
+            logger.error(f"Swagger discovery failed: {e}")
+            raise HTTPException(status_code=500, detail=str(e))
+
+    @app.post("/runbook/discover/scripts", response_model=DiscoveryResponse, tags=["runbook"])
+    async def discover_from_scripts(request: DiscoverScriptsRequest):
+        """Discover remediation actions from script files"""
+        if not discovery_agent:
+            raise HTTPException(status_code=503, detail="Discovery agent not initialized")
+        
+        try:
+            actions = await discovery_agent.discover_from_scripts(request.scripts, request.service_name)
+            
+            registered = False
+            summary = {}
+            if registry:
+                try:
+                    integration = RegistryIntegration(registry)
+                    summary = await integration.register_actions(actions)
+                    registered = True
+                except Exception as reg_error:
+                    logger.warning(f"Could not register actions in DB: {reg_error}")
+            
+            secrets_required = []
+            seen_secrets = set()
+            for action in actions:
+                for secret_name in action.secrets:
+                    if secret_name not in seen_secrets:
+                        seen_secrets.add(secret_name)
+                        secrets_required.append(SecretDefinition(
+                            key=secret_name,
+                            description=f"Secret '{secret_name}' for {action.action_id}",
+                            source="script",
+                            required=True,
+                            value=None
+                        ))
+            
+            return DiscoveryResponse(
+                status="pending_secrets" if secrets_required else "completed",
+                actions_discovered=len(actions),
+                actions=[a.model_dump() for a in actions],
+                registered=registered,
+                summary=summary,
+                secrets_required=secrets_required if secrets_required else None
+            )
+        except Exception as e:
+            logger.error(f"Script discovery failed: {e}")
+            raise HTTPException(status_code=500, detail=str(e))
+
+    @app.post("/runbook/discover/ssh", response_model=DiscoveryResponse, tags=["runbook"])
+    async def discover_from_ssh(request: DiscoverSSHRequest):
+        """Discover remediation actions via SSH"""
+        if not discovery_agent:
+            raise HTTPException(status_code=503, detail="Discovery agent not initialized")
+        
+        try:
+            actions = await discovery_agent.discover_from_ssh(
+                request.host,
+                request.scripts_path,
+                request.credentials,
+                request.service_name,
+                secrets_manager=None
+            )
+            
+            registered = False
+            summary = {}
+            if registry:
+                try:
+                    integration = RegistryIntegration(registry)
+                    summary = await integration.register_actions(actions)
+                    registered = True
+                except Exception as reg_error:
+                    logger.warning(f"Could not register actions in DB: {reg_error}")
+            
+            secrets_required = []
+            seen_secrets = set()
+            for action in actions:
+                for secret_name in action.secrets:
+                    if secret_name not in seen_secrets:
+                        seen_secrets.add(secret_name)
+                        description = f"Secret for {action.service}"
+                        if 'ssh_host' in secret_name:
+                            description = f"SSH host for {action.service}"
+                        elif 'ssh_username' in secret_name:
+                            description = f"SSH username for {action.service}"
+                        elif 'ssh_password' in secret_name:
+                            description = f"SSH password for {action.service}"
+                        elif 'ssh_port' in secret_name:
+                            description = f"SSH port for {action.service}"
+                        else:
+                            description = f"Secret '{secret_name}' for {action.action_id}"
+                        secrets_required.append(SecretDefinition(
+                            key=secret_name,
+                            description=description,
+                            source="ssh",
+                            required=True,
+                            value=None
+                        ))
+            
+            return DiscoveryResponse(
+                status="pending_secrets" if secrets_required else "completed",
+                actions_discovered=len(actions),
+                actions=[a.model_dump() for a in actions],
+                registered=registered,
+                summary=summary,
+                secrets_required=secrets_required if secrets_required else None
+            )
+        except Exception as e:
+            logger.error(f"SSH discovery failed: {e}")
+            raise HTTPException(status_code=500, detail=str(e))
+
+    @app.post("/runbook/discover/documentation", response_model=DiscoveryResponse, tags=["runbook"])
+    async def discover_from_documentation(request: DiscoverDocsRequest):
+        """Discover remediation actions from operational documentation"""
+        if not discovery_agent:
+            raise HTTPException(status_code=503, detail="Discovery agent not initialized")
+        
+        try:
+            actions = await discovery_agent.discover_from_documentation(request.documentation, request.service_name)
+            
+            registered = False
+            summary = {}
+            if registry:
+                try:
+                    integration = RegistryIntegration(registry)
+                    summary = await integration.register_actions(actions)
+                    registered = True
+                except Exception as reg_error:
+                    logger.warning(f"Could not register actions in DB: {reg_error}")
+            
+            return DiscoveryResponse(
+                status="completed",
+                actions_discovered=len(actions),
+                actions=[a.model_dump() for a in actions],
+                registered=registered,
+                summary=summary
+            )
+        except Exception as e:
+            logger.error(f"Documentation discovery failed: {e}")
+            raise HTTPException(status_code=500, detail=str(e))
+
+    @app.post("/runbook/secrets/provision", response_model=SecretsProvisionResponse, tags=["runbook"])
+    async def provision_secrets(request: SecretsProvisionRequest):
+        """Provision secret values for discovered actions"""
+        secrets_mgr = get_secrets_manager()
+        secrets_saved = 0
+        secrets_skipped = 0
+        errors = []
+        
+        try:
+            for secret in request.secrets:
+                if secret.value is None or secret.value.strip() == "":
+                    if secret.required:
+                        errors.append(f"Required secret '{secret.key}' has no value")
+                        secrets_skipped += 1
+                    else:
+                        secrets_skipped += 1
+                    continue
+                
+                try:
+                    secrets_mgr.set_secret(secret.key, secret.value)
+                    secrets_saved += 1
+                    logger.info(f"Provisioned secret: {secret.key} (source: {secret.source})")
+                except Exception as e:
+                    error_msg = f"Failed to save secret '{secret.key}': {str(e)}"
+                    errors.append(error_msg)
+                    logger.error(error_msg)
+                    secrets_skipped += 1
+            
+            if secrets_saved == len(request.secrets):
+                status = "completed"
+            elif secrets_saved > 0:
+                status = "partial"
+            else:
+                status = "failed"
+            
+            return SecretsProvisionResponse(
+                status=status,
+                secrets_saved=secrets_saved,
+                secrets_skipped=secrets_skipped,
+                errors=errors if errors else None
+            )
+        except Exception as e:
+            logger.error(f"Secrets provisioning failed: {e}")
+            raise HTTPException(status_code=500, detail=str(e))

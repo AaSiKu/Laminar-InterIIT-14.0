@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from bson.objectid import ObjectId
-from backend.api.routers.auth.routes import get_current_user
-from backend.api.routers.auth.models import User
+from ..auth.routes import get_current_user
+from ..auth.models import User
 from datetime import datetime
 from typing import List
 import logging
@@ -9,7 +9,7 @@ from .schema import save_workflow_payload, retrieve_payload, save_draft_payload,
 from .crud import create_workflow as _create_workflow
 from sqlalchemy.future import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from backend.api.routers.auth.database import get_db
+from ..auth.database import get_db
 
 
 logger = logging.getLogger(__name__)

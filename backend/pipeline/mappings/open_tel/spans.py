@@ -8,7 +8,6 @@ from lib.utils import convert_rdkafka_settings
 class Span(pw.Schema):
     # Span identity fields
     _open_tel_trace_id: str  # Required, must be non-empty
-    # TODO: Make this primary_key
     _open_tel_span_id: str  # Required, must be non-empty
     _open_tel_parent_span_id: str  # empty for root spans
     _open_tel_service_name: str

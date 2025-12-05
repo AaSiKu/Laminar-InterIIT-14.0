@@ -6,11 +6,12 @@ from .downtime_agent import analyze_downtime_incidents, DowntimeIncident
 from .latency_agent import build_graph, MetricAlert
 from .output import RCAAnalysisOutput
 from ..guardrails.before_agent import InputScanner
-from backend.agentic.guardrails.gateway import MCPSecurityGateway
-from backend.pipeline.logger import custom_logger
-from backend.agentic.guardrails.before_agent import detect 
+from ..guardrails.gateway import MCPSecurityGateway
+from ..guardrails.before_agent import detect 
+from .rca_logger import rca_logger
 
 gateway = MCPSecurityGateway()
+
 
 class InitRCA(SummarizeOutput):
     # description of the metric
@@ -25,6 +26,9 @@ class InitRCA(SummarizeOutput):
 input_scanner = None
 
 async def rca(init_rca_request: InitRCA):
+    # Log RCA initialization for user visibility
+    rca_logger.info(f"Starting Root Cause Analysis for {init_rca_request.metric_type} metric: {init_rca_request.description}")
+    
     print("RCA invoked")
     global input_scanner
     if input_scanner is None:
@@ -58,6 +62,8 @@ async def rca(init_rca_request: InitRCA):
                 # Analyze error logs to find root cause
                 analysis: RCAAnalysisOutput = await analyze_error_logs(logs_by_trace)
                 
+                rca_logger.info(f"Root Cause Analysis completed for error metric: {init_rca_request.description}")
+                
                 return {
                     "analysis": analysis.model_dump()
                 }
@@ -66,7 +72,7 @@ async def rca(init_rca_request: InitRCA):
                 # Create metric alert from the summarized data
                 metric_alert = MetricAlert(
                     metric_description=init_rca_request.description,
-                    breach_time_utc=init_rca_request,
+                    breach_time_utc=init_rca_request.breach_time_utc,
                     breach_value=init_rca_request.breach_value
                 )
                 
@@ -92,11 +98,14 @@ async def rca(init_rca_request: InitRCA):
                 analysis: RCAAnalysisOutput = result.get("rca_output")
                 
                 if not analysis:
+                    rca_logger.warning(f"Root Cause Analysis could not be completed for latency metric: {init_rca_request.description}")
                     return {
                         "analysis": {
                             "message": "Latency analysis could not be completed"
                         }
                     }
+                
+                rca_logger.info(f"Root Cause Analysis completed for latency metric: {init_rca_request.description}")
                 
                 return {
                     "analysis": analysis.model_dump()
@@ -133,6 +142,8 @@ async def rca(init_rca_request: InitRCA):
                     logs_table=init_rca_request.table_data["logs"],
                     window_seconds=30
                 )
+                
+                rca_logger.info(f"Root Cause Analysis completed for uptime metric: {init_rca_request.description}")
                 
                 return {
                     "analysis": analysis.model_dump()

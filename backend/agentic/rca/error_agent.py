@@ -4,11 +4,11 @@ from .output import RCAAnalysisOutput
 from datetime import datetime
 from ..llm_factory import create_analyser_model
 from ..guardrails.before_agent import InputScanner
-from backend.agentic.guardrails.gateway import MCPSecurityGateway
-from backend.pipeline.logger import custom_logger
-from backend.agentic.guardrails.batch import PromptInjectionAnalyzer
-from backend.agentic.guardrails.before_agent import detect
+from ..guardrails.gateway import MCPSecurityGateway
 
+from ..guardrails.batch import PromptInjectionAnalyzer
+from ..guardrails.before_agent import detect
+from .rca_logger import rca_logger
 gateway = MCPSecurityGateway()
 
 # Create the analyzer model instance
@@ -140,9 +140,8 @@ async def analyze_error_logs(logs_by_trace: Dict[str, List[Dict]], skip_injectio
         RCAAnalysisOutput with structured analysis
     """
     if structured_analyser_model is None:
-        custom_logger.info("Initializing error analysis model")
         await init_error_analysis_agent()
-        custom_logger.info("Initialized error analysis model")
+
 
     # Format logs for analysis
     formatted_logs = format_logs_for_analysis(logs_by_trace)
@@ -160,7 +159,7 @@ async def analyze_error_logs(logs_by_trace: Dict[str, List[Dict]], skip_injectio
         
         injection_detected = await gateway.prompt_injection_analyzer.adetect(formatted_logs)
         if injection_detected:
-            custom_logger.critical("High-confidence prompt injection detected in log data. Halting analysis.")
+            rca_logger.critical("High-confidence prompt injection detected in log data. Halting analysis.")
             raise ValueError(f"Data failed security checks: High-confidence prompt injection detected.")
 
     analysis_prompt = (

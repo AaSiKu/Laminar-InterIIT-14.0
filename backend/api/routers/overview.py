@@ -4,10 +4,10 @@ from .version_manager.schema import Notification, UpdateNotificationAction
 # from .version_manager.schema import Log  # Commented out - logs not implemented yet
 from datetime import datetime
 from bson.objectid import ObjectId
-from backend.api.routers.auth.models import User
-from backend.api.routers.auth.routes import get_current_user
-from backend.api.routers.auth.database import get_db
-from backend.api.routers.auth import crud as auth_crud
+from .auth.models import User
+from .auth.routes import get_current_user
+from .auth.database import get_db
+from .auth import crud as auth_crud
 from sqlalchemy.ext.asyncio import AsyncSession
 from .version_manager.routes import serialize_mongo
 
@@ -110,7 +110,6 @@ async def add_notification(
     Accepts notification data and broadcasts via WebSocket
     The change stream watcher will automatically broadcast the notification
     '''
-    # TODO: Implement agent authentication via X-Agent-Token
     # For now, we assume the token is validated elsewhere or will be implemented
     # if not x_agent_token:
     #     raise HTTPException(status_code=401, detail="Agent token required")
@@ -145,7 +144,6 @@ async def add_notification(
 #     Accepts log data and broadcasts via WebSocket
 #     The change stream watcher will automatically broadcast the log
 #     '''
-#     # TODO: Implement agent authentication via X-Agent-Token
 #     # For now, we assume the token is validated elsewhere or will be implemented
 #     # if not x_agent_token:
 #     #     raise HTTPException(status_code=401, detail="Agent token required")
@@ -303,7 +301,6 @@ async def update_notification_action(
     # if update_result.modified_count == 0:
     #     raise HTTPException(status_code=400, detail="Failed to update notification")
     
-    #TODO: backend does whatever it needs to do to take action and update the value of notifications
     return {
         "status": "success",
         "message": "Notification action updated successfully"

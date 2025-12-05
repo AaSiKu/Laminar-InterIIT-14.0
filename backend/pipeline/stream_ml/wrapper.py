@@ -13,7 +13,6 @@ from numpy.lib.stride_tricks import sliding_window_view
 
 logger = logging.getLogger(__name__)
 
-# TODO: Output and Input smoothing during training and after predicting. Add a smoothing factor to config? 
 
 class ModelWrapper:
     MODEL_REGISTRY = {

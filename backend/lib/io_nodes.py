@@ -5,7 +5,6 @@ import pathway as pw
 from .node import Node
 import json
 
-# TODO: Add descriptions for the fields for user help on the UI, the description will be rendered as md
 # NOTE: Instead of using tuple, using this special type to ensure correct rending mechanism on frontend
 PairOfStrings = Annotated[List[str], Field(min_length=2, max_length=2)]
 class ColumnType(BaseModel):

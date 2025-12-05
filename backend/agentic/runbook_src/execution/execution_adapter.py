@@ -4,7 +4,7 @@ Transforms RemediationAction (registry schema) to ExecutionEngine action format
 """
 
 from typing import Dict, Any, List, Optional
-from src.core.runbook_registry import RemediationAction
+from ..core.runbook_registry import RemediationAction
 
 
 class ExecutionAdapter:

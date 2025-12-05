@@ -627,7 +627,7 @@ class ActionExecutor:
     ) -> Dict[str, Any]:
         """Execute command on remote server via SSH"""
         try:
-            from src.services.ssh_client import AsyncSSHClient, SSHCredentials
+            from ..services.ssh_client import AsyncSSHClient, SSHCredentials
             
             # Extract SSH connection details from secrets
             host = secrets.get('ssh_host', 'localhost')

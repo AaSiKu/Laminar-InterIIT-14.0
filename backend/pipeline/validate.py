@@ -1,4 +1,3 @@
-# TODO: When we encounter any error while validation, it goes into the logs, no output is sent to user
 from typing import List, Dict, Any
 from collections import defaultdict
 from pydantic import ValidationError

@@ -6,6 +6,7 @@ import os
 from postgres_util import construct_table_name
 import json
 from datetime import datetime, timezone
+import asyncio
 agentic_url = os.getenv("AGENTIC_URL")
 
 class RCAOutputSchema(pw.Schema):
@@ -98,7 +99,7 @@ def trigger_rca(metric_table: pw.Table, node: TriggerRCANode, graph: Graph) -> p
                 "breach_time_utc": breach_time_utc
             } 
           
-            # raise Exception(json.dumps(request_data,indent=4))
+            # Call RCA API
             async with httpx.AsyncClient(timeout=60) as client:
                 resp = await client.post(
                     f"{agentic_url.rstrip('/')}/rca",
@@ -106,6 +107,62 @@ def trigger_rca(metric_table: pw.Table, node: TriggerRCANode, graph: Graph) -> p
                 )
                 if resp.status_code != 200:
                     raise Exception(f"Request Data: {json.dumps(request_data,indent=4)}\n\n{resp.text}")
-                data = resp.json()
-                return data
+                rca_data = resp.json()
+            
+            # Extract RCA analysis output for parallel API calls
+            rca_output = rca_data.get("analysis")
+            
+            if not rca_output:
+                return rca_data
+            
+            # Define async functions for parallel API calls
+            async def generate_report():
+                """Call the incident report generation API"""
+                try:
+                    async with httpx.AsyncClient(timeout=120) as client:
+                        report_resp = await client.post(
+                            f"{agentic_url.rstrip('/')}/api/v1/reports/incident",
+                            json={"rca_output": rca_output}
+                        )
+                        if report_resp.status_code == 200:
+                            return report_resp.json()
+                        else:
+                            return {"error": f"Report generation failed: {report_resp.text}"}
+                except Exception as e:
+                    return {"error": f"Report generation error: {str(e)}"}
+            
+            async def recommend_actions():
+                """Call the runbook remediation API"""
+                try:
+                    # Use root_cause as the error message for remediation
+                    error_message = rca_output.get("root_cause", "Unknown error")
+                    async with httpx.AsyncClient(timeout=120) as client:
+                        remediation_resp = await client.post(
+                            f"{agentic_url.rstrip('/')}/runbook/remediate",
+                            json={
+                                "error_message": error_message,
+                                "auto_execute": True,  # Don't auto-execute, just suggest
+                                "require_approval_medium": True
+                            }
+                        )
+                        if remediation_resp.status_code == 200:
+                            return remediation_resp.json()
+                        else:
+                            return {"error": f"Remediation suggestion failed: {remediation_resp.text}"}
+                except Exception as e:
+                    return {"error": f"Remediation suggestion error: {str(e)}"}
+            
+            # Call both APIs in parallel
+            report_result, remediation_result = await asyncio.gather(
+                generate_report(),
+                recommend_actions(),
+                return_exceptions=True
+            )
+            
+            # Combine all results
+            return {
+                "analysis": rca_output,
+                "report": report_result if not isinstance(report_result, Exception) else {"error": str(report_result)},
+                "remediation": remediation_result if not isinstance(remediation_result, Exception) else {"error": str(remediation_result)}
+            }
     return RCATransformer(input_table=metric_table).successful

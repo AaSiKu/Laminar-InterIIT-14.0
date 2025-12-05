@@ -10,10 +10,9 @@ from .output import RCAAnalysisOutput
 from datetime import datetime, timedelta
 import asyncio
 from ..llm_factory import create_analyser_model
-from backend.pipeline.logger import custom_logger
-from backend.agentic.guardrails.gateway import MCPSecurityGateway
+from ..guardrails.gateway import MCPSecurityGateway
 from ..guardrails.before_agent import InputScanner
-from backend.agentic.guardrails.before_agent import detect
+from ..guardrails.before_agent import detect
 
 gateway = MCPSecurityGateway()
 
@@ -117,8 +116,8 @@ async def enrichment_node(state: RCAState) -> Dict:
 
     # Get table information from state
     table_data = state.get("table_data", {})
-    spans_table = table_data.get("spans", TablePayload(table_name=os.getenv('SPANS_TABLE', 'otel_spans')))
-    logs_table = table_data.get("logs", TablePayload(table_name=os.getenv('LOGS_TABLE', 'otel_logs')))
+    spans_table = table_data.get("spans", TablePayload(table_name=state["table_data"]["spans"]))
+    logs_table = table_data.get("logs", TablePayload(table_name=state["table_data"]["logs"]))
 
     top_traces = await get_top_latency_traces(
         start_time_utc=start_time,
