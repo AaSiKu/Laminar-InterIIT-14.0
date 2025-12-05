@@ -304,73 +304,29 @@ export const WorkflowsList = () => {
   };
 
   const handleCreateWorkflowComplete = async (workflowData) => {
+    // The CreateWorkflowDrawer now handles the pipeline creation and saving
+    // This callback receives the completed workflow data for any additional handling
     try {
       setLoading(true);
-      // Create workflow using pipelineUtils
-      let newWorkflowId = null;
-      let newVersionId = null;
-
-      await create_pipeline(
-        workflowData.name || "New Workflow",
-        (id) => {
-          newWorkflowId = id;
-        },
-        (id) => {
-          newVersionId = id;
-        },
-        setError,
-        setLoading
-      );
-
-      // Save the pipeline data if provided
-      if (
-        newWorkflowId &&
-        newVersionId &&
-        (workflowData.nodes || workflowData.edges)
-      ) {
-        const response = await fetch(
-          `${import.meta.env.VITE_API_SERVER}/version/save`,
-          {
-            method: "POST",
-            credentials: "include",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-              workflow_id: newWorkflowId,
-              current_version_id: newVersionId,
-              version_description: workflowData.description || "",
-              version_updated_at: new Date().toISOString(),
-              pipeline: {
-                nodes: workflowData.nodes || [],
-                edges: workflowData.edges || [],
-                viewport: workflowData.viewport || { x: 0, y: 0, zoom: 1 },
-              },
-            }),
-          }
-        );
-
-        if (!response.ok) {
-          throw new Error("Failed to save pipeline data");
-        }
-      }
-
+      
+      const newWorkflowId = workflowData.pipelineId;
+      
       // Workflows will be updated automatically via GlobalStateContext WebSocket
       // Just select the newly created workflow if we can find it
       if (newWorkflowId) {
         // Wait a bit for WebSocket to update, then find the workflow
         setTimeout(() => {
-          const newWorkflow = workflows.find(
+          const newWorkflow = transformedWorkflows.find(
             (w) => w.id === newWorkflowId || w._id === newWorkflowId
           );
           if (newWorkflow) {
-    setSelectedWorkflow(newWorkflow);
+            setSelectedWorkflow(newWorkflow);
           }
         }, 1000);
       }
     } catch (err) {
-      console.error("Error creating workflow:", err);
-      setError(err.message || "Failed to create workflow");
+      console.error("Error handling workflow creation:", err);
+      setError(err.message || "Failed to handle workflow creation");
     } finally {
       setLoading(false);
     }
@@ -410,7 +366,7 @@ export const WorkflowsList = () => {
 
   return (
     <Box
-                  sx={{
+      sx={{
         display: "flex",
         flexDirection: "column",
         height: "100vh",
@@ -428,7 +384,7 @@ export const WorkflowsList = () => {
       />
 
       <Box
-                  sx={{
+        sx={{
           ...styles.mainContainer,
           bgcolor: "background.default",
           flex: 1,
@@ -438,7 +394,7 @@ export const WorkflowsList = () => {
       >
         {/* Main Content Area */}
         <Box
-              sx={{
+          sx={{
             ...styles.mainContentArea,
             bgcolor: "background.default",
             height: "100%",
@@ -469,9 +425,9 @@ export const WorkflowsList = () => {
             />
 
             {/* Scrollable Workflow Cards */}
-          <Box 
-            sx={{ 
-              flex: 1,
+            <Box
+              sx={{
+                flex: 1,
                 minHeight: 0,
                 overflowY: "auto",
                 px: 2,
@@ -562,7 +518,7 @@ export const WorkflowsList = () => {
               logs={[]}
             />
           )}
-          </Box>
+        </Box>
       </Box>
 
       {/* New Project Modal */}

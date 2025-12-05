@@ -3,6 +3,7 @@ from typing_extensions import TypedDict
 import pathway as pw
 from lib.io_nodes import PairOfStrings, ColumnType
 from lib.tables.joins import JoinMode
+
 class MappingValues(TypedDict):
     node_fn: Callable
     stringify: Optional[Callable[[Any, List[int]], str]]  # Add this line

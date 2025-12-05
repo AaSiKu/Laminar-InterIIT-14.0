@@ -5,7 +5,7 @@ load_dotenv()
 from .logger import custom_logger
 from .agentic import build_agentic_graph
 from .graph_reader import read_and_validate_graph
-from .graph_builder import build_computational_graph
+from .graph_builder import build_computational_graph, persist_table_to_postgres
 from .agentic_setup import (
     setup_trigger_tables,
     setup_prompt_table,
@@ -13,7 +13,9 @@ from .agentic_setup import (
     persist_answers
 )
 from postgres_util import connection_string
-from .metric_node import find_special_column_sources, is_special_column
+from .metric_node import find_special_column_sources
+from .mappings import trigger_rca
+from .mappings.open_tel.prefix import is_special_column
 
 # TODO: Fix setup tools deprecation warnings
 # TODO: Fix numpy v1 vs v2 conflicts warnings 
@@ -42,13 +44,19 @@ def main():
             graph["dependencies"]
         )
 
+        graph["node_outputs"] = node_outputs
         for metric_node_idx in graph["metric_node_descriptions"].keys():
             graph["metric_node_descriptions"][metric_node_idx]["special_columns_source_indexes"] = {
-                col: find_special_column_sources(metric_node_idx,col,graph) for col in node_outputs[metric_node_idx].column_names() if is_special_column(col)
+                col: find_special_column_sources(metric_node_idx,col,graph) for col in node_outputs[metric_node_idx].column_names() if is_special_column(col) and 'trace_id' in col
             }
+        trigger_rca_nodes = [ind for ind in range(len(graph["nodes"])) if graph["nodes"][ind].node_id == "trigger_rca"]
+
+        for rca_node_idx in trigger_rca_nodes:
+            rca_output_table = trigger_rca(node_outputs[graph["dependencies"][rca_node_idx][0]], graph["nodes"][rca_node_idx], graph)
+            persist_table_to_postgres(rca_output_table, graph["nodes"][rca_node_idx], rca_node_idx)
         # Build agentic graph
         graph_name = graph.get("name", "")
-
+        
         supervisor = build_agentic_graph(
             graph["agents"],
             graph_name,
