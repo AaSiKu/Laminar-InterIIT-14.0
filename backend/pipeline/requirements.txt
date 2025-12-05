@@ -8,3 +8,7 @@ psycopg2-binary==2.9.11
 sqlalchemy==2.0.44
 httpx
 tdigest
+numpy
+river
+psutil
+torch

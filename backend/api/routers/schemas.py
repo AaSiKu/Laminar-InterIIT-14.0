@@ -1,5 +1,5 @@
 from pydantic import BaseModel
-from typing import Any, Dict, Optional, Type, Union
+from typing import Any, Dict, Optional, Type, Union, List, get_args, get_origin, Literal
 from fastapi import APIRouter, Request, status, HTTPException
 from backend.lib.utils import node_map
 import inspect
@@ -50,14 +50,21 @@ def schema_index(request: Request):
     """
     Returns category wise list of all available node types.
     """
-    io_node_ids = [node_id for node_id, cls in NODES.items() if cls.__module__.startswith('backend.lib.io_nodes')]
-    table_ids = [node_id for node_id, cls in NODES.items() if cls.__module__.startswith('backend.lib.tables')]
-    agent_ids = [node_id for node_id, cls in NODES.items() if cls.__module__.startswith('backend.lib.agents')]
-    return {
-        "io_nodes": io_node_ids,
-        "table_nodes": table_ids,
-        "agent_nodes": agent_ids,
-    }
+    result: Dict[str, List[str]] = {}
+    for node_id, cls in NODES.items():
+        category = 'uncategorized'
+        if 'category' in cls.model_fields:
+            field_info = cls.model_fields['category']
+            # Check if it is a Literal
+            if get_origin(field_info.annotation) is Literal:
+                 args = get_args(field_info.annotation)
+                 if args:
+                     category = args[0]
+        
+        if category not in result:
+            result[category] = []
+        result[category].append(node_id)
+    return result
 
 @router.get("/{node_name}")
 def schema_for_node(node_name: str):

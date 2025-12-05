@@ -4,8 +4,8 @@ from typing import Literal
 
 
 class OpenTelInputNode(Node):
-    category: Literal["io"]
-    n_inputs: Literal[1] = 0
+    category: Literal["open_tel"] = "open_tel"
+    n_inputs: Literal[0] = 0
     rdkafka_settings: RdKafkaSettings
 
 class OpenTelSpansNode(OpenTelInputNode):
