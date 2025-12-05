@@ -101,10 +101,9 @@ def validate_graph_topology(
         ValueError: If validation rules are violated
     """
     # Build dependencies for toposort
-    dependencies = defaultdict(list)
-    # Build a mapping of source node index to target node indices
-    source_to_targets = {}
-
+    dependencies: Dict[int,List[str]] = {}
+    for i,node in enumerate(nodes):
+        dependencies[i] = []
     for edge in edges:
         if 'source' not in edge or 'target' not in edge:
             raise ValueError(f"Edge missing 'source' or 'target': {edge}")
@@ -122,9 +121,6 @@ def validate_graph_topology(
         # Build dependencies for toposort (target depends on source)
         dependencies[target_idx].append(source_idx)
 
-        if source_idx not in source_to_targets:
-            source_to_targets[source_idx] = []
-        source_to_targets[source_idx].append(target_idx)
 
     # Rule 2: Validate that each node has the correct number of inputs
     for node_idx, dep_list in dependencies.items():
@@ -138,21 +134,9 @@ def validate_graph_topology(
     # Get topological sort order
     parsing_order = [0] if len(nodes) == 1 else toposort_flatten(dependencies, nodes)
 
-    # Build set of nodes with incoming edges from dependencies
-    nodes_with_incoming = set(dependencies.keys())
-
-    # Rule 1: Check that only input nodes are source nodes (have no incoming edges)
-    for idx, node in enumerate(nodes):
-        if idx not in nodes_with_incoming:
-            # This is a source node
-            if not is_input_node(node):
-                raise ValueError(
-                    f"Non-input node at index {idx} (node_id: '{node.node_id}') cannot be a source node. "
-                    f"Only nodes with 'table_schema' property can be source nodes."
-                )
 
 
-    # Rule 3: Validate alert nodes have input nodes with trigger_description
+    # Rule: Validate alert nodes have input nodes with trigger_description
     for node_idx, node in enumerate(nodes):
         if node.node_id == "alert":
             dep_list = dependencies.get(node_idx, [])

@@ -41,11 +41,7 @@ R = TypeVar("R")
 #      },
 #  )
 
-MOCK_USER_DB = {
-#     "user_123": {"allowed_resources": ["inv_555", "inv_556"]},
-#     "user_456": {"allowed_resources": ["inv_777"]}
-}
-
+MOCK_USER_DB = {}
 
 
 

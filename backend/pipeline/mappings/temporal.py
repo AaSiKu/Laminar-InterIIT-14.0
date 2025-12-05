@@ -2,9 +2,11 @@ from typing import List
 import pathway as pw
 from lib.tables import AsofJoinNode, IntervalJoinNode, WindowJoinNode, WindowByNode
 from .helpers import MappingValues, get_col, get_this_col, select_for_join
+from .open_tel.prefix import is_special_column
 from .transforms import _join
-from .open_tel.prefix import open_tel_trace_id
 import json
+from .custom_reducers import custom_reducers
+
 
 def asof_join(inputs: List[pw.Table], node: AsofJoinNode):
     params = _join(inputs, node)
@@ -74,8 +76,14 @@ def window_by(inputs: List[pw.Table], node: WindowByNode):
     reduce_kwargs = {}
     if instance is not None:
         reduce_kwargs[node.instance_col] = pw.this._pw_instance
-    _reducers = [(red["col"], red["reducer"], red["new_col"]) for red in node.reducers if red["col"].find(open_tel_trace_id) == -1]
+    _reducers = [(red["col"], red["reducer"], red["new_col"]) for red in node.reducers]
     
+    reducers = {}
+    for prev_col, reducer, new_col in _reducers:
+        if hasattr(pw.reducers,reducer):
+            reducers[new_col] = getattr(pw.reducers, reducer)(get_this_col(prev_col))   
+        else:
+            reducers[new_col] = custom_reducers[reducer](get_this_col(prev_col))
     return inputs[0].windowby(
         get_this_col(node.time_col),
         window=window,
@@ -83,11 +91,9 @@ def window_by(inputs: List[pw.Table], node: WindowByNode):
     ).reduce(
         pw.this._pw_window_start,
         pw.this._pw_window_end,
+        **reducers,
         **{
-            new_col: getattr(pw.reducers, reducer)(get_this_col(prev_col)) for prev_col, reducer, new_col in _reducers
-        },
-        **{
-            f"_pw_windowed_{col}" : pw.reducers.ndarray(get_this_col(col)) for col in inputs[0].column_names() if col != node.instance_col and col.find(open_tel_trace_id) != -1
+            f"_pw_windowed_{col}" : pw.reducers.tuple(get_this_col(col)) for col in inputs[0].column_names() if col != node.instance_col and is_special_column(col)
         },
         **reduce_kwargs
     )
@@ -95,7 +101,7 @@ def window_by(inputs: List[pw.Table], node: WindowByNode):
 temporal_mappings: dict[str, MappingValues] = {
     "window_by": {
         "node_fn": window_by,
-        "stringify": lambda node, inputs: f"Groups {inputs[0]} by {json.dumps(node.window)} window on {node.time_col}{'' if node.instance_col is None else f' with instance column {node.instance_col}'} and reduces with {', '.join([f"{reducer["new_col"]} = {reducer["reducer"]}({reducer["col"]})" for reducer in node.reducers])}"
+        "stringify": lambda node, inputs: f"Groups {inputs[0]} by {json.dumps(node.window)} window on {node.time_col}{'' if node.instance_col is None else f' with instance column {node.instance_col}'} and reduces with {', '.join([reducer['new_col'] + ' = ' +  reducer['reducer'] + '('+ reducer['col'] + ')' for reducer in node.reducers])}"
     },
     "asof_join": {
         "node_fn": asof_join,

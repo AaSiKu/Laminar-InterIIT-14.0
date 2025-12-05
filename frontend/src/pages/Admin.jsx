@@ -1,427 +1,274 @@
 import { useState, useEffect } from "react";
+import { Typography, Box, Divider } from "@mui/material";
+import TopBar from "../components/common/TopBar";
+import { useGlobalContext } from "../context/GlobalContext";
+import { AuthContext } from "../context/AuthContext";
+import { useContext } from "react";
+import { fetchAllWorkflows, retrievePipeline } from "../utils/developerDashboard.api";
+
+// Import components from admin folder
+import { KpiCard } from "../components/admin/KpiCardAdmin";
+import { PipelineStatsChart } from "../components/admin/PipelineStatsChart";
+import { MTTRChart } from "../components/admin/MTTRChart";
+import { SLAComplianceChart } from "../components/admin/SLAComplianceChart";
+import { AlertsChart } from "../components/admin/AlertsChart";
+import { WorkflowsTable } from "../components/admin/WorkflowsTable";
+import { MembersTable } from "../components/admin/MembersTable";
 import {
-  Box,
-  Typography,
-  Grid,
-  Card,
-  CardContent,
-  Paper,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
-  Chip,
-} from "@mui/material";
-import TrendingUpIcon from "@mui/icons-material/TrendingUp";
-import PipelineIcon from "@mui/icons-material/AccountTree";
-import TimerIcon from "@mui/icons-material/Timer";
-import NotificationsIcon from "@mui/icons-material/Notifications";
-import { fetchAdminKpiData, fetchAdminPipelines } from "../utils/admin.api";
-
-// Icon mapping utility
-const getAdminIconComponent = (iconType) => {
-  const iconMap = {
-    pipeline: PipelineIcon,
-    "trending-up": TrendingUpIcon,
-    timer: TimerIcon,
-    notifications: NotificationsIcon,
-  };
-  return iconMap[iconType] || PipelineIcon;
-};
-
-// --- KPI Card Component with Glassy Effect ---
-function KpiCard({ title, value, description, icon: Icon, color }) {
-  return (
-    <Card
-      sx={{
-        height: "180px",
-        width: "100%",
-        borderRadius: "20px",
-        background: "rgba(255, 255, 255, 0.95)",
-        backdropFilter: "blur(10px)",
-        border: "1px solid rgba(59, 130, 246, 0.08)",
-        boxShadow: "0 4px 20px 0 rgba(59, 130, 246, 0.08)",
-        transition: "all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275)",
-        position: "relative",
-        overflow: "hidden",
-        flex: 1,
-        "&::before": {
-          content: '""',
-          position: "absolute",
-          top: 0,
-          left: 0,
-          right: 0,
-          height: "3px",
-          background: `linear-gradient(90deg, ${color}, ${color}cc)`,
-          opacity: 0.7,
-        },
-        "&:hover": {
-          transform: "translateY(-12px)",
-          boxShadow: "0 12px 40px 0 rgba(59, 130, 246, 0.15)",
-          border: "1px solid rgba(59, 130, 246, 0.15)",
-          background: "rgba(255, 255, 255, 1)",
-        },
-      }}
-    >
-      <CardContent
-        sx={{
-          height: "100%",
-          display: "flex",
-          flexDirection: "column",
-          justifyContent: "space-between",
-          p: 3,
-        }}
-      >
-        <Box
-          sx={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "flex-start",
-          }}
-        >
-          <Typography
-            variant="body2"
-            color="text.secondary"
-            fontWeight={500}
-            sx={{ letterSpacing: "0.3px" }}
-          >
-            {title}
-          </Typography>
-          <Box
-            sx={{
-              width: 48,
-              height: 48,
-              borderRadius: "12px",
-              background: `linear-gradient(135deg, ${color}15, ${color}08)`,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-            }}
-          >
-            <Icon sx={{ fontSize: 24, color: color }} />
-          </Box>
-        </Box>
-        <Box>
-          <Typography
-            variant="h2"
-            fontWeight="700"
-            sx={{
-              fontSize: "2.5rem",
-              color: "text.primary",
-              mb: 0.5,
-            }}
-          >
-            {value}
-          </Typography>
-          <Typography
-            variant="caption"
-            color="text.secondary"
-            sx={{ fontSize: "0.75rem" }}
-          >
-            {description}
-          </Typography>
-        </Box>
-      </CardContent>
-    </Card>
-  );
+  kpiData,
+  alertsChartData,
+  pipelineStatsData,
+  mttrChartData,
+  slaComplianceData,
 }
+from "../utils/adminData"
+import "../css/overview.css"
+import "../css/admin.css";
 
-// --- Pipeline Table Component with Enhanced Styling ---
-function PipelineTable({ pipelines }) {
-  return (
-    <TableContainer
-      sx={{
-        borderRadius: "12px",
-        overflowX: "hidden",
-        "& .MuiTable-root": {
-          borderCollapse: "separate",
-          borderSpacing: 0,
-        },
-      }}
-    >
-      <Table>
-        <TableHead>
-          <TableRow>
-            <TableCell
-              sx={{
-                fontWeight: 600,
-                bgcolor: "rgba(249, 250, 251, 0.8)",
-                borderBottom: "2px solid",
-                borderColor: "divider",
-                py: 2,
-                fontSize: "0.875rem",
-                color: "text.secondary",
-                textTransform: "uppercase",
-                letterSpacing: "0.5px",
-              }}
-            >
-              Pipeline Name
-            </TableCell>
-            <TableCell
-              sx={{
-                fontWeight: 600,
-                bgcolor: "rgba(249, 250, 251, 0.8)",
-                borderBottom: "2px solid",
-                borderColor: "divider",
-                py: 2,
-                fontSize: "0.875rem",
-                color: "text.secondary",
-                textTransform: "uppercase",
-                letterSpacing: "0.5px",
-              }}
-            >
-              Status
-            </TableCell>
-            <TableCell
-              sx={{
-                fontWeight: 600,
-                bgcolor: "rgba(249, 250, 251, 0.8)",
-                borderBottom: "2px solid",
-                borderColor: "divider",
-                py: 2,
-                fontSize: "0.875rem",
-                color: "text.secondary",
-                textTransform: "uppercase",
-                letterSpacing: "0.5px",
-              }}
-            >
-              Breach Reason
-            </TableCell>
-            <TableCell
-              sx={{
-                fontWeight: 600,
-                bgcolor: "rgba(249, 250, 251, 0.8)",
-                borderBottom: "2px solid",
-                borderColor: "divider",
-                py: 2,
-                fontSize: "0.875rem",
-                color: "text.secondary",
-                textTransform: "uppercase",
-                letterSpacing: "0.5px",
-              }}
-            >
-              Last Breach Time
-            </TableCell>
-            <TableCell
-              sx={{
-                fontWeight: 600,
-                bgcolor: "rgba(249, 250, 251, 0.8)",
-                borderBottom: "2px solid",
-                borderColor: "divider",
-                py: 2,
-                fontSize: "0.875rem",
-                color: "text.secondary",
-                textTransform: "uppercase",
-                letterSpacing: "0.5px",
-              }}
-            >
-              Owner
-            </TableCell>
-          </TableRow>
-        </TableHead>
-        <TableBody>
-          {pipelines.map((pipeline, index) => (
-            <TableRow
-              key={pipeline.id}
-              sx={{
-                transition: "all 0.2s ease",
-                "&:hover": {
-                  backgroundColor: "rgba(59, 130, 246, 0.03)",
-                  boxShadow: "0 2px 8px rgba(59, 130, 246, 0.08)",
-                },
-                "& > td": {
-                  borderBottom:
-                    index === pipelines.length - 1 ? "none" : "1px solid",
-                  borderColor: "rgba(0, 0, 0, 0.06)",
-                  py: 2.5,
-                },
-              }}
-            >
-              <TableCell>
-                <Typography fontWeight={600} sx={{ fontSize: "0.95rem" }}>
-                  {pipeline.name}
-                </Typography>
-              </TableCell>
-              <TableCell>
-                <Chip
-                  label={pipeline.status}
-                  size="small"
-                  sx={{
-                    fontWeight: 600,
-                    fontSize: "0.75rem",
-                    borderRadius: "8px",
-                    ...(pipeline.status === "Running" && {
-                      bgcolor: "rgba(16, 185, 129, 0.1)",
-                      color: "#059669",
-                      border: "1px solid rgba(16, 185, 129, 0.2)",
-                    }),
-                    ...(pipeline.status === "Failed" && {
-                      bgcolor: "rgba(239, 68, 68, 0.1)",
-                      color: "#dc2626",
-                      border: "1px solid rgba(239, 68, 68, 0.2)",
-                    }),
-                    ...(pipeline.status === "Completed" && {
-                      bgcolor: "rgba(59, 130, 246, 0.1)",
-                      color: "#3b82f6",
-                      border: "1px solid rgba(59, 130, 246, 0.2)",
-                    }),
-                  }}
-                />
-              </TableCell>
-              <TableCell>
-                <Typography
-                  sx={{
-                    fontSize: "0.875rem",
-                    color:
-                      pipeline.breachReason === "-"
-                        ? "text.secondary"
-                        : "text.primary",
-                  }}
-                >
-                  {pipeline.breachReason}
-                </Typography>
-              </TableCell>
-              <TableCell>
-                <Typography
-                  sx={{ fontSize: "0.875rem", color: "text.secondary" }}
-                >
-                  {pipeline.lastBreachTime}
-                </Typography>
-              </TableCell>
-              <TableCell>
-                <Typography sx={{ fontSize: "0.875rem", fontWeight: 500 }}>
-                  {pipeline.owner}
-                </Typography>
-              </TableCell>
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
-    </TableContainer>
-  );
-}
-
-// --- Main Leadership Dashboard Component ---
+// Main Admin Page Component
 export function AdminPage() {
-  const [kpiData, setKpiData] = useState([]);
-  const [pipelines, setPipelines] = useState([]);
+  const [selectedChart, setSelectedChart] = useState("alerts");
+  const { workflows, setWorkflows } = useGlobalContext();
+  const { user } = useContext(AuthContext);
+  const [selectedWorkflow, setSelectedWorkflow] = useState(null);
+  const [workflowNames, setWorkflowNames] = useState({}); // Map of workflow_id to name
 
+  // Fetch workflow names when workflows are loaded
   useEffect(() => {
-    const loadData = async () => {
-      const kpi = await fetchAdminKpiData();
-      const pipelineData = await fetchAdminPipelines();
-      setKpiData(kpi);
-      setPipelines(pipelineData);
+    const fetchWorkflowNames = async () => {
+      if (!workflows || workflows.length === 0) return;
+      
+      const namesMap = {};
+      const fetchPromises = workflows.map(async (workflow) => {
+        if (!workflow._id || !workflow.current_version_id) return;
+        
+        try {
+          const result = await retrievePipeline(workflow._id, workflow.current_version_id);
+          // Check workflow name first
+          if (result.workflow?.name) {
+            namesMap[workflow._id] = result.workflow.name;
+          } 
+          // Check version pipeline metadata for name
+          else if (result.version?.pipeline?.metadata?.pipelineName) {
+            namesMap[workflow._id] = result.version.pipeline.metadata.pipelineName;
+          }
+        } catch (error) {
+          console.error(`Error fetching name for workflow ${workflow._id}:`, error);
+          // If error, name will remain undefined and default format will be used
+        }
+      });
+      
+      await Promise.all(fetchPromises);
+      setWorkflowNames(namesMap);
     };
-    loadData();
-  }, []);
+    
+    fetchWorkflowNames();
+  }, [workflows]);
+
+  // Select first workflow by default when workflows are loaded
+  useEffect(() => {
+    if (workflows && workflows.length > 0 && !selectedWorkflow) {
+      setSelectedWorkflow(workflows[0]);
+    }
+  }, [workflows, selectedWorkflow]);
+
+  // Handle workflow update (e.g., after removing a viewer)
+  const handleWorkflowUpdate = async (updatedWorkflow) => {
+    // Update the selected workflow
+    setSelectedWorkflow(updatedWorkflow);
+    
+    // Refresh workflows list from backend
+    try {
+      const workflowResponse = await fetchAllWorkflows();
+      if (workflowResponse.status === "success" && workflowResponse.data) {
+        setWorkflows(workflowResponse.data);
+        // Update selected workflow if it still exists
+        const updated = workflowResponse.data.find(w => w._id === updatedWorkflow._id);
+        if (updated) {
+          setSelectedWorkflow(updated);
+        }
+      }
+    } catch (error) {
+      console.error("Error refreshing workflows:", error);
+    }
+  };
+
+  const handleKpiClick = (kpiId) => {
+    if (kpiId === 1) {
+      setSelectedChart("pipeline");
+    } else if (kpiId === 2) {
+      setSelectedChart("mttr");
+    } else if (kpiId === 3) {
+      setSelectedChart("alerts");
+    } else if (kpiId === 4) {
+      setSelectedChart("sla");
+    }
+  };
 
   return (
     <Box
+      className="below-sidebar-container"
       sx={{
-        minHeight: "100vh",
-        background: "#ffffff",
-        bgcolor: "background.default",
-        overflowX: "hidden",
+        minHeight: '100vh',
+        bgcolor: 'background.default',
+        display: 'flex',
+        flexDirection: 'column',
       }}
     >
       <Box
+        className="admin-container"
         sx={{
-          maxWidth: "1400px",
-          margin: "0 auto",
-          py: 5,
-          px: 4,
-          overflowX: "hidden",
+          minHeight: '100vh',
+          bgcolor: 'background.default',
+          display: 'flex',
+          flexDirection: 'column',
         }}
       >
-        {/* Header Title */}
-        <Typography
-          variant="h3"
-          fontWeight="700"
+        {/* Top Bar */}
+        <TopBar />
+
+        {/* Main Content */}
+        <Box
+          className="admin-content"
           sx={{
-            mb: 5,
-            color: "text.primary",
-            letterSpacing: "-0.5px",
+            flex: 1,
+            p: { xs: 2, md: 3 },
+            overflowY: 'auto',
           }}
         >
-          Admin Dashboard
-        </Typography>
-
-        {/* KPI Summary Cards Section */}
-        <Box sx={{ width: "100%", mb: 5 }}>
+          {/* Main Grid - KPIs and Alerts */}
           <Box
+            className="admin-grid"
             sx={{
-              display: "grid",
-              gridTemplateColumns: "repeat(4, 1fr)",
-              gap: 3,
-              width: "100%",
+              display: 'flex',
+              overflow: 'hidden',
+              flexDirection: { xs: 'column', lg: 'row' },
             }}
           >
-            {kpiData.map((kpi, index) => {
-              const IconComponent = getAdminIconComponent(kpi.iconType);
-              return (
-                <Box key={index}>
+            {/* Left Column - Header + KPI Cards */}
+            <Box
+              className="admin-left-column"
+              sx={{
+                width: { xs: '100%', lg: '50%' },
+                p: 2.5,
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 2,
+              }}
+            >
+              {/* Header */}
+              <Box className="admin-header" sx={{ mb: 0.5 }}>
+                <Typography
+                  variant="h5"
+                  sx={{
+                    fontSize: '1.5rem',
+                    fontWeight: 600,
+                    color: 'text.primary',
+                    mb: 0.25,
+                  }}
+                >
+                  Admin Overview
+                </Typography>
+                <Typography
+                  variant="body2"
+                  sx={{
+                    color: 'text.secondary',
+                    fontSize: '0.875rem',
+                  }}
+                >
+                  Select the metric to visualize it on right !
+                </Typography>
+              </Box>
+              {/* KPI Cards */}
+              <Box
+                className="admin-kpi-section"
+                sx={{
+                  display: 'grid',
+                  gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)' },
+                  gap: 2,
+                  flex: 1,
+                }}
+              >
+                {kpiData.map((kpi) => (
                   <KpiCard
+                    key={kpi.id}
                     title={kpi.title}
                     value={kpi.value}
                     description={kpi.description}
-                    icon={IconComponent}
-                    color={kpi.color}
+                    icon={kpi.icon}
+                    iconClass={kpi.iconClass}
+                    cardClass={kpi.cardClass}
+                    onClick={() => handleKpiClick(kpi.id)}
+                    isSelected={
+                      (kpi.id === 1 && selectedChart === "pipeline") ||
+                      (kpi.id === 2 && selectedChart === "mttr") ||
+                      (kpi.id === 3 && selectedChart === "alerts") ||
+                      (kpi.id === 4 && selectedChart === "sla")
+                    }
                   />
-                </Box>
-              );
-            })}
-          </Box>
-        </Box>
+                ))}
+              </Box>
+            </Box>
 
-        {/* Active Pipelines Table Section */}
-        <Box sx={{ width: "100%" }}>
-          <Paper
+            {/* Chart Section */}
+            <Box
+              className="admin-alerts-wrapper"
+              sx={{
+                width: { xs: '100%', lg: '50%' },
+                p: 2.5,
+              }}
+            >
+              {selectedChart === "pipeline" ? (
+                <PipelineStatsChart data={pipelineStatsData} />
+              ) : selectedChart === "mttr" ? (
+                <MTTRChart data={mttrChartData} />
+              ) : selectedChart === "sla" ? (
+                <SLAComplianceChart data={slaComplianceData} />
+              ) : (
+                <AlertsChart data={alertsChartData} />
+              )}
+            </Box>
+          </Box>
+
+          {/* Divider between top and bottom sections */}
+          <Divider sx={{ my: 3 }} />
+
+          {/* Bottom Section - Workflows and Members */}
+          <Box
+            className="admin-bottom-section"
             sx={{
-              borderRadius: "20px",
-              background: "rgba(255, 255, 255, 0.95)",
-              backdropFilter: "blur(10px)",
-              border: "1px solid rgba(59, 130, 246, 0.08)",
-              boxShadow: "0 4px 20px 0 rgba(59, 130, 246, 0.08)",
-              overflow: "hidden",
-              transition: "all 0.3s ease",
-              width: "100%",
-              "&:hover": {
-                boxShadow: "0 8px 32px 0 rgba(59, 130, 246, 0.12)",
-              },
+              display: 'flex',
+              overflow: 'hidden',
+              flexDirection: { xs: 'column', lg: 'row' },
             }}
           >
-            <Box sx={{ p: 4 }}>
-              <Box
-                sx={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                  mb: 3,
-                }}
-              >
-                <Typography
-                  variant="h5"
-                  fontWeight="700"
-                  sx={{ color: "text.primary" }}
-                >
-                  Active Pipelines Overview
-                </Typography>
-                <Chip
-                  label={`${pipelines.length} Total`}
-                  sx={{
-                    bgcolor: "rgba(59, 130, 246, 0.1)",
-                    color: "#3b82f6",
-                    fontWeight: 600,
-                    borderRadius: "10px",
-                  }}
-                />
-              </Box>
-              <PipelineTable pipelines={pipelines} />
+            <WorkflowsTable 
+              data={workflows} 
+              onWorkflowSelect={setSelectedWorkflow}
+              selectedWorkflowId={selectedWorkflow?._id}
+              workflowNames={workflowNames}
+            />
+            <Divider 
+              orientation="vertical" 
+              flexItem 
+              sx={{ 
+                display: { xs: 'none', lg: 'block' },
+                mx: 0,
+              }} 
+            />
+            <Box
+              sx={{
+                display: { xs: 'block', lg: 'none' },
+                width: '100%',
+              }}
+            >
+              <Divider sx={{ my: 0 }} />
             </Box>
-          </Paper>
+            <MembersTable 
+              workflow={selectedWorkflow}
+              onWorkflowUpdate={handleWorkflowUpdate}
+            />
+          </Box>
         </Box>
       </Box>
     </Box>

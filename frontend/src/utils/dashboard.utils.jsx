@@ -1,8 +1,36 @@
-import { BaseNode } from "../components/BaseNode";
+import { BaseNode } from "../components/workflow/BaseNode";
 
 // TODO: As the nodeTypes is a in memory, it is lost when i leave the page for some time,
 // hence the ui resets to simple rectangle box
 export const nodeTypes = {};
+
+// Fetch all node types from the API
+export const fetchNodeTypes = async () => {
+  try {
+    const res = await fetch(`${import.meta.env.VITE_API_SERVER}/schema/all`);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    return data;
+  } catch (err) {
+    console.error("Error fetching node types:", err);
+    return null;
+  }
+};
+
+// Fetch schema for a specific node
+export const fetchNodeSchema = async (nodeName) => {
+  try {
+    const res = await fetch(
+      `${import.meta.env.VITE_API_SERVER}/schema/${nodeName}`
+    );
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const schema = await res.json();
+    return schema;
+  } catch (err) {
+    console.error(`Error fetching schema for ${nodeName}:`, err);
+    return null;
+  }
+};
 
 const fixPydanticSchema = (schema) => {
   // Create a deep copy to avoid mutating the original
@@ -76,7 +104,7 @@ export const addNodeType = (schema) => {
   const type = schema.properties.node_id.const;
 
   nodeTypes[type] = (props) => {
-    const { id, data, selected } = props;
+    const { id, data, selected, onEditClick } = props;
 
     const nInputs = schema.properties.n_inputs?.const || 0;
     const categoryColor = hashColor(
@@ -129,6 +157,8 @@ export const addNodeType = (schema) => {
         id={id}
         data={data}
         selected={selected}
+        category={schema.properties.category?.const}
+        onEditClick={onEditClick}
         styles={{
           bgColor: categoryColor, // solid color
           hoverBgColor: categoryColor,
@@ -158,24 +188,24 @@ export const addNodeType = (schema) => {
 };
 
 const hashColor = (str) => {
-  // Category-based color mapping with custom colors
+  // Category-based color mapping matching the image design
   const categoryColors = {
-    // Input nodes (blue)
-    "input": "#A1C7F8",  // Light blue
-    // Output nodes (pink)
-    "output": "#E99AA8",  // Pink
+    // Input nodes (blue - matching image)
+    "input": "#93C5FD",  // Light blue
+    // Output nodes (pink - matching image)
+    "output": "#FDA4AF",  // Pink
     // Table/transformation nodes (teal/green)
-    "table": "#8ED3BA",  // Teal green
-    // Windowing nodes (orange/peach)
-    "temporal": "#FBCB9D",  // Peach
-    // Logic/control flow (purple)
-    "logic": "#E6CAFE",  // Lavender purple
+    "table": "#86EFAC",  // Light green
+    // Windowing nodes (orange - matching image)
+    "temporal": "#FDB87E",  // Orange/peach
+    // Logic/control flow (purple - matching image)
+    "logic": "#C4B5FD",  // Lavender purple
     // Agent nodes (purple)
-    "agent": "#E6CAFE",  // Lavender purple
-    // Action nodes (peach)
-    "action": "#FBCB9D",  // Peach
+    "agent": "#C4B5FD",  // Lavender purple
+    // Action nodes (orange/peach)
+    "action": "#FDB87E",  // Orange/peach
     // Default fallback
-    "default": "#90A4AE",  // Medium grey
+    "default": "#94A3B8",  // Slate grey
   };
 
   return categoryColors[str] || categoryColors["default"];
