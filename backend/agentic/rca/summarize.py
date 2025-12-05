@@ -47,6 +47,7 @@ class SummarizeOutput(BaseModel):
     metric_calculation_explanation: str
     metric_type: Literal["error", "uptime", "latency"]
     metric_calculation_window: int
+    metric_column: str
 
 class SummarizeRequest(BaseModel):
     metric_description: str
@@ -101,7 +102,8 @@ async def summarize(request: SummarizeRequest):
         "   - 'error' if the metric type is error rates of a service in the time window"
         "   - 'uptime' if the metric type is the uptime of a service in the time window"
         "   - 'latency' if the metric type is percentile of latency between 2 events in the time window"
-        "4. METRIC CALCULATION WINDOW: The time window in seconds in which the metric is calculated"
+        "4. METRIC CALCULATION WINDOW: The time window in seconds in which the metric is calculated\n"
+        "5. METRIC COLUMN: The name of the column in the final metric table that contains the calculated metric value\n"
         "Focus on semantics and context, not syntax or full restatement of the pipeline.\n"
         "Use library /pathwaycom/pathway"
     )

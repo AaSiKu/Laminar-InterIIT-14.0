@@ -5,22 +5,16 @@ Handles the workflow for generating weekly summary reports.
 
 import os
 import sys
+import json
 import logging
 from datetime import datetime, timedelta
 from typing import Dict, Any, List, Tuple, Optional
 from pathlib import Path
+from collections import Counter
 
-# Add parent directories to path to import from agentic module
-backend_path = Path(__file__).parent.parent.parent
-sys.path.insert(0, str(backend_path))
-sys.path.insert(0, str(backend_path / "agentic"))
-
-# Import from agentic module using absolute imports
-import llm_factory
-
-from document_store_manager import get_incident_store
-from agents.weekly_summarizer_agent import WeeklySummarizerAgent
-from mock_rca_input import get_pipeline_topology
+# Import from agentic module
+from ... import llm_factory
+from ..agents.weekly_summarizer_agent import WeeklySummarizerAgent
 
 logger = logging.getLogger(__name__)
 
@@ -29,21 +23,24 @@ def parse_incident_report(report_content: str, metadata: Dict[str, Any]) -> Dict
     """
     Parse a markdown incident report and extract structured data.
     
+    Note: Reports are generated from RCAAnalysisOutput which includes:
+    - severity, affected_services, narrative, error_citations, root_cause
+    
     Args:
         report_content: Full markdown content of the incident report
-        metadata: Basic metadata (incident_id, severity, timestamp, etc.)
+        metadata: Basic metadata (incident_id, severity, timestamp, affected_node)
         
     Returns:
         Dictionary with structured incident data including root cause, 
-        affected components, resolution steps, and impact
+        affected components (services), resolution steps, and impact
     """
     incident_data = {
         "incident_id": metadata.get("incident_id", "UNKNOWN"),
         "timestamp": metadata.get("timestamp"),
         "severity": metadata.get("severity", "unknown"),
-        "affected_node": metadata.get("affected_node", "unknown"),
+        "affected_node": metadata.get("affected_node", "unknown"),  # Primary service
         "root_cause": "Not specified",
-        "affected_components": [],
+        "affected_components": [],  # Will be extracted from "Affected Services" section
         "resolution_steps": [],
         "impact_summary": "Not specified"
     }
@@ -110,28 +107,116 @@ def parse_incident_report(report_content: str, metadata: Dict[str, Any]) -> Dict
     return incident_data
 
 
+def load_incident_reports_from_files(
+    reports_dir: Path,
+    start_date: Optional[datetime] = None,
+    end_date: Optional[datetime] = None
+) -> List[Dict[str, Any]]:
+    """
+    Load incident reports from JSON metadata files in the reports directory.
+    
+    Args:
+        reports_dir: Path to reports directory
+        start_date: Optional start date filter
+        end_date: Optional end date filter
+        
+    Returns:
+        List of report metadata dictionaries
+    """
+    reports = []
+    
+    if not reports_dir.exists():
+        return reports
+    
+    # Load all JSON metadata files
+    for json_file in reports_dir.glob("incident_*.json"):
+        try:
+            with open(json_file, 'r', encoding='utf-8') as f:
+                metadata = json.load(f)
+            
+            # Parse timestamp
+            timestamp = datetime.fromisoformat(metadata.get("timestamp", ""))
+            
+            # Filter by date range if specified
+            if start_date and timestamp < start_date:
+                continue
+            if end_date and timestamp > end_date:
+                continue
+            
+            # Add timestamp as datetime object
+            metadata["timestamp"] = timestamp
+            metadata["affected_node"] = metadata.get("primary_service", "unknown")
+            
+            reports.append(metadata)
+            
+        except Exception as e:
+            logger.warning(f"Failed to load metadata from {json_file}: {str(e)}")
+            continue
+    
+    # Sort by timestamp descending
+    reports.sort(key=lambda x: x.get("timestamp", datetime.min), reverse=True)
+    
+    return reports
+
+
+def calculate_statistics(reports: List[Dict[str, Any]]) -> Dict[str, Any]:
+    """
+    Calculate statistics from incident reports.
+    
+    Args:
+        reports: List of report metadata
+        
+    Returns:
+        Dictionary with statistics
+    """
+    if not reports:
+        return {
+            "total_incidents": 0,
+            "by_severity": {},
+            "most_affected_services": []
+        }
+    
+    # Count by severity
+    severities = [r.get("severity", "unknown") for r in reports]
+    severity_counts = dict(Counter(severities))
+    
+    # Count affected services
+    all_services = []
+    for r in reports:
+        services = r.get("affected_services", [])
+        all_services.extend(services)
+    
+    service_counts = Counter(all_services)
+    most_affected = [{"service": svc, "count": cnt} for svc, cnt in service_counts.most_common(5)]
+    
+    return {
+        "total_incidents": len(reports),
+        "by_severity": severity_counts,
+        "most_affected_services": most_affected
+    }
+
+
 def generate_weekly_report(
     start_date: Optional[datetime] = None,
     end_date: Optional[datetime] = None,
     cleanup_after_report: bool = False
 ) -> Tuple[str, Dict[str, Any]]:
     """
-    Generate a weekly summary report from stored incident reports.
+    Generate a weekly summary report from stored incident reports in file system.
     
     Args:
         start_date: Start of report period (optional, defaults to all reports if both dates are None)
         end_date: End of report period (optional, defaults to all reports if both dates are None)
-        cleanup_after_report: If True, deletes all reports from document store after generation
+        cleanup_after_report: If True, deletes all report files after generation
         
     Returns:
         Tuple of (report_content, metadata) where metadata includes:
-            - start_date: Report period start (or None for all reports)
-            - end_date: Report period end (or None for all reports)
+            - start_date: Report period start
+            - end_date: Report period end
             - incident_count: Number of incidents included
             - filepath: Location where report was saved
-            - cleanup_performed: True if cleanup was performed, False otherwise
+            - cleanup_performed: True if cleanup was performed
             - deleted_files: Number of files deleted (if cleanup_performed)
-            - deleted_metadata_entries: Number of metadata entries deleted (if cleanup_performed)
             
     Raises:
         ValueError: If required environment variables are missing
@@ -146,30 +231,27 @@ def generate_weekly_report(
             "Ensure API keys are set in backend/agentic/.env"
         )
     
-    # Retrieve incident reports from document store
-    incident_store = get_incident_store()
-    
-    # If no dates provided, get ALL UNIQUE reports
-    if start_date is None and end_date is None:
-        reports = incident_store.get_all_reports()
-        start_date = datetime.min
+    # Set default date range
+    if end_date is None:
         end_date = datetime.now()
-        logger.info(f"Generating weekly report for all {len(reports)} unique incidents")
-    else:
-        # Set default date range if only one date provided
-        if end_date is None:
-            end_date = datetime.now()
-        if start_date is None:
-            start_date = end_date - timedelta(days=7)
-        reports = incident_store.get_reports_by_date_range(start_date, end_date)
-        logger.info(f"Generating weekly report for {len(reports)} incidents from {start_date.date()} to {end_date.date()}")
+    if start_date is None:
+        start_date = end_date - timedelta(days=7)
+    
+    # Load incident reports from files
+    reports_dir = Path("reports")
+    reports = load_incident_reports_from_files(reports_dir, start_date, end_date)
+    logger.info(f"Generating weekly report for {len(reports)} incidents from {start_date.date()} to {end_date.date()}")
     
     # Load full report content and extract rich incident data
     enriched_incidents = []
     for report_metadata in reports:
         try:
             # Load the actual markdown report
-            report_content = incident_store.load_report_content(report_metadata)
+            md_filename = report_metadata.get("filename", "")
+            md_filepath = reports_dir / md_filename
+            
+            with open(md_filepath, 'r', encoding='utf-8') as f:
+                report_content = f.read()
             
             # Parse it to extract structured data
             incident_data = parse_incident_report(report_content, report_metadata)
@@ -190,13 +272,10 @@ def generate_weekly_report(
             })
     
     # Calculate statistics from the reports
-    statistics = incident_store.get_report_statistics(reports)
+    statistics = calculate_statistics(reports)
     
     # Initialize the weekly summarizer agent with LLM from factory
     summarizer = WeeklySummarizerAgent(llm=reasoning_model)
-    
-    # Get pipeline topology for context
-    pipeline_topology = get_pipeline_topology()
     
     # Generate the appropriate report based on incident count
     if reports:
@@ -205,7 +284,6 @@ def generate_weekly_report(
             incident_reports=enriched_incidents,  # Pass enriched data instead of raw metadata
             report_statistics=statistics,
             external_news=[],  # No external news in API version
-            pipeline_topology=pipeline_topology,
             start_date=start_date.strftime('%Y-%m-%d'),
             end_date=end_date.strftime('%Y-%m-%d')
         )
@@ -213,7 +291,6 @@ def generate_weekly_report(
         # Generate all-clear report
         report_content = summarizer.generate_all_clear_report(
             external_news=[],  # No external news in API version
-            pipeline_topology=pipeline_topology,
             start_date=start_date.strftime('%Y-%m-%d'),
             end_date=end_date.strftime('%Y-%m-%d')
         )
@@ -239,12 +316,20 @@ def generate_weekly_report(
     }
     
     # Perform cleanup if requested
-    if cleanup_after_report:
-        logger.info("Cleanup requested - deleting all reports from document store")
-        cleanup_result = incident_store.delete_all_reports()
+    if cleanup_after_report and reports_dir.exists():
+        logger.info("Cleanup requested - deleting all report files")
+        deleted_files = 0
+        
+        # Delete all markdown and JSON files
+        for file in reports_dir.glob("incident_*.*"):
+            try:
+                file.unlink()
+                deleted_files += 1
+            except Exception as e:
+                logger.warning(f"Failed to delete {file}: {str(e)}")
+        
         metadata["cleanup_performed"] = True
-        metadata["deleted_files"] = cleanup_result["deleted_files"]
-        metadata["deleted_metadata_entries"] = cleanup_result["deleted_metadata_entries"]
-        logger.info(f"Cleanup complete: Deleted {cleanup_result['deleted_files']} files and {cleanup_result['deleted_metadata_entries']} metadata entries")
+        metadata["deleted_files"] = deleted_files
+        logger.info(f"Cleanup complete: Deleted {deleted_files} files")
     
     return report_content, metadata

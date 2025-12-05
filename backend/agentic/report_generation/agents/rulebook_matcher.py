@@ -28,13 +28,14 @@ class RulebookMatcher:
         rulebook = diagnostic_data.get("rulebook", [])
         rca = diagnostic_data.get("rca_output", {})
         
-        # Extract incident characteristics from new schema
-        affected_node = rca.get("affected_node", "")  # Now just a string
-        root_cause = rca.get("root_cause", "").lower()  # Natural language root cause
-        narrative = rca.get("narrative", "").lower()  # Full narrative
+        # Extract incident characteristics from RCAAnalysisOutput schema
+        affected_services = rca.get("affected_services", [])
+        affected_node = affected_services[0] if affected_services else ""  # Primary service
+        root_cause = rca.get("root_cause", "").lower()  # Technical root cause
+        narrative = rca.get("narrative", "").lower()  # Narrative explanation
         
-        # Extract key symptoms from error citations
-        error_messages = [cite.get("error_message", "").lower() for cite in rca.get("error_citations", [])]
+        # Extract key symptoms from error citations (new structure)
+        error_messages = [cite.get("message", "").lower() for cite in rca.get("error_citations", [])]
         
         severity = rca.get("severity", "").lower()
         

@@ -1,4 +1,4 @@
-from typing import List, Dict, Union, Literal, TypedDict, Any
+from typing import List, Dict, Union, Literal, TypedDict, Any, Optional
 from .summarize import SummarizeOutput
 from .tools import get_error_logs_for_trace_ids, get_downtime_timestamps, TablePayload
 from .error_agent import analyze_error_logs
@@ -13,6 +13,9 @@ class InitRCA(SummarizeOutput):
     # Dict of column_name: trace_id(s) in that column. This column and its values relevant to calculation of the SLA metric
     trace_ids : Dict[str,Union[List[str],str]]
     table_data: Dict[Literal["spans","logs", "sla_metric_trigger"], TablePayload]
+    # For latency analysis
+    breach_time_utc: Optional[str] = None
+    breach_value: Optional[float] = None
 
 
 async def rca(init_rca_request: InitRCA):
@@ -50,7 +53,7 @@ async def rca(init_rca_request: InitRCA):
                 # Create metric alert from the summarized data
                 metric_alert = MetricAlert(
                     metric_description=init_rca_request.description,
-                    breach_time_utc=init_rca_request.breach_time_utc,
+                    breach_time_utc=init_rca_request,
                     breach_value=init_rca_request.breach_value
                 )
                 

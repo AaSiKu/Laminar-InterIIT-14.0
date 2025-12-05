@@ -8,20 +8,14 @@ from pathlib import Path
 from typing import Dict, Any
 from langchain_core.language_models import BaseChatModel
 from langgraph.graph import StateGraph, END
-
-# Add parent directory to path to ensure correct imports
-current_dir = Path(__file__).parent.parent
-sys.path.insert(0, str(current_dir))
-
-from .state import ReportState
-from agents.planner_agent import PlannerAgent
-from agents.rulebook_matcher import RulebookMatcher
-from agents.chart_data_extractor import ChartDataExtractor
-from agents.chart_gen_agent import ChartGenAgent
-from agents.drafter_agent import DrafterAgent
 import time
 
-
+from .state import ReportState
+from ..agents.planner_agent import PlannerAgent
+from ..agents.rulebook_matcher import RulebookMatcher
+from ..agents.chart_data_extractor import ChartDataExtractor
+from ..agents.chart_gen_agent import ChartGenAgent
+from ..agents.drafter_agent import DrafterAgent
 def create_workflow(agent_model: BaseChatModel, reasoning_model: BaseChatModel) -> StateGraph:
     """
     Create the LangGraph workflow for report generation.

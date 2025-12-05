@@ -8,8 +8,8 @@ from datetime import datetime, timezone
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import JSONResponse
 
-from api.schemas import WeeklyReportRequest, WeeklyReportResponse, ErrorResponse
-from core.weekly_generator import generate_weekly_report
+from ..schemas import WeeklyReportRequest, WeeklyReportResponse, ErrorResponse
+from ...core.weekly_generator import generate_weekly_report
 
 # Configure logging
 logger = logging.getLogger(__name__)
