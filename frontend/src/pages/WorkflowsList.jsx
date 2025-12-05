@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
+import { useSearchParams } from "react-router-dom";
 import { Box, Typography } from "@mui/material";
 import { styles } from "../styles/WorkflowsList.styles";
 import { create_pipeline, fetchPipelineDetails } from "../utils/pipelineUtils";
@@ -65,7 +66,7 @@ const transformWorkflow = (backendWorkflow, details = null) => {
     category: description, // Show description instead of "General"
     location: formatTimeAgo(backendWorkflow.last_updated), // Show time ago instead of "Default"
     team: allTeamMembers, // Include both owners and viewers
-    status: backendWorkflow.status || "Stopped", // Keep original status: Running, Stopped, or Broken
+    status: backendWorkflow.status || "Stopped", // Status: Running, Stopped, or Broken
     description: description,
     avgChange: "0%", // Can be calculated from historical data if available
     alerts: String(alertsCount).padStart(2, "0"),
@@ -86,16 +87,31 @@ const transformWorkflow = (backendWorkflow, details = null) => {
 };
 
 export const WorkflowsList = () => {
+  const [searchParams, setSearchParams] = useSearchParams();
   const [selectedTab, setSelectedTab] = useState(0);
   const [selectedWorkflow, setSelectedWorkflow] = useState(null);
   const [actionFilter, setActionFilter] = useState("notifications"); // notifications, pending_actions, actions_taken
-  const [globalSearchQuery, setGlobalSearchQuery] = useState("");
+  
+  // Initialize search from URL params
+  const initialSearch = searchParams.get('search') || '';
+  const [globalSearchQuery, setGlobalSearchQuery] = useState(initialSearch);
+  
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [workflowDetailsCache, setWorkflowDetailsCache] = useState({});
   const [transformedWorkflows, setTransformedWorkflows] = useState([]);
   const { workflows } = useGlobalState();
   const { alerts, getAlertsForPipeline, isConnected, ws } = useWebSocket();
+
+  // Update URL when search changes
+  const handleSearchChange = useCallback((value) => {
+    setGlobalSearchQuery(value);
+    if (value.trim()) {
+      setSearchParams({ search: value });
+    } else {
+      setSearchParams({});
+    }
+  }, [setSearchParams]);
 
   // Fetch details for a specific workflow
   const fetchWorkflowDetails = useCallback(
@@ -342,6 +358,7 @@ export const WorkflowsList = () => {
           .includes(globalSearchQuery.toLowerCase());
 
       // Filter by status based on selected tab
+      // 0: All, 1: Running, 2: Stopped, 3: Broken
       if (selectedTab === 0) return matchesSearch; // All workflows
       if (selectedTab === 1)
         return matchesSearch && workflow.status === "Running"; // Running only
@@ -379,7 +396,7 @@ export const WorkflowsList = () => {
         userAvatar="https://i.pravatar.cc/150?img=1"
         searchPlaceholder="Search workflows, projects, or users..."
         searchValue={globalSearchQuery}
-        onSearchChange={setGlobalSearchQuery}
+        onSearchChange={handleSearchChange}
         onLogout={handleLogout}
       />
 

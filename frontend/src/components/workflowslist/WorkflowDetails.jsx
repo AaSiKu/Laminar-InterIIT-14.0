@@ -235,6 +235,7 @@ const WorkflowDetails = ({
         display: "flex",
         flexDirection: "column",
         px: 3,
+        overflowY: "scroll"
       }}
     >
       {/* Header Box */}
@@ -317,18 +318,6 @@ const WorkflowDetails = ({
                 );
               })}
             </AvatarGroup>
-            <IconButton
-              size="small"
-              sx={{
-                color: "primary.main",
-                bgcolor: "rgba(25, 118, 210, 0.08)",
-                "&:hover": {
-                  bgcolor: "rgba(25, 118, 210, 0.16)",
-                },
-              }}
-            >
-              <EditIcon sx={{ fontSize: 18 }} />
-            </IconButton>
           </Box>
         </Box>
         <Typography

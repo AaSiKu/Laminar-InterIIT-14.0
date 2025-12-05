@@ -26,6 +26,7 @@ WORKFLOW_COLLECTION = os.getenv("WORKFLOW_COLLECTION", "workflows")
 NOTIFICATION_COLLECTION = os.getenv("NOTIFICATION_COLLECTION", "notifications")
 LOG_COLLECTION = os.getenv("LOG_COLLECTION", "logs")  # Commented out - logs not implemented yet
 VERSION_COLLECTION = os.getenv("VERSION_COLLECTION", "versions")
+RCA_COLLECTION = os.getenv("RCA_COLLECTION", "rca_events")  # RCA events collection
 # Global variables
 mongo_client = None
 db = None
@@ -34,11 +35,12 @@ notification_collection = None
 version_collection = None
 user_collection = None
 docker_client = None
+rca_collection = None
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    global mongo_client, db, workflow_collection, notification_collection, user_collection, docker_client, version_collection
+    global mongo_client, db, workflow_collection, notification_collection, user_collection, docker_client, version_collection, rca_collection
     # global log_collection  # Commented out - logs not implemented yet
 
     # ---- STARTUP ----
@@ -51,6 +53,7 @@ async def lifespan(app: FastAPI):
     version_collection = db[VERSION_COLLECTION]
     notification_collection = db[NOTIFICATION_COLLECTION]
     log_collection = db[LOG_COLLECTION]  # Commented out - logs not implemented yet
+    rca_collection = db[RCA_COLLECTION]  # RCA events collection
     print(f"Connected to MongoDB, DB: {MONGO_DB}", flush=True)
 
     # Create SQL database tables for users
@@ -72,6 +75,7 @@ async def lifespan(app: FastAPI):
     app.state.version_collection = version_collection
     app.state.notification_collection = notification_collection
     app.state.log_collection = log_collection  # Commented out - logs not implemented yet
+    app.state.rca_collection = rca_collection  # RCA events collection
     app.state.mongo_client=mongo_client
     app.state.secret_key = os.getenv("SECRET_KEY", "default_secret_key")
     app.state.algorithm = os.getenv("ALGORITHM", "HS256")
@@ -81,11 +85,10 @@ async def lifespan(app: FastAPI):
     app.state.docker_client = docker.from_env()
 
     print(f"Connected to docker daemon")
-    print(log_collection)
-    # All changes (notifications, workflows, logs) go through single global WebSocket connection
-    # log_collection is None for now - logs not implemented yet
-    asyncio.create_task(watch_changes(notification_collection, log_collection, workflow_collection))
-    print("Started MongoDB change stream listener")
+    # All changes (notifications, workflows, logs, RCA) go through single global WebSocket connection
+    # Includes Slack notifications for critical logs and RCA updates
+    asyncio.create_task(watch_changes(notification_collection, log_collection, workflow_collection, rca_collection))
+    print("Started MongoDB change stream listener (notifications, logs, workflows, RCA)")
     ws_cleanup_task = asyncio.create_task(close_inactive_connections())
     print("Started WebSocket inactivity cleanup task")
 

@@ -1,28 +1,53 @@
 import { Typography, Box, useTheme } from "@mui/material";
 
-export function MTTRChart({ data }) {
+export function MTTRChart({ data = {} }) {
   const theme = useTheme();
+
+  // Ensure data has required structure
+  const safeData = {
+    labels: data?.labels || [
+      "10:00 AM",
+      "11:00 AM",
+      "12:00 PM",
+      "1:00 PM",
+      "2:00 PM",
+      "3:00 PM",
+    ],
+    datasets: data?.datasets || [
+      { color: "#4ade80", values: [0, 0, 0, 0, 0, 0] },
+    ],
+  };
+
   const maxValue = 60;
   const minValue = 0;
   const chartHeight = 200;
   const chartWidth = 500;
   const padding = { top: 20, right: 20, bottom: 40, left: 40 };
-  
+
   const innerWidth = chartWidth - padding.left - padding.right;
   const innerHeight = chartHeight - padding.top - padding.bottom;
-  
-  const xStep = innerWidth / (data.labels.length - 1);
-  
+
+  const xStep =
+    safeData.labels.length > 1
+      ? innerWidth / (safeData.labels.length - 1)
+      : innerWidth;
+
   const getY = (value) => {
-    return padding.top + innerHeight - ((value - minValue) / (maxValue - minValue)) * innerHeight;
+    return (
+      padding.top +
+      innerHeight -
+      ((value - minValue) / (maxValue - minValue)) * innerHeight
+    );
   };
-  
+
   const getPath = (values) => {
-    return values.map((val, i) => {
-      const x = padding.left + i * xStep;
-      const y = getY(val);
-      return `${i === 0 ? 'M' : 'L'} ${x} ${y}`;
-    }).join(' ');
+    return values
+      .map((val, i) => {
+        const x = padding.left + i * xStep;
+        const y = getY(val);
+        return `${i === 0 ? "M" : "L"} ${x} ${y}`;
+      })
+      .join(" ");
   };
 
   const dividerColor = theme.palette.divider;
@@ -31,27 +56,27 @@ export function MTTRChart({ data }) {
   return (
     <Box
       sx={{
-        bgcolor: 'background.elevation1',
+        bgcolor: "background.elevation1",
         p: 2.5,
-        display: 'flex',
-        flexDirection: 'column',
+        display: "flex",
+        flexDirection: "column",
         borderRadius: 2,
-        height: '100%',
+        height: "100%",
       }}
     >
       <Box
         sx={{
-          height: '100%',
-          display: 'flex',
-          flexDirection: 'column',
+          height: "100%",
+          display: "flex",
+          flexDirection: "column",
         }}
       >
         <Typography
           variant="h6"
           sx={{
-            fontSize: '1.25rem',
+            fontSize: "1.25rem",
             fontWeight: 700,
-            color: 'text.primary',
+            color: "text.primary",
             mb: 0.25,
           }}
         >
@@ -60,29 +85,29 @@ export function MTTRChart({ data }) {
         <Typography
           variant="body2"
           sx={{
-            fontSize: '0.875rem',
-            color: 'text.secondary',
+            fontSize: "0.875rem",
+            color: "text.secondary",
             mb: 2,
           }}
         >
           Total profit gained
         </Typography>
-        
+
         <Box
           sx={{
             flex: 1,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
           }}
         >
           <Box
             component="svg"
             viewBox={`0 0 ${chartWidth} ${chartHeight}`}
             sx={{
-              width: '100%',
-              height: 'auto',
-              maxHeight: '15rem',
+              width: "100%",
+              height: "auto",
+              maxHeight: "15rem",
             }}
           >
             {/* Grid lines */}
@@ -107,7 +132,7 @@ export function MTTRChart({ data }) {
                 </text>
               </g>
             ))}
-            
+
             {/* Vertical grid lines */}
             {data.labels.map((label, i) => (
               <line
@@ -120,7 +145,7 @@ export function MTTRChart({ data }) {
                 strokeWidth="1"
               />
             ))}
-            
+
             {/* Border */}
             <rect
               x={padding.left}
@@ -131,7 +156,7 @@ export function MTTRChart({ data }) {
               stroke={dividerColor}
               strokeWidth="1"
             />
-            
+
             {/* Lines */}
             {data.datasets.map((dataset, idx) => (
               <path
@@ -142,7 +167,7 @@ export function MTTRChart({ data }) {
                 strokeWidth="2"
               />
             ))}
-            
+
             {/* X-axis labels */}
             {data.labels.map((label, i) => (
               <text
@@ -162,4 +187,3 @@ export function MTTRChart({ data }) {
     </Box>
   );
 }
-

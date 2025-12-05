@@ -1,7 +1,7 @@
 import { createContext, useContext, useState, useEffect, useCallback } from "react";
 import { useWebSocket } from "./WebSocketContext";
 import { AuthContext } from "./AuthContext";
-import { fetchWorkflows, fetchPreviousNotifcations } from "../utils/utils";
+import { fetchWorkflows, fetchPreviousNotifcations, fetchLogs } from "../utils/utils";
 
 const GlobalStateContext = createContext();
 export function useGlobalState() {
@@ -58,11 +58,11 @@ export const GlobalStateProvider = ({ children }) => {
           setAlerts(allAlerts);
         }
 
-        // Logs - commented out for now as they are not implemented
-        // const logsData = await fetchLogs();
-        // if (Array.isArray(logsData)) {
-        //   setLogs(logsData);
-        // }
+        // Fetch logs
+        const logsData = await fetchLogs();
+        if (Array.isArray(logsData)) {
+          setLogs(logsData);
+        }
 
         setInitialized(true);
       } catch (error) {

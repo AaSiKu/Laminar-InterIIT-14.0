@@ -7,6 +7,7 @@ export function PipelineStatsChart({ data }) {
   const theme = useTheme();
   const maxValue = 20;
   const barHeight = 12; // rem
+  const totalPipelines = (data.successful || 0) + (data.errors || 0);
 
   return (
     <Box
@@ -54,7 +55,7 @@ export function PipelineStatsChart({ data }) {
               mb: 0.25,
             }}
           >
-            Pipeline Running
+            Pipelines
           </Typography>
           <Typography
             variant="h5"
@@ -65,7 +66,7 @@ export function PipelineStatsChart({ data }) {
               mb: 3,
             }}
           >
-            35
+            {totalPipelines}
           </Typography>
           
           <Box
@@ -112,7 +113,7 @@ export function PipelineStatsChart({ data }) {
                   color: 'text.secondary',
                 }}
               >
-                Successful
+                Running
               </Typography>
             </Box>
             <Box
@@ -152,7 +153,7 @@ export function PipelineStatsChart({ data }) {
                   color: 'text.secondary',
                 }}
               >
-                Errors
+                Stopped
               </Typography>
             </Box>
             <Box
@@ -184,7 +185,7 @@ export function PipelineStatsChart({ data }) {
                   minWidth: '2.5rem',
                 }}
               >
-                {data.warning.toString().padStart(2, "0")}
+                {data.broken || 0}
               </Typography>
               <Typography
                 sx={{
@@ -192,7 +193,7 @@ export function PipelineStatsChart({ data }) {
                   color: 'text.secondary',
                 }}
               >
-                Warning
+                Broken
               </Typography>
             </Box>
           </Box>
@@ -302,7 +303,7 @@ export function PipelineStatsChart({ data }) {
                     width: '3rem',
                     height: `${(data.errors / maxValue) * barHeight}rem`,
                     borderRadius: '4px 4px 0 0',
-                    bgcolor: 'warning.main',
+                    bgcolor: 'error.main',
                     transition: 'height 0.3s ease',
                   }}
                 />
@@ -322,17 +323,17 @@ export function PipelineStatsChart({ data }) {
                     mb: 0.5,
                   }}
                 >
-                  {data.warning.toString().padStart(2, "0")}
+                  {data.broken || 0}
                 </Typography>
                 <Box
                   sx={{
                     width: '3rem',
-                    height: `${(data.warning / maxValue) * barHeight}rem`,
+                    height: `${((data.broken || 0) / maxValue) * barHeight}rem`,
                     borderRadius: '4px 4px 0 0',
-                    bgcolor: 'error.main',
+                    bgcolor: 'warning.main',
                     transition: 'height 0.3s ease',
                   }}
-              />
+                />
               </Box>
             </Box>
           </Box>
@@ -354,7 +355,7 @@ export function PipelineStatsChart({ data }) {
                 textAlign: 'center',
               }}
             >
-              Successful
+              Running
             </Typography>
             <Typography
               sx={{
@@ -364,7 +365,7 @@ export function PipelineStatsChart({ data }) {
                 textAlign: 'center',
               }}
             >
-              Errors
+              Stopped
             </Typography>
             <Typography
               sx={{
@@ -374,7 +375,7 @@ export function PipelineStatsChart({ data }) {
                 textAlign: 'center',
               }}
             >
-              Warning
+              Broken
             </Typography>
           </Box>
         </Box>

@@ -25,13 +25,13 @@ class UpdateNotificationAction(BaseModel):
     action_taken: str
     taken_at: str
 
-# class Log(BaseModel):
-#     pipeline_id: str
-#     level: str  # log level (debug, info, warning, error, critical)
-#     message: str
-#     details: Optional[dict] = None  # additional log details/metadata
-#     timestamp: Optional[datetime] = datetime.now()
-#     source: Optional[str] = None  # source of the log (e.g., "agent", "pipeline", "system")
+class Log(BaseModel):
+    pipeline_id: str
+    level: str  # log level (debug, info, warning, error, critical)
+    message: str
+    details: Optional[dict] = None  # additional log details/metadata
+    timestamp: Optional[datetime] = datetime.now()
+    source: Optional[str] = None  # source of the log (e.g., "agent", "pipeline", "system")
 
 
 class Workflow(BaseModel):

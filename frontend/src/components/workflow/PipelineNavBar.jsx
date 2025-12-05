@@ -81,6 +81,7 @@ const PipelineNavBar = ({
   userAvatar,
   onExportJSON,
   pipelineId,
+  autoSaveStatus, // 'saving', 'saved', or null
 }) => {
   const theme = useTheme();
   const { mode, setMode } = useColorScheme();
@@ -190,6 +191,21 @@ const PipelineNavBar = ({
           >
             {pipelineName}
           </Typography>
+
+          {/* Auto-save Status Indicator */}
+          {autoSaveStatus && (
+            <Typography
+              variant="caption"
+              sx={{
+                color: autoSaveStatus === 'saving' ? 'text.secondary' : 'success.main',
+                fontSize: '0.7rem',
+                ml: 1,
+                fontStyle: 'italic',
+              }}
+            >
+              {autoSaveStatus === 'saving' ? 'Saving...' : 'Saved'}
+            </Typography>
+          )}
         </Box>
 
         {/* Right Section - Action Buttons */}
@@ -300,7 +316,7 @@ const PipelineNavBar = ({
             pipelineName={pipelineName}
           />
 
-          {/* Save Button */}
+          {/* Commit Version Button */}
           <Button
             variant="contained"
             onClick={onSave}
@@ -326,7 +342,7 @@ const PipelineNavBar = ({
               },
             }}
           >
-            Save
+            Commit Version
           </Button>
 
           {/* Activate Button */}

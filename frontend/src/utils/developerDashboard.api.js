@@ -49,10 +49,19 @@ export const fetchOverviewData = async () => {
   return data;
 };
 
+// Fetches chart data for Admin dashboard
+export const fetchChartsData = async () => {
+  const response = await fetchWithAuth("/overview/charts");
+  const data = await response.json();
+  return data;
+};
+
 // Update notification with action taken
 export const updateNotificationAction = async (notificationId, action) => {
   const response = await fetch(
-    `${import.meta.env.VITE_API_SERVER}/overview/notifications/${notificationId}/action`,
+    `${
+      import.meta.env.VITE_API_SERVER
+    }/overview/notifications/${notificationId}/action`,
     {
       method: "PATCH",
       headers: {
@@ -130,8 +139,12 @@ export const removeViewerFromPipeline = async (pipelineId, userId) => {
       }
     );
     if (!response.ok) {
-      const errorData = await response.json().catch(() => ({ detail: "Failed to remove viewer" }));
-      throw new Error(errorData.detail || `Failed to remove viewer: ${response.status}`);
+      const errorData = await response
+        .json()
+        .catch(() => ({ detail: "Failed to remove viewer" }));
+      throw new Error(
+        errorData.detail || `Failed to remove viewer: ${response.status}`
+      );
     }
     const data = await response.json();
     return data;
@@ -186,8 +199,12 @@ export const addViewerToPipeline = async (pipelineId, userId) => {
       }
     );
     if (!response.ok) {
-      const errorData = await response.json().catch(() => ({ detail: "Failed to add viewer" }));
-      throw new Error(errorData.detail || `Failed to add viewer: ${response.status}`);
+      const errorData = await response
+        .json()
+        .catch(() => ({ detail: "Failed to add viewer" }));
+      throw new Error(
+        errorData.detail || `Failed to add viewer: ${response.status}`
+      );
     }
     const data = await response.json();
     return data;
@@ -231,10 +248,9 @@ export const addViewerToPipeline = async (pipelineId, userId) => {
 // Get current user details
 export const getCurrentUser = async () => {
   try {
-    const response = await fetch(
-      `${import.meta.env.VITE_API_SERVER}/auth/me`,
-      { credentials: "include" }
-    );
+    const response = await fetch(`${import.meta.env.VITE_API_SERVER}/auth/me`, {
+      credentials: "include",
+    });
     if (!response.ok) {
       throw new Error(`Failed to fetch user: ${response.status}`);
     }
