@@ -5,11 +5,11 @@ from typing import List, TypedDict, Annotated, Dict, Optional
 from pydantic import BaseModel, Field
 from langgraph.graph import StateGraph, END
 from langgraph.graph.message import add_messages
-from .tools import get_top_latency_traces, get_full_span_tree, get_error_logs_for_trace_ids, TablePayload
+from .tools import get_top_latency_traces, get_full_span_tree, get_logs_for_trace_ids, TablePayload
 from .output import RCAAnalysisOutput
 from datetime import datetime, timedelta
 import asyncio
-from ..chat_models import ChatGoogleGenerativeAI
+from ..chat_models import analyser_model
 
 load_dotenv()
 
@@ -131,25 +131,25 @@ async def enrichment_node(state: RCAState) -> Dict:
             )
         
         # Get error logs for the trace
-        error_logs = await get_error_logs_for_trace_ids(
-            trace_ids=trace_id,
+        error_logs = await get_logs_for_trace_ids(
+            trace_ids=[trace_id],
             logs_table=logs_table,
             severity_number=13  # ERROR level
         )
         
-        alert: SLAAlert = dict(
-            parent_span=parent_span,
-            trace_id=trace_id,
-            has_error=bool(trace.get('has_error')),
-            error_span=trace.get('error_span'),
-            error_message=trace.get('error_message'),
-            topology=full_span_tree,
-            logs=error_logs,
-            hypothesis=None,
-            validation_result=None,
-            retries=0,
-            messages=[]
-        )
+        alert: SLAAlert = {
+            "parent_span": parent_span,
+            "trace_id": trace_id,
+            "has_error": bool(trace.get('has_error')),
+            "error_span": trace.get('error_span'),
+            "error_message": trace.get('error_message'),
+            "topology": full_span_tree,
+            "logs": error_logs,
+            "hypothesis": None,
+            "validation_result": None,
+            "retries": 0,
+            "messages": []
+        }
         sla_alerts.append(alert)
 
     return {"sla_alerts": sla_alerts}
@@ -209,7 +209,7 @@ If your previous hypothesis was wrong, formulate a NEW hypothesis based on the e
     
     messages = state.get("messages", []) + [{"role": "user", "content": prompt}]
     
-    response = await ChatGoogleGenerativeAI.ainvoke(messages)
+    response = await analyser_model.ainvoke(messages)
     content = response.content
     
     try:
@@ -268,7 +268,7 @@ OR
 """
     
     try:
-        response = await ChatGoogleGenerativeAI.ainvoke([{"role": "user", "content": prompt}])
+        response = await analyser_model.ainvoke([{"role": "user", "content": prompt}])
         content = response.content
         llm_response = json.loads(content)
         
@@ -452,7 +452,7 @@ Correlate and synthesize these findings to produce a comprehensive root cause an
 """
     
     try:
-        response = await ChatGoogleGenerativeAI.ainvoke([{"role": "user", "content": prompt}])
+        response = await analyser_model.ainvoke([{"role": "user", "content": prompt}])
         content = response.content
         
         # Parse LLM response

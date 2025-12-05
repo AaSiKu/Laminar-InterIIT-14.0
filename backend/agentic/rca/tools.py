@@ -56,6 +56,8 @@ async def get_logs_for_trace_ids(trace_ids: Union[List[str], str], logs_table: T
         body,
         _open_tel_service_name,
         _open_tel_service_namespace,
+        severity_number,
+        severity_text,
         scope_name
     FROM {logs_table["table_name"]}
     WHERE _open_tel_trace_id IN ('{trace_ids_str}')
