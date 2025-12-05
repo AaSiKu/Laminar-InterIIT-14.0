@@ -22,6 +22,7 @@ from .report_generation.api.schemas import (
 from .report_generation.core.report_generator import generate_incident_report
 from .report_generation.core.weekly_generator import generate_weekly_report
 
+logger = logging.getLogger(__name__)
 # Runbook imports
 try:
     from .runbook_src.core.remediation_orchestrator import RemediationOrchestrator
@@ -38,7 +39,6 @@ except ImportError as e:
     RUNBOOK_AVAILABLE = False
 
 # Configure logging
-logger = logging.getLogger(__name__)
 
 planner_executor: CompiledStateGraph = None
 
