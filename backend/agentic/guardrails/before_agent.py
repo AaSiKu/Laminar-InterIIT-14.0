@@ -7,7 +7,7 @@ from .gateway import (
     PromptInjectionAnalyzer,
     SecretsAnalyzer,
 )
-from backend.pipeline.logger import custom_logger
+from lib.logger import custom_logger
 from gateway import MCPSecurityGateway
 
 gateway = MCPSecurityGateway()

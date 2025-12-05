@@ -6,9 +6,8 @@ from langchain.agents import create_agent
 import os
 from ..llm_factory import create_summarization_model
 from ..guardrails.before_agent import InputScanner
-from backend.pipeline.logger import create_logger
-from backend.agentic.guardrails.gateway import MCPSecurityGateway
-from backend.agentic.guardrails.before_agent import detect
+from ..guardrails.gateway import MCPSecurityGateway
+from ..guardrails.before_agent import detect
 
 gateway = MCPSecurityGateway()
 

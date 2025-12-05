@@ -11,7 +11,7 @@ from typing import Optional
 import csv
 load_dotenv()
 # if load_dotenv() below the setup_logging import, then we will need to ourself provide the env variables.
-from .logger import custom_logger
+from lib.logger import custom_logger
 from postgres_util import postgre_engine
 from sqlalchemy import text
 

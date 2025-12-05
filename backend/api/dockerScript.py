@@ -104,13 +104,16 @@ def run_pipeline_container(client: docker.DockerClient, pipeline_id: str):
         name=agentic_container_name,
         detach=True,
         environment={
+            "PIPELINE_ID": pipeline_id,
             "POSTGRES_HOST": db_container_name,
             "POSTGRES_DB": "db",
             "POSTGRES_USER": read_user,
             "POSTGRES_PASSWORD": read_pass,
-            "RUNBOOK_DATABASE_URL": f"postgresql+asyncpg://{write_user}:{write_pass}@{db_container_name}:5432/db",
-            "DATABASE_URL": f"postgresql+asyncpg://{write_user}:{write_pass}@{db_container_name}:5432/db",
             "PATHWAY_API_URL": f"http://{pipeline_id}:{PIPELINE_ERROR_INDEXING_PORT.split('/')[0]}",
+            "MONGO_URI": os.getenv("MONGO_URI", ""),
+            "MONGO_DB": os.getenv("MONGO_DB", "easyworkflow"),
+            "LOGS_COLLECTION": os.getenv("LOGS_COLLECTION", "logs"),
+            # TODO: add LLM API keys
         },
         network=network_name,
         ports={AGENTIC_CONTAINER_PORT: AGENTIC_CONTAINER_PORT if not dynamic_ports else None},   # dynamic host port
@@ -152,6 +155,14 @@ def run_pipeline_container(client: docker.DockerClient, pipeline_id: str):
             "ERROR_INDEXING_PORT": PIPELINE_ERROR_INDEXING_PORT.split('/')[0],
             "ERRORS_JSON_PATH": "pipeline/errors_table/Errors.json",
             "EMBEDDING_MODEL": "models/text-embedding-004",
+            "GEMINI_API_KEY": os.getenv("GEMINI_API_KEY", ""),
+            "PATHWAY_LICENSE_KEY": os.getenv("PATHWAY_LICENSE_KEY", ""),
+            "MONGO_URI": os.getenv("MONGO_URI", ""),
+            "MONGO_DB": os.getenv("MONGO_DB", "easyworkflow"),
+            "WORKFLOW_COLLECTION": os.getenv("WORKFLOW_COLLECTION", "workflows"),
+            "VERSION_COLLECTION": os.getenv("VERSION_COLLECTION", "versions"),
+            "LOGS_COLLECTION": os.getenv("LOGS_COLLECTION", "logs"),
+            "FLOWCHART_FILE": "flowchart.json",
         },
         network=network_name,
         ports={

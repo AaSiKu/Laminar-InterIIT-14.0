@@ -5,7 +5,7 @@ from typing import Any
 from dotenv import load_dotenv
 import pathway as pw
 load_dotenv()
-from .logger import custom_logger
+from lib.logger import custom_logger
 from .agentic import build_agentic_graph
 from .graph_reader import read_and_validate_graph
 from .graph_builder import build_computational_graph, persist_table_to_postgres

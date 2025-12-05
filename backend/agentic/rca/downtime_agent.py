@@ -9,9 +9,8 @@ from langgraph.graph import StateGraph, END
 import operator
 from ..llm_factory import create_analyser_model
 from ..guardrails.before_agent import InputScanner
-from backend.pipeline.logger import custom_logger
-from backend.agentic.guardrails.gateway import MCPSecurityGateway
-from backend.agentic.guardrails.before_agent import detect
+from ..guardrails.gateway import MCPSecurityGateway
+from ..guardrails.before_agent import detect
 
 gateway = MCPSecurityGateway()
 

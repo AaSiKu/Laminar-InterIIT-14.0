@@ -21,6 +21,7 @@ from .report_generation.api.schemas import (
 )
 from .report_generation.core.report_generator import generate_incident_report
 from .report_generation.core.weekly_generator import generate_weekly_report
+from postgres_util import postgre_url
 
 logger = logging.getLogger(__name__)
 # Runbook imports
@@ -80,7 +81,7 @@ async def lifespan(app: FastAPI):
             
             # Try to initialize DB components (optional)
             try:
-                db_url = os.getenv("RUNBOOK_DATABASE_URL", os.getenv("DATABASE_URL", "postgresql+asyncpg://postgres:mysecretpassword@localhost:5432/postgres"))
+                db_url = postgre_url
                 
                 registry = RunbookRegistry(database_url=db_url)
                 await registry.initialize()
