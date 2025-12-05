@@ -1,12 +1,12 @@
 from typing import List, Dict, Union, Literal, TypedDict, Any
 from .summarize import SummarizeOutput
-from .tools import get_error_logs_for_trace_ids, get_downtime_timestamps
+from .tools import get_error_logs_for_trace_ids, get_downtime_timestamps, TablePayload
 from .error_agent import analyze_error_logs
 from .downtime_agent import analyze_downtime_incidents, DowntimeIncident
+from .latency_agent import build_graph, MetricAlert
 from .output import RCAAnalysisOutput
 
-class TablePayload(TypedDict):
-    table_name: str
+
 class InitRCA(SummarizeOutput):
     # description of the metric
     description: str
@@ -47,8 +47,44 @@ async def rca(init_rca_request: InitRCA):
                 }
             
             case "latency":
-                # TODO: Implement latency RCA
-                pass
+                # Create metric alert from the summarized data
+                metric_alert = MetricAlert(
+                    metric_description=init_rca_request.description,
+                    breach_time_utc=init_rca_request.breach_time_utc,
+                    breach_value=init_rca_request.breach_value
+                )
+                
+                # Build and run the latency analysis graph
+                latency_graph = build_graph()
+                
+                # Pass table information to the graph
+                initial_state = {
+                    "metric_alert": metric_alert,
+                    "sla_alerts": [],
+                    "messages": [],
+                    "final_reports": None,
+                    "analysis_summary": None,
+                    "rca_output": None,
+                    "table_data": {
+                        "spans": init_rca_request.table_data["spans"],
+                        "logs": init_rca_request.table_data["logs"]
+                    }
+                }
+                
+                result = await latency_graph.ainvoke(initial_state)
+                
+                analysis: RCAAnalysisOutput = result.get("rca_output")
+                
+                if not analysis:
+                    return {
+                        "analysis": {
+                            "message": "Latency analysis could not be completed"
+                        }
+                    }
+                
+                return {
+                    "analysis": analysis.model_dump()
+                }
             
             case "uptime":
                 # Get actual timestamps from sla_metric_trigger table

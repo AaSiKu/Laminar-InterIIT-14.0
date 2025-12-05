@@ -1,9 +1,10 @@
-from ..sql_tool import TablePayload
-from typing import List, Union, Dict, Any
+from typing import List, Union, Dict, Any, TypedDict
 from sqlalchemy import text
 from postgres_util import postgre_engine
 import asyncio
 from functools import wraps
+class TablePayload(TypedDict):
+    table_name: str
 
 def retry_on_falsy(max_retries: int = 3, delay_seconds: int = 2):
     """
@@ -387,6 +388,83 @@ async def get_downtime_timestamps(
     
     with postgre_engine.connect() as conn:
         result = conn.execute(text(sql_query))
+        rows = [dict(row._mapping) for row in result]
+    
+    return rows
+
+@retry_on_falsy()
+async def get_spans_for_trace_ids(trace_ids: Union[List[str], str], spans_table: TablePayload) -> List[Dict[str, Any]]:
+    """
+    Query spans for given trace IDs using SQLAlchemy, returning only schema fields.
+    """
+    if isinstance(trace_ids, str):
+        trace_ids = [trace_ids]
+    if not trace_ids:
+        return []
+
+    trace_ids_str = "', '".join(trace_ids)
+    sql_query = f"""
+    SELECT 
+        _open_tel_trace_id,
+        _open_tel_span_id,
+        _open_tel_parent_span_id,
+        _open_tel_service_name,
+        _open_tel_service_namespace,
+        name,
+        kind,
+        start_time_unix_nano,
+        end_time_unix_nano,
+        status_code,
+        status_message,
+        attributes,
+        events,
+        links,
+        scope_name
+    FROM {spans_table["table_name"]}
+    WHERE _open_tel_trace_id IN ('{trace_ids_str}')
+    ORDER BY start_time_unix_nano
+    """
+
+    with postgre_engine.connect() as conn:
+        result = conn.execute(text(sql_query))
+        rows = [dict(row._mapping) for row in result]
+
+    return rows
+
+async def get_top_latency_traces(
+    start_time_utc: str, # ISO format 
+    end_time_utc: str, # ISO format
+    spans_table: TablePayload,
+    limit: int = 5,
+) -> List[Dict]:
+    """
+    Finds the trace IDs with the highest end-to-end latency for a given workflow
+    within a specific time window.
+    """
+    with postgre_engine.connect() as conn:
+        query = f"""
+            WITH TraceDurations AS (
+                SELECT
+                    _open_tel_trace_id as trace_id,
+                    (MAX(end_time_unix_nano) - MIN(start_time_unix_nano)) AS duration_ns,
+                    MAX(CASE WHEN status_code = 'ERROR' THEN 1 ELSE 0 END) as has_error,
+                    (array_agg(name ORDER BY start_time_unix_nano) FILTER (WHERE status_code = 'ERROR'))[1] as error_span,
+                    (array_agg(status_message ORDER BY start_time_unix_nano) FILTER (WHERE status_code = 'ERROR'))[1] as error_message
+                FROM
+                    {spans_table["table_name"]}
+                WHERE
+                    start_time_unix_nano >= (extract(epoch from %s::timestamp) * 1e9)
+                    AND end_time_unix_nano <= (extract(epoch from %s::timestamp) * 1e9)
+                GROUP BY
+                    _open_tel_trace_id
+            )
+            SELECT * FROM TraceDurations
+            ORDER BY
+                duration_ns DESC
+            LIMIT {limit};
+        """
+        
+        result = conn.execute(text(query), (start_time_utc, end_time_utc))
         rows = [dict(row._mapping) for row in result]
     
     return rows

@@ -12,3 +12,4 @@ langchain_community==0.4.1
 langchain_openai
 langchain_google_genai
 langchain_mcp_adapters
+litellm
