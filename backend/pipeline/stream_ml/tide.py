@@ -7,7 +7,7 @@ import psutil
 import os
 from typing import List, Optional, Tuple
 from numpy.typing import NDArray
-from stream_ml.model import BaseModel as StreamBaseModel, BaseModelConfig
+from .model import BaseModel as StreamBaseModel, BaseModelConfig
 from pydantic import BaseModel as PydanticBaseModel, Field
 
 

@@ -1,7 +1,7 @@
-from stream_ml.model import BaseModel, BaseModelConfig
-from stream_ml.arf import ArfRegressor
-from stream_ml.tide import TiDEModel
-from stream_ml.mamba import MambaModel
+from .model import BaseModel, BaseModelConfig
+from .arf import ArfRegressor
+from .tide import TiDEModel
+from .mamba import MambaModel
 from numpy.typing import NDArray
 from typing import Tuple, Dict, Any, List, Optional, Union
 import numpy as np
