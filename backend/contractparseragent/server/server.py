@@ -1,5 +1,6 @@
 import json
 import sys
+import re
 from pathlib import Path
 from typing import Optional, Dict, Any, List
 
@@ -60,6 +61,7 @@ class WSAgenticSession:
         self.filter_index: Dict[str, Dict[str, Any]] = {}
         self.input_node_id: Optional[str] = None
         self.next_node_counter: int = 0
+        self.feedback_history: Dict[str, Dict[int, List[str]]] = {}  # metric_name -> step_index -> list of feedback strings
 
     async def run_phase1_interactive(self, ws: WebSocket) -> bool:
         """Run Phase 1 interactively via WebSocket.
@@ -106,42 +108,60 @@ class WSAgenticSession:
         # Interactive loop
         while True:
             # Check if we have a complete flowchart
-            candidate = response_text
-            if "```json" in response_text:
+            flowchart_data = None
+            mapping_data = None
+            
+            # Extract all JSON blocks
+            json_blocks = re.findall(r"```json(.*?)```", response_text, re.DOTALL)
+            
+            # Also try to parse the whole text if it's raw JSON
+            if not json_blocks:
                 try:
-                    start = response_text.find("```json") + 7
-                    end = response_text.find("```", start)
-                    candidate = response_text[start:end].strip()
+                    json.loads(response_text)
+                    json_blocks = [response_text]
+                except:
+                    pass
+
+            for block in json_blocks:
+                try:
+                    data = json.loads(block.strip())
+                    if "nodes" in data and "edges" in data:
+                        flowchart_data = data
+                        # If mapping is inside the flowchart block (legacy/fallback)
+                        if "metric_mapping" in data:
+                            mapping_data = {"metric_mapping": data["metric_mapping"]}
+                    elif "metric_mapping" in data:
+                        mapping_data = data
                 except Exception:
                     pass
             
-            try:
-                data = json.loads(candidate)
-                if "nodes" in data and "edges" in data:
-                    # Post-process: ensure open_tel_spans_input has required fields
-                    for node in data.get("nodes", []):
-                        if node.get("node_id") == "open_tel_spans_input":
-                            props = node.get("data", {}).get("properties", {})
-                            if "rdkafka_settings" not in props:
-                                props["rdkafka_settings"] = {
-                                    "bootstrap_servers": "localhost:9092",
-                                    "group_id": "pathway-consumer",
-                                    "auto_offset_reset": "earliest"
-                                }
-                            if "topic" not in props:
-                                props["topic"] = "otlp_spans"
-                            node["data"]["properties"] = props
-                    
-                    self.phase1_flowchart = data
-                    self._prepare_filter_metadata()
-                    await ws.send_json({
-                        "type": "phase1_complete",
-                        "flowchart": data,
-                        "message": "Phase 1 completed successfully"
-                    })
-                    return True
-            except Exception:
-                pass
+            if flowchart_data:
+                # Post-process: ensure open_tel_spans_input has required fields
+                for node in flowchart_data.get("nodes", []):
+                    if node.get("node_id") == "open_tel_spans_input":
+                        props = node.get("data", {}).get("properties", {})
+                        if "rdkafka_settings" not in props:
+                            props["rdkafka_settings"] = {
+                                "bootstrap_servers": "localhost:9092",
+                                "group_id": "pathway-consumer",
+                                "auto_offset_reset": "earliest"
+                            }
+                        if "topic" not in props:
+                            props["topic"] = "otlp_spans"
+                        node["data"]["properties"] = props
+                
+                # Inject mapping if found
+                if mapping_data and "metric_mapping" in mapping_data:
+                    flowchart_data["metric_mapping"] = mapping_data["metric_mapping"]
+
+                self.phase1_flowchart = flowchart_data
+                self._prepare_filter_metadata()
+                await ws.send_json({
+                    "type": "phase1_complete",
+                    "flowchart": flowchart_data,
+                    "message": "Phase 1 completed successfully"
+                })
+                return True
             
             # Wait for user input
             await ws.send_json({
@@ -237,11 +257,19 @@ class WSAgenticSession:
                 })
 
                 current_graph = self._current_graph_snapshot()
+                
+                # Prepare user feedback
+                feedback_list = self.feedback_history.get(metric_name, {}).get(step_index, [])
+                user_feedback = ""
+                if feedback_list:
+                    user_feedback = "\n".join(f"- {f}" for f in feedback_list)
+                
                 llm_result = build_next_node(
                     current_graph,
                     macro_plan,
                     step_index,
                     filter_context,
+                    user_feedback,
                 )
                 macro_plan = llm_result.get("macro_plan", macro_plan)
                 next_node = llm_result.get("next_node")
@@ -283,6 +311,16 @@ class WSAgenticSession:
                         await ws.send_json({"type": "done", "reason": "quit"})
                         return False
                     if action == "reject":
+                        # Collect and accumulate feedback
+                        feedback = approval_data.get("feedback", "").strip()
+                        if feedback:
+                            if metric_name not in self.feedback_history:
+                                self.feedback_history[metric_name] = {}
+                            if step_index not in self.feedback_history[metric_name]:
+                                self.feedback_history[metric_name][step_index] = []
+                            self.feedback_history[metric_name][step_index].append(feedback)
+                            print(f"Feedback recorded for step {step_index}: {feedback}")
+                        
                         await ws.send_json({
                             "type": "status",
                             "message": f"Regenerating step {step_index + 1} for metric {metric_name}...",
@@ -338,10 +376,13 @@ class WSAgenticSession:
 
         filter_nodes.sort(key=_node_sort_key)
         self.filter_index = {node.get("id"): node for node in filter_nodes}
+        
+        explicit_mapping = self.phase1_flowchart.get("metric_mapping")
         self.metric_filter_map = auto_assign_filters_to_metrics(
             self.metrics_list,
             filter_nodes,
             self.input_node_id,
+            explicit_mapping=explicit_mapping,
         )
 
         max_idx = 0

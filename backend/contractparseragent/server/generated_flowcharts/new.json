@@ -1,0 +1,1402 @@
+[
+  {
+    "_id": {
+      "$oid": "6932b984200335cd133f420d"
+    },
+    "user": "6932b984200335cd133f420e",
+    "path": "6932b984200335cd133f420f",
+    "pipeline": {
+      "nodes": [
+        {
+          "id": "n0",
+          "type": "open_tel_spans_input",
+          "position": {
+            "x": 0,
+            "y": 0
+          },
+          "node_id": "open_tel_spans_input",
+          "category": "io",
+          "schema": {
+            "$defs": {
+              "RdKafkaSettings": {
+                "description": "TypedDict for rdkafka configuration settings.\n\nCommon settings:\n- bootstrap.servers: Kafka broker addresses\n- security.protocol: Security protocol (PLAINTEXT, SSL, SASL_SSL, etc.)\n- sasl.mechanism: SASL mechanism (PLAIN, SCRAM-SHA-256, etc.)\n- sasl.username: SASL username\n- sasl.password: SASL password\n- group.id: Consumer group ID\n- auto.offset.reset: Offset reset policy (earliest, latest)",
+                "properties": {
+                  "bootstrap_servers": {
+                    "title": "Bootstrap Servers",
+                    "type": "string"
+                  },
+                  "security_protocol": {
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "title": "Security Protocol"
+                  },
+                  "sasl_mechanism": {
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "title": "Sasl Mechanism"
+                  },
+                  "sasl_username": {
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "title": "Sasl Username"
+                  },
+                  "sasl_password": {
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "title": "Sasl Password"
+                  },
+                  "group_id": {
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "title": "Group Id"
+                  },
+                  "auto_offset_reset": {
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "title": "Auto Offset Reset"
+                  }
+                },
+                "title": "RdKafkaSettings",
+                "type": "object"
+              }
+            },
+            "description": "Input node for span data from Kafka.",
+            "properties": {
+              "category": {
+                "const": "io",
+                "title": "Category",
+                "type": "string"
+              },
+              "node_id": {
+                "const": "open_tel_spans_input",
+                "title": "Node Id",
+                "type": "string"
+              },
+              "tool_description": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": "",
+                "title": "Tool Description"
+              },
+              "trigger_description": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": "",
+                "title": "Trigger Description"
+              },
+              "n_inputs": {
+                "const": 1,
+                "default": 1,
+                "title": "N Inputs",
+                "type": "integer"
+              },
+              "rdkafka_settings": {
+                "$ref": "#/$defs/RdKafkaSettings"
+              },
+              "topic": {
+                "default": "otlp_spans",
+                "title": "Topic",
+                "type": "string"
+              }
+            },
+            "required": [
+              "category",
+              "node_id",
+              "rdkafka_settings"
+            ],
+            "title": "OpenTelSpansNode",
+            "type": "object"
+          },
+          "data": {
+            "ui": {
+              "label": "open_tel_spans_input Node",
+              "iconUrl": ""
+            },
+            "properties": {
+              "rdkafka_settings": {
+                "bootstrap_servers": "localhost:9092",
+                "group_id": "pathway-consumer",
+                "auto_offset_reset": "earliest"
+              },
+              "topic": "otlp_spans",
+              "node_id": "open_tel_spans_input",
+              "category": "io",
+              "n_inputs": 1,
+              "tool_description": "",
+              "trigger_description": ""
+            }
+          },
+          "measured": {
+            "width": 200,
+            "height": 261
+          },
+          "selected": false,
+          "dragging": false
+        },
+        {
+          "id": "n1",
+          "type": "filter",
+          "position": {
+            "x": 400,
+            "y": 0
+          },
+          "node_id": "filter",
+          "category": "table",
+          "schema": {
+            "$defs": {
+              "Filter": {
+                "properties": {
+                  "col": {
+                    "title": "Col",
+                    "type": "string"
+                  },
+                  "op": {
+                    "enum": [
+                      "==",
+                      "<",
+                      "<=",
+                      ">=",
+                      ">",
+                      "!=",
+                      "startswith",
+                      "endswith",
+                      "find"
+                    ],
+                    "title": "Op",
+                    "type": "string"
+                  },
+                  "value": {
+                    "anyOf": [
+                      {
+                        "type": "integer"
+                      },
+                      {
+                        "type": "number"
+                      },
+                      {
+                        "type": "string"
+                      }
+                    ],
+                    "title": "Value"
+                  }
+                },
+                "required": [
+                  "col",
+                  "op",
+                  "value"
+                ],
+                "title": "Filter",
+                "type": "object"
+              }
+            },
+            "properties": {
+              "category": {
+                "const": "table",
+                "title": "Category",
+                "type": "string"
+              },
+              "node_id": {
+                "const": "filter",
+                "title": "Node Id",
+                "type": "string"
+              },
+              "tool_description": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": "",
+                "title": "Tool Description"
+              },
+              "trigger_description": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": "",
+                "title": "Trigger Description"
+              },
+              "filters": {
+                "items": {
+                  "$ref": "#/$defs/Filter"
+                },
+                "title": "Filters",
+                "type": "array"
+              },
+              "n_inputs": {
+                "const": 1,
+                "default": 1,
+                "title": "N Inputs",
+                "type": "integer"
+              }
+            },
+            "required": [
+              "category",
+              "node_id",
+              "filters"
+            ],
+            "title": "FilterNode",
+            "type": "object"
+          },
+          "data": {
+            "ui": {
+              "label": "filter Node",
+              "iconUrl": ""
+            },
+            "properties": {
+              "filters": [
+                {
+                  "col": "name",
+                  "op": "==",
+                  "value": "latency"
+                }
+              ],
+              "node_id": "filter",
+              "category": "table",
+              "n_inputs": 1,
+              "tool_description": "",
+              "trigger_description": ""
+            }
+          },
+          "measured": {
+            "width": 200,
+            "height": 261
+          },
+          "selected": false,
+          "dragging": false
+        },
+        {
+          "id": "n2",
+          "type": "json_select",
+          "position": {
+            "x": 800,
+            "y": 0
+          },
+          "node_id": "json_select",
+          "category": "table",
+          "schema": {
+            "properties": {
+              "category": {
+                "const": "table",
+                "title": "Category",
+                "type": "string"
+              },
+              "node_id": {
+                "const": "json_select",
+                "title": "Node Id",
+                "type": "string"
+              },
+              "tool_description": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": "",
+                "title": "Tool Description"
+              },
+              "trigger_description": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": "",
+                "title": "Trigger Description"
+              },
+              "json_column": {
+                "title": "Json Column",
+                "type": "string"
+              },
+              "property": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "integer"
+                  }
+                ],
+                "title": "Property"
+              },
+              "property_type": {
+                "enum": [
+                  "json",
+                  "str",
+                  "int",
+                  "float",
+                  "bool"
+                ],
+                "title": "Property Type",
+                "type": "string"
+              },
+              "new_column_name": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "New Column Name"
+              }
+            },
+            "required": [
+              "category",
+              "node_id",
+              "json_column",
+              "property",
+              "property_type",
+              "new_column_name"
+            ],
+            "title": "JSONSelectNode",
+            "type": "object"
+          },
+          "data": {
+            "ui": {
+              "label": "json_select Node",
+              "iconUrl": ""
+            },
+            "properties": {
+              "category": "table",
+              "node_id": "json_select",
+              "tool_description": "Extract numeric latency value from spans",
+              "trigger_description": "",
+              "json_column": "_open_tel_attributes",
+              "property": "latency",
+              "property_type": "float",
+              "new_column_name": "latency_value"
+            }
+          },
+          "measured": {
+            "width": 200,
+            "height": 261
+          },
+          "selected": false,
+          "dragging": false
+        },
+        {
+          "id": "n3",
+          "type": "window_by",
+          "position": {
+            "x": 1200,
+            "y": 0
+          },
+          "node_id": "window_by",
+          "category": "temporal",
+          "schema": {
+            "$defs": {
+              "CommonBehaviour": {
+                "properties": {
+                  "delay": {
+                    "anyOf": [
+                      {
+                        "type": "integer"
+                      },
+                      {
+                        "type": "number"
+                      },
+                      {
+                        "format": "duration",
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "title": "Delay"
+                  },
+                  "cutoff": {
+                    "anyOf": [
+                      {
+                        "type": "integer"
+                      },
+                      {
+                        "type": "number"
+                      },
+                      {
+                        "format": "duration",
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "title": "Cutoff"
+                  },
+                  "keep_results": {
+                    "title": "Keep Results",
+                    "type": "boolean"
+                  }
+                },
+                "required": [
+                  "delay",
+                  "cutoff",
+                  "keep_results"
+                ],
+                "title": "CommonBehaviour",
+                "type": "object"
+              },
+              "ReducerDict": {
+                "properties": {
+                  "col": {
+                    "title": "Col",
+                    "type": "string"
+                  },
+                  "reducer": {
+                    "enum": [
+                      "any",
+                      "argmax",
+                      "argmin",
+                      "avg",
+                      "count",
+                      "count_distinct",
+                      "count_distinct_approximate",
+                      "earliest",
+                      "latest",
+                      "max",
+                      "min",
+                      "ndarray",
+                      "sorted_tuple",
+                      "stateful_many",
+                      "stateful_single",
+                      "sum",
+                      "tuple",
+                      "unique"
+                    ],
+                    "title": "Reducer",
+                    "type": "string"
+                  },
+                  "new_col": {
+                    "title": "New Col",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "col",
+                  "reducer",
+                  "new_col"
+                ],
+                "title": "ReducerDict",
+                "type": "object"
+              },
+              "Session": {
+                "properties": {
+                  "max_gap": {
+                    "anyOf": [
+                      {
+                        "type": "integer"
+                      },
+                      {
+                        "type": "number"
+                      },
+                      {
+                        "format": "duration",
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "title": "Max Gap"
+                  },
+                  "window_type": {
+                    "const": "session",
+                    "title": "Window Type",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "max_gap",
+                  "window_type"
+                ],
+                "title": "Session",
+                "type": "object"
+              },
+              "Sliding": {
+                "properties": {
+                  "hop": {
+                    "anyOf": [
+                      {
+                        "type": "integer"
+                      },
+                      {
+                        "type": "number"
+                      },
+                      {
+                        "format": "duration",
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "title": "Hop"
+                  },
+                  "duration": {
+                    "anyOf": [
+                      {
+                        "type": "integer"
+                      },
+                      {
+                        "type": "number"
+                      },
+                      {
+                        "format": "duration",
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "title": "Duration"
+                  },
+                  "origin": {
+                    "anyOf": [
+                      {
+                        "type": "integer"
+                      },
+                      {
+                        "type": "number"
+                      },
+                      {
+                        "format": "date-time",
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "title": "Origin"
+                  },
+                  "window_type": {
+                    "const": "sliding",
+                    "title": "Window Type",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "hop",
+                  "duration",
+                  "origin",
+                  "window_type"
+                ],
+                "title": "Sliding",
+                "type": "object"
+              },
+              "Tumbling": {
+                "properties": {
+                  "duration": {
+                    "anyOf": [
+                      {
+                        "type": "integer"
+                      },
+                      {
+                        "type": "number"
+                      },
+                      {
+                        "format": "duration",
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "title": "Duration"
+                  },
+                  "origin": {
+                    "anyOf": [
+                      {
+                        "type": "integer"
+                      },
+                      {
+                        "type": "number"
+                      },
+                      {
+                        "format": "date-time",
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "title": "Origin"
+                  },
+                  "window_type": {
+                    "const": "tumbling",
+                    "title": "Window Type",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "duration",
+                  "origin",
+                  "window_type"
+                ],
+                "title": "Tumbling",
+                "type": "object"
+              }
+            },
+            "properties": {
+              "category": {
+                "const": "temporal",
+                "title": "Category",
+                "type": "string"
+              },
+              "node_id": {
+                "const": "window_by",
+                "title": "Node Id",
+                "type": "string"
+              },
+              "tool_description": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": "",
+                "title": "Tool Description"
+              },
+              "trigger_description": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": "",
+                "title": "Trigger Description"
+              },
+              "n_inputs": {
+                "const": 1,
+                "default": 1,
+                "title": "N Inputs",
+                "type": "integer"
+              },
+              "time_col": {
+                "title": "Time Col",
+                "type": "string"
+              },
+              "instance_col": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Instance Col"
+              },
+              "window": {
+                "anyOf": [
+                  {
+                    "$ref": "#/$defs/Session"
+                  },
+                  {
+                    "$ref": "#/$defs/Sliding"
+                  },
+                  {
+                    "$ref": "#/$defs/Tumbling"
+                  }
+                ],
+                "title": "Window"
+              },
+              "behaviour": {
+                "anyOf": [
+                  {
+                    "$ref": "#/$defs/CommonBehaviour"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null
+              },
+              "reducers": {
+                "items": {
+                  "$ref": "#/$defs/ReducerDict"
+                },
+                "title": "Reducers",
+                "type": "array"
+              }
+            },
+            "required": [
+              "category",
+              "node_id",
+              "time_col",
+              "window",
+              "reducers"
+            ],
+            "title": "WindowByNode",
+            "type": "object"
+          },
+          "data": {
+            "ui": {
+              "label": "window_by Node",
+              "iconUrl": ""
+            },
+            "properties": {
+              "time_col": "_open_tel_start_time",
+              "instance_col": null,
+              "window": {
+                "duration": 60000000000,
+                "origin": null,
+                "window_type": "tumbling"
+              },
+              "behaviour": null,
+              "reducers": [
+                {
+                  "col": "latency",
+                  "reducer": "sorted_tuple",
+                  "new_col": "latency_values"
+                }
+              ],
+              "node_id": "window_by",
+              "category": "temporal",
+              "n_inputs": 1,
+              "tool_description": "",
+              "trigger_description": ""
+            }
+          },
+          "measured": {
+            "width": 200,
+            "height": 261
+          },
+          "selected": false,
+          "dragging": false
+        },
+        {
+          "id": "n4",
+          "type": "flatten",
+          "position": {
+            "x": 1600,
+            "y": 0
+          },
+          "node_id": "flatten",
+          "category": "table",
+          "schema": {
+            "properties": {
+              "category": {
+                "const": "table",
+                "title": "Category",
+                "type": "string"
+              },
+              "node_id": {
+                "const": "flatten",
+                "title": "Node Id",
+                "type": "string"
+              },
+              "tool_description": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": "",
+                "title": "Tool Description"
+              },
+              "trigger_description": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": "",
+                "title": "Trigger Description"
+              },
+              "column": {
+                "title": "Column",
+                "type": "string"
+              }
+            },
+            "required": [
+              "category",
+              "node_id",
+              "column"
+            ],
+            "title": "FlattenNode",
+            "type": "object"
+          },
+          "data": {
+            "ui": {
+              "label": "flatten Node",
+              "iconUrl": ""
+            },
+            "properties": {
+              "category": "table",
+              "node_id": "flatten",
+              "column": "samples",
+              "tool_description": "",
+              "trigger_description": ""
+            }
+          },
+          "measured": {
+            "width": 200,
+            "height": 261
+          },
+          "selected": false,
+          "dragging": false
+        },
+        {
+          "id": "n5",
+          "type": "group_by",
+          "position": {
+            "x": 2000,
+            "y": 0
+          },
+          "node_id": "group_by",
+          "category": "table",
+          "schema": {
+            "$defs": {
+              "ReducerDict": {
+                "properties": {
+                  "col": {
+                    "title": "Col",
+                    "type": "string"
+                  },
+                  "reducer": {
+                    "enum": [
+                      "any",
+                      "argmax",
+                      "argmin",
+                      "avg",
+                      "count",
+                      "count_distinct",
+                      "count_distinct_approximate",
+                      "earliest",
+                      "latest",
+                      "max",
+                      "min",
+                      "ndarray",
+                      "sorted_tuple",
+                      "stateful_many",
+                      "stateful_single",
+                      "sum",
+                      "tuple",
+                      "unique"
+                    ],
+                    "title": "Reducer",
+                    "type": "string"
+                  },
+                  "new_col": {
+                    "title": "New Col",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "col",
+                  "reducer",
+                  "new_col"
+                ],
+                "title": "ReducerDict",
+                "type": "object"
+              }
+            },
+            "properties": {
+              "category": {
+                "const": "table",
+                "title": "Category",
+                "type": "string"
+              },
+              "node_id": {
+                "const": "group_by",
+                "title": "Node Id",
+                "type": "string"
+              },
+              "tool_description": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": "",
+                "title": "Tool Description"
+              },
+              "trigger_description": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": "",
+                "title": "Trigger Description"
+              },
+              "columns": {
+                "items": {
+                  "type": "string"
+                },
+                "title": "Columns",
+                "type": "array"
+              },
+              "reducers": {
+                "items": {
+                  "$ref": "#/$defs/ReducerDict"
+                },
+                "title": "Reducers",
+                "type": "array"
+              },
+              "n_inputs": {
+                "const": 1,
+                "default": 1,
+                "title": "N Inputs",
+                "type": "integer"
+              }
+            },
+            "required": [
+              "category",
+              "node_id",
+              "columns",
+              "reducers"
+            ],
+            "title": "GroupByNode",
+            "type": "object"
+          },
+          "data": {
+            "ui": {
+              "label": "group_by Node",
+              "iconUrl": ""
+            },
+            "properties": {
+              "category": "table",
+              "node_id": "group_by",
+              "columns": [
+                "window_id"
+              ],
+              "reducers": [
+                {
+                  "col": "duration_ns",
+                  "reducer": "stateful_single",
+                  "new_col": "p95_duration_ns"
+                }
+              ],
+              "n_inputs": 1,
+              "tool_description": "",
+              "trigger_description": ""
+            }
+          },
+          "measured": {
+            "width": 200,
+            "height": 261
+          },
+          "selected": false,
+          "dragging": false
+        },
+        {
+          "id": "n6",
+          "type": "filter",
+          "position": {
+            "x": 2400,
+            "y": 0
+          },
+          "node_id": "filter",
+          "category": "table",
+          "schema": {
+            "$defs": {
+              "Filter": {
+                "properties": {
+                  "col": {
+                    "title": "Col",
+                    "type": "string"
+                  },
+                  "op": {
+                    "enum": [
+                      "==",
+                      "<",
+                      "<=",
+                      ">=",
+                      ">",
+                      "!=",
+                      "startswith",
+                      "endswith",
+                      "find"
+                    ],
+                    "title": "Op",
+                    "type": "string"
+                  },
+                  "value": {
+                    "anyOf": [
+                      {
+                        "type": "integer"
+                      },
+                      {
+                        "type": "number"
+                      },
+                      {
+                        "type": "string"
+                      }
+                    ],
+                    "title": "Value"
+                  }
+                },
+                "required": [
+                  "col",
+                  "op",
+                  "value"
+                ],
+                "title": "Filter",
+                "type": "object"
+              }
+            },
+            "properties": {
+              "category": {
+                "const": "table",
+                "title": "Category",
+                "type": "string"
+              },
+              "node_id": {
+                "const": "filter",
+                "title": "Node Id",
+                "type": "string"
+              },
+              "tool_description": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": "",
+                "title": "Tool Description"
+              },
+              "trigger_description": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": "",
+                "title": "Trigger Description"
+              },
+              "filters": {
+                "items": {
+                  "$ref": "#/$defs/Filter"
+                },
+                "title": "Filters",
+                "type": "array"
+              },
+              "n_inputs": {
+                "const": 1,
+                "default": 1,
+                "title": "N Inputs",
+                "type": "integer"
+              }
+            },
+            "required": [
+              "category",
+              "node_id",
+              "filters"
+            ],
+            "title": "FilterNode",
+            "type": "object"
+          },
+          "data": {
+            "ui": {
+              "label": "filter Node",
+              "iconUrl": ""
+            },
+            "properties": {
+              "category": "table",
+              "node_id": "filter",
+              "filters": [
+                {
+                  "col": "p95_latency_ms",
+                  "op": ">",
+                  "value": 500
+                }
+              ],
+              "n_inputs": 1,
+              "tool_description": "",
+              "trigger_description": ""
+            }
+          },
+          "measured": {
+            "width": 200,
+            "height": 261
+          },
+          "selected": false,
+          "dragging": false
+        },
+        {
+          "id": "n7",
+          "type": "trigger_rca",
+          "position": {
+            "x": 2800,
+            "y": 0
+          },
+          "node_id": "trigger_rca",
+          "category": "agent",
+          "schema": {
+            "properties": {
+              "category": {
+                "const": "agent",
+                "title": "Category",
+                "type": "string"
+              },
+              "node_id": {
+                "const": "trigger_rca",
+                "title": "Node Id",
+                "type": "string"
+              },
+              "tool_description": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": "",
+                "title": "Tool Description"
+              },
+              "trigger_description": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": "",
+                "title": "Trigger Description"
+              },
+              "n_inputs": {
+                "const": 1,
+                "default": 1,
+                "title": "N Inputs",
+                "type": "integer"
+              },
+              "metric_description": {
+                "title": "Metric Description",
+                "type": "string"
+              }
+            },
+            "required": [
+              "category",
+              "node_id",
+              "metric_description"
+            ],
+            "title": "TriggerRCANode",
+            "type": "object"
+          },
+          "data": {
+            "ui": {
+              "label": "trigger_rca Node",
+              "iconUrl": ""
+            },
+            "properties": {
+              "metric_description": "SLA violations detected in pipeline execution, indicating failed or slow pipeline runs that require root cause analysis to identify the specific trace identifiers and correlate with affected pipeline stages and services",
+              "tool_description": "Triggers automated root cause analysis for pipeline SLA violations",
+              "trigger_description": "Initiates RCA when pipeline execution violations are detected, extracting trace identifiers to correlate failures with pipeline topology and service dependencies",
+              "node_id": "trigger_rca",
+              "category": "agent",
+              "n_inputs": 1
+            }
+          },
+          "measured": {
+            "width": 200,
+            "height": 261
+          },
+          "selected": false,
+          "dragging": false
+        }
+      ],
+      "edges": [
+        {
+          "source": "n0",
+          "sourceHandle": "out",
+          "target": "n1",
+          "targetHandle": "in_0",
+          "animated": true,
+          "id": "xy-edge__n0out-n1in_0"
+        },
+        {
+          "source": "n1",
+          "sourceHandle": "out",
+          "target": "n2",
+          "targetHandle": "in_0",
+          "animated": true,
+          "id": "xy-edge__n1out-n2in_0"
+        },
+        {
+          "source": "n2",
+          "sourceHandle": "out",
+          "target": "n3",
+          "targetHandle": "in_0",
+          "animated": true,
+          "id": "xy-edge__n2out-n3in_0"
+        },
+        {
+          "source": "n1",
+          "sourceHandle": "out",
+          "target": "n3",
+          "targetHandle": "in_1",
+          "animated": true,
+          "id": "xy-edge__n1out-n3in_1"
+        },
+        {
+          "source": "n3",
+          "sourceHandle": "out",
+          "target": "n4",
+          "targetHandle": "in_0",
+          "animated": true,
+          "id": "xy-edge__n3out-n4in_0"
+        },
+        {
+          "source": "n1",
+          "sourceHandle": "out",
+          "target": "n4",
+          "targetHandle": "in_1",
+          "animated": true,
+          "id": "xy-edge__n1out-n4in_1"
+        },
+        {
+          "source": "n4",
+          "sourceHandle": "out",
+          "target": "n5",
+          "targetHandle": "in_0",
+          "animated": true,
+          "id": "xy-edge__n4out-n5in_0"
+        },
+        {
+          "source": "n1",
+          "sourceHandle": "out",
+          "target": "n5",
+          "targetHandle": "in_1",
+          "animated": true,
+          "id": "xy-edge__n1out-n5in_1"
+        },
+        {
+          "source": "n5",
+          "sourceHandle": "out",
+          "target": "n6",
+          "targetHandle": "in_0",
+          "animated": true,
+          "id": "xy-edge__n5out-n6in_0"
+        },
+        {
+          "source": "n1",
+          "sourceHandle": "out",
+          "target": "n6",
+          "targetHandle": "in_1",
+          "animated": true,
+          "id": "xy-edge__n1out-n6in_1"
+        },
+        {
+          "source": "n6",
+          "sourceHandle": "out",
+          "target": "n7",
+          "targetHandle": "in_0",
+          "animated": true,
+          "id": "xy-edge__n6out-n7in_0"
+        },
+        {
+          "source": "n1",
+          "sourceHandle": "out",
+          "target": "n7",
+          "targetHandle": "in_1",
+          "animated": true,
+          "id": "xy-edge__n1out-n7in_1"
+        }
+      ],
+      "agents": [],
+      "viewport": {
+        "x": 0,
+        "y": 0,
+        "zoom": 1
+      }
+    },
+    "container_id": "",
+    "host_port": "",
+    "host_ip": "",
+    "status": false
+  }
+]
