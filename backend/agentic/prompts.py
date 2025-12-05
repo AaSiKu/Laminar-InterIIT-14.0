@@ -1,3 +1,4 @@
+import asyncio
 from typing import List, Union, Literal
 from langchain.agents import create_agent
 from langchain.agents.structured_output import ToolStrategy
@@ -8,8 +9,9 @@ from .sql_tool import TablePayload, create_sql_tool
 from .llm_factory import create_agent_model
 import os
 from agentic.guardrails.gateway import MCPSecurityGateway
+from agentic.guardrails.before_agent import InputScanner
 
-
+gateway = MCPSecurityGateway()
 
 class Action(BaseModel):
     id: int
@@ -38,6 +40,32 @@ def build_agent(agent: AgentPayload) -> BaseTool:
     # TODO: Create our pre defined custom tools array based on what the user has defined the agent's tools as
         # The custom tools feature should also include a human in the loop implementation
         # Implement mappings from tool ids to the actual tool function for custom tools
+        
+    try:
+        injection_detected = asyncio.run(gateway.prompt_injection_analyzer.adetect(agent.description))
+    except RuntimeError:
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        injection_detected = loop.run_until_complete(gateway.prompt_injection_analyzer.adetect(agent.description))
+
+    if injection_detected:
+        raise ValueError(f"Agent definition failed security checks: High-confidence prompt injection detected.")
+
+    pii_results = gateway.pii_analyzer.detect_all(agent.description)
+    secrets_results = gateway.secrets_analyzer.detect_all(agent.description)
+    
+    # issues = []
+    # if pii_results:
+    #     issues.append(f"PII detected in agent description: {[res.entity for res in pii_results]}")
+    # if secrets_results:
+    #     issues.append(f"Secrets detected in agent description: {[res.entity for res in secrets_results]}")
+        
+    # if issues:
+    #     # It's better to raise a specific, more descriptive error.
+    #     raise ValueError(f"Agent definition failed security checks: {', '.join(issues)}")
+    
+    all_findings = (pii_results or []) + (secrets_results or [])
+    sanitized_description = InputScanner._sanitize_text(agent.description, all_findings)
 
     tool_tables = [tool for tool in agent.tools if isinstance(tool,TablePayload)]
     tools = []
@@ -48,37 +76,37 @@ def build_agent(agent: AgentPayload) -> BaseTool:
         tools.append(query_tool)
 
     # TODO: Enhance prompt to include instructions to handle the RAGNode as a tool as well as other custom tools
+
     agent_system_prompt = (
-        f"You are an agent with the following description:\n{agent.description}\n\n"
-        
-        "OUTPUT RULES (CRITICAL):\n"
-        "1. Answer ONLY what is explicitly requested\n"
-        "3. Do NOT provide additional context, related fields, or explanations unless requested\n"
-        "4. Format: Clear, natural language with actual values\n"
-        "5. Convert raw data (objects, tuples, SQL results) into readable sentences\n\n"
+        f"You are an agent with the following description:\n{sanitized_description}\n\n"            
+            "OUTPUT RULES (CRITICAL):\n"
+            "1. Answer ONLY what is explicitly requested\n"
+            "3. Do NOT provide additional context, related fields, or explanations unless requested\n"
+            "4. Format: Clear, natural language with actual values\n"
+            "5. Convert raw data (objects, tuples, SQL results) into readable sentences\n\n"
     )
-    
+        
     langchain_agent = create_agent(model=model, system_prompt=agent_system_prompt, tools=tools)
     agent_description = f"This is an agent with the following description:\n{agent.description}"
     if len(tool_tables)> 0:
         agent_description += f"It has read access to the following postgres tables:\n{table_descriptions}"
     # TODO: Enhance agent descriptions with the custom tools available to it as well.
     
-    gateway = MCPSecurityGateway()
-    # langchain_agent.description = agent_description
-    # langchain_agent.name = agent.name
-    # return langchain_agent
-    @tool(agent.name, description=agent_description)
-    async def secure_agent_tool(request: str) -> str:
-        """securely execute an agent request"""
-        issues = await gateway.scan_text_for_issues(request)
-        if issues:
-            raise ValueError(f"Request failed security checks: {', '.join(issues)}")
-        
-        result = await langchain_agent.ainvoke({"input": request})
-        return result
     
-    return secure_agent_tool
+    langchain_agent.description = agent_description
+    langchain_agent.name = agent.name
+    return langchain_agent
+    # @tool(agent.name, description=agent_description)
+    # async def secure_agent_tool(request: str) -> str:
+    #     """securely execute an agent request"""
+    #     issues = await gateway.scan_text_for_issues(request)
+    #     if issues:
+    #         raise ValueError(f"Request failed security checks: {', '.join(issues)}")
+        
+    #     result = await langchain_agent.ainvoke({"input": request})
+    #     return result
+    
+    # return secure_agent_tool
 
 def create_planner_executor(_agents: List[AgentPayload]):
     langchain_agents = [build_agent(_agent) for _agent in _agents]

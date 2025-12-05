@@ -155,6 +155,7 @@ class MCPSecurityGateway:
     (4) Process Layer: HITL Review Queue, Session Ephemerality (Memory Wiping).
     """
     def __init__(self):
+        super.__init__()
         self._init_connection_pool()
         self._init_rate_limits()
         self._init_permissions()
