@@ -202,13 +202,9 @@ async def create_incident_report(request: IncidentReportRequest):
     start_time = datetime.now()
     
     try:
-        # Get primary affected service for logging
-        primary_service = (request.rca_output.affected_services[0] 
-                          if request.rca_output.affected_services 
-                          else "unknown")
         
         logger.info(
-            f"Received incident report request for service: {primary_service} "
+            f"Received incident report request"
             f"(severity: {request.rca_output.severity})"
         )
         
