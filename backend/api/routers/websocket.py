@@ -11,10 +11,10 @@ from .auth.database import get_db
 from bson.json_util import dumps
 from bson import ObjectId
 from starlette.websockets import WebSocketDisconnect
+from backend.api.helper import send_critical_log_notification, send_rca_update_notification
 import logging
-#TODO: Add role and status to the notification
-logger = logging.getLogger(__name__)
 
+logger = logging.getLogger(__name__)
 load_dotenv()
 active_connections = set()
 
@@ -74,7 +74,7 @@ async def close_inactive_connections():
             await asyncio.sleep(WS_CLEANUP_INTERVAL)
             current_time = time.time()
             connections_to_close = []
-            
+
             # active_connections set contains: (websocket, current_user, last_activity)
             for conn in list(active_connections):
                 if len(conn) == 3:
@@ -82,7 +82,7 @@ async def close_inactive_connections():
                     if current_time - last_activity > WS_INACTIVITY_TIMEOUT:
                         inactive_duration = current_time - last_activity
                         connections_to_close.append((conn, current_user, inactive_duration))
-            
+
             for conn, current_user, inactive_duration in connections_to_close:
                 try:
                     logger.info(f"Closing inactive connection for user {current_user.id} (inactive for {inactive_duration:.0f}s)")
@@ -92,7 +92,7 @@ async def close_inactive_connections():
                 finally:
                     # Remove from set using the exact tuple
                     active_connections.discard(conn)
-                    
+
         except Exception as e:
             logger.error(f"Error in close_inactive_connections: {e}")
 
@@ -125,7 +125,7 @@ async def watch_notifications(notification_collection, workflow_collection):
                     except Exception as e:
                         logger.warning(f"Error fetching workflow for notification: {e}")
                         doc["workflow"] = {}
-                
+
                 # Broadcast notification/alert
                 await broadcast(doc, message_type="notification")
     except Exception as e:
@@ -153,7 +153,7 @@ async def watch_workflows(workflow_collection):
                         except Exception as e:
                             logger.warning(f"Error fetching workflow document: {e}")
                             continue
-                
+
                 if doc:
                     # Broadcast workflow update/insert
                     await broadcast(doc, message_type="workflow")
@@ -162,8 +162,8 @@ async def watch_workflows(workflow_collection):
 
 async def watch_logs(log_collection, workflow_collection):
     """
-    Watch log collection for inserts and broadcast via WebSocket
-    Logs are similar to notifications but for different purposes (debugging, system events, etc.)
+    Watch log collection for inserts and broadcast via WebSocket.
+    Critical logs trigger Slack notifications.
     """
     condition = [{"$match": {"operationType": {"$in": ["insert", "update"]}}}]
     try:
@@ -173,7 +173,6 @@ async def watch_logs(log_collection, workflow_collection):
         ) as stream:
             logger.info("Log change stream listener started")
             async for change in stream:
-                print("Log change detected")
                 doc = change.get("fullDocument")
                 if not doc:
                     continue
@@ -190,19 +189,68 @@ async def watch_logs(log_collection, workflow_collection):
                     except Exception as e:
                         logger.warning(f"Error fetching workflow for log: {e}")
                         doc["workflow"] = {}
-                
+
+                # Send Slack notification for critical logs
+                log_level = doc.get("level", "").lower()
+                if log_level in ["critical", "error"]:
+                    try:
+                        send_critical_log_notification(doc)
+                    except Exception as e:
+                        logger.error(f"Failed to send Slack notification for critical log: {e}")
                 # Broadcast log
-                print(doc)
                 await broadcast(doc, message_type="log")
     except Exception as e:
         logger.error(f"⚠ Log ChangeStream NOT running: {e}")
 
-async def watch_changes(notification_collection, log_collection, workflow_collection):
+
+async def watch_rca(rca_collection, workflow_collection):
     """
-    Watch changes in notification, log (commented out), and workflow collections
-    All changes are broadcast via the single global WebSocket connection at /ws
-    Sends everything to all connections - frontend filters what it needs
-    Starts watchers as background tasks that run concurrently
+    Watch RCA collection for inserts and updates.
+    Sends Slack notifications with PDF attachments when available.
+    """
+    condition = [{"$match": {"operationType": {"$in": ["insert", "update"]}}}]
+    try:
+        async with rca_collection.watch(
+            condition,
+            full_document="updateLookup"
+        ) as stream:
+            logger.info("RCA change stream listener started")
+            async for change in stream:
+                operation_type = change.get("operationType")
+                doc = change.get("fullDocument")
+                if not doc:
+                    continue
+
+                # Fetch workflow details
+                pipeline_id = doc.get("pipeline_id")
+                if pipeline_id:
+                    try:
+                        workflow = await workflow_collection.find_one(
+                            {"_id": ObjectId(pipeline_id)}
+                        )
+                        doc["workflow"] = workflow or {}
+                    except Exception as e:
+                        logger.warning(f"Error fetching workflow for RCA: {e}")
+                        doc["workflow"] = {}
+
+                # Send Slack notification for RCA events
+                try:
+                    send_rca_update_notification(doc, operation_type)
+                except Exception as e:
+                    logger.error(f"Failed to send Slack notification for RCA: {e}")
+
+                # Broadcast RCA update
+                await broadcast(doc, message_type="rca")
+    except Exception as e:
+        logger.error(f"⚠ RCA ChangeStream NOT running: {e}")
+
+
+async def watch_changes(notification_collection, log_collection, workflow_collection, rca_collection=None):
+    """
+    Watch changes in notification, log, workflow, and RCA collections.
+    All changes are broadcast via the single global WebSocket connection at /ws.
+    Sends everything to all connections - frontend filters what it needs.
+    Starts watchers as background tasks that run concurrently.
     """
     # Start notification and workflow watchers as background tasks
     # They will run indefinitely until the application shuts down
@@ -213,20 +261,22 @@ async def watch_changes(notification_collection, log_collection, workflow_collec
     asyncio.create_task(
         watch_workflows(workflow_collection)
     )
-    
-    # Logs watcher is commented out - logs not implemented yet
+    # Logs watcher - critical, error logs trigger Slack notifications
     asyncio.create_task(
         watch_logs(log_collection, workflow_collection)
     )
-    
-    logger.info("Started notification and workflow change stream watchers (all via global WebSocket)")
-    # logger.info("Started notification, log, and workflow change stream watchers")
+    # RCA watcher - sends Slack notifications with PDF attachments
+    if rca_collection:
+        asyncio.create_task(
+            watch_rca(rca_collection, workflow_collection)
+        )
+    logger.info("Started notification, log, rca and workflow change stream watchers (all via global WebSocket)")
 
 async def broadcast(message: dict, message_type: str = "notification"):
     """
-    Centralized function to broadcast messages to all active WebSocket connections
-    Handles notifications, alerts, workflow updates, and logs (logs commented out)
-    Sends everything to all connections - frontend will filter what it needs
+    Centralized function to broadcast messages to all active WebSocket connections.
+    Handles notifications, alerts, workflow updates, logs, and RCA events.
+    Sends everything to all connections - frontend will filter what it needs.
     """
     current_time = time.time()
 
@@ -236,7 +286,7 @@ async def broadcast(message: dict, message_type: str = "notification"):
 
     # Track dropped connections
     connections_to_remove = []
-    
+
     # Send to all connections - frontend filters what it needs
     for websocket, ws_current_user, last_activity in list(active_connections):
         try:
@@ -244,7 +294,7 @@ async def broadcast(message: dict, message_type: str = "notification"):
             message_with_type = {**message, "message_type": message_type}
             print(f"Broadcasting {message_type} to user {ws_current_user.id}")
             await websocket.send_text(dumps(message_with_type))
-                
+
             # Update last activity
             active_connections.discard((websocket, ws_current_user, last_activity))
             active_connections.add((websocket, ws_current_user, current_time))

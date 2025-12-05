@@ -66,7 +66,13 @@ const WorkflowCard = ({ workflow, isSelected, onClick }) => {
               <Chip
                 label={workflow.status}
                 size="small"
-                color={workflow.status === "Running" ? "success": (workflow.status === "Broken"? "error":"info")}
+                color={
+                  workflow.status === "Running"
+                    ? "success"
+                    : workflow.status === "Broken"
+                    ? "error"
+                    : "info"
+                }
                 variant="soft"
                 sx={{
                   fontWeight: 500,

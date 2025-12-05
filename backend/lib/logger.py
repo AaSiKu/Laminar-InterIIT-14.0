@@ -121,9 +121,9 @@ class MultiEndpointLogHandler(logging.Handler):
     def _build_log_dict(self, record: logging.LogRecord) -> dict:
         """Build a dictionary from a log record."""
         log_entry = {
-            "workflow_id": self.workflow_id,
+            "pipeline_id": self.workflow_id,  # Use pipeline_id for consistency with API
             "timestamp": get_ist_now(),
-            "level": record.levelname,
+            "level": record.levelname.lower(),  # Lowercase for frontend consistency
             "level_no": record.levelno,
             "logger": record.name,
             "message": self.format(record),
@@ -133,6 +133,7 @@ class MultiEndpointLogHandler(logging.Handler):
             "pathname": record.pathname,
             "process_id": record.process,
             "thread_id": record.thread,
+            "source": record.module,  # Use module as source for frontend display
             "exception": None,
         }
 

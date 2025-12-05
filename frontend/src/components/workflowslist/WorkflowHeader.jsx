@@ -37,7 +37,7 @@ const WorkflowHeader = ({ onAddNew, selectedTab, onTabChange }) => {
       all: 0,
       inProgress: 1, // Running
       save: 2, // Stopped
-      critical: 3, // Broken
+      broken: 3, // Broken
     };
 
     const tabIndex = filterMap[option] !== undefined ? filterMap[option] : 0;
@@ -192,10 +192,7 @@ const WorkflowHeader = ({ onAddNew, selectedTab, onTabChange }) => {
           </ListItemIcon>
           <ListItemText>Stopped</ListItemText>
         </MenuItem>
-        <MenuItem
-          onClick={() => handleFilterOption("critical")}
-          sx={{ py: 1.5 }}
-        >
+        <MenuItem onClick={() => handleFilterOption("broken")} sx={{ py: 1.5 }}>
           <ListItemIcon sx={{ mr: 2 }}>
             <Box
               sx={{
@@ -208,8 +205,8 @@ const WorkflowHeader = ({ onAddNew, selectedTab, onTabChange }) => {
                 justifyContent: "center",
               }}
             >
-              <WarningAmberOutlinedIcon
-                sx={{ fontSize: 18, color: "text.secondary" }}
+              <SaveOutlinedIcon
+                sx={{ fontSize: 18, color: "error.main" }}
               />
             </Box>
           </ListItemIcon>

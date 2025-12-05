@@ -154,11 +154,8 @@ export default function OverviewPage() {
                     <Grid container size={{ xs: 12, md: 6, xl: 5 }} spacing={0}>
                       {overviewData["kpi"] &&
                         overviewData["kpi"].map((kpi, index) => {
-                          // Use notifications icon for the fourth card (index 3)
-                          const IconComponent =
-                            index === 3
-                              ? getIconComponent("notifications")
-                              : getIconComponent(kpi.iconType);
+                          // Get icon based on the iconType from API
+                          const IconComponent = getIconComponent(kpi.iconType);
                           const totalKpis = overviewData["kpi"].length;
                           const isFirstRow = index < Math.ceil(totalKpis / 2);
                           const isLastRow =

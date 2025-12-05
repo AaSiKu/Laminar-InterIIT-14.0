@@ -18,12 +18,15 @@ import { BarChart } from "@mui/x-charts/BarChart";
 import AutoAwesomeIcon from "@mui/icons-material/AutoAwesome";
 import ViewListIcon from "@mui/icons-material/ViewList";
 
-export function AlertsChart({ data }) {
+export function AlertsChart({ data = [] }) {
   const theme = useTheme();
   const [viewMode, setViewMode] = useState("chart"); // "chart" or "table"
 
+  // Ensure data is an array
+  const safeData = Array.isArray(data) ? data : [];
+
   // Transform data for BarChart
-  const chartDataset = data.map((item) => ({
+  const chartDataset = safeData.map((item) => ({
     workflow: item.workflow,
     warning: item.warning,
     critical: item.critical,
@@ -31,7 +34,7 @@ export function AlertsChart({ data }) {
   }));
 
   // Transform chart data for table view
-  const tableData = data.map((item) => {
+  const tableData = safeData.map((item) => {
     // Determine indicator color based on highest value
     const maxType =
       item.warning >= item.critical && item.warning >= item.low

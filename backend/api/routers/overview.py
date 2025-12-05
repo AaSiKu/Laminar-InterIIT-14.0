@@ -1,7 +1,5 @@
-from fastapi import APIRouter, Request, Depends, HTTPException, Header
-from typing import Optional
-from .version_manager.schema import Notification, UpdateNotificationAction
-# from .version_manager.schema import Log  # Commented out - logs not implemented yet
+from fastapi import APIRouter, Request, Depends, HTTPException
+from .version_manager.schema import UpdateNotificationAction
 from datetime import datetime
 from bson.objectid import ObjectId
 from .auth.models import User
@@ -19,6 +17,7 @@ async def fetch_kpi(request: Request, current_user: User = Depends(get_current_u
     user_id = str(current_user.id)
     workflow_collection = request.app.state.workflow_collection
     notification_collection = request.app.state.notification_collection
+    rca_collection = request.app.state.rca_collection
     query={}
     if current_user.role!="admin":
         query={"owner_ids": user_id}
@@ -38,10 +37,10 @@ async def fetch_kpi(request: Request, current_user: User = Depends(get_current_u
         notifications = await notification_collection.find({"$or":queries}).to_list(length=None)
     total_notifications = len(notifications)
     total_runtime = sum(w.get("runtime", 0) for w in workflows if w is not None)
-    
+
     alerts = [n for n in notifications if n.get("type") == "alert"]
     total_alerts = len(alerts)
-    
+
     pending_alerts = sum(1 for a in alerts if a.get("alert") and not a["alert"].get("action_taken"))
     seconds = total_runtime
     result=0
@@ -54,6 +53,12 @@ async def fetch_kpi(request: Request, current_user: User = Depends(get_current_u
         result = f"{seconds // 60}m"
     else:
         result = f"{seconds}s"
+
+    # Get RCA triggers count
+    rca_events = []
+    if queries:
+        rca_events = await rca_collection.find({"$or": queries}).to_list(length=None)
+    total_rca_triggers = len(rca_events)
 
     return {
         "pie_chart": {
@@ -88,84 +93,55 @@ async def fetch_kpi(request: Request, current_user: User = Depends(get_current_u
                 "iconColor": "#F4D4A2"
             },
             {
-                "id": "notifications",
-                "title": "Notifications",
-                "value": total_notifications,
-                "subtitle": "Total notifications",
+                "id": "rca_triggers",
+                "title": "RCA Triggers",
+                "value": total_rca_triggers,
+                "subtitle": "Root cause analysis",
                 "iconType": "timeline",
                 "iconColor": "#A2B8F4"
             }
         ]
     }
 
-@router.post("/add_notification")
-async def add_notification(
-    data: Notification, 
+
+@router.get("/logs")
+async def get_logs(
     request: Request,
-    x_agent_token: Optional[str] = Header(None, alias="X-Agent-Token")
+    current_user: User = Depends(get_current_user),
+    skip: int = 0,
+    limit: int = 100
 ):
     '''
-    Route to add a notification 
-    Can only be called by an agent (via X-Agent-Token header)
-    Accepts notification data and broadcasts via WebSocket
-    The change stream watcher will automatically broadcast the notification
+    Fetch logs for workflows the user has access to.
+    Similar to notifications endpoint - filters by user's workflows.
     '''
-    # For now, we assume the token is validated elsewhere or will be implemented
-    # if not x_agent_token:
-    #     raise HTTPException(status_code=401, detail="Agent token required")
-    
-    notification_collection = request.app.state.notification_collection
-    
-    # Convert to dict and ensure timestamp is set
-    notification_data = data.model_dump()
-    if "timestamp" not in notification_data or not notification_data["timestamp"]:
-        from datetime import datetime
-        notification_data["timestamp"] = datetime.now()
-    
-    # Insert notification into database
-    # The watch_notifications change stream will automatically broadcast it via WebSocket
-    result = await notification_collection.insert_one(notification_data)
+    user_id = str(current_user.id)
+    workflow_collection = request.app.state.workflow_collection
+    log_collection = request.app.state.log_collection
+
+    # Get user's workflows (admin sees all)
+    query = {}
+    if current_user.role != "admin":
+        query = {"owner_ids": user_id}
+
+    workflows = await workflow_collection.find(query).to_list(length=None)
+
+    # Build query for logs matching user's pipelines
+    pipeline_queries = [{"pipeline_id": str(pipeline["_id"])} for pipeline in workflows]
+
+    logs = []
+    if pipeline_queries:
+        logs = await log_collection.find(
+            {"$or": pipeline_queries}
+        ).sort("timestamp", -1).skip(skip).limit(limit).to_list(length=limit)
 
     return serialize_mongo({
         "status": "success",
-        "inserted_id": str(result.inserted_id),
-        "inserted_data": notification_data
+        "count": len(logs),
+        "data": logs
     })
 
-# @router.post("/add_log")
-# async def add_log(
-#     data: Log,
-#     request: Request,
-#     x_agent_token: Optional[str] = Header(None, alias="X-Agent-Token")
-# ):
-#     '''
-#     Route to add a log entry
-#     Can only be called by an agent (via X-Agent-Token header)
-#     Accepts log data and broadcasts via WebSocket
-#     The change stream watcher will automatically broadcast the log
-#     '''
-#     # For now, we assume the token is validated elsewhere or will be implemented
-#     # if not x_agent_token:
-#     #     raise HTTPException(status_code=401, detail="Agent token required")
-#     
-#     log_collection = request.app.state.log_collection
-#     
-#     # Convert to dict and ensure timestamp is set
-#     log_data = data.model_dump()
-#     if "timestamp" not in log_data or not log_data["timestamp"]:
-#         from datetime import datetime
-#         log_data["timestamp"] = datetime.now()
-#     
-#     # Insert log into database
-#     # The watch_logs change stream will automatically broadcast it via WebSocket
-#     result = await log_collection.insert_one(log_data)
-# 
-#     return serialize_mongo({
-#         "status": "success",
-#         "inserted_id": str(result.inserted_id),
-#         "inserted_data": log_data
-#     })
-    
+
 @router.get("/workflows/")
 async def workflow_data(request: Request, skip: int = 0, limit: int = 10, current_user: User = Depends(get_current_user)):
     cursor = request.app.state.workflow_collection.find({"owner_ids": str(current_user.id)}).sort("last_updated", -1).skip(skip).limit(limit)
@@ -176,6 +152,7 @@ async def workflow_data(request: Request, skip: int = 0, limit: int = 10, curren
             "id": str(pipeline["_id"]), "lastModified": str(pipeline["last_updated"])
         })
     return data
+
 
 @router.get("/total_runtime")
 async def total_runtime(request: Request, current_user: User = Depends(get_current_user)):
@@ -205,16 +182,16 @@ async def notification(
 
 
     queries = [{"pipeline_id":str(pipeline["_id"])} for pipeline in workflows]
-    
+
     notifications =[]
     if queries != []:
         notifications = await notification_collection.find({"$or":queries}).to_list(length=None)
-    
-    
+
+
     enriched_notifications = []
     for notif in notifications:
         enriched_notif = dict(notif)
-        
+
         if enriched_notif.get("alert") and enriched_notif["alert"].get("action_executed_by"):#finds if someone took the action
             action_user_id = enriched_notif["alert"]["action_executed_by"]
             try:
@@ -253,17 +230,17 @@ async def update_notification_action(
     workflow_collection = request.app.state.workflow_collection
     user_role = current_user.role
     is_admin = user_role.lower() == "admin"
-    
+
     try:
         notification_obj_id = ObjectId(notification_id)
     except Exception:
         raise HTTPException(status_code=400, detail="Invalid notification ID format")
-    
+
     notification = await notification_collection.find_one({"_id": notification_obj_id})
-    
+
     if not notification:
         raise HTTPException(status_code=404, detail="Notification not found")
-    
+
     can_take_action = False
     if is_admin:
         can_take_action = True
@@ -297,22 +274,146 @@ async def update_notification_action(
             }
         }
     )
-    
-    # if update_result.modified_count == 0:
-    #     raise HTTPException(status_code=400, detail="Failed to update notification")
-    
+
     return {
         "status": "success",
         "message": "Notification action updated successfully"
     }
 
-# async def total_runtime(request: Request, skip: int = 0, limit: int = 10):
-#     cursor = request.app.state.workflow_collection.find({"user_id": ""})
-#     total_runtime = 0
-#     async for doc in cursor:
-#         print(doc)
-#         try:
-#             total_runtime += doc["runtime"]
-#         except:
-#             pass
-#     return total_runtime//3600
+
+@router.get("/charts")
+async def fetch_charts_data(request: Request, current_user: User = Depends(get_current_user)):
+    """
+    Fetch chart data for Admin dashboard:
+    - alerts_chart: Alerts per workflow (warning, error, info breakdown)
+    - runtime_chart: Runtime per pipeline (bar chart)
+    - rca_chart: RCA triggers over time
+    """
+    user_id = str(current_user.id)
+    workflow_collection = request.app.state.workflow_collection
+    notification_collection = request.app.state.notification_collection
+    rca_collection = request.app.state.rca_collection
+    
+    query = {}
+    if current_user.role != "admin":
+        query = {"owner_ids": user_id}
+    
+    workflows = await workflow_collection.find(query).to_list(length=None)
+    
+    # Build queries for notifications and RCA events
+    queries = [{"pipeline_id": str(pipeline["_id"])} for pipeline in workflows]
+    
+    notifications = []
+    rca_events = []
+    if queries:
+        notifications = await notification_collection.find({"$or": queries}).to_list(length=None)
+        rca_events = await rca_collection.find({"$or": queries}).to_list(length=None)
+    
+    # Build alerts chart data (per workflow breakdown)
+    alerts_chart_data = []
+    
+    for workflow in workflows:
+        workflow_id = str(workflow["_id"])
+        workflow_name = workflow.get("name", f"Workflow")
+        
+        # Filter notifications for this workflow
+        workflow_notifications = [n for n in notifications if n.get("pipeline_id") == workflow_id]
+        
+        # Count by type - map to chart categories
+        warning_count = sum(1 for n in workflow_notifications if n.get("type") == "warning")
+        error_count = sum(1 for n in workflow_notifications if n.get("type") in ["error", "alert"])  # critical
+        info_count = sum(1 for n in workflow_notifications if n.get("type") in ["info", "success"])  # low
+        
+        alerts_chart_data.append({
+            "workflow": workflow_name[:12],  # Truncate for chart display
+            "warning": warning_count,
+            "critical": error_count,
+            "low": info_count
+        })
+    
+    # Sort by total alerts (descending) and take top 8
+    alerts_chart_data.sort(key=lambda x: x["warning"] + x["critical"] + x["low"], reverse=True)
+    alerts_chart_data = alerts_chart_data[:8]
+    
+    # Build runtime chart data (runtime per pipeline - bar chart)
+    runtime_chart_data = []
+    for workflow in workflows:
+        workflow_name = workflow.get("name", "Pipeline")
+        runtime_seconds = workflow.get("runtime", 0)
+        
+        # Convert to appropriate unit for display
+        if runtime_seconds >= 3600:
+            runtime_value = round(runtime_seconds / 3600, 1)  # hours
+            runtime_unit = "h"
+        elif runtime_seconds >= 60:
+            runtime_value = round(runtime_seconds / 60, 1)  # minutes
+            runtime_unit = "m"
+        else:
+            runtime_value = runtime_seconds
+            runtime_unit = "s"
+        
+        runtime_chart_data.append({
+            "pipeline": workflow_name[:12],
+            "runtime": runtime_seconds,  # Raw seconds for chart
+            "runtime_display": f"{runtime_value}{runtime_unit}",
+            "runtime_hours": round(runtime_seconds / 3600, 2)  # For bar chart (hours)
+        })
+    
+    # Sort by runtime (descending) and take top 8
+    runtime_chart_data.sort(key=lambda x: x["runtime"], reverse=True)
+    runtime_chart_data = runtime_chart_data[:8]
+    
+    # Build RCA triggers chart data (time series)
+    from collections import defaultdict
+    
+    rca_time_buckets = defaultdict(int)  # time -> count
+    
+    for rca_event in rca_events:
+        try:
+            triggered_at = rca_event.get("triggered_at") or rca_event.get("timestamp")
+            if triggered_at:
+                if isinstance(triggered_at, str):
+                    triggered_at = datetime.fromisoformat(triggered_at.replace('Z', '+00:00'))
+                time_key = triggered_at.strftime("%I:%M %p")
+                rca_time_buckets[time_key] += 1
+        except Exception:
+            pass
+    
+    # Create RCA chart with last 6 time periods or defaults
+    rca_labels = list(rca_time_buckets.keys())[-6:] if rca_time_buckets else ["10:00 AM", "11:00 AM", "12:00 PM", "1:00 PM", "2:00 PM", "3:00 PM"]
+    rca_values = [rca_time_buckets.get(label, 0) for label in rca_labels]
+    
+    rca_chart_data = {
+        "labels": rca_labels,
+        "datasets": [
+            {
+                "color": "#A2B8F4",  # Blue
+                "values": rca_values
+            }
+        ]
+    }
+    
+    # Total RCA count
+    total_rca = len(rca_events)
+    
+    # RCA breakdown by workflow (for stats)
+    rca_stats = []
+    for workflow in workflows[:5]:  # Top 5 workflows
+        workflow_id = str(workflow["_id"])
+        workflow_name = workflow.get("name", "Workflow")
+        
+        wf_rca_count = sum(1 for r in rca_events if r.get("pipeline_id") == workflow_id)
+        rca_stats.append({
+            "workflow": workflow_name[:15],
+            "count": wf_rca_count
+        })
+    
+    return {
+        "alerts_chart": alerts_chart_data,
+        "runtime_chart": runtime_chart_data,
+        "rca_chart": {
+            "total": total_rca,
+            "time_series": rca_chart_data,
+            "stats": rca_stats
+        }
+    }
