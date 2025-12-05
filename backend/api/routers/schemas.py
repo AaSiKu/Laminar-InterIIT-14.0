@@ -1,7 +1,7 @@
 from pydantic import BaseModel
 from typing import Any, Dict, Optional, Type, Union
 from fastapi import APIRouter, Request, status, HTTPException
-from backend.lib.utils import node_map
+from lib.utils import node_map
 import inspect
 
 

@@ -4,10 +4,10 @@ from .version_manager.schema import Notification, UpdateNotificationAction
 # from .version_manager.schema import Log  # Commented out - logs not implemented yet
 from datetime import datetime
 from bson.objectid import ObjectId
-from backend.api.routers.auth.models import User
-from backend.api.routers.auth.routes import get_current_user
-from backend.api.routers.auth.database import get_db
-from backend.api.routers.auth import crud as auth_crud
+from .auth.models import User
+from .auth.routes import get_current_user
+from .auth.database import get_db
+from .auth import crud as auth_crud
 from sqlalchemy.ext.asyncio import AsyncSession
 from .version_manager.routes import serialize_mongo
 

@@ -198,22 +198,8 @@ def main():
         error_server = setup_error_document_store()
         
         if error_server:
-            import threading
-            
-            def run_error_server():
-                """Run error document store server in background thread"""
-                try:
-                    custom_logger.info("Starting error document store server in background")
-                    error_server.run(with_cache=True, terminate_on_error=False)
-                except Exception as e:
-                    custom_logger.error(f"Error document store server failed: {e}")
-            
-            # Start error server in daemon thread
-            error_thread = threading.Thread(target=run_error_server, daemon=True)
-            error_thread.start()
-            custom_logger.info("Error document store server thread started")
-        
-        # Run main pipeline
+            error_server.run(threaded=True, with_cache=True, terminate_on_error=False)
+
         pw.run()
     except Exception as e:
         custom_logger.error(f"Error running pipeline: {e}")
