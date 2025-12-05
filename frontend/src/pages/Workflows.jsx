@@ -1,138 +1,312 @@
-import { useState, useCallback, useEffect } from "react";
-import { useNavigate } from "react-router-dom"; // Import useNavigate
-import {
-  ReactFlow,
-  Background,
-  Controls,
-  applyNodeChanges,
-  applyEdgeChanges,
-  addEdge,
-} from "@xyflow/react";
+import { useState, useEffect, useCallback, useRef } from "react";
+import { useNavigate, useParams } from "react-router-dom";
 import "@xyflow/react/dist/style.css";
-import {
-  AppBar,
-  Toolbar,
-  Button,
-  Box,
-  Alert,
-  Snackbar,
-  CircularProgress,
-} from "@mui/material";
-import { PropertyBar } from "../components/PropertyBar";
-import { NodeDrawer } from "../components/NodeDrawer";
-import { nodeTypes, generateNode } from "../utils/dashboard.utils";
+import { Box, Alert, Snackbar } from "@mui/material";
+
 import { useGlobalContext } from "../context/GlobalContext";
+import { useGlobalWorkflow } from "../context/GlobalWorkflowContext";
 import {
   savePipelineAPI,
   toggleStatus as togglePipelineStatus,
-  fetchAndSetPipeline,
   spinupPipeline,
   spindownPipeline,
+  saveDraftsAPI,
+  fetchAndSetPipeline,
 } from "../utils/pipelineUtils";
-import { fetchNodeSchema } from "../utils/dashboard.api";
+import { fetchAllWorkflows } from "../utils/developerDashboard.api";
+import PipelineNavBar from "../components/workflow/PipelineNavBar";
+import Playground from "../components/workflow/Playground";
+import RunBook from "../components/workflow/RunBook";
 
+// Drawer width constant
+export const DRAWER_WIDTH = 64;
+
+/**
+ * WorkflowPage Component
+ *
+ * A page for editing and managing a specific pipeline workflow.
+ * Uses the Playground component for the visual node editor and handles
+ * pipeline-specific operations like save, run, spinup/spindown.
+ */
 export default function WorkflowPage() {
-  const [selectedNode, setSelectedNode] = useState(null);
-  const [drawerOpen, setDrawerOpen] = useState(false);
-  
+  const [shareAnchorEl, setShareAnchorEl] = useState(null);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const [isRunBookOpen, setRunBookOpen] = useState(false);
+  const playgroundRef = useRef(null);
+  const navigate = useNavigate();
+  const { pipelineId } = useParams();
+
   const {
-    currentEdges,
-    currentNodes,
-    setCurrentNodes,
-    setRfInstance,
-    setCurrentEdges,
-    currentPipelineStatus,
-    setCurrentPipelineStatus,
-    currentPipelineId,
-    rfInstance,
-    setCurrentPipelineId,
-    dashboardSidebarOpen,
     loading,
     setLoading,
     error,
     setError,
-    setViewport,
     containerId,
     setContainerId,
+    user,
+    setViewport,
+    workflows,
   } = useGlobalContext();
 
+  const {
+    edges: currentEdges,
+    nodes: currentNodes,
+    setNodes: setCurrentNodes,
+    setEdges: setCurrentEdges,
+    setRfInstance,
+    status: currentPipelineStatus,
+    setStatus: setCurrentPipelineStatus,
+    id: currentPipelineId,
+    setId: setCurrentPipelineId,
+    rfInstance,
+    versionId: currentVersionId,
+    setVersionId: setCurrentVersionId,
+    workflowData: currentWorkflowData,
+    setWorkflowData: setCurrentWorkflowData,
+  } = useGlobalWorkflow();
+
+  // Track loaded pipeline to prevent re-loading
+  const loadedPipelineRef = useRef(null);
+  const isLoadingRef = useRef(false);
+  const viewportDataRef = useRef(null); // Store viewport data for applying when rfInstance is ready
+
+  // Load pipeline data when pipelineId changes (from URL), TODO: check for debounce
+
   useEffect(() => {
-    if (currentPipelineId) {
-      setLoading(true);
-      fetchAndSetPipeline(currentPipelineId, {
-        setCurrentEdges,
-        setCurrentNodes,
-        setViewport,
-        setCurrentPipelineStatus,
-        setContainerId,
-      })
-        .catch((err) => setError(err.message))
-        .finally(() => setLoading(false));
+    // Skip if no pipelineId
+    if (!pipelineId) {
+      return;
     }
+
+    // Skip if already loading or already loaded this pipeline
+    if (isLoadingRef.current || loadedPipelineRef.current === pipelineId) {
+      return;
+    }
+
+    let isMounted = true;
+    isLoadingRef.current = true;
+
+    const loadPipelineData = async () => {
+      setLoading(true);
+      setError(null);
+
+      try {
+        // First, try to find the workflow in the workflows list to get current_version_id
+        let versionId = null;
+        const workflow = workflows?.find((w) => w._id === pipelineId);
+
+        if (workflow && workflow.current_version_id) {
+          versionId = workflow.current_version_id;
+        } else {
+          // If not found in workflows list, fetch from retrieve_all
+          const workflowResponse = await fetchAllWorkflows();
+          if (workflowResponse.status === "success" && workflowResponse.data) {
+            const foundWorkflow = workflowResponse.data.find(
+              (w) => w._id === pipelineId
+            );
+            setCurrentWorkflowData(foundWorkflow);
+            setCurrentPipelineStatus(foundWorkflow?.status);
+            console.log(foundWorkflow);
+            if (foundWorkflow && foundWorkflow.current_version_id) {
+              versionId = foundWorkflow.current_version_id;
+            }
+          }
+        }
+
+        if (!versionId) {
+          throw new Error(
+            "Could not find version ID for this pipeline. The pipeline may not exist or you may not have access to it."
+          );
+        }
+
+        // Use fetchAndSetPipeline to load the pipeline data
+        const result = await fetchAndSetPipeline(pipelineId, versionId, {
+          setCurrentPipelineId,
+          setCurrentVersionId,
+          setError,
+          setLoading,
+          setCurrentEdges,
+          setCurrentNodes,
+          setViewport: null, // Don't use setViewport from context, we'll apply it via rfInstance
+          setCurrentPipelineStatus,
+          setContainerId,
+        });
+
+        // Store viewport data for applying when rfInstance is ready
+        if (result?.version?.pipeline?.viewport) {
+          viewportDataRef.current = result.version.pipeline.viewport;
+        }
+
+        // Mark as loaded
+        if (isMounted) {
+          loadedPipelineRef.current = pipelineId;
+        }
+      } catch (err) {
+        console.error("Error loading pipeline:", err);
+        if (isMounted) {
+          setError(err.message || "Failed to load pipeline data");
+          setLoading(false);
+        }
+      } finally {
+        if (isMounted) {
+          isLoadingRef.current = false;
+        }
+      }
+    };
+
+    loadPipelineData();
+
+    return () => {
+      isMounted = false;
+      isLoadingRef.current = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pipelineId]); // Only depend on pipelineId to avoid infinite loops
+
+  // Reset loaded ref when pipelineId changes
+  useEffect(() => {
+    if (pipelineId && loadedPipelineRef.current !== pipelineId) {
+      loadedPipelineRef.current = null;
+      viewportDataRef.current = null;
+    }
+  }, [pipelineId]);
+
+  // Apply viewport when rfInstance and nodes are ready
+  useEffect(() => {
+    if (rfInstance && viewportDataRef.current && currentNodes.length > 0) {
+      const viewport = viewportDataRef.current;
+      try {
+        if (rfInstance.setViewport) {
+          rfInstance.setViewport(viewport, { duration: 0 });
+          viewportDataRef.current = null; // Clear after applying
+        } else if (rfInstance.fitView) {
+          // Fallback to fitView if setViewport not available
+          rfInstance.fitView({ padding: 0.2, maxZoom: 0.9, duration: 0 });
+          viewportDataRef.current = null;
+        }
+      } catch (error) {
+        console.error("Error applying viewport:", error);
+      }
+    }
+  }, [rfInstance, currentNodes]);
+
+  // Debug: Log nodes and edges when they change
+  useEffect(() => {
+    console.log("Current nodes in Workflows page:", {
+      count: currentNodes.length,
+      nodes: currentNodes,
+      edges: currentEdges,
+    });
+  }, [currentNodes, currentEdges]);
+
+  // Auto-save drafts when pipeline changes (skip initial load)
+  const isInitialLoadRef = useRef(true);
+  const lastSavedRef = useRef({ pipelineId: null, versionId: null });
+
+  useEffect(() => {
+    // Skip auto-save on initial load
+    if (isInitialLoadRef.current) {
+      isInitialLoadRef.current = false;
+      lastSavedRef.current = {
+        pipelineId: currentPipelineId,
+        versionId: currentVersionId,
+      };
+      return;
+    }
+
+    // Skip if already saved for this pipeline/version combination
+    if (
+      lastSavedRef.current.pipelineId === currentPipelineId &&
+      lastSavedRef.current.versionId === currentVersionId
+    ) {
+      return;
+    }
+
+    // Skip if loading or missing required data
+    if (loading || !currentPipelineId || !currentVersionId || !rfInstance) {
+      return;
+    }
+
+    // Update last saved ref before saving
+    lastSavedRef.current = {
+      pipelineId: currentPipelineId,
+      versionId: currentVersionId,
+    };
+
+    saveDraftsAPI(
+      currentVersionId,
+      rfInstance,
+      setCurrentVersionId,
+      currentPipelineId,
+      setLoading,
+      setError
+    )
+      .catch((err) => setError(err.message))
+      .finally(() => setLoading(false));
   }, [
     currentPipelineId,
-    setCurrentEdges,
-    setCurrentNodes,
-    setViewport,
-    setCurrentPipelineStatus,
+    currentVersionId,
+    rfInstance,
+    setCurrentVersionId,
     setLoading,
     setError,
-    setContainerId,
   ]);
 
-  const onNodesChange = useCallback(
-    (changes) => setCurrentNodes((ns) => applyNodeChanges(changes, ns)),
-    [setCurrentNodes]
-  );
+  useEffect(() => {
+    fetchAndSetPipeline(currentPipelineId, currentVersionId, {
+      setCurrentPipelineId,
+      setCurrentVersionId,
+      setError,
+      setLoading,
+      setCurrentEdges,
+      setCurrentNodes,
+      setViewport,
+      setCurrentPipelineStatus,
+      setContainerId,
+    });
+  }, []);
 
-  const onEdgesChange = useCallback(
-    (changes) => setCurrentEdges((es) => applyEdgeChanges(changes, es)),
-    [setCurrentEdges]
-  );
-
-  const onConnect = useCallback(
-    (params) =>
-      setCurrentEdges((es) => addEdge({ ...params, animated: true }, es)),
-    [setCurrentEdges]
-  );
-
-  const handleAddNode = (schema) => {
-    setCurrentNodes((prev) => [...prev, generateNode(schema, currentNodes)]);
-  };
-
-  const handleToggleStatus = async () => {
+  // Pipeline status toggle handler
+  const handleToggleStatus = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const newStatus = await togglePipelineStatus(
+      await togglePipelineStatus(
         currentPipelineId,
         currentPipelineStatus
       );
-      setCurrentPipelineStatus(
-        newStatus["status"] === "stopped" ? false : true
-      );
+      // Toggle the status: Running -> Stopped, Stopped -> Running
+      const newStatus = currentPipelineStatus === "Running" ? "Stopped" : "Running";
+      setCurrentPipelineStatus(newStatus);
     } catch (err) {
       setError(err.message);
     } finally {
       setLoading(false);
     }
-  };
+  }, [
+    currentPipelineId,
+    currentPipelineStatus,
+    setCurrentPipelineStatus,
+    setLoading,
+    setError,
+  ]);
 
-  const handleSpinup = async () => {
+  // Spin up pipeline container
+  const handleSpinup = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
       const data = await spinupPipeline(currentPipelineId);
-      setContainerId(data.id);
+      setContainerId(data.pipeline_container_id);
     } catch (err) {
       setError(err.message);
     } finally {
-      console.log(currentPipelineId);
       setLoading(false);
     }
-  };
+  }, [currentPipelineId, setContainerId, setLoading, setError]);
 
-  const handleSpindown = async () => {
+  // Spin down pipeline container
+  const handleSpindown = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
@@ -143,194 +317,225 @@ export default function WorkflowPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [currentPipelineId, setContainerId, setLoading, setError]);
 
-  const onNodeClick = (event, node) => {
-    setSelectedNode(node);
-  };
-
-  const handleUpdateProperties = (nodeId, data) => {
-    setCurrentNodes((nds) =>
-      nds.map((n, idx) =>
-        n.id === nodeId
-          ? { ...n, data: { ...n.data, properties: data} }
-          : n
-      )
+  // Save pipeline handler
+  const handleSave = useCallback(() => {
+    savePipelineAPI(
+      rfInstance,
+      currentPipelineId,
+      setCurrentPipelineId,
+      currentVersionId,
+      setCurrentVersionId,
+      setError,
+      setLoading
     );
-    setSelectedNode(null);
-  };
+  }, [
+    rfInstance,
+    currentPipelineId,
+    setCurrentPipelineId,
+    currentVersionId,
+    setCurrentVersionId,
+    setError,
+    setLoading,
+  ]);
 
-  const onDragOver = useCallback((event) => {
-    event.preventDefault();
-    event.dataTransfer.dropEffect = 'move';
+  // Share menu handlers
+  const handleShareClick = useCallback((event) => {
+    setShareAnchorEl(event.currentTarget);
   }, []);
 
-  const onDrop = useCallback(
-    async (event) => {
-      event.preventDefault();
+  const handleShareClose = useCallback(() => {
+    setShareAnchorEl(null);
+  }, []);
 
-      const nodeName = event.dataTransfer.getData('application/reactflow');
+  // Export JSON handler
+  const handleExportJSON = useCallback(() => {
+    if (!rfInstance) {
+      setError("No workflow data available to export");
+      return;
+    }
 
-      if (!nodeName || !rfInstance) {
+    try {
+      const flowData = rfInstance.toObject();
+      const exportData = {
+        ...flowData,
+        metadata: {
+          pipelineName: `Pipeline ${
+            pipelineId ? pipelineId.toLowerCase() : "a"
+          }`,
+          pipelineId: currentPipelineId,
+          versionId: currentVersionId,
+          exportedAt: new Date().toISOString(),
+          exportedBy: user?.name || user?.id || "Unknown",
+        },
+      };
+
+      const jsonString = JSON.stringify(exportData, null, 2);
+      const blob = new Blob([jsonString], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `pipeline-${pipelineId || "workflow"}-${
+        new Date().toISOString().split("T")[0]
+      }.json`;
+
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error("Export failed:", err);
+      setError("Failed to export workflow. Please try again.");
+    }
+  }, [
+    rfInstance,
+    pipelineId,
+    currentPipelineId,
+    currentVersionId,
+    user,
+    setError,
+  ]);
+
+  // Navigation handler
+  const handleBackClick = useCallback(() => {
+    navigate("/workflows");
+  }, [navigate]);
+
+  // Fullscreen handlers
+  const handleEnterFullscreen = useCallback(() => {
+    setIsFullscreen(true);
+  }, []);
+
+  const handleExitFullscreen = useCallback(() => {
+    setIsFullscreen(false);
+  }, []);
+
+  // Keyboard shortcut for fullscreen (F key)
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      // Don't trigger if user is typing in an input
+      if (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA") {
         return;
       }
 
-      try {
-        // Get the position where the node was dropped
-        const position = rfInstance.screenToFlowPosition({
-          x: event.clientX,
-          y: event.clientY,
-        });
-
-        // Fetch the schema for the node
-        const schema = await fetchNodeSchema(nodeName);
-
-        // Generate the node with the drop position
-        const newNode = generateNode(schema, currentNodes);
-        newNode.position = position;
-
-        // Add the node to the canvas
-        setCurrentNodes((prev) => [...prev, newNode]);
-      } catch (err) {
-        console.error('Failed to add node:', err);
-        setError('Failed to add node. Please try again.');
+      if (e.key === "f" || e.key === "F") {
+        if (!isFullscreen) {
+          handleEnterFullscreen();
+        }
       }
+
+      if (e.key === "Escape" && isFullscreen) {
+        handleExitFullscreen();
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isFullscreen, handleEnterFullscreen, handleExitFullscreen]);
+
+  // Node/Edge change handlers for controlled mode
+  const handleNodesChange = useCallback(
+    (newNodes) => {
+      setCurrentNodes(newNodes);
     },
-    [rfInstance, currentNodes, setCurrentNodes, setError]
+    [setCurrentNodes]
   );
 
-  const drawerWidth = 64 + (dashboardSidebarOpen ? 325 : 0);
+  const handleEdgesChange = useCallback(
+    (newEdges) => {
+      setCurrentEdges(newEdges);
+    },
+    [setCurrentEdges]
+  );
 
   return (
     <>
-      <Box
-        sx={{
-          transition: "margin-left 0.3s ease",
-          left: drawerWidth,
-          position: "absolute",
-          width: `calc(100vw - ${drawerWidth}px)`,
-          height: "100vh",
-          bgcolor: "background.default",
-        }}
-      >
-        <AppBar
-          position="static"
-          color="inherit"
-          elevation={1}
+      {/* Fullscreen Mode */}
+      {isFullscreen && (
+        <Box
           sx={{
-            borderBottom: 1,
-            borderColor: "divider",
-            bgcolor: "background.paper",
-            zIndex: 1300,
-            position: "relative",
+            position: "fixed",
+            top: 0,
+            left: 0,
+            width: "100vw",
+            height: "100vh",
+            zIndex: 9999,
+            bgcolor: "background.default",
           }}
         >
-          <Toolbar
-            sx={{
-              display: "flex",
-              height: "6vh",
-              justifyContent: "end",
-            }}
-          >
-            <Box
-              sx={{
-                display: "flex",
-                gap: 2,
-                justifyContent: "end",
-                alignContent: "center",
-              }}
-            >
-              {loading && <CircularProgress size={24} />}
-              <Button
-                variant="outlined"
-                onClick={() =>
-                  savePipelineAPI(
-                    currentPipelineId,
-                    rfInstance,
-                    currentPipelineId,
-                    setCurrentPipelineId,
-                    setLoading,
-                    setError
-                  )
-                }
-                disabled={loading}
-              >
-                Save
-              </Button>
-              <Button
-                variant="outlined"
-                onClick={handleSpinup}
-                disabled={loading || !currentPipelineId || !!containerId}
-              >
-                Spin Up
-              </Button>
-              <Button
-                variant="outlined"
-                onClick={handleToggleStatus}
-                disabled={loading || !currentPipelineId || !containerId}
-              >
-                {currentPipelineStatus ? "Stop" : "Run"}
-              </Button>
-              <Button
-                variant="outlined"
-                onClick={handleSpindown}
-                disabled={loading || !currentPipelineId || !containerId}
-              >
-                Spin Down
-              </Button>
-              <Button variant="contained" onClick={() => setDrawerOpen(true)}>
-                {" "}
-                + Add Node
-              </Button>
-            </Box>
-          </Toolbar>
-        </AppBar>
-
-        <Box 
-          sx={{ height: "87vh", bgcolor: "#F7FAFC" }}
-          onClick={(e) => {
-            // Close PropertyBar when clicking on workspace
-            // Only if clicking on the canvas, not on nodes or controls
-            if (e.target.classList.contains('react-flow__pane') || 
-                e.target.classList.contains('react-flow__renderer')) {
-              setSelectedNode(null);
-            }
-          }}
-        >
-          <ReactFlow
+          <Playground
+            ref={playgroundRef}
             nodes={currentNodes}
             edges={currentEdges}
-            nodeTypes={nodeTypes}
-            onNodesChange={onNodesChange}
-            onEdgesChange={onEdgesChange}
-            onConnect={onConnect}
-            onNodeClick={onNodeClick}
+            onNodesChange={handleNodesChange}
+            onEdgesChange={handleEdgesChange}
             onInit={setRfInstance}
-            onDrop={onDrop}
-            onDragOver={onDragOver}
-            onPaneClick={() => setSelectedNode(null)}
-            defaultViewport={{ x: 0, y: 0, zoom: 0.9 }}
-            fitView
-            fitViewOptions={{ maxZoom: 0.9 }}
-          >
-            <Controls position="top-right" />
-            <Background color="#aaa" gap={16} />
-          </ReactFlow>
+            height="100vh"
+            showToolbar={true}
+            showFullscreenButton={true}
+            isFullscreen={true}
+            onExitFullscreen={handleExitFullscreen}
+          />
         </Box>
-      </Box>
+      )}
 
-      <NodeDrawer
-        open={drawerOpen}
-        onClose={() => setDrawerOpen(false)}
-        onAddNode={handleAddNode}
-        setNodes={setCurrentNodes}
-      />
-      <PropertyBar
-        open={Boolean(selectedNode)}
-        selectedNode={selectedNode}
-        onClose={() => setSelectedNode(null)}
-        onUpdateProperties={handleUpdateProperties}
-      />
+      {/* Normal Mode */}
+      {!isFullscreen && (
+        <Box
+          sx={{
+            transition: "margin-left 0.3s ease",
+            left: DRAWER_WIDTH,
+            position: "absolute",
+            width: `calc(100vw - ${DRAWER_WIDTH}px)`,
+            height: "100vh",
+            bgcolor: "background.default",
+            overflow: "hidden",
+          }}
+        >
+          {/* Pipeline Navigation Bar */}
+          <PipelineNavBar
+            onBackClick={handleBackClick}
+            pipelineName={`${
+              currentWorkflowData?.name || pipelineId
+                ? pipelineId.toLowerCase()
+                : "Unnamed Workflow"
+            }`}
+            loading={loading}
+            shareAnchorEl={shareAnchorEl}
+            onShareClick={handleShareClick}
+            onShareClose={handleShareClose}
+            onSave={handleSave}
+            onSpinup={handleSpinup}
+            onSpindown={handleSpindown}
+            onToggleStatus={handleToggleStatus}
+            currentPipelineStatus={currentPipelineStatus}
+            currentPipelineId={currentPipelineId}
+            containerId={containerId}
+            onFullscreenClick={handleEnterFullscreen}
+            onRunBook={() => setRunBookOpen((state) => !state)}
+            onExportJSON={handleExportJSON}
+            pipelineId={pipelineId}
+            userAvatar="https://i.pravatar.cc/40"
+          />
+
+          <Playground
+            ref={playgroundRef}
+            nodes={currentNodes}
+            edges={currentEdges}
+            onNodesChange={handleNodesChange}
+            onEdgesChange={handleEdgesChange}
+            onInit={setRfInstance}
+            height="calc(100vh - 48px)"
+            showToolbar={true}
+            showFullscreenButton={false}
+          />
+        </Box>
+      )}
+
+      <RunBook open={isRunBookOpen} onClose={() => setRunBookOpen(false)} />
+
+      {/* Error Snackbar */}
       <Snackbar
         open={!!error}
         autoHideDuration={6000}

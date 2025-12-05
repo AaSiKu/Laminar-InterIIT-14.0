@@ -1,0 +1,62 @@
+{
+  "pipeline_topology": {
+    "pipeline_name": "Real-Time Payment Processing Pipeline",
+    "steps": [
+      {
+        "step_id": "payment-ingress-001",
+        "step_name": "Payment Gateway Ingress",
+        "step_type": "source",
+        "dependencies": []
+      },
+      {
+        "step_id": "fraud-check-001",
+        "step_name": "Fraud Detection Service",
+        "step_type": "ml_model",
+        "dependencies": ["payment-ingress-001"]
+      },
+      {
+        "step_id": "validation-001",
+        "step_name": "Payment Validator",
+        "step_type": "transformation",
+        "dependencies": ["fraud-check-001"]
+      },
+      {
+        "step_id": "ledger-001",
+        "step_name": "Ledger Writer",
+        "step_type": "sink",
+        "dependencies": ["validation-001"]
+      }
+    ]
+  },
+  "rca_output": {
+    "incident_id": "INC-2025-12-02-1423",
+    "incident_time": "2024-12-02T14:23:00Z",
+    "severity": "high",
+    "root_cause": "Database connection pool exhaustion in Fraud Detection Service due to slow query performance",
+    "affected_components": [
+      {
+        "component_name": "fraud-check-001",
+        "impact_level": "high",
+        "error_details": "Connection pool maxed out at 50 connections. Average query time increased from 120ms to 3.5s"
+      },
+      {
+        "component_name": "validation-001",
+        "impact_level": "medium",
+        "error_details": "Queue backlog reached 8,450 pending transactions"
+      }
+    ],
+    "resolution_steps": [
+      "Identified missing database index on fraud_rules table",
+      "Created composite index on (user_id, transaction_date) columns",
+      "Increased connection pool size from 50 to 100",
+      "Added query timeout of 5 seconds with fallback to cached rules"
+    ],
+    "additional_context": {
+      "financial_impact_usd": 8500.0,
+      "affected_transactions": 23145,
+      "customer_complaints": 12,
+      "peak_queue_depth": 8450,
+      "query_optimization_impact": "Query time reduced from 3.5s to 180ms after index creation"
+    }
+  }
+}

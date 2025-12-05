@@ -1,17 +1,15 @@
-/* Developer Dashboard Styles */
+/* Developer Dashboard Styles - Layout and Positioning Only */
 
 /* Main Container */
-.overview-container {
+.below-sidebar-container {
   height: 100vh;
-  background-color: #fafafa;
   display: flex;
   overflow: hidden; /* Prevent scrolling at the top level */
   margin-left: 64px; /* Account for sidebar width */
 }
 
-/* Remove sidebar margin on very small screens if needed */
 @media (max-width: 600px) {
-  .overview-container {
+  .below-sidebar-container {
     margin-left: 64px; /* Keep sidebar margin even on mobile */
   }
 }
@@ -27,8 +25,6 @@
 
 /* Top Bar */
 .overview-topbar {
-  background-color: #fff;
-  border-bottom: 1px solid #e5e7eb;
   padding: 16px 32px;
   display: flex;
   align-items: center;
@@ -52,7 +48,6 @@
 
 .overview-search-input {
   padding: 8px 16px;
-  border: 1px solid #e5e7eb;
   border-radius: 8px;
   font-size: 0.875rem;
   width: 300px;
@@ -60,7 +55,6 @@
 
 .overview-search-input:focus {
   outline: none;
-  border-color: #3b82f6;
 }
 
 @media (max-width: 900px) {
@@ -82,11 +76,8 @@
 }
 
 .overview-notification-btn {
-  background-color: #3b82f6 !important;
-  color: #fff !important;
   width: 44px;
   height: 44px;
-  box-shadow: 0 2px 8px rgba(59, 130, 246, 0.3);
   transition: all 0.3s ease;
   position: relative;
 }
@@ -99,7 +90,6 @@
   right: 0;
   bottom: 0;
   border-radius: 50%;
-  background-color: #3b82f6;
   opacity: 0.5;
   animation: pulse-notification 2s infinite;
 }
@@ -120,8 +110,6 @@
 }
 
 .overview-notification-btn:hover {
-  background-color: #2563eb !important;
-  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
   transform: scale(1.05);
 }
 
@@ -130,18 +118,11 @@
 }
 
 .overview-notification-btn .MuiBadge-badge {
-  background-color: #ef4444;
-  color: #fff;
   font-weight: 700;
   font-size: 0.75rem;
   min-width: 20px;
   height: 20px;
-  border: 2px solid #fff;
   z-index: 1;
-}
-
-.overview-notification-icon {
-  color: #fff;
 }
 
 .overview-workflows-title {
@@ -152,11 +133,9 @@
   width: 40px;
   height: 40px;
   border-radius: 50%;
-  background-color: #3b82f6;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #fff;
   font-weight: 600;
   cursor: pointer;
 }
@@ -273,7 +252,6 @@
 /* Vertical Divider */
 .overview-vertical-divider {
   width: 1px;
-  background-color: #e5e7eb;
   flex-shrink: 0;
 }
 
@@ -342,10 +320,9 @@
 /* Horizontal Divider */
 .overview-horizontal-divider {
   height: 1px;
-  background-color: #e5e7eb;
   margin-bottom: 24px;
+  background-color: transparent;
 }
-
 
 .overview-workflows-header {
   display: flex;
@@ -358,20 +335,14 @@
   width: 30px;
   height: 30px;
   border-radius: 6px;
-  border: 1px solid #e5e7eb;
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
 }
 
-.overview-more-btn:hover {
-  background-color: #f9fafb;
-}
-
 .overview-more-icon {
   font-size: 18px;
-  color: rgba(0, 0, 0, 0.6);
 }
 
 /* Section 3: Workflows Section */
@@ -397,11 +368,9 @@
   width: 30%; /* Dynamic width - 30% of screen */
   min-width: 300px;
   max-width: 540px;
-  background-color: #fff;
   flex-shrink: 0;
   overflow-y: auto; /* Allow vertical scrolling for the highlights panel */
   overflow-x: hidden; /* Prevent horizontal overflow */
-  border-left: 1px solid #e5e7eb;
   box-sizing: border-box;
 }
 
@@ -445,10 +414,10 @@
 /* Mobile Highlights Drawer */
 .overview-drawer-header {
   padding: 16px;
-  border-bottom: 1px solid #e5e7eb;
   display: flex;
   justify-content: space-between;
   align-items: center;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.12);
 }
 
 /* Drawer Paper Styles */
@@ -471,9 +440,6 @@
   position: fixed !important;
   bottom: 24px !important;
   left: 88px !important; /* 64px sidebar + 24px padding */
-  background-color: #3b82f6 !important;
-  color: #fff !important;
-  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4) !important;
   z-index: 1000 !important;
   display: none !important;
 }
@@ -491,4 +457,3 @@
     width: 80% !important;
   }
 }
-

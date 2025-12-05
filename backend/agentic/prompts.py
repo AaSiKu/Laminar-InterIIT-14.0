@@ -5,7 +5,10 @@ from langchain_core.tools import BaseTool
 from pydantic import BaseModel, Field
 from lib.agents import Agent
 from .sql_tool import TablePayload, create_sql_tool
-from .chat_models import model
+from .llm_factory import create_agent_model
+import os
+
+
 
 class Action(BaseModel):
     id: int
@@ -24,6 +27,10 @@ class CANNOT_EXECUTE_Plan(BaseModel):
 class AgentPayload(Agent):
     tools: List[Union[TablePayload]]
 
+# Create agent model using the factory
+# This will use the default provider (Groq) with agent-optimized settings
+# To change provider, set DEFAULT_AGENT_PROVIDER environment variable
+model = create_agent_model()
 
 def build_agent(agent: AgentPayload) -> BaseTool:
     agent.name = agent.name.replace(" ", "_")
