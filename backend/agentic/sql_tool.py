@@ -4,6 +4,10 @@ from pydantic import BaseModel
 from typing import List, Optional, Dict, Any
 from backend.postgres_util import postgre_engine
 from langchain_core.tools import tool
+from agentic.guardrails.gateway import MCPSecurityGateway
+import asyncio
+
+gateway = MCPSecurityGateway()
 
 class TablePayload(BaseModel):
     table_name: str

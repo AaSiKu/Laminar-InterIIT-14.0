@@ -85,6 +85,8 @@ class InputScanner:
         It sorts findings by start index in reverse to avoid issues with
         string index changes during replacement.
         """
+        if not findings:
+            return text
         findings.sort(key=lambda f: f.start, reverse=True)
 
         sanitized_text = list(text)

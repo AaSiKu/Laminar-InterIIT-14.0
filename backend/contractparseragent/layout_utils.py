@@ -52,3 +52,25 @@ def compute_layout(nodes: List[Dict], edges_dict: Dict[str, List[str]]) -> Dict[
                 "y": idx * Y_SPACING
             }
     return positions
+
+
+def apply_layout(flowchart: Dict[str, Any]) -> Dict[str, Any]:
+    """Assign computed x/y positions to every node in-place."""
+    nodes = flowchart.get("nodes", []) or []
+    edges = flowchart.get("edges", []) or []
+
+    edges_dict: Dict[str, List[str]] = {}
+    for edge in edges:
+        src = edge.get("source")
+        tgt = edge.get("target")
+        if src is None or tgt is None:
+            continue
+        edges_dict.setdefault(src, []).append(tgt)
+
+    positions = compute_layout(nodes, edges_dict)
+    for node in nodes:
+        node_id = node.get("id")
+        pos = positions.get(node_id, {"x": 0, "y": 0})
+        node["position"] = {"x": pos["x"], "y": pos["y"]}
+
+    return flowchart

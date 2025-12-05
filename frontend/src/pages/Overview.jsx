@@ -13,11 +13,9 @@ import KPICard from "../components/overview/KPICardDashboard";
 import RecentWorkflowCard from "../components/overview/RecentWorkflowCard";
 import HighlightsPanel from "../components/overview/HighlightsPanel";
 import TopBar from "../components/common/TopBar";
-import {useGlobalState} from "../context/GlobalStateContext"
+import { useGlobalState } from "../context/GlobalStateContext";
 import { fetchPreviousNotifcations, fetchWorkflows } from "../utils/utils";
-import {
-  fetchOverviewData,
-} from "../utils/developerDashboard.api";
+import { fetchOverviewData } from "../utils/developerDashboard.api";
 import { useNavigate } from "react-router-dom";
 import "../css/overview.css";
 import TimelineIcon from "@mui/icons-material/Timeline";
@@ -44,7 +42,8 @@ export default function OverviewPage() {
   const navigate = useNavigate();
   const [overviewData, setOverviewData] = useState(null);
   const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false);
-  const {workflows, setWorkflows, notifications, setNotifications} = useGlobalState();
+  const { workflows, setWorkflows, notifications, setNotifications } =
+    useGlobalState();
 
   // Load initial KPI data
   useEffect(() => {
@@ -54,7 +53,7 @@ export default function OverviewPage() {
       setOverviewData(overview);
 
       // Fetch initial notifications (workflows are already loaded by GlobalStateContext)
-      setNotifications(await fetchPreviousNotifcations())
+      setNotifications(await fetchPreviousNotifcations());
     };
     loadInitialData();
   }, []);
@@ -110,70 +109,80 @@ export default function OverviewPage() {
   // Use useMemo to ensure it updates when workflows change
   const recentWorkflows = useMemo(() => {
     if (!workflows || workflows.length === 0) return [];
-    
+
     return workflows
       .slice()
       .sort((a, b) => {
-        const dateA = a.last_updated || a.user_pipeline_version?.version_updated_at || new Date(0);
-        const dateB = b.last_updated || b.user_pipeline_version?.version_updated_at || new Date(0);
+        const dateA =
+          a.last_updated ||
+          a.user_pipeline_version?.version_updated_at ||
+          new Date(0);
+        const dateB =
+          b.last_updated ||
+          b.user_pipeline_version?.version_updated_at ||
+          new Date(0);
         return new Date(dateB) - new Date(dateA);
       })
       .slice(0, 4);
   }, [workflows]);
-  return(
+  return (
     <>
       <div className="below-sidebar-container">
         <div className="overview-main">
           <TopBar userAvatar="https://i.pravatar.cc/40" />
 
-        <div className="overview-content-wrapper">
-          <div className="overview-left-content">
-            <Box sx={{ 
-              mx: { xs: '-16px', md: '-32px' },
-              mt: { xs: '-16px', md: '-32px' },
-              width: { xs: 'calc(100% + 32px)', md: 'calc(100% + 64px)' },
-            }}>
-              {overviewData && <Grid container spacing={0}>
-                <Grid 
-                className="First"
-                size={{ xs: 12, md: 6, xl: 7 }}>
-                  {overviewData["pie_chart"] && <OverviewSection data={overviewData["pie_chart"]} kpiData={overviewData["kpi"]} />}
-                </Grid>
-                
+          <div className="overview-content-wrapper">
+            <div className="overview-left-content">
+              <Box
+                sx={{
+                  mx: { xs: "-16px", md: "-32px" },
+                  mt: { xs: "-16px", md: "-32px" },
+                  width: { xs: "calc(100% + 32px)", md: "calc(100% + 64px)" },
+                }}
+              >
+                {overviewData && (
+                  <Grid container spacing={0}>
+                    <Grid className="First" size={{ xs: 12, md: 6, xl: 7 }}>
+                      {overviewData["pie_chart"] && (
+                        <OverviewSection
+                          data={overviewData["pie_chart"]}
+                          kpiData={overviewData["kpi"]}
+                        />
+                      )}
+                    </Grid>
 
-
-                <Grid container size={{ xs: 12, md: 6, xl: 5 }} spacing={0}>
-                  {overviewData["kpi"] &&
-                    overviewData["kpi"].map((kpi, index) => {
-                      // Use notifications icon for the fourth card (index 3)
-                      const IconComponent =
-                        index === 3
-                          ? getIconComponent("notifications")
-                          : getIconComponent(kpi.iconType);
-                      const totalKpis = overviewData["kpi"].length;
-                      const isFirstRow = index < Math.ceil(totalKpis / 2);
-                      const isLastRow =
-                        index >= totalKpis - Math.ceil(totalKpis / 2);
-                      return (
-                        <Grid
-                          size={{ xs: 6, sm: 4, md: 6, xl: 6 }}
-                          key={kpi.id}
-                        >
-                          <KPICard
-                            title={kpi.title}
-                            value={kpi.value}
-                            subtitle={kpi.subtitle}
-                            icon={IconComponent}
-                            iconColor={kpi.iconColor}
-                            isFirstRow={isFirstRow}
-                            isLastRow={isLastRow}
-                          />
-                        </Grid>
-                      );
-                    })}
-                </Grid>
-              </Grid>
-              }
+                    <Grid container size={{ xs: 12, md: 6, xl: 5 }} spacing={0}>
+                      {overviewData["kpi"] &&
+                        overviewData["kpi"].map((kpi, index) => {
+                          // Use notifications icon for the fourth card (index 3)
+                          const IconComponent =
+                            index === 3
+                              ? getIconComponent("notifications")
+                              : getIconComponent(kpi.iconType);
+                          const totalKpis = overviewData["kpi"].length;
+                          const isFirstRow = index < Math.ceil(totalKpis / 2);
+                          const isLastRow =
+                            index >= totalKpis - Math.ceil(totalKpis / 2);
+                          return (
+                            <Grid
+                              size={{ xs: 6, sm: 4, md: 6, xl: 6 }}
+                              key={kpi.id}
+                            >
+                              <KPICard
+                                title={kpi.title}
+                                value={kpi.value}
+                                subtitle={kpi.subtitle}
+                                icon={IconComponent}
+                                iconColor={kpi.iconColor}
+                                isFirstRow={isFirstRow}
+                                isLastRow={isLastRow}
+                              />
+                            </Grid>
+                          );
+                        })}
+                    </Grid>
+                  </Grid>
+                )}
               </Box>
 
               <div className="overview-horizontal-divider" />
@@ -211,14 +220,19 @@ export default function OverviewPage() {
                     </Box>
                   ) : (
                     recentWorkflows.map((workflow, index) => {
-                      const workflowId = workflow.id || workflow._id || `workflow-${index}`;
-                      const lastUpdated = workflow.last_updated || workflow.user_pipeline_version?.version_updated_at || '';
+                      const workflowId =
+                        workflow.id || workflow._id || `workflow-${index}`;
+                      const lastUpdated =
+                        workflow.last_updated ||
+                        workflow.user_pipeline_version?.version_updated_at ||
+                        "";
                       return (
                         <RecentWorkflowCard
                           key={`${workflowId}-${lastUpdated}`}
                           workflow={workflow}
                           onClick={() => {
-                            handleSelectTemplate(workflowId)}}
+                            handleSelectTemplate(workflowId);
+                          }}
                         />
                       );
                     })
@@ -258,7 +272,7 @@ export default function OverviewPage() {
             <CloseIcon />
           </IconButton>
         </div>
-        <HighlightsPanel/>
+        <HighlightsPanel />
       </Drawer>
     </>
   );

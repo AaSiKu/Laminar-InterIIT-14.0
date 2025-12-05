@@ -4,10 +4,10 @@ import asyncio
 from typing import List, Union, Dict, Any, Optional
 from .helpers import MappingValues
 from lib.tables.stream_ml import ARFNode, TiDENode, MambaNode, _StreamingMLNode
-from stream_ml.wrapper import ModelWrapper
-from stream_ml.arf import ArfConfig
-from stream_ml.tide import TiDEConfig
-from stream_ml.mamba import MambaConfig
+from ..stream_ml.arf import ArfConfig
+from ..stream_ml.wrapper import ModelWrapper
+from ..stream_ml.tide import TiDEConfig
+from ..stream_ml.mamba import MambaConfig
 
 
 def _create_arf_config(node: ARFNode) -> ArfConfig:
