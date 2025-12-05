@@ -2,11 +2,12 @@ from typing import List, Union, Literal
 from langchain.agents import create_agent
 from langchain.agents.structured_output import ToolStrategy
 from langchain_groq import ChatGroq
-from langchain_core.tools import BaseTool
+from langchain_core.tools import BaseTool, tool
 from pydantic import BaseModel, Field
 from lib.agents import Agent
 from .sql_tool import TablePayload, create_sql_tool
 import os
+from agentic.guardrails.gateway import MCPSecurityGateway
 
 
 
@@ -62,9 +63,22 @@ def build_agent(agent: AgentPayload) -> BaseTool:
     if len(tool_tables)> 0:
         agent_description += f"It has read access to the following postgres tables:\n{table_descriptions}"
     # TODO: Enhance agent descriptions with the custom tools available to it as well.
-    langchain_agent.description = agent_description
-    langchain_agent.name = agent.name
-    return langchain_agent
+    
+    gateway = MCPSecurityGateway()
+    # langchain_agent.description = agent_description
+    # langchain_agent.name = agent.name
+    # return langchain_agent
+    @tool(agent.name, description=agent_description)
+    async def secure_agent_tool(request: str) -> str:
+        """securely execute an agent request"""
+        issues = await gateway.scan_text_for_issues(request)
+        if issues:
+            raise ValueError(f"Request failed security checks: {', '.join(issues)}")
+        
+        result = await langchain_agent.ainvoke({"input": request})
+        return result
+    
+    return secure_agent_tool
 
 def create_planner_executor(_agents: List[AgentPayload]):
     langchain_agents = [build_agent(_agent) for _agent in _agents]
@@ -95,7 +109,7 @@ def create_planner_executor(_agents: List[AgentPayload]):
         "complete: Plan all steps upfront when the full solution is deterministic\n"
         "  - Use when: All actions are independent or have clear $id dependencies\n"
         "  - After execution: An aggregator receives your reasoning + all outputs\n"
-        "  - The aggregator synthesizes the final answer, so focus on data gathering\n"
+        "  - The aggregator synthesizes the final answer, so focus on data gathering\n\n"
         "  - Example: 'Get revenue, get expenses, calculate margin' - all steps known\n\n"
         
         "staged: Plan partial steps, inspect results, then replan (USE SPARINGLY)\n"

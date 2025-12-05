@@ -5,6 +5,10 @@ from pydantic import BaseModel
 from typing import List, Optional, Dict, Any
 from postgres_util import postgre_engine
 from langchain_core.tools import tool
+from agentic.guardrails.gateway import MCPSecurityGateway
+import asyncio
+
+gateway = MCPSecurityGateway()
 
 class TablePayload(BaseModel):
     table_name: str
@@ -60,8 +64,13 @@ def create_sql_tool(tables: List[TablePayload], agent_name: str):
                 return _sql_tool
             
             @tool("query_database", description=db_description)
-            def query_db(query: str) -> str:
+            async def query_db(query: str) -> str:
+                """securely execute a query"""
                 sql_tool = lazy_init()
+                issues = await gateway.scan_text_for_issues(query)
+                if issues:
+                    raise ValueError(f"Query failed security checks: {', '.join(issues)}")
+                
                 raw_result = sql_tool.invoke(query)
                 # The agent's LLM will see this raw result and convert it per the guidelines above
                 return raw_result
