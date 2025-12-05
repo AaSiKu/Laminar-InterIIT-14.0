@@ -1,5 +1,5 @@
 # Use a lightweight Python base image
-FROM pathwaycom/pathway:latest
+FROM python:3.12-slim
 
 # Set working directory inside container
 WORKDIR /app
