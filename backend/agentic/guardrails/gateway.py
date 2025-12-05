@@ -10,7 +10,6 @@ from urllib3.util.retry import Retry
 import os, sys
 import asyncio
 from dotenv import load_dotenv
-from google import genai
 from pydantic import Field
 from pydantic.dataclasses import dataclass
 from openai import AsyncClient
@@ -23,8 +22,8 @@ import nh3
 import ipaddress
 import socket
 
-from base import DetectorResult, BaseDetector, ExtrasImport, Extra
-from batch import PromptInjectionAnalyzer, PRESIDIO_EXTRA, transformers_extra
+from .base import DetectorResult, BaseDetector, ExtrasImport, Extra
+from .batch import PromptInjectionAnalyzer, PRESIDIO_EXTRA, transformers_extra
 
 load_dotenv()
 

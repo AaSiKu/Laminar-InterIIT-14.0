@@ -1,7 +1,7 @@
 import asyncio
 from dataclasses import dataclass, field
 from typing import List, Tuple
-from gateway import (
+from .gateway import (
     DetectorResult,
     PII_Analyzer,
     PromptInjectionAnalyzer,

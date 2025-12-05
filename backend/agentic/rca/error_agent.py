@@ -3,6 +3,7 @@ from langchain.agents import create_agent
 from .output import RCAAnalysisOutput
 from datetime import datetime
 from ..llm_factory import create_analyser_model
+from ..guardrails.before_agent import InputScanner
 
 
 # Create the analyzer model instance
@@ -71,6 +72,7 @@ Output a structured response with all required fields.
 
 
 error_analysis_agent = None
+input_scanner = None
 
 def format_timestamp(unix_nano: int) -> str:
     """Convert Unix nanoseconds to readable timestamp"""
@@ -115,13 +117,15 @@ def format_logs_for_analysis(logs_by_trace: Dict[str, List[Dict]]) -> str:
 
 async def init_error_analysis_agent():
     """Initialize the error analysis agent"""
-    global error_analysis_agent
+    global error_analysis_agent, input_scanner
     error_analysis_agent = create_agent(
         model=analyser_model,
         tools=[],  # No tools needed for this analysis
         system_prompt=error_analysis_prompt,
         response_format=RCAAnalysisOutput
     )
+    input_scanner = InputScanner()
+    await input_scanner.preload_models()
 
 async def analyze_error_logs(logs_by_trace: Dict[str, List[Dict]]) -> RCAAnalysisOutput:
     """
@@ -141,6 +145,13 @@ async def analyze_error_logs(logs_by_trace: Dict[str, List[Dict]]) -> RCAAnalysi
     # Format logs for analysis
     formatted_logs = format_logs_for_analysis(logs_by_trace)
     
+    # Scan formatted logs
+    if input_scanner:
+        scan_result = await input_scanner.scan(formatted_logs)
+        if not scan_result.is_safe:
+            raise ValueError(f"Security scan failed: {scan_result.sanitized_input}")
+        formatted_logs = scan_result.sanitized_input
+
     analysis_prompt = (
         f"Analyze the following error logs from traces that triggered an SLA threshold violation:\n\n"
         f"{formatted_logs}\n\n"
