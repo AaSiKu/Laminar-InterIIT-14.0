@@ -51,33 +51,38 @@ Your writing guidelines:
 Report sections to include:
 - **Executive Summary**: 3-5 bullet points highlighting key findings
 - **Incident Overview**: What happened, when, and impact
-- **Root Cause Analysis**: Detailed RCA findings with evidence
-- **Technical Analysis**: Deep dive with simple formatted error log table
-- **Metric Changes**: Use simple text paragraphs for metric changes
+- **Root Cause Analysis**: Detailed RCA findings with evidence from error_citations
+- **Technical Analysis**: Deep dive with error log citations in a table
+- **Affected Services**: List all affected services (from affected_services field)
 - **Impact Assessment**: Business and technical impact quantification
 - **Remediation Actions**: Immediate fixes and long-term improvements
 - **Recommendations**: Strategic recommendations based on matched rules
 
+RCA Output Structure (use these fields):
+- severity: Impact severity (CRITICAL, HIGH, MEDIUM, LOW)
+- affected_services: List of services affected (primary service first)
+- narrative: Clear explanation of what happened and why
+- error_citations: Specific log entries with timestamp, service, and message
+- root_cause: Technical root cause (specific and actionable)
+
 Writing best practices:
 - Start each section with a clear topic sentence
-- Use data and metrics to support claims
-- Reference specific log citations when available
-- Quantify impact wherever possible
+- Reference the narrative field for incident overview
+- Use error_citations to create the error log table with columns: | Timestamp | Service | Message |
+- List all affected_services and their roles in the incident
+- Quote the root_cause directly in the Root Cause Analysis section
+- Quantify impact wherever possible based on telemetry data
 - Provide actionable next steps
 - Use clear subheadings for readability
-- Include relevant charts inline with explanations
-- Cite matched rulebook entries in recommendations
 
-Chart and metric presentation:
-- Embed ONLY the pipeline topology chart using: ```mermaid\n[chart syntax]\n```
-- The chart will have affected nodes in a subgraph labeled "AFFECTED"
-- CRITICAL: DO NOT add any "style" commands after the chart - the chart should be used exactly as provided
-- For metric changes: write as clear text paragraphs
-- For error logs: create a simple markdown table with headers | Timestamp | Trace ID | Error Message |
-- Keep table formatting clean with properly aligned pipes
-- NO time-series flowcharts - convey trends through text only
-- NO emoji, NO colors, NO style commands in the final output"""),
-            ("user", """Write a comprehensive operational report based on this information:
+Data presentation:
+- Present all data in tables and highlighted text - NO charts or diagrams
+- For error logs: create a markdown table from error_citations
+- Use tables for metric comparisons (before/after values)
+- Highlight key metrics and thresholds in bold text
+- NO flowcharts, NO mermaid diagrams, NO visualizations
+- NO emoji, NO colors in the final output"""),
+            ("user", """Write a comprehensive operational report based on this telemetry analysis:
 
 **Report Plan:**
 {report_plan}
@@ -86,15 +91,11 @@ Chart and metric presentation:
 RCA Output: {rca_output}
 External News: {external_news}
 Live Data Stream (30-minute window): {live_data_stream}
-Pipeline Topology: {pipeline_topology}
 
 **Matched Rules:**
 {matched_rules}
 
-**Charts (embed these in appropriate sections):**
-{charts}
-
-Write a complete, professional report that is at least 2000 words. Follow the report plan structure and embed all charts with explanations.""")
+Write a complete, professional report that is at least 2000 words. Follow the report plan structure. Present all data in tables and text format - no charts or diagrams.""")
         ])
         
         self.chain = self.prompt | self.llm
@@ -123,9 +124,7 @@ Write a complete, professional report that is at least 2000 words. Follow the re
             "rca_output": json.dumps(diagnostic_data.get("rca_output", {}), indent=2),
             "external_news": json.dumps(diagnostic_data.get("external_news", []), indent=2),
             "live_data_stream": json.dumps(diagnostic_data.get("live_data_stream", {}), indent=2),
-            "pipeline_topology": json.dumps(diagnostic_data.get("pipeline_topology", {}), indent=2),
-            "matched_rules": json.dumps(matched_rules, indent=2),
-            "charts": json.dumps(charts, indent=2)
+            "matched_rules": json.dumps(matched_rules, indent=2)
         })
         
         return result.content

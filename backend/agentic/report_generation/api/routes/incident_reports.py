@@ -8,8 +8,8 @@ from datetime import datetime
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import JSONResponse
 
-from api.schemas import IncidentReportRequest, IncidentReportResponse, ErrorResponse
-from core.report_generator import generate_incident_report
+from ..schemas import IncidentReportRequest, IncidentReportResponse, ErrorResponse
+from ...core.report_generator import generate_incident_report
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -47,19 +47,22 @@ async def create_incident_report(request: IncidentReportRequest):
     start_time = datetime.now()
     
     try:
+        # Get primary affected service for logging
+        primary_service = (request.rca_output.affected_services[0] 
+                          if request.rca_output.affected_services 
+                          else "unknown")
+        
         logger.info(
-            f"Received incident report request: {request.rca_output.incident_id} "
+            f"Received incident report request for service: {primary_service} "
             f"(severity: {request.rca_output.severity})"
         )
         
-        # Convert Pydantic models to dictionaries for the core logic
+        # Convert Pydantic model to dictionary for the core logic
         # Use mode='json' to serialize datetime objects to ISO strings
-        pipeline_topology = request.pipeline_topology.model_dump(mode='json')
         rca_output = request.rca_output.model_dump(mode='json')
         
-        # Generate the report using core business logic
+        # Generate the report using core business logic (telemetry-based RCA only)
         report_content, metadata = generate_incident_report(
-            pipeline_topology=pipeline_topology,
             rca_output=rca_output
         )
         

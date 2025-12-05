@@ -118,12 +118,9 @@ Guidelines:
 **External News:**
 {external_news}
 
-**Pipeline Topology (for reference):**
-{pipeline_topology}
-
 **Date Range**: {start_date} to {end_date}
 
-Generate a comprehensive weekly report following the structure specified in your system prompt.""")
+Generate a comprehensive weekly report following the structure specified in your system prompt. Focus on telemetry-based analysis of the affected services.""")
         ])
         
         self.chain = self.prompt | self.llm
@@ -133,18 +130,16 @@ Generate a comprehensive weekly report following the structure specified in your
         incident_reports: List[Dict[str, Any]],
         report_statistics: Dict[str, Any],
         external_news: List[Dict[str, Any]],
-        pipeline_topology: Dict[str, Any],
         start_date: str,
         end_date: str
     ) -> str:
         """
-        Generate weekly summary report.
+        Generate weekly summary report from telemetry-based incident analysis.
         
         Args:
             incident_reports: List of incident metadata from the week
             report_statistics: Statistics calculated from incidents
             external_news: News articles from GNews API
-            pipeline_topology: System topology for context
             start_date: Start date of report period
             end_date: End date of report period
             
@@ -158,7 +153,6 @@ Generate a comprehensive weekly report following the structure specified in your
             "incident_reports": json.dumps(incident_reports, indent=2),
             "report_statistics": json.dumps(report_statistics, indent=2),
             "external_news": json.dumps(external_news, indent=2),
-            "pipeline_topology": json.dumps(pipeline_topology, indent=2),
             "start_date": start_date,
             "end_date": end_date
         })
@@ -168,7 +162,6 @@ Generate a comprehensive weekly report following the structure specified in your
     def generate_all_clear_report(
         self,
         external_news: List[Dict[str, Any]],
-        pipeline_topology: Dict[str, Any],
         start_date: str,
         end_date: str
     ) -> str:
@@ -177,7 +170,6 @@ Generate a comprehensive weekly report following the structure specified in your
         
         Args:
             external_news: News articles from GNews API
-            pipeline_topology: System topology for context
             start_date: Start date of report period
             end_date: End date of report period
             
@@ -203,8 +195,7 @@ Positive summary highlighting:
 - Continued monitoring in place
 
 ## System Health Status
-Brief overview of the pipeline showing all components operational.
-Include a simple Mermaid diagram of the pipeline topology.
+Brief overview showing all monitored services operational based on telemetry data.
 
 ## External Threat Landscape
 ### Industry News
@@ -227,14 +218,11 @@ Guidelines:
 - Focus on maintaining stability
 - Include relevant external news
 - DO NOT fabricate metrics or incidents
-- Use Mermaid diagram for pipeline topology"""),
+- NO diagrams or visualizations - text and tables only"""),
             ("user", """Generate an "all clear" weekly report:
 
 **External News:**
 {external_news}
-
-**Pipeline Topology:**
-{pipeline_topology}
 
 **Date Range**: {start_date} to {end_date}
 
@@ -245,7 +233,6 @@ No incidents occurred this week. Generate a positive report acknowledging this a
         
         result = chain.invoke({
             "external_news": json.dumps(external_news, indent=2),
-            "pipeline_topology": json.dumps(pipeline_topology, indent=2),
             "start_date": start_date,
             "end_date": end_date
         })

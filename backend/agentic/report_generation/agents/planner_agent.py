@@ -77,12 +77,12 @@ IMPORTANT - Output Format:
 - DO NOT use a single object with section names as keys
 
 For chart_requirements:
-- ONLY request ONE chart: pipeline topology showing component relationships
-- NEVER request time-series trend charts (latency, throughput, error rate) - use highlighted text/quotes instead
+- DO NOT request any charts - all data should be presented in tables and highlighted text
+- NEVER request time-series trend charts, pipeline diagrams, or architecture visualizations
 - Example: "Latency increased from 82ms to 319ms" should be a highlighted statement, NOT a chart
-- Keep chart list to exactly 1 diagram: the pipeline topology
-- All metric changes should be conveyed through emphasized text and data tables"""),
-            ("user", """Analyze this diagnostic data and create a report plan:
+- All metric changes should be conveyed through emphasized text and data tables
+- Keep chart_requirements list empty or minimal"""),
+            ("user", """Analyze this diagnostic data from telemetry analysis and create a report plan:
 
 **RCA Output:**
 {rca_output}
@@ -93,10 +93,7 @@ For chart_requirements:
 **Live Data Stream (30-minute window):**
 {live_data_stream}
 
-**Pipeline Topology:**
-{pipeline_topology}
-
-Create a comprehensive report plan.""")
+Create a comprehensive report plan based on the RCA findings from telemetry data.""")
         ])
         
         self.chain = self.prompt | self.structured_llm
@@ -114,8 +111,7 @@ Create a comprehensive report plan.""")
         result = self.chain.invoke({
             "rca_output": json.dumps(diagnostic_data.get("rca_output", {}), indent=2),
             "external_news": json.dumps(diagnostic_data.get("external_news", []), indent=2),
-            "live_data_stream": json.dumps(diagnostic_data.get("live_data_stream", {}), indent=2),
-            "pipeline_topology": json.dumps(diagnostic_data.get("pipeline_topology", {}), indent=2)
+            "live_data_stream": json.dumps(diagnostic_data.get("live_data_stream", {}), indent=2)
         })
         
         return result

@@ -5,6 +5,7 @@ import httpx
 import os
 from postgres_util import construct_table_name
 import json
+from datetime import datetime, timezone
 agentic_url = os.getenv("AGENTIC_URL")
 
 class RCAOutputSchema(pw.Schema):
@@ -79,13 +80,22 @@ def trigger_rca(metric_table: pw.Table, node: TriggerRCANode, graph: Graph) -> p
         
         async def invoke(self,**columns) -> dict:
             
+            # Extract breach_value from the metric column
+            metric_column_name = summarized_metric["metric_column"]
+            breach_value = float(columns.get(metric_column_name, 0))
+            
+            # Get current timestamp in ISO format with UTC timezone
+            breach_time_utc = datetime.now(timezone.utc).isoformat()
+            
             request_data = {
                 "trace_ids": {
                     special_column: (list(columns[special_column]) if isinstance(columns[special_column], tuple) else columns[special_column]) for special_column in semantic_origins.keys()
                 },
                 **summarized_metric,
                 "table_data": tables_data,
-                "description": metric["description"]
+                "description": metric["description"],
+                "breach_value": breach_value,
+                "breach_time_utc": breach_time_utc
             } 
           
             # raise Exception(json.dumps(request_data,indent=4))

@@ -6,33 +6,24 @@ Handles the workflow execution for generating incident reports.
 import os
 import sys
 import time
+import json
 from datetime import datetime
 from typing import Dict, Any, Tuple
 from pathlib import Path
 
-# Add parent directories to path to import from agentic module
-backend_path = Path(__file__).parent.parent.parent
-sys.path.insert(0, str(backend_path))
-sys.path.insert(0, str(backend_path / "agentic"))
-
-# Import from agentic module using absolute imports
-import llm_config
-import llm_factory
-
-from langgraph_workflow import create_workflow, ReportState
-from document_store_manager import get_incident_store
+# Import from parent agentic module (relative)
+from ... import llm_config, llm_factory
+from ..langgraph_workflow import create_workflow, ReportState
 
 
 def generate_incident_report(
-    pipeline_topology: Dict[str, Any],
     rca_output: Dict[str, Any]
 ) -> Tuple[str, Dict[str, Any]]:
     """
     Generate an incident report using the LangGraph multi-agent workflow.
     
     Args:
-        pipeline_topology: Structure and configuration of the data pipeline
-        rca_output: Root cause analysis results from the diagnostic system
+        rca_output: Root cause analysis results from telemetry data analysis
         
     Returns:
         Tuple of (report_content, metadata) where metadata includes:
@@ -40,7 +31,7 @@ def generate_incident_report(
             - filepath: Location where report was saved
             - severity: Severity level of the incident
             - execution_time: Time taken to generate report
-            - incident_id: ID from RCA output
+            - incident_id: Auto-generated ID
             
     Raises:
         ValueError: If required LLM configuration is missing
@@ -57,9 +48,8 @@ def generate_incident_report(
             "Ensure API keys are set in backend/agentic/.env"
         )
     
-    # Prepare diagnostic data structure expected by workflow
+    # Prepare diagnostic data structure expected by workflow (only RCA output)
     diagnostic_data = {
-        "pipeline_topology": pipeline_topology,
         "rca_output": rca_output
     }
     
@@ -89,48 +79,52 @@ def generate_incident_report(
     
     report_content = final_state["final_report"]
     
-    # Extract metadata from RCA output
-    severity = rca_output.get("severity", "unknown").lower()
-    incident_id = rca_output.get("incident_id", "UNKNOWN")
-    affected_node = rca_output.get("affected_node", "unknown")
+    # Extract metadata from RCA output (new RCAAnalysisOutput structure)
+    severity = rca_output.get("severity", "UNKNOWN").lower()
+    affected_services = rca_output.get("affected_services", [])
+    primary_service = affected_services[0] if affected_services else "unknown"
     
-    # Save and index the report if severity warrants it
-    metadata = {
+    # Generate incident_id from timestamp and primary service
+    current_time = datetime.now()
+    incident_timestamp = current_time.strftime("%Y%m%d_%H%M%S")
+    incident_id = f"INC-{incident_timestamp}-{primary_service}"
+    
+    # Create reports directory
+    reports_dir = Path("reports")
+    reports_dir.mkdir(exist_ok=True)
+    
+    # Create filename with severity and incident ID
+    filename = f"incident_{incident_timestamp}_{severity}.md"
+    filepath = reports_dir / filename
+    
+    # Save report to file
+    with open(filepath, "w", encoding="utf-8") as f:
+        f.write(report_content)
+    
+    # Save metadata to JSON file
+    metadata_file = reports_dir / f"incident_{incident_timestamp}_{severity}.json"
+    report_metadata = {
         "incident_id": incident_id,
         "severity": severity,
+        "primary_service": primary_service,
+        "affected_services": affected_services,
+        "timestamp": current_time.isoformat(),
         "execution_time": execution_time,
-        "generated_at": datetime.now()
+        "filename": filename,
+        "filepath": str(filepath)
     }
     
-    if severity in ["critical", "high", "medium"]:
-        # Use document store to save and index the report
-        incident_store = get_incident_store()
-        
-        store_metadata = incident_store.store_incident_report(
-            report_markdown=report_content,
-            incident_id=incident_id,
-            severity=severity,
-            affected_node=affected_node,
-            timestamp=datetime.now()
-        )
-        
-        # Use filename without extension as report_id
-        metadata["report_id"] = store_metadata["filename"].replace(".md", "")
-        metadata["filepath"] = store_metadata["filepath"]
-    else:
-        # Low severity reports are not indexed, just save with basic naming
-        from pathlib import Path
-        reports_dir = Path("reports")
-        reports_dir.mkdir(exist_ok=True)
-        
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        filename = f"report_{timestamp}_{severity}.md"
-        filepath = reports_dir / filename
-        
-        with open(filepath, "w", encoding="utf-8") as f:
-            f.write(report_content)
-        
-        metadata["report_id"] = filename.replace(".md", "")
-        metadata["filepath"] = str(filepath)
+    with open(metadata_file, "w", encoding="utf-8") as f:
+        json.dump(report_metadata, f, indent=2)
+    
+    # Return metadata for API response
+    metadata = {
+        "report_id": filename.replace(".md", ""),
+        "incident_id": incident_id,
+        "severity": severity,
+        "filepath": str(filepath),
+        "execution_time": execution_time,
+        "generated_at": current_time
+    }
     
     return report_content, metadata

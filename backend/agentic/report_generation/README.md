@@ -1,20 +1,22 @@
 # Report Generation Agent
 
-AI-powered incident report generation system using LangGraph multi-agent workflow and Pathway document store with vector search capabilities.
+AI-powered incident report generation system using LangGraph multi-agent workflow with file-based storage.
+
+**Location**: `backend/agentic/report_generation/`
 
 ## Overview
 
-This system generates comprehensive incident reports from RCA (Root Cause Analysis) data and creates weekly summaries with trend analysis. It uses:
+This system generates comprehensive incident reports from telemetry-based RCA (Root Cause Analysis) output and creates weekly summaries with trend analysis. It uses:
 
-- **LangGraph**: Multi-agent workflow (Planner → ChartGen → Drafter)
+- **LangGraph**: Multi-agent workflow (Planner → Drafter)
 - **Google Gemini**: LLM for report generation
-- **Pathway DocumentStore**: Vector search with Cohere embeddings
+- **File-based Storage**: Simple JSON metadata + Markdown reports
 - **FastAPI**: REST API endpoints for integration
 
 ## Architecture
 
 ```
-report generation agent/
+backend/agentic/report_generation/
 ├── api/                      # FastAPI application
 │   ├── main.py              # API entry point
 │   ├── routes/              # API endpoints
@@ -24,11 +26,9 @@ report generation agent/
 │   └── weekly_generator.py  # Weekly summary generation
 ├── agents/                   # LLM agents
 │   ├── planner_agent.py     # Report structure planning
-│   ├── chart_gen_agent.py   # Mermaid diagram generation
 │   ├── drafter_agent.py     # Final report drafting
 │   └── weekly_summarizer_agent.py  # Weekly summaries
 ├── langgraph_workflow/       # Multi-agent workflow orchestration
-├── examples/                 # Sample API requests
 ├── reports/                  # Generated incident reports (auto-created)
 └── weekly_reports/           # Generated weekly summaries (auto-created)
 ```
@@ -37,21 +37,18 @@ report generation agent/
 
 - Python 3.13+
 - Google Gemini API key
-- Cohere API key (for embeddings)
 
 ## Installation
 
-1. **Install dependencies**:
-```bash
-pip install -r requirements.txt
-```
+1. **Dependencies are managed at the agentic level**:
+   - No separate requirements.txt - dependencies are in `backend/agentic/requirements.txt`
+   - Install from the agentic directory: `cd backend/agentic && pip install -r requirements.txt`
 
 2. **Configure environment variables**:
-Create a `.env` file in the project root:
+Create/update `.env` file in `backend/agentic/`:
 ```env
 GOOGLE_API_KEY=your_google_api_key_here
 GOOGLE_MODEL=gemini-pro
-COHERE_API_KEY=your_cohere_api_key_here
 ```
 
 ## Usage
@@ -59,7 +56,8 @@ COHERE_API_KEY=your_cohere_api_key_here
 ### Starting the API Server
 
 ```bash
-uvicorn api.main:app --host 0.0.0.0 --port 8085
+cd backend/agentic/report_generation
+uvicorn agentic.report_generation.api.main:app --host 0.0.0.0 --port 8085
 ```
 
 API will be available at: `http://localhost:8085`  
@@ -73,36 +71,30 @@ Interactive docs at: `http://localhost:8085/docs`
 
 Generates a detailed incident report from pipeline topology and RCA data.
 
-**Request Body**:
+**Request Body** (matches `RCAAnalysisOutput` from `backend/agentic/rca/output.py`):
 ```json
 {
-  "pipeline_topology": {
-    "pipeline_name": "Your Pipeline",
-    "steps": [
-      {
-        "step_id": "node-001",
-        "step_name": "Node Name",
-        "step_type": "transformation",
-        "dependencies": []
-      }
-    ]
-  },
   "rca_output": {
-    "incident_id": "INC-2025-12-03-0847",
-    "incident_time": "2025-12-03T08:47:00Z",
-    "severity": "critical",
-    "root_cause": "Memory leak in transformation node",
-    "affected_components": [
+    "severity": "CRITICAL",
+    "affected_services": [
+      "transform-001",
+      "ml-tide-001",
+      "egress-api-001"
+    ],
+    "narrative": "Critical SLA breach detected on Transformation Node following deployment v1.3. P99 latency spiked from 85ms to 342ms causing timeout errors and downstream backpressure, affecting 12,487 transactions.",
+    "error_citations": [
       {
-        "component_name": "transform-001",
-        "impact_level": "critical",
-        "error_details": "P99 latency spike to 342ms"
+        "timestamp": "2025-12-03T08:08:00Z",
+        "service": "transform-001",
+        "message": "Deployment v1.3 initiated with memory-intensive operations"
+      },
+      {
+        "timestamp": "2025-12-03T08:18:00Z",
+        "service": "transform-001",
+        "message": "GC overhead detected: Old Gen collection took 2.3s, heap 89%"
       }
     ],
-    "resolution_steps": [
-      "Rollback to v1.2",
-      "Increase memory allocation"
-    ]
+    "root_cause": "Bad deployment v1.3 introduced memory-intensive data enrichment operations without sufficient container memory allocation, triggering frequent garbage collection pauses."
   }
 }
 ```
@@ -112,8 +104,7 @@ Generates a detailed incident report from pipeline topology and RCA data.
 {
   "success": true,
   "report_content": "# Incident Report\n...",
-  "report_id": "incident_20251203_084700_critical",
-  "incident_id": "INC-2025-12-03-0847",
+  "report_id": "INC-20251203_084700-transform-001",
   "severity": "critical",
   "generated_at": "2025-12-03T08:47:00Z",
   "processing_time_seconds": 25.3
@@ -166,25 +157,52 @@ curl -X POST http://localhost:8085/api/v1/reports/incident \
   -d @examples/incident_request_example.json
 ```
 
-## Document Store
+## RCA Output Schema
 
-The system uses Pathway DocumentStore for:
-- **Vector Search**: Cohere embeddings (1024 dimensions)
-- **Streaming Monitoring**: Auto-indexes new reports in real-time
-- **Duplicate Filtering**: Keeps only unique incidents by incident_id
+The report generation system expects RCA output from **telemetry data analysis** to match the `RCAAnalysisOutput` structure from `backend/agentic/rca/output.py`:
 
-Reports are stored in `reports/` directory with metadata tracking in `reports/metadata.jsonl`.
+```python
+class ErrorCitation(BaseModel):
+    timestamp: str  # Timestamp of the log entry
+    service: str    # Service or scope name where the error occurred
+    message: str    # Relevant error message or excerpt from the log body
+
+class RCAAnalysisOutput(BaseModel):
+    severity: str                    # CRITICAL, HIGH, MEDIUM, or LOW
+    affected_services: List[str]     # Services affected (primary service first)
+    narrative: str                   # Clear explanation of what happened (max 5 sentences)
+    error_citations: List[ErrorCitation]  # 2-5 specific log entries that support the analysis
+    root_cause: str                  # Technical root cause (specific and actionable)
+```
+
+**Key Features**:
+- **Telemetry-Based**: RCA is performed on telemetry data (logs, metrics, traces), not pipeline topology
+- **Auto-generated ID**: System generates `incident_id` as `INC-{timestamp}-{primary_service}`
+- **Service-Centric**: Focuses on `affected_services` identified from telemetry
+- **Evidence-Based**: `error_citations` provide concrete evidence from logs
+- **No Topology Required**: Reports are generated purely from RCA output without needing pipeline diagrams
+
+## File-Based Storage
+
+The system uses simple file-based storage:
+- **Reports Directory**: `reports/` - stores incident reports
+- **File Format**: 
+  - `incident_{timestamp}_{severity}.md` - Markdown report content
+  - `incident_{timestamp}_{severity}.json` - JSON metadata with incident details
+- **Weekly Reports**: Stored in `weekly_reports/` directory
+- **No Database Required**: All data stored as files for simplicity and portability
 
 ## Report Features
 
 ### Incident Reports Include:
-- Executive summary
-- Root cause analysis
-- Mermaid diagrams (pipeline topology with affected nodes)
-- Impact assessment
-- Resolution steps
-- Timeline reconstruction
-- Recommendations
+- Executive summary with key findings
+- Root cause analysis from telemetry data
+- Affected services analysis
+- Error log citations table (timestamp, service, message)
+- Impact assessment based on telemetry metrics
+- Timeline reconstruction from error citations
+- Remediation recommendations
+- All data presented in tables and formatted text (no charts/diagrams)
 
 ### Weekly Reports Include:
 - Executive summary
@@ -203,7 +221,6 @@ Reports are stored in `reports/` directory with metadata tracking in `reports/me
 |----------|----------|---------|-------------|
 | `GOOGLE_API_KEY` | Yes | - | Google Gemini API key |
 | `GOOGLE_MODEL` | No | `gemini-pro` | Gemini model to use |
-| `COHERE_API_KEY` | Yes | - | Cohere API key for embeddings |
 
 ### API Server Settings
 
@@ -224,12 +241,11 @@ Edit `api/main.py` to configure:
 ### Programmatic Usage
 
 ```python
-from core.report_generator import generate_incident_report
-from core.weekly_generator import generate_weekly_report
+from agentic.report_generation.core.report_generator import generate_incident_report
+from agentic.report_generation.core.weekly_generator import generate_weekly_report
 
-# Generate incident report
+# Generate incident report from telemetry-based RCA
 report_content, metadata = generate_incident_report(
-    pipeline_topology=topology_dict,
     rca_output=rca_dict
 )
 
@@ -247,13 +263,13 @@ weekly_content, metadata = generate_weekly_report(
 FROM python:3.13-slim
 
 WORKDIR /app
-COPY . /app
+COPY backend/agentic /app/agentic
 
-RUN pip install -r requirements.txt
+RUN pip install -r /app/agentic/requirements.txt
 
 EXPOSE 8085
 
-CMD ["uvicorn", "api.main:app", "--host", "0.0.0.0", "--port", "8085"]
+CMD ["uvicorn", "agentic.report_generation.api.main:app", "--host", "0.0.0.0", "--port", "8085"]
 ```
 
 ## Development
@@ -262,9 +278,10 @@ CMD ["uvicorn", "api.main:app", "--host", "0.0.0.0", "--port", "8085"]
 
 - **`api/`**: FastAPI routes and schemas (REST API layer)
 - **`core/`**: Business logic (report generation workflows)
-- **`agents/`**: LLM agents (Planner, ChartGen, Drafter, Summarizer)
+- **`agents/`**: LLM agents (Planner, Drafter, Summarizer)
 - **`langgraph_workflow/`**: Multi-agent orchestration
-- **`document_store_manager.py`**: Pathway DocumentStore integration
+- **`reports/`**: Generated incident reports (auto-created)
+- **`weekly_reports/`**: Generated weekly summaries (auto-created)
 
 ### Adding New Features
 
@@ -280,23 +297,19 @@ CMD ["uvicorn", "api.main:app", "--host", "0.0.0.0", "--port", "8085"]
 - Ensure `.env` file exists with valid API key
 - Check environment variables are loaded
 
-**"JSON cannot be partitioned" (Pathway error)**
-- This was fixed - Pathway now only monitors `.md` files, not `metadata.jsonl`
-
-**"can't compare offset-naive and offset-aware datetimes"**
-- This was fixed - dates are now normalized to UTC timezone
-
 **Weekly report shows "Unknown" for everything**
-- This was fixed - reports now parse full markdown content for rich data
+- Ensure incident reports exist in `reports/` directory
+- Check that both `.md` and `.json` files are present for each incident
 
-**Duplicate incidents in weekly report**
-- This was fixed - duplicate filtering by incident_id is now implemented
+**Reports not being found**
+- Verify the `reports/` directory exists and contains incident files
+- Check file naming format: `incident_{timestamp}_{severity}.md|.json`
 
 ## Performance
 
-- **Incident Report Generation**: 25-30 seconds (includes LLM calls and Mermaid chart generation)
+- **Incident Report Generation**: 15-25 seconds (includes LLM calls for analysis and drafting)
 - **Weekly Report Generation**: 10-15 seconds (depends on number of incidents)
-- **Vector Search**: < 1 second (Pathway with Cohere embeddings)
+- **File I/O**: < 1 second (reading/writing reports from file system)
 
 ## License
 

@@ -5,7 +5,7 @@ import warnings
 import time
 import psutil
 import os
-from stream_ml.model import BaseModel as StreamBaseModel, BaseModelConfig
+from .model import BaseModel as StreamBaseModel, BaseModelConfig
 from numpy.typing import NDArray
 from abc import ABC, abstractmethod
 from pydantic import BaseModel as PydanticBaseModel, Field

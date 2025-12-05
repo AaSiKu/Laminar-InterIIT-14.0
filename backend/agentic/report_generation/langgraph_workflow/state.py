@@ -17,12 +17,8 @@ class ReportState(TypedDict):
     # Planner outputs
     report_plan: Dict[str, Any]
     
-    # Parallel processing outputs
+    # Rule matching output
     matched_rules: List[Dict[str, Any]]
-    chart_data: List[Dict[str, Any]]
-    
-    # Chart generation output
-    charts: List[Dict[str, str]]
     
     # Final output
     final_report: str
