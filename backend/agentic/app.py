@@ -44,7 +44,7 @@ planner_executor: CompiledStateGraph = None
 
 # Runbook global instances
 orchestrator: Optional[Any] = None
-discovery_agent: Optional[Any] = None
+discovery_agent: Optional[LLMDiscoveryAgent] = None
 registry: Optional[Any] = None
 
 # Use OpenAI's o1 reasoning model for complex analysis
@@ -827,7 +827,7 @@ if RUNBOOK_AVAILABLE:
             return DiscoveryResponse(
                 status="pending_secrets" if secrets_required else "completed",
                 actions_discovered=len(actions),
-                actions=[a.dict() for a in actions],
+                actions=[a.model_dump() for a in actions],
                 registered=registered,
                 summary=summary,
                 secrets_required=secrets_required if secrets_required else None

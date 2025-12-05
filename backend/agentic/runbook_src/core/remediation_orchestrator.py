@@ -12,10 +12,10 @@ from enum import Enum
 from datetime import datetime
 import uuid
 
-from src.execution.execution_engine import ActionExecutor
-from src.execution.execution_adapter import ExecutionAdapter
-from src.core.runbook_registry import RunbookRegistry, RemediationAction
-from src.core.llm_suggestion_service import LLMSuggestionService, ErrorRegistrySuggestion
+from ..execution.execution_engine import ActionExecutor
+from ..execution.execution_adapter import ExecutionAdapter
+from ..core.runbook_registry import RunbookRegistry, RemediationAction
+from ..core.llm_suggestion_service import LLMSuggestionService, ErrorRegistrySuggestion
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)

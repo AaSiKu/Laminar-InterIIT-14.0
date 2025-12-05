@@ -11,18 +11,18 @@ import logging
 from datetime import datetime
 from contextlib import asynccontextmanager
 
-from src.core.remediation_orchestrator import RemediationOrchestrator, ConfidenceLevel
-from src.core.llm_suggestion_service import LLMSuggestionService
-from src.execution.execution_engine import ActionExecutor
-from src.core.runbook_registry import RunbookRegistry, RemediationAction
-from src.execution.safety_validator import SafetyValidator
-from src.services.secrets_manager import SecretsManager
-from src.services.ssh_client import SSHClientFactory
+from ..core.remediation_orchestrator import RemediationOrchestrator, ConfidenceLevel
+from ..core.llm_suggestion_service import LLMSuggestionService
+from ..execution.execution_engine import ActionExecutor
+from ..core.runbook_registry import RunbookRegistry, RemediationAction
+from ..execution.safety_validator import SafetyValidator
+from ..services.secrets_manager import SecretsManager
+from ..services.ssh_client import SSHClientFactory
 try:
     from otel_client import OTelClient
 except ImportError:
     OTelClient = None
-from src.agents.llm_discovery_agent import LLMDiscoveryAgent, RegistryIntegration
+from ..agents.llm_discovery_agent import LLMDiscoveryAgent, RegistryIntegration
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -831,7 +831,7 @@ async def provision_secrets(request: SecretsProvisionRequest):
         ]
     }
     """
-    from src.services.secrets_manager import get_secrets_manager
+    from ..services.secrets_manager import get_secrets_manager
     
     secrets_mgr = get_secrets_manager()
     secrets_saved = 0

@@ -11,8 +11,8 @@ import pandas as pd
 from datetime import datetime
 from dotenv import load_dotenv
 
-from src.core.runbook_registry import RunbookRegistry, RemediationAction
-from src.agents.llm_discovery_agent import LLMDiscoveryAgent
+from ..core.runbook_registry import RunbookRegistry, RemediationAction
+from ..agents.llm_discovery_agent import LLMDiscoveryAgent
 
 load_dotenv()
 

@@ -53,7 +53,7 @@ async def rca(init_rca_request: InitRCA):
                 # Create metric alert from the summarized data
                 metric_alert = MetricAlert(
                     metric_description=init_rca_request.description,
-                    breach_time_utc=init_rca_request,
+                    breach_time_utc=init_rca_request.breach_time_utc,
                     breach_value=init_rca_request.breach_value
                 )
                 

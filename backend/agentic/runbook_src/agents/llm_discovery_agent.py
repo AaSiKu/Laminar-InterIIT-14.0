@@ -17,9 +17,9 @@ from pydantic import BaseModel, Field
 from langchain_google_genai import ChatGoogleGenerativeAI
 from dotenv import load_dotenv
 
-from src.core.runbook_registry import RunbookRegistry, RemediationAction
-from src.utils.discovery_protocols import ScriptHostClient, DocumentationFetcherProtocol, DefaultDocumentationFetcher
-from src.agents.safe_discovery_agent import SafeDiscoveryAgent
+from ..core.runbook_registry import RunbookRegistry, RemediationAction
+from ..utils.discovery_protocols import ScriptHostClient, DocumentationFetcherProtocol, DefaultDocumentationFetcher
+from ..agents.safe_discovery_agent import SafeDiscoveryAgent
 
 load_dotenv()
 
