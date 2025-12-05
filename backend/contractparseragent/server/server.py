@@ -24,6 +24,7 @@ from contractparseragent.ingestion import (
     generate_metrics_from_pdf,
     load_metrics_from_file,
 )
+from contractparseragent.layout_utils import apply_layout
 
 app = FastAPI()
 
@@ -155,6 +156,7 @@ class WSAgenticSession:
                     flowchart_data["metric_mapping"] = mapping_data["metric_mapping"]
 
                 self.phase1_flowchart = flowchart_data
+                apply_layout(self.phase1_flowchart)
                 self._prepare_filter_metadata()
                 await ws.send_json({
                     "type": "phase1_complete",

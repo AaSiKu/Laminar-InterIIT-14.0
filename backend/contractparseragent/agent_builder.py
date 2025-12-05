@@ -13,7 +13,7 @@ from pathlib import Path
 from typing import List, Dict, Any, Optional, Tuple
 
 # Import layout utility for x/y assignment
-from contractparseragent.layout_utils import compute_layout
+from contractparseragent.layout_utils import apply_layout
 from contractparseragent.node_tool import get_node_pydantic_schema
 from anthropic import Anthropic
 from dotenv import load_dotenv
@@ -435,21 +435,11 @@ class AgenticPipelineBuilder:
                 new_edge["target"] = id_map[tgt]
                 final_edges.append(new_edge)
 
-        # --- Assign x/y positions to all nodes ---
-        edges_dict: Dict[str, List[str]] = {}
-        for edge in final_edges:
-            src = edge.get("source")
-            tgt = edge.get("target")
-            if src is not None and tgt is not None:
-                edges_dict.setdefault(src, []).append(tgt)
-        positions = compute_layout(final_nodes, edges_dict)
-        for node in final_nodes:
-            nid = node.get("id")
-            pos = positions.get(nid, {"x": 0, "y": 0})
-            node["position"] = {"x": pos["x"], "y": pos["y"]}
+        merged_flowchart = {"nodes": final_nodes, "edges": final_edges}
+        apply_layout(merged_flowchart)
 
-        normalized_nodes = [self._normalize_node_structure(node) for node in final_nodes]
-        normalized_edges = self._normalize_edges(final_edges)
+        normalized_nodes = [self._normalize_node_structure(node) for node in merged_flowchart["nodes"]]
+        normalized_edges = self._normalize_edges(merged_flowchart["edges"])
 
         merged = {
             "nodes": normalized_nodes,
