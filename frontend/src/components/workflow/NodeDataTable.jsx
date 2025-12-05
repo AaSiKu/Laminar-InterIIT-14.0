@@ -20,7 +20,7 @@ import NavigateNextIcon from '@mui/icons-material/NavigateNext';
 import NavigateBeforeIcon from '@mui/icons-material/NavigateBefore';
 import AutorenewIcon from '@mui/icons-material/Autorenew';
 
-const NodeDataTable = ({ nodeId, isVisible, nodeRef, onMouseEnter, onMouseLeave }) => {
+const NodeDataTable = ({ nodeId, isVisible, nodeRef, onMouseEnter, onMouseLeave}) => {
   const theme = useTheme();
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -29,7 +29,7 @@ const NodeDataTable = ({ nodeId, isVisible, nodeRef, onMouseEnter, onMouseLeave 
   const [totalRows, setTotalRows] = useState(0);
   const [hasMore, setHasMore] = useState(false);
   const [columns, setColumns] = useState([]);
-  const [autoRefresh, setAutoRefresh] = useState(true);
+  const [autoRefresh, setAutoRefresh] = useState(false);
   const [position, setPosition] = useState({ top: '100%', left: '0', right: 'auto', bottom: 'auto' });
   const [rowsPerPage, setRowsPerPage] = useState(5);
   const [countdown, setCountdown] = useState(10);

@@ -1,10 +1,47 @@
-import { Box, Typography, TextField, MenuItem, Select, FormControl, IconButton } from "@mui/material";
-import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
+import {
+  Box,
+  Typography,
+  TextField,
+  Autocomplete,
+  Chip,
+  Avatar,
+  ListItemAvatar,
+  MenuItem,
+  Select,
+  FormControl,
+  IconButton,
+  useTheme,
+} from "@mui/material";
 import UploadFileIcon from "@mui/icons-material/UploadFile";
 import CloseIcon from "@mui/icons-material/Close";
-import aiIcon from "../../assets/ai_icon.svg";
+import aiIcon from "../../assets/ai_icon.svg";;
 
-const BasicInformationForm = ({ formData, onInputChange, onFileChange }) => {
+const BasicInformationForm = ({ formData, onInputChange, onFileChange, allUsers, setAllUsers, loadingUsers, setLoadingUsers }) => {
+
+  // Load users when Autocomplete dropdown is opened
+  const handleOpenAutocomplete = async () => {
+    // Only fetch if we haven't loaded users yet
+    if (allUsers.length === 0 && !loadingUsers) {
+      setLoadingUsers(true);
+      try {
+        const users = await fetchAllUsers();
+        // Handle both array response and object with data property
+        const usersArray = Array.isArray(users) ? users : users?.data || [];
+        console.log("Loaded users:", usersArray); // Debug log
+        console.log("Setting allUsers state with:", usersArray.length, "users");
+        console.log("Users array:", JSON.stringify(usersArray, null, 2));
+        setAllUsers(usersArray);
+      } catch (error) {
+        console.error("Error loading users:", error);
+        setAllUsers([]);
+      } finally {
+        setLoadingUsers(false);
+      }
+    } else {
+      console.log("Users already loaded:", allUsers.length);
+      console.log("Current allUsers:", allUsers);
+    }
+  };
   return (
     <Box sx={{ display: "flex", flexDirection: "column", gap: 2.5 }}>
       {/* Name Field */}
@@ -35,7 +72,8 @@ const BasicInformationForm = ({ formData, onInputChange, onFileChange }) => {
               "&:hover": { bgcolor: "background.elevation1" },
               "&.Mui-focused": {
                 bgcolor: "background.elevation1",
-                boxShadow: (theme) => `0 0 0 2px ${theme.palette.primary.light}`,
+                boxShadow: (theme) =>
+                  `0 0 0 2px ${theme.palette.primary.light}`,
               },
             },
             "& .MuiFilledInput-input": {
@@ -172,7 +210,8 @@ const BasicInformationForm = ({ formData, onInputChange, onFileChange }) => {
               "&:hover": { bgcolor: "background.elevation1" },
               "&.Mui-focused": {
                 bgcolor: "background.elevation1",
-                boxShadow: (theme) => `0 0 0 2px ${theme.palette.primary.light}`,
+                boxShadow: (theme) =>
+                  `0 0 0 2px ${theme.palette.primary.light}`,
               },
             },
             "& .MuiFilledInput-input": {
@@ -186,7 +225,7 @@ const BasicInformationForm = ({ formData, onInputChange, onFileChange }) => {
       </Box>
 
       {/* Members Field */}
-      <Box sx={{ display: "flex", flexDirection: "column", gap: 0.75 }}>
+      {/* <Box sx={{ display: "flex", flexDirection: "column", gap: 0.75 }}>
         <Typography
           component="label"
           variant="subtitle2"
@@ -237,10 +276,266 @@ const BasicInformationForm = ({ formData, onInputChange, onFileChange }) => {
             <MenuItem value="viewer">Viewer</MenuItem>
           </Select>
         </FormControl>
+      </Box> */}
+
+      {/* Members Field */}
+      <Box sx={{ display: "flex", flexDirection: "column", gap: 0.75 }}>
+        <Typography
+          component="label"
+          variant="subtitle2"
+          sx={{
+            fontWeight: 600,
+            color: "text.primary",
+          }}
+        >
+          Members
+        </Typography>
+        <Autocomplete
+          multiple
+          options={allUsers || []}
+          value={formData.selectedMembers || []}
+          onOpen={(event) => {
+            console.log("Autocomplete opened, allUsers:", allUsers.length);
+            handleOpenAutocomplete();
+          }}
+          openOnFocus
+          disablePortal={true}
+          freeSolo={false}
+          disableCloseOnSelect
+          clearOnBlur={false}
+          onChange={(event, newValue) => {
+            console.log("Selected members:", newValue);
+            setFormData({
+              ...formData,
+              selectedMembers: newValue,
+            });
+          }}
+          onInputChange={(event, value, reason) => {
+            console.log("Input changed:", value, reason);
+            console.log("Current allUsers:", allUsers);
+          }}
+          getOptionLabel={(option) => {
+            if (!option || typeof option !== "object") return "";
+            const name = option.full_name || option.name || `User ${option.id}`;
+            const email = option.email || "";
+            return email ? `${name} <${email}>` : name;
+          }}
+          isOptionEqualToValue={(option, value) => {
+            if (!option || !value) return false;
+            return String(option.id) === String(value.id);
+          }}
+          filterOptions={(options, params) => {
+            console.log("Filtering options:", options.length, "options");
+            const searchText = params.inputValue
+              ? params.inputValue.toLowerCase().trim()
+              : "";
+            if (!searchText) {
+              // Show all options when no search text
+              console.log(
+                "No search text, returning all",
+                options.length,
+                "options"
+              );
+              return options;
+            }
+            // Filter options based on search text
+            const filtered = options.filter((option) => {
+              if (!option) return false;
+              const name = (
+                option.full_name ||
+                option.name ||
+                ""
+              ).toLowerCase();
+              const email = (option.email || "").toLowerCase();
+              return name.includes(searchText) || email.includes(searchText);
+            });
+            console.log("Filtered to", filtered.length, "options");
+            return filtered;
+          }}
+          loading={loadingUsers}
+          noOptionsText={loadingUsers ? "Loading users..." : "No users found"}
+          renderInput={(params) => (
+            <TextField
+              {...params}
+              variant="filled"
+              placeholder="Add Viewers"
+              InputProps={{
+                ...params.InputProps,
+                disableUnderline: true,
+              }}
+              sx={{
+                "& .MuiFilledInput-root": {
+                  bgcolor: "background.elevation2",
+                  borderRadius: 2,
+                  minHeight: "56px",
+                  "&:hover": { bgcolor: "background.elevation1" },
+                  "&.Mui-focused": {
+                    bgcolor: "background.elevation1",
+                    boxShadow: (theme) =>
+                      `0 0 0 2px ${theme.palette.primary.light}`,
+                  },
+                },
+                "& .MuiFilledInput-input": {
+                  py: 1.5,
+                  px: 2,
+                  fontSize: "0.875rem",
+                },
+              }}
+            />
+          )}
+          renderTags={(value, getTagProps) =>
+            value.map((option, index) => {
+              const { key, ...tagProps } = getTagProps({ index });
+              const name =
+                option.full_name || option.name || `User ${option.id}`;
+              const email = option.email || "";
+              return (
+                <Chip
+                  key={key}
+                  label={email ? `${name} <${email}>` : name}
+                  {...tagProps}
+                  sx={{
+                    bgcolor: "primary.light",
+                    color: "primary.contrastText",
+                    "& .MuiChip-deleteIcon": {
+                      color: "primary.contrastText",
+                    },
+                  }}
+                />
+              );
+            })
+          }
+          renderOption={(props, option) => {
+            if (!option) return null;
+            const name = option.full_name || option.name || `User ${option.id}`;
+            const email = option.email || "";
+            const avatarUrl = `https://avatar.iran.liara.run/public/boy?username=${encodeURIComponent(
+              name || option.id || `user${option.id}`
+            )}&size=40`;
+
+            // Extract key from props if it exists
+            const { key, ...otherProps } = props;
+
+            return (
+              <li {...otherProps} key={key || option.id}>
+                <Box
+                  sx={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 1.5,
+                    py: 1.5,
+                    px: 2,
+                    cursor: "pointer",
+                    width: "100%",
+                    "&:hover": {
+                      bgcolor: "action.hover",
+                    },
+                  }}
+                >
+                  <Avatar
+                    src={avatarUrl}
+                    alt={name}
+                    sx={{
+                      width: 40,
+                      height: 40,
+                      flexShrink: 0,
+                    }}
+                  >
+                    {name.charAt(0).toUpperCase()}
+                  </Avatar>
+                  <Box sx={{ flex: 1, minWidth: 0 }}>
+                    <Typography
+                      sx={{
+                        fontSize: "0.875rem",
+                        fontWeight: 500,
+                        color: "text.primary",
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                        whiteSpace: "nowrap",
+                      }}
+                    >
+                      {name}
+                    </Typography>
+                    <Typography
+                      sx={{
+                        fontSize: "0.75rem",
+                        color: "text.secondary",
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                        whiteSpace: "nowrap",
+                      }}
+                    >
+                      {email}
+                    </Typography>
+                  </Box>
+                </Box>
+              </li>
+            );
+          }}
+          getOptionKey={(option) => String(option.id)}
+          slotProps={{
+            paper: {
+              sx: {
+                zIndex: 10001,
+                maxHeight: 400,
+                boxShadow: 3,
+                mt: 1,
+                "& .MuiAutocomplete-listbox": {
+                  padding: 0,
+                  maxHeight: "400px",
+                  overflowY: "auto",
+                  overflowX: "hidden",
+                  "&::-webkit-scrollbar": {
+                    width: "8px",
+                  },
+                  "&::-webkit-scrollbar-track": {
+                    background: "transparent",
+                  },
+                  "&::-webkit-scrollbar-thumb": {
+                    background: "rgba(0, 0, 0, 0.2)",
+                    borderRadius: "4px",
+                    "&:hover": {
+                      background: "rgba(0, 0, 0, 0.3)",
+                    },
+                  },
+                  "& .MuiAutocomplete-option": {
+                    padding: 0,
+                  },
+                },
+              },
+            },
+            popper: {
+              placement: "bottom-start",
+              disablePortal: true,
+              container: (anchorEl) => anchorEl?.parentElement || document.body,
+              modifiers: [
+                {
+                  name: "offset",
+                  options: {
+                    offset: [0, 4],
+                  },
+                },
+              ],
+            },
+          }}
+          ListboxProps={{
+            style: {
+              maxHeight: "400px",
+              overflowY: "auto",
+              overflowX: "hidden",
+            },
+          }}
+          componentsProps={{
+            paper: {
+              sx: {
+                zIndex: 10001,
+              },
+            },
+          }}
+        />
       </Box>
     </Box>
   );
 };
 
 export default BasicInformationForm;
-

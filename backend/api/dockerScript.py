@@ -33,11 +33,26 @@ def run_pipeline_container(client: docker.DockerClient, pipeline_id: str):
     # Ensure images exist
     try:
         client.images.get(PIPELINE_IMAGE)
-        client.images.get(POSTGRES_IMAGE)
-        client.images.get(AGENTIC_IMAGE)
-        logger.info("Required images found.")
+        logger.info(f"Found image: {PIPELINE_IMAGE}")
     except docker.errors.ImageNotFound:
-        raise docker.errors.ImageNotFound("Images not built. Run `docker compose build` first.")
+        logger.error(f"Image not found: {PIPELINE_IMAGE}")
+        raise docker.errors.ImageNotFound(f"Image '{PIPELINE_IMAGE}' not found. Run `docker compose build` first.")
+    
+    try:
+        client.images.get(POSTGRES_IMAGE)
+        logger.info(f"Found image: {POSTGRES_IMAGE}")
+    except docker.errors.ImageNotFound:
+        logger.error(f"Image not found: {POSTGRES_IMAGE}")
+        raise docker.errors.ImageNotFound(f"Image '{POSTGRES_IMAGE}' not found. Run `docker compose build` first.")
+    
+    try:
+        client.images.get(AGENTIC_IMAGE)
+        logger.info(f"Found image: {AGENTIC_IMAGE}")
+    except docker.errors.ImageNotFound:
+        logger.error(f"Image not found: {AGENTIC_IMAGE}")
+        raise docker.errors.ImageNotFound(f"Image '{AGENTIC_IMAGE}' not found. Run `docker compose build` first.")
+    
+    logger.info("All required images found.")
 
     # Ensure container does not already exist
     try:

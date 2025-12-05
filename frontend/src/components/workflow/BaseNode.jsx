@@ -19,6 +19,8 @@ import {
 } from "@mui/icons-material";
 import NodeDataTable from "./NodeDataTable";
 import "../../css/BaseNode.css";
+import { useGlobalContext } from "../../context/GlobalContext";
+import { useGlobalWorkflow } from "../../context/GlobalWorkflowContext";
 
 // Helper function to get icon based on node category
 const getCategoryIcon = (category, label) => {
@@ -72,6 +74,7 @@ export const BaseNode = memo(
   }) => {
     const theme = useTheme();
     const { setNodes, getNode } = useReactFlow();
+    const { status } = useGlobalWorkflow();
 
     // Convert properties to array and get top 3
     const getDisplayProperties = () => {
@@ -561,13 +564,15 @@ export const BaseNode = memo(
         </Paper>
 
         {/* Node Data Table - shown on hover */}
-        <NodeDataTable
-          nodeId={id}
-          isVisible={showDataTable}
-          nodeRef={nodeRef}
-          onMouseEnter={handleTableMouseEnter}
-          onMouseLeave={handleTableMouseLeave}
-        />
+        {status == "Running" ? (
+          <NodeDataTable
+            nodeId={id}
+            isVisible={showDataTable}
+            nodeRef={nodeRef}
+            onMouseEnter={handleTableMouseEnter}
+            onMouseLeave={handleTableMouseLeave}
+          />
+        ) : null}
       </div>
     );
   }

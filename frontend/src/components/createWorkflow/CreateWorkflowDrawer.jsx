@@ -1,7 +1,21 @@
 import { useState, useEffect, useCallback } from "react";
-import { Typography, Slide, Box, IconButton, Button, CircularProgress } from "@mui/material";
+import {
+  Typography,
+  Button,
+  IconButton,
+  Slide,
+  Box,
+  CircularProgress,
+  Snackbar,
+  Alert,
+  useTheme,
+} from "@mui/material";
 import CloseIcon from "@mui/icons-material/Close";
 import Playground from "../workflow/Playground";
+import {
+  fetchAllUsers,
+  createPipelineWithDetails,
+} from "../../utils/developerDashboard.api";
 import StepSidebar, { STEP_SIDEBAR_COLLAPSED_WIDTH } from "./StepSidebar";
 import BasicInformationForm from "./BasicInformationForm";
 import AddAIAgent from "./AddAIAgent";
@@ -11,7 +25,6 @@ const steps = [
   { id: 1, label: "Basic Information" },
   { id: 2, label: "AI Assistant" },
   { id: 3, label: "Add AI Agents" },
-  { id: 4, label: "Done" },
 ];
 
 const CreateWorkflowDrawer = ({ open, onClose, onComplete }) => {
@@ -22,21 +35,36 @@ const CreateWorkflowDrawer = ({ open, onClose, onComplete }) => {
     description: "",
     members: "",
     document: null,
+    selectedMembers: [],
     agent: "",
+  });
+  const [snackbar, setSnackbar] = useState({
+    open: false,
+    message: "",
+    severity: "success",
   });
 
   // Pipeline nodes and edges state (managed here, passed to Playground)
   const [nodes, setNodes] = useState([]);
   const [edges, setEdges] = useState([]);
-  
+  const [allUsers, setAllUsers] = useState([]);
+  const [loadingUsers, setLoadingUsers] = useState(false);
+
   // AI chatbot state
   const [isGenerating, setIsGenerating] = useState(false);
 
-  // Reset form when drawer opens
+  // TODO: not to do so Reset form when drawer opens
   useEffect(() => {
     if (open) {
       setCurrentStep(1);
-      setFormData({ name: "", description: "", members: "", document: null, agent: "" });
+      setFormData({
+        name: "",
+        description: "",
+        members: "",
+        document: null,
+        agent: "",
+        selectedMembers: [],
+      });
       setNodes([]);
       setEdges([]);
       setIsGenerating(false);
@@ -63,16 +91,66 @@ const CreateWorkflowDrawer = ({ open, onClose, onComplete }) => {
     if (currentStep < steps.length) {
       setCurrentStep(currentStep + 1);
     } else {
-      // Complete workflow creation
-      if (onComplete) {
-        onComplete({
-          ...formData,
-          nodes,
-          edges,
+      try {
+        // Extract viewer IDs from selected members
+        const viewerIds = formData.selectedMembers.map((user) =>
+          String(user.id)
+        );
+
+        // Build pipeline structure from nodes and edges
+        const pipeline = {
+          nodes: nodes || [],
+          edges: edges || [],
+          viewport: {
+            x: 0,
+            y: 0,
+            zoom: 1,
+          },
+        };
+
+        // Call the new API to create pipeline with all details
+        const result = await createPipelineWithDetails(
+          formData.name,
+          formData.description,
+          viewerIds,
+          pipeline
+        );
+
+        // Show success message
+        setSnackbar({
+          open: true,
+          message: "Pipeline created successfully!",
+          severity: "success",
+        });
+
+        // Complete workflow creation
+        if (onComplete) {
+          onComplete({
+            ...formData,
+            nodes,
+            edges,
+            pipelineId: result.pipeline_id,
+            versionId: result.version_id,
+          });
+        }
+
+        // Close drawer after a short delay to show the success message
+        setTimeout(() => {
+          onClose();
+        }, 1500);
+      } catch (error) {
+        console.error("Error creating workflow:", error);
+        setSnackbar({
+          open: true,
+          message: `Failed to create pipeline: ${error.message}`,
+          severity: "error",
         });
       }
-      onClose();
     }
+  };
+
+  const handleCloseSnackbar = () => {
+    setSnackbar({ ...snackbar, open: false });
   };
 
   const handleInputChange = (field) => (event) => {
@@ -114,12 +192,15 @@ const CreateWorkflowDrawer = ({ open, onClose, onComplete }) => {
   }, []);
 
   // Handle workflow generation from AI chatbot
-  const handleWorkflowGenerated = useCallback((generatedNodes, generatedEdges) => {
-    if (generatedNodes && generatedEdges) {
-      setNodes(generatedNodes);
-      setEdges(generatedEdges);
-    }
-  }, []);
+  const handleWorkflowGenerated = useCallback(
+    (generatedNodes, generatedEdges) => {
+      if (generatedNodes && generatedEdges) {
+        setNodes(generatedNodes);
+        setEdges(generatedEdges);
+      }
+    },
+    []
+  );
 
   // Handle accept workflow from AI chatbot
   const handleAcceptWorkflow = useCallback(() => {
@@ -153,7 +234,7 @@ const CreateWorkflowDrawer = ({ open, onClose, onComplete }) => {
           }}
         />
       )}
-      
+
       {/* Sliding Drawer */}
       <Slide direction="up" in={open} mountOnEnter unmountOnExit>
         <Box
@@ -184,7 +265,9 @@ const CreateWorkflowDrawer = ({ open, onClose, onComplete }) => {
               steps={steps}
               currentStep={currentStep}
               isSidebarCollapsed={isSidebarCollapsed}
-              onToggleCollapse={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+              onToggleCollapse={() =>
+                setIsSidebarCollapsed(!isSidebarCollapsed)
+              }
               getStepStatus={getStepStatus}
               formData={formData}
               onWorkflowGenerated={handleWorkflowGenerated}
@@ -206,7 +289,10 @@ const CreateWorkflowDrawer = ({ open, onClose, onComplete }) => {
                 overflow: "hidden",
                 width: "100%",
                 position: "relative",
-                marginLeft: currentStep > 1 && isSidebarCollapsed ? `${STEP_SIDEBAR_COLLAPSED_WIDTH}px` : 0,
+                marginLeft:
+                  currentStep > 1 && isSidebarCollapsed
+                    ? `${STEP_SIDEBAR_COLLAPSED_WIDTH}px`
+                    : 0,
                 transition: "margin-left 0.3s ease",
               }}
             >
@@ -270,6 +356,10 @@ const CreateWorkflowDrawer = ({ open, onClose, onComplete }) => {
                       formData={formData}
                       onInputChange={handleInputChange}
                       onFileChange={handleFileChange}
+                      allUsers={allUsers}
+                      setAllUsers={setAllUsers}
+                      loadingUsers={loadingUsers}
+                      setLoadingUsers={setLoadingUsers}
                     />
 
                     {/* Navigation Buttons */}
@@ -328,7 +418,10 @@ const CreateWorkflowDrawer = ({ open, onClose, onComplete }) => {
                       >
                         {isGenerating ? (
                           <>
-                            <CircularProgress size={16} sx={{ mr: 1, color: "inherit" }} />
+                            <CircularProgress
+                              size={16}
+                              sx={{ mr: 1, color: "inherit" }}
+                            />
                             Generating...
                           </>
                         ) : (
@@ -362,7 +455,7 @@ const CreateWorkflowDrawer = ({ open, onClose, onComplete }) => {
                       drawerZIndex={10001}
                     />
                   </Box>
-                  
+
                   {/* Navigation Buttons for AI Assistant Step */}
                   <Box
                     sx={{
@@ -451,14 +544,14 @@ const CreateWorkflowDrawer = ({ open, onClose, onComplete }) => {
                     >
                       Add AI Agents
                     </Typography>
-                    
+
                     <AddAIAgent
                       formData={formData}
                       onInputChange={handleInputChange}
                       onSelectChange={handleSelectChange}
                     />
                   </Box>
-                  
+
                   {/* Navigation Buttons */}
                   <Box
                     sx={{
@@ -513,89 +606,6 @@ const CreateWorkflowDrawer = ({ open, onClose, onComplete }) => {
                         },
                       }}
                     >
-                      Next
-                    </Button>
-                  </Box>
-                </Box>
-              )}
-
-              {/* Step 4: Done - Preview and Create */}
-              {currentStep === 4 && (
-                <Box
-                  sx={{
-                    display: "flex",
-                    flexDirection: "column",
-                    flex: 1,
-                    overflow: "hidden",
-                  }}
-                >
-                  <Box sx={{ flex: 1, minHeight: 0 }}>
-                    <Playground
-                      nodes={nodes}
-                      edges={edges}
-                      onNodesChange={handleNodesChange}
-                      onEdgesChange={handleEdgesChange}
-                      showToolbar={true}
-                      showFullscreenButton={true}
-                      height="100%"
-                      drawerZIndex={10001}
-                    />
-                  </Box>
-                  
-                  {/* Navigation Buttons for Done Step */}
-                  <Box
-                    sx={{
-                      display: "flex",
-                      justifyContent: "space-between",
-                      gap: 1.5,
-                      p: 2,
-                      borderTop: "1px solid",
-                      borderColor: "divider",
-                      bgcolor: "background.paper",
-                    }}
-                  >
-                    <Button
-                      variant="text"
-                      onClick={handleBack}
-                      sx={{
-                        py: 1,
-                        px: 3,
-                        color: "primary.main",
-                        textTransform: "none",
-                        fontWeight: 500,
-                        borderRadius: 2,
-                        "&:hover": {
-                          bgcolor: "action.hover",
-                        },
-                        "&:disabled": {
-                          color: "text.disabled",
-                        },
-                      }}
-                    >
-                      Back
-                    </Button>
-                    <Button
-                      variant="contained"
-                      onClick={handleNext}
-                      sx={{
-                        py: 1,
-                        px: 3,
-                        bgcolor: "primary.main",
-                        color: "common.white",
-                        textTransform: "none",
-                        fontWeight: 500,
-                        borderRadius: 2,
-                        boxShadow: "none",
-                        "&:hover": {
-                          bgcolor: "primary.dark",
-                          boxShadow: "none",
-                        },
-                        "&:disabled": {
-                          bgcolor: "action.disabledBackground",
-                          color: "action.disabled",
-                        },
-                      }}
-                    >
                       Create
                     </Button>
                   </Box>
@@ -605,10 +615,24 @@ const CreateWorkflowDrawer = ({ open, onClose, onComplete }) => {
           </Box>
         </Box>
       </Slide>
+
+      {/* Snackbar for notifications */}
+      <Snackbar
+        open={snackbar.open}
+        autoHideDuration={4000}
+        onClose={handleCloseSnackbar}
+        anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
+      >
+        <Alert
+          onClose={handleCloseSnackbar}
+          severity={snackbar.severity}
+          sx={{ borderRadius: 2 }}
+        >
+          {snackbar.message}
+        </Alert>
+      </Snackbar>
     </>
   );
 };
 
 export default CreateWorkflowDrawer;
-
-

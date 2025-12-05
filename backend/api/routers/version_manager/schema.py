@@ -21,6 +21,10 @@ class Notification(BaseModel):
     timestamp: Optional[datetime] = datetime.now()
     #status only exist in alerts
 
+class UpdateNotificationAction(BaseModel):
+    action_taken: str
+    taken_at: str
+
 # class Log(BaseModel):
 #     pipeline_id: str
 #     level: str  # log level (debug, info, warning, error, critical)
@@ -77,6 +81,30 @@ class retrieve_payload(BaseModel):
     workflow_id: str
     version_id: str
 
-class UpdateNotificationAction(BaseModel):
-    action_taken: str
-    taken_at: str
+class add_viewer_payload(BaseModel):
+    pipeline_id: str
+    user_id: str
+
+class remove_viewer_payload(BaseModel):
+    pipeline_id: str
+    user_id: str
+
+class create_pipeline_with_details_payload(BaseModel):
+    name: Optional[str] = None
+    description: Optional[str] = ""
+    viewer_ids: List[str] = []
+    pipeline: Any  # Contains nodes, edges, viewport structure
+
+class add_viewer_payload(BaseModel):
+    pipeline_id: str
+    user_id: str
+
+class remove_viewer_payload(BaseModel):
+    pipeline_id: str
+    user_id: str
+
+class create_pipeline_with_details_payload(BaseModel):
+    name: Optional[str] = None
+    description: Optional[str] = ""
+    viewer_ids: List[str] = []
+    pipeline: Any  # Contains nodes, edges, viewport structure

@@ -4,7 +4,8 @@ from jose import JWTError, jwt
 from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi.security import OAuth2PasswordRequestForm
 from . import crud, utils
-from .models import UserCreate, UserOut
+from .models import User, UserCreate, UserOut, UserListOut
+from typing import List
 from .database import get_db
 import logging
 from dotenv import load_dotenv
@@ -250,4 +251,78 @@ async def refresh_token(request: Request, response: Response, db: AsyncSession =
 # ------------------ ME ------------------ #
 @router.get("/me", response_model=UserOut)
 async def get_me(request: Request, current_user = Depends(get_current_user)):
-    return UserOut(id=str(current_user.id), email=current_user.email, full_name=current_user.full_name, role=current_user.role)
+    return UserOut(id=str(current_user.id), 
+                   email=current_user.email, 
+                   full_name=current_user.full_name,
+                   role=current_user.role)
+
+
+# ------------------ GET ALL USERS ------------------ #
+@router.get(
+    "/users",
+    response_model=List[UserListOut],
+    tags=["auth"],
+    summary="Get all users",
+    description="Retrieve a list of all active users from the PostgreSQL database. Requires authentication."
+)
+async def get_all_users(
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Get all active users from PostgreSQL database.
+    Only accessible to authenticated users.
+    """
+    try:
+        users = await crud.get_all_users(db)
+        return [
+            UserListOut(
+                id=str(user.id),
+                email=user.email,
+                full_name=user.full_name,
+                role=user.role,
+                is_active=user.is_active
+            )
+            for user in users
+        ]
+    except Exception as e:
+        logger.error(f"Error fetching users: {e}")
+        raise HTTPException(status_code=500, detail="Failed to fetch users")
+
+
+# ------------------ GET USER BY ID ------------------ #
+@router.get(
+    "/users/{user_id}",
+    response_model=UserListOut,
+    tags=["auth"],
+    summary="Get user by ID",
+    description="Retrieve user details by user ID from the PostgreSQL database. Requires authentication."
+)
+async def get_user_by_id(
+    user_id: int,
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Get user details by ID from PostgreSQL database.
+    Only accessible to authenticated users.
+    """
+    try:
+        user = await crud.get_user_by_id(db, user_id)
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+        
+        return UserListOut(
+            id=str(user.id),
+            email=user.email,
+            full_name=user.full_name,
+            role=user.role,
+            is_active=user.is_active
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error fetching user: {e}")
+        raise HTTPException(status_code=500, detail="Failed to fetch user")

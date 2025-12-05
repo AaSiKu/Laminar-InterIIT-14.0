@@ -1,0 +1,63 @@
+{
+  "pipeline_topology": {
+    "pipeline_name": "IoT Sensor Data Pipeline",
+    "steps": [
+      {
+        "step_id": "mqtt-broker-001",
+        "step_name": "MQTT Message Broker",
+        "step_type": "source",
+        "dependencies": []
+      },
+      {
+        "step_id": "protocol-parser-001",
+        "step_name": "Protocol Parser",
+        "step_type": "transformation",
+        "dependencies": ["mqtt-broker-001"]
+      },
+      {
+        "step_id": "anomaly-detector-001",
+        "step_name": "Anomaly Detection ML",
+        "step_type": "ml_model",
+        "dependencies": ["protocol-parser-001"]
+      },
+      {
+        "step_id": "alert-dispatcher-001",
+        "step_name": "Alert Dispatcher",
+        "step_type": "sink",
+        "dependencies": ["anomaly-detector-001"]
+      }
+    ]
+  },
+  "rca_output": {
+    "incident_id": "INC-2025-11-30-2145",
+    "incident_time": "2024-11-30T21:45:00Z",
+    "severity": "critical",
+    "root_cause": "Corrupted model artifact in anomaly detector causing inference failures and process crashes",
+    "affected_components": [
+      {
+        "component_name": "anomaly-detector-001",
+        "impact_level": "critical",
+        "error_details": "Model inference failures with NaN outputs. Service crashed 14 times in 20 minutes"
+      },
+      {
+        "component_name": "alert-dispatcher-001",
+        "impact_level": "high",
+        "error_details": "No alerts dispatched for 23 minutes. 156 critical sensor alerts missed"
+      }
+    ],
+    "resolution_steps": [
+      "Rolled back model from v3.2.1 to v3.1.5 (last stable version)",
+      "Identified corruption in model weights file during S3 upload",
+      "Implemented model validation checks before deployment",
+      "Added health checks for model inference with automatic fallback"
+    ],
+    "additional_context": {
+      "financial_impact_usd": 15000.0,
+      "missed_critical_alerts": 156,
+      "service_crash_count": 14,
+      "downtime_minutes": 23,
+      "model_version_bad": "v3.2.1",
+      "model_version_good": "v3.1.5"
+    }
+  }
+}

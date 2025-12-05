@@ -1,5 +1,5 @@
 from ..node import Node
-from lib.utils import RdKafkaSettings
+from ..common_types import RdKafkaSettings
 from typing import Literal
 
 
@@ -12,7 +12,7 @@ class OpenTelSpansNode(OpenTelInputNode):
     """Input node for span data from Kafka."""
     node_id: Literal["open_tel_spans_input"]
     topic: str = "otlp_spans"
-    
+
 
 
 class OpenTelMetricsNode(OpenTelInputNode):
