@@ -1,12 +1,8 @@
 /**
- * This file contains mock API functions for the Developer Dashboard.
- * Each function returns hardcoded data to simulate fetching from a real backend.
+ * Developer Dashboard API utilities
+ * Page-specific functions for the developer dashboard
  */
 
-/**
- * Fetches a list of workflow templates.
- * @returns {Promise<Array<Object>>} A promise that resolves to an array of template objects.
- */
 export const fetchTemplates = async () => {
   // Real API call placeholder:
   // const response = await fetch('/api/templates');
@@ -14,173 +10,266 @@ export const fetchTemplates = async () => {
   // return data;
 
   return [
-    { id: 'custom', name: 'Custom Workflow' },
-    { id: 'sales', name: 'MDTR & Throughput' },
-    { id: 'proposal', name: 'Latency Check' },
-    { id: 'invoice', name: 'Crash Reports' },
+    { id: "custom", name: "Custom Workflow" },
+    { id: "sales", name: "MDTR & Throughput" },
+    { id: "proposal", name: "Latency Check" },
+    { id: "invoice", name: "Crash Reports" },
   ];
 };
 
-/**
- * Fetches a list of existing workflow files.
- * @returns {Promise<Array<Object>>} A promise that resolves to an array of workflow file objects.
- */
-export const fetchWorkflows = async () => {
-  // Real API call placeholder:
-  // const response = await fetch('/api/workflows');
-  // const data = await response.json();
-  // return data;
+import fetchWithAuth from "./api";
 
-  return [
-    { id: 'wf1', name: 'Pipeline A', owner: 'Team 54', lastModified: '3 mins' },
-    { id: 'wf2', name: 'Pipeline B', owner: 'Jane Doe', lastModified: '1 days ago' },
-    { id: 'wf3', name: 'Pipeline C', owner: 'John Smith', lastModified: '2 days ago' },
-  ];
+// Fetches a list of existing workflow files.
+export const fetchWorkflows = async (skip = 0, limit = 3) => {
+  const response = await fetchWithAuth(
+    `/overview/workflows/?skip=${skip}&limit=${limit}`
+  );
+  const data = await response.json();
+  return data;
 };
 
-/**
- * Fetches a list of notifications.
- * @returns {Promise<{items: Array<Object>, count: number}>} A promise that resolves to an object containing notifications and their count.
- */
+// Create web - socket to fetch notifications and actions
 export const fetchNotifications = async () => {
-  // Real API call placeholder:
-  // const response = await fetch('/api/notifications');
-  // const data = await response.json();
-  // return data;
+  const ws = new WebSocket(`${import.meta.env.VITE_WS_SERVER}/ws/pipeline/All`);
 
-  const items = [
-    { 
-      id: 1, 
-      message: 'Albus Dumbledore got access to pipeline A', 
-      timestamp: '2hrs ago',
-      type: 'info',
-      status: null
-    },
-    { 
-      id: 2, 
-      message: 'Upcoming Scheduled Pipelines Pipeline D', 
-      timestamp: '5 hrs ago',
-      type: 'warning',
-      status: 'Active'
-    },
-    { 
-      id: 3, 
-      message: 'Action Required Pipeline c', 
-      timestamp: 'Due',
-      type: 'error',
-      status: 'Due'
-    },
-    { 
-      id: 4, 
-      message: 'Pipeline Failed Pipeline E', 
-      timestamp: '8 hrs',
-      type: 'error',
-      status: null
-    },
-    { 
-      id: 5, 
-      message: 'Upcoming Scheduled Pipelines Pipeline D', 
-      timestamp: '5 hrs ago',
-      type: 'warning',
-      status: 'Deactivate'
-    },
-    { 
-      id: 6, 
-      message: 'Action Required Pipeline F', 
-      timestamp: 'Due',
-      type: 'warning',
-      status: 'Due'
-    },
-    { 
-      id: 7, 
-      message: '100% Successful Runs Pipeline A', 
-      timestamp: '21 hrs',
-      type: 'success',
-      status: null
-    },
-    { 
-      id: 8, 
-      message: 'Caution data might breach', 
-      timestamp: '24 hrs',
-      type: 'warning',
-      status: null
-    },
-    { 
-      id: 9, 
-      message: 'Albus Dumbledore got access to pipeline A', 
-      timestamp: '25 hrs ago',
-      type: 'info',
-      status: null
-    },
-  ];
-
-  return {
-    items,
-    count: items.length,
+  // To test:
+  // ws.onopen = () => {
+  // console.log("Notifications WS connected");
+  // };
+  ws.onerror = (err) => {
+    console.error("WebSocket error:", err);
   };
+  return ws;
 };
 
-/**
- * Fetches overview statistics data.
- * @returns {Promise<Object>} A promise that resolves to overview stats.
- */
+// Fetches overview statistics data.
 export const fetchOverviewData = async () => {
-  // Real API call placeholder:
-  // const response = await fetch('/api/overview');
-  // const data = await response.json();
-  // return data;
-
-  return {
-    successRate: 25000,
-    error: 12000,
-    deactivated: 12000,
-    failed: 2000,
-    total: 20, // Total count of pipelines/workflows
-  };
+  const response = await fetchWithAuth("/overview/kpi");
+  const data = await response.json();
+  return data;
 };
 
-/**
- * Fetches KPI metrics data.
- * @returns {Promise<Array<Object>>} A promise that resolves to an array of KPI objects.
- */
-export const fetchKPIData = async () => {
-  // Real API call placeholder:
-  // const response = await fetch('/api/kpis');
-  // const data = await response.json();
-  // return data;
+// Update notification with action taken
+export const updateNotificationAction = async (notificationId, action) => {
+  const response = await fetch(
+    `${import.meta.env.VITE_API_SERVER}/overview/notifications/${notificationId}/action`,
+    {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      credentials: "include",
+      body: JSON.stringify({
+        action_taken: action,
+        taken_at: new Date().toISOString(),
+      }),
+    }
+  );
 
-  return [
-    {
-      id: 'pipeline-running',
-      title: 'Pipeline Running',
-      value: '30',
-      subtitle: 'avg. daily logins',
-      iconType: 'timeline',
-      iconColor: '#3b82f6',
-    },
-    {
-      id: 'mttr',
-      title: 'MTTR (Mean Time to Recovery)',
-      value: '15',
-      subtitle: 'avg. daily logins',
-      iconType: 'access-time',
-      iconColor: '#10b981',
-    },
-    {
-      id: 'alerts',
-      title: 'Alerts Today',
-      value: '7',
-      subtitle: 'units in stock',
-      iconType: 'error-outline',
-      iconColor: '#ef4444',
-    },
-    {
-      id: 'duration',
-      title: 'Average Pipeline Duration',
-      value: '13,200',
-      subtitle: 'units in stock',
-      iconType: 'speed',
-      iconColor: '#f59e0b',
-    },
-  ];
+  const data = await response.json();
+  return { ok: response.ok, data };
+};
+
+// Fetches all workflows from /version/retrieve_all
+export const fetchAllWorkflows = async () => {
+  const response = await fetch(
+    `${import.meta.env.VITE_API_SERVER}/version/retrieve_all`,
+    { credentials: "include" }
+  );
+  const data = await response.json();
+  return data;
+};
+
+// Fetches previous notifications (placeholder - adjust based on actual endpoint)
+export const fetchPreviousNotifications = async () => {
+  // TODO: Replace with actual API endpoint when available
+  // For now, return empty array
+  return [];
+};
+
+// Fetch user details by user ID
+export const fetchUserById = async (userId) => {
+  try {
+    const response = await fetch(
+      `${import.meta.env.VITE_API_SERVER}/auth/users/${userId}`,
+      { credentials: "include" }
+    );
+    if (!response.ok) {
+      throw new Error(`Failed to fetch user: ${response.status}`);
+    }
+    const data = await response.json();
+    return data;
+  } catch (error) {
+    console.error(`Error fetching user ${userId}:`, error);
+    // Return fallback data
+    return {
+      id: String(userId),
+      email: `user${userId}@example.com`,
+      full_name: `User ${userId}`,
+      role: "user",
+      is_active: true,
+    };
+  }
+};
+
+// Remove viewer from pipeline
+export const removeViewerFromPipeline = async (pipelineId, userId) => {
+  try {
+    const response = await fetch(
+      `${import.meta.env.VITE_API_SERVER}/version/remove_viewer`,
+      {
+        method: "POST",
+        credentials: "include",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          pipeline_id: pipelineId,
+          user_id: userId,
+        }),
+      }
+    );
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({ detail: "Failed to remove viewer" }));
+      throw new Error(errorData.detail || `Failed to remove viewer: ${response.status}`);
+    }
+    const data = await response.json();
+    return data;
+  } catch (error) {
+    console.error("Error removing viewer:", error);
+    throw error;
+  }
+};
+
+// Fetch all users
+export const fetchAllUsers = async () => {
+  try {
+    const response = await fetch(
+      `${import.meta.env.VITE_API_SERVER}/auth/users`,
+      { credentials: "include" }
+    );
+    if (!response.ok) {
+      throw new Error(`Failed to fetch users: ${response.status}`);
+    }
+    const data = await response.json();
+    // The API returns an array directly, ensure we return it as-is
+    if (Array.isArray(data)) {
+      return data;
+    }
+    // If wrapped in an object, extract the array
+    if (data.data && Array.isArray(data.data)) {
+      return data.data;
+    }
+    console.warn("Unexpected API response format:", data);
+    return [];
+  } catch (error) {
+    console.error("Error fetching users:", error);
+    throw error;
+  }
+};
+
+// Add viewer to pipeline
+export const addViewerToPipeline = async (pipelineId, userId) => {
+  try {
+    const response = await fetch(
+      `${import.meta.env.VITE_API_SERVER}/version/add_viewer`,
+      {
+        method: "POST",
+        credentials: "include",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          pipeline_id: pipelineId,
+          user_id: userId,
+        }),
+      }
+    );
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({ detail: "Failed to add viewer" }));
+      throw new Error(errorData.detail || `Failed to add viewer: ${response.status}`);
+    }
+    const data = await response.json();
+    return data;
+  } catch (error) {
+    console.error("Error adding viewer:", error);
+    throw error;
+  }
+};
+
+// Create pipeline with all details
+export const createPipelineWithDetails = async (name, description, viewerIds, pipeline) => {
+  try {
+    const response = await fetch(
+      `${import.meta.env.VITE_API_SERVER}/version/create_pipeline_with_details`,
+      {
+        method: "POST",
+        credentials: "include",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          name: name || "",
+          description: description || "",
+          viewer_ids: viewerIds || [],
+          pipeline: pipeline,
+        }),
+      }
+    );
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({ detail: "Failed to create pipeline" }));
+      throw new Error(errorData.detail || `Failed to create pipeline: ${response.status}`);
+    }
+    const data = await response.json();
+    return data;
+  } catch (error) {
+    console.error("Error creating pipeline with details:", error);
+    throw error;
+  }
+};
+
+// Get current user details
+export const getCurrentUser = async () => {
+  try {
+    const response = await fetch(
+      `${import.meta.env.VITE_API_SERVER}/auth/me`,
+      { credentials: "include" }
+    );
+    if (!response.ok) {
+      throw new Error(`Failed to fetch user: ${response.status}`);
+    }
+    const data = await response.json();
+    return data;
+  } catch (error) {
+    console.error("Error fetching current user:", error);
+    throw error;
+  }
+};
+
+// Retrieve pipeline to get workflow name
+export const retrievePipeline = async (workflowId, versionId) => {
+  try {
+    const response = await fetch(
+      `${import.meta.env.VITE_API_SERVER}/version/retrieve_pipeline`,
+      {
+        method: "POST",
+        credentials: "include",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          workflow_id: workflowId,
+          version_id: versionId,
+        }),
+      }
+    );
+    if (!response.ok) {
+      throw new Error(`Failed to retrieve pipeline: ${response.status}`);
+    }
+    const data = await response.json();
+    return data;
+  } catch (error) {
+    console.error("Error retrieving pipeline:", error);
+    throw error;
+  }
 };

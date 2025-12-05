@@ -1,7 +1,6 @@
-import { createContext, useContext, useEffect, useState } from "react";
-import { useReactFlow } from "@xyflow/react";
+import { createContext, useContext, useState, useEffect } from "react";
 import { AuthContext } from "./AuthContext";
-import { useLocation } from "react-router-dom";
+import { fetchAllWorkflows, fetchPreviousNotifications } from "../utils/developerDashboard.api";
 
 const GlobalContext = createContext();
 
@@ -10,60 +9,58 @@ export function useGlobalContext() {
 }
 
 export const GlobalContextProvider = ({ children }) => {
-  const [roll, setRoll] = useState(null);
-  const [currentPipelineId, setCurrentPipelineId] = useState("69138bfd2d5fe329d1dfe689");
-  const [currentPipelineStatus, setCurrentPipelineStatus] = useState(true);
-  const [currentNodes, setCurrentNodes] = useState([]);
-  const [currentEdges, setCurrentEdges] = useState([]);
-  const [rfInstance, setRfInstance] = useState(null);
-  const { setViewport } = useReactFlow();
+  const [role, setRole] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [containerId, setContainerId] = useState();
-  const [dashboardSidebarOpen, setDashboardSidebarOpen] = useState(false);
   const { login, user, logout, isAuthenticated } = useContext(AuthContext);
   const [sidebarOpen, setSideBarOpen] = useState(false);
-  const { fileStructure, setFileStructure } = useState({});
+  const [workflows, setWorkflows] = useState([]);
+  const [notifications, setNotifications] = useState([]);
+  const [agentContainerId, setAgentContainerId]=useState(null);
 
   const globalContextValue = {
     user,
-    roll,
-    setRoll,
-    currentPipelineId,
-    setCurrentPipelineId,
-    currentPipelineStatus,
-    setCurrentPipelineStatus,
-    currentEdges,
-    currentNodes,
-    setCurrentEdges,
-    setCurrentNodes,
-    setRfInstance,
-    rfInstance,
-    setViewport,
+    role,
+    setRole,
     loading,
     setLoading,
     error,
     setError,
     containerId,
     setContainerId,
-    dashboardSidebarOpen,
-    setDashboardSidebarOpen,
+    agentContainerId,
+    setAgentContainerId,
     login,
     isAuthenticated,
     sidebarOpen,
     setSideBarOpen,
-    fileStructure,
-    setFileStructure,
     logout,
+    workflows,
+    setWorkflows,
+    notifications,
+    setNotifications,
   };
 
-  const location = useLocation();
-
+  // Fetch workflows and notifications on mount
   useEffect(() => {
-    if (location.pathname !== "/workflow") {
-      setDashboardSidebarOpen(false);
-    }
-  }, [location.pathname]);
+    const loadData = async () => {
+      try {
+        const workflowResponse = await fetchAllWorkflows();
+        if (workflowResponse.status === "success" && workflowResponse.data) {
+          setWorkflows(workflowResponse.data);
+        }
+
+        const previousNotifications = await fetchPreviousNotifications();
+        setNotifications(previousNotifications);
+      } catch (err) {
+        console.error("Error loading workflows and notifications:", err);
+        setError(err.message || "Failed to load data");
+      }
+    };
+
+    loadData();
+  }, []);
 
   return (
     <GlobalContext.Provider value={globalContextValue}>

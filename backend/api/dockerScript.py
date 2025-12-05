@@ -19,6 +19,7 @@ PIPELINE_CONTAINER_PORT = os.getenv("PIPELINE_CONTAINER_PORT", "8000/tcp")
 AGENTIC_CONTAINER_PORT = os.getenv("AGENTIC_CONTAINER_PORT", "5333/tcp")
 
 dev = os.getenv("ENVIRONMENT", "prod") == "dev"
+dynamic_ports = os.getenv("DYNAMIC_PORTS", "true") == "true"
 
 project_root = os.path.join(os.getcwd(),"backend")
 
@@ -32,11 +33,26 @@ def run_pipeline_container(client: docker.DockerClient, pipeline_id: str):
     # Ensure images exist
     try:
         client.images.get(PIPELINE_IMAGE)
-        client.images.get(POSTGRES_IMAGE)
-        client.images.get(AGENTIC_IMAGE)
-        logger.info("Required images found.")
+        logger.info(f"Found image: {PIPELINE_IMAGE}")
     except docker.errors.ImageNotFound:
-        raise docker.errors.ImageNotFound("Images not built. Run `docker compose build` first.")
+        logger.error(f"Image not found: {PIPELINE_IMAGE}")
+        raise docker.errors.ImageNotFound(f"Image '{PIPELINE_IMAGE}' not found. Run `docker compose build` first.")
+    
+    try:
+        client.images.get(POSTGRES_IMAGE)
+        logger.info(f"Found image: {POSTGRES_IMAGE}")
+    except docker.errors.ImageNotFound:
+        logger.error(f"Image not found: {POSTGRES_IMAGE}")
+        raise docker.errors.ImageNotFound(f"Image '{POSTGRES_IMAGE}' not found. Run `docker compose build` first.")
+    
+    try:
+        client.images.get(AGENTIC_IMAGE)
+        logger.info(f"Found image: {AGENTIC_IMAGE}")
+    except docker.errors.ImageNotFound:
+        logger.error(f"Image not found: {AGENTIC_IMAGE}")
+        raise docker.errors.ImageNotFound(f"Image '{AGENTIC_IMAGE}' not found. Run `docker compose build` first.")
+    
+    logger.info("All required images found.")
 
     # Ensure container does not already exist
     try:
@@ -73,7 +89,7 @@ def run_pipeline_container(client: docker.DockerClient, pipeline_id: str):
 
         },
         network=network_name,
-        ports={"5432/tcp": 5432 if dev else None},   # dynamic host port
+        ports={"5432/tcp": 5432 if not dynamic_ports else None},   # dynamic host port
     )
 
     logger.info(f"Started DB container: {db_container_name}")
@@ -93,7 +109,7 @@ def run_pipeline_container(client: docker.DockerClient, pipeline_id: str):
             "POSTGRES_PASSWORD": read_pass,
         },
         network=network_name,
-        ports={AGENTIC_CONTAINER_PORT: AGENTIC_CONTAINER_PORT if dev else None},   # dynamic host port
+        ports={AGENTIC_CONTAINER_PORT: AGENTIC_CONTAINER_PORT if not dynamic_ports else None},   # dynamic host port
         volumes=({
             os.path.join(project_root, "agentic"): {
                 "bind": "/app/agentic", 
@@ -130,7 +146,7 @@ def run_pipeline_container(client: docker.DockerClient, pipeline_id: str):
             "POSTGRES_PASSWORD": write_pass,
         },
         network=network_name,
-        ports={PIPELINE_CONTAINER_PORT: PIPELINE_CONTAINER_PORT if dev else None},   # dynamic host port
+        ports={PIPELINE_CONTAINER_PORT: PIPELINE_CONTAINER_PORT if not dynamic_ports else None},   # dynamic host port
         volumes=({  
             os.path.join(project_root, "pipeline"): {
                 "bind": "/app/pipeline",

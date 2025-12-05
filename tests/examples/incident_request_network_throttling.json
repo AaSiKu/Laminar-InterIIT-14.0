@@ -1,0 +1,62 @@
+{
+  "pipeline_topology": {
+    "pipeline_name": "Customer Analytics ETL Pipeline",
+    "steps": [
+      {
+        "step_id": "s3-reader-001",
+        "step_name": "S3 Data Lake Reader",
+        "step_type": "source",
+        "dependencies": []
+      },
+      {
+        "step_id": "deduplication-001",
+        "step_name": "Record Deduplicator",
+        "step_type": "transformation",
+        "dependencies": ["s3-reader-001"]
+      },
+      {
+        "step_id": "aggregation-001",
+        "step_name": "Metric Aggregator",
+        "step_type": "transformation",
+        "dependencies": ["deduplication-001"]
+      },
+      {
+        "step_id": "warehouse-001",
+        "step_name": "Data Warehouse Writer",
+        "step_type": "sink",
+        "dependencies": ["aggregation-001"]
+      }
+    ]
+  },
+  "rca_output": {
+    "incident_id": "INC-2025-12-01-0915",
+    "incident_time": "2024-12-01T09:15:00Z",
+    "severity": "medium",
+    "root_cause": "Network throttling from cloud provider due to burst limit exceeded on data lake reads",
+    "affected_components": [
+      {
+        "component_name": "s3-reader-001",
+        "impact_level": "medium",
+        "error_details": "Read throughput dropped from 850 MB/s to 120 MB/s. 503 SlowDown errors from S3"
+      },
+      {
+        "component_name": "deduplication-001",
+        "impact_level": "medium",
+        "error_details": "Processing delayed by 45 minutes due to upstream read throttling"
+      }
+    ],
+    "resolution_steps": [
+      "Implemented exponential backoff retry logic for S3 reads",
+      "Added request rate limiting to stay under burst limits (3,500 requests/second)",
+      "Enabled S3 Transfer Acceleration for faster reads",
+      "Increased batch size from 1MB to 5MB to reduce request count"
+    ],
+    "additional_context": {
+      "financial_impact_usd": 1200.0,
+      "affected_records": 4500000,
+      "sla_breach_minutes": 45,
+      "burst_limit": 3500,
+      "previous_request_rate": 5200
+    }
+  }
+}
