@@ -673,12 +673,16 @@ async def websocket_endpoint(ws: WebSocket):
                 additional_description = init_data.get("description", "").strip() if init_data.get("description") else None
                 print(f"\n[SERVER] Processing PDF: {pdf_path}")
                 if additional_description:
-                    print(f"[SERVER] → Using description as additional context: {additional_description[:100]}...")
-                print(f"[SERVER] → Extracting metrics from PDF using LLM...")
+                    print(f"[SERVER] → Combining PDF with description for metric extraction")
+                    print(f"[SERVER] → Description provided: {additional_description[:100]}...")
+                    print(f"[SERVER] → Will extract metrics from BOTH PDF content and description")
+                else:
+                    print(f"[SERVER] → Extracting metrics from PDF only")
+                print(f"[SERVER] → Extracting metrics using LLM...")
                 try:
                     metrics_list, saved_path = generate_metrics_from_pdf(
                         pdf_path,
-                        Path(output_dir),
+                        Path(session_output_dir),  # Use session-specific output dir
                         api_key=api_key,
                         additional_context=additional_description,
                     )
