@@ -5,6 +5,7 @@ from .error_agent import analyze_error_logs
 from .downtime_agent import analyze_downtime_incidents, DowntimeIncident
 from .latency_agent import build_graph, MetricAlert
 from .output import RCAAnalysisOutput
+from ..guardrails.before_agent import InputScanner
 
 
 class InitRCA(SummarizeOutput):
@@ -17,9 +18,20 @@ class InitRCA(SummarizeOutput):
     breach_time_utc: Optional[str] = None
     breach_value: Optional[float] = None
 
+input_scanner = None
 
 async def rca(init_rca_request: InitRCA):
     print("RCA invoked")
+    global input_scanner
+    if input_scanner is None:
+        input_scanner = InputScanner()
+        await input_scanner.preload_models()
+
+    scan_result = await input_scanner.scan(init_rca_request.description)
+    if not scan_result.is_safe:
+        raise ValueError(f"Security scan failed: {scan_result.sanitized_input}")
+    init_rca_request.description = scan_result.sanitized_input
+
     if len(init_rca_request.trace_ids.keys()) == 1:
         # Get the single column name and its trace_ids
         column_name = list(init_rca_request.trace_ids.keys())[0]
