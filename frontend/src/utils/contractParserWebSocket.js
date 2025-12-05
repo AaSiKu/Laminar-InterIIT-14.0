@@ -27,9 +27,9 @@ export class ContractParserWebSocket {
 
   /**
    * Connect to the WebSocket server
-   * @param {Array} initialMetrics - Optional metrics to send immediately after connection
+   * @param {Array|Object} initialData - Optional metrics array or object with {metrics, pdf_path, description}
    */
-  connect(initialMetrics = null) {
+  connect(initialData = null) {
     return new Promise((resolve, reject) => {
       try {
         this.ws = new WebSocket(CONTRACT_PARSER_WS_URL);
@@ -39,14 +39,37 @@ export class ContractParserWebSocket {
           console.log(`WebSocket connected to contract parser agent at ${CONTRACT_PARSER_WS_URL}`);
           console.log(`Using ${USE_MOCK_SERVER ? 'MOCK' : 'REAL'} server mode`);
           
-          // Send initial metrics immediately if provided
-          if (initialMetrics && initialMetrics.length > 0) {
+          // Send initial data immediately if provided
+          if (initialData) {
             try {
-              const payload = { metrics: initialMetrics };
-              this.ws.send(JSON.stringify(payload));
-              console.log("Sent initial metrics:", initialMetrics);
+              let payload;
+              
+              // Handle different input formats
+              if (Array.isArray(initialData)) {
+                // Legacy format: array of metrics
+                payload = { metrics: initialData };
+              } else if (initialData.pdf_path) {
+                // PDF path provided
+                payload = { pdf_path: initialData.pdf_path };
+                if (initialData.anthropic_api_key) {
+                  payload.anthropic_api_key = initialData.anthropic_api_key;
+                }
+              } else if (initialData.metrics && initialData.metrics.length > 0) {
+                // Metrics object
+                payload = { metrics: initialData.metrics };
+              } else if (initialData.description) {
+                // Description only - convert to metrics
+                payload = { 
+                  metrics: ContractParserWebSocket.formatDescriptionToMetrics(initialData.description)
+                };
+              }
+              
+              if (payload) {
+                this.ws.send(JSON.stringify(payload));
+                console.log("Sent initial data:", payload);
+              }
             } catch (error) {
-              console.error("Error sending initial metrics:", error);
+              console.error("Error sending initial data:", error);
             }
           }
           

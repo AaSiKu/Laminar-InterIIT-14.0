@@ -147,11 +147,64 @@ const CreateWorkflowDrawer = ({ open, onClose, onComplete }) => {
             },
           });
 
-          // Format description into metrics (option 2)
-          const metrics = ContractParserWebSocket.formatDescriptionToMetrics(formData.description);
+          // Determine what to send: PDF (with optional description) or description only
+          let initialData = null;
           
-          // Connect and send metrics as initial message
-          await ws.connect(metrics);
+          if (formData.document && formData.document.type === 'application/pdf') {
+            // Upload PDF first, then send path with description as additional context
+            console.log("Uploading PDF file:", formData.document.name);
+            try {
+              const formDataUpload = new FormData();
+              formDataUpload.append('file', formData.document);
+              
+              const uploadResponse = await fetch(
+                `http://localhost:${import.meta.env.VITE_CONTRACT_PARSER_PORT || '8001'}/upload-pdf`,
+                {
+                  method: 'POST',
+                  body: formDataUpload,
+                }
+              );
+              
+              if (!uploadResponse.ok) {
+                throw new Error(`Failed to upload PDF: ${uploadResponse.statusText}`);
+              }
+              
+              const uploadResult = await uploadResponse.json();
+              console.log("PDF uploaded successfully:", uploadResult);
+              
+              // Send PDF path to WebSocket, with description as additional context if provided
+              initialData = {
+                pdf_path: uploadResult.pdf_path,
+              };
+              
+              // Include description as additional context if provided
+              if (formData.description && formData.description.trim()) {
+                initialData.description = formData.description;
+                console.log("Including description as additional context with PDF");
+              }
+            } catch (error) {
+              console.error("Error uploading PDF:", error);
+              setSnackbar({
+                open: true,
+                message: `Failed to upload PDF: ${error.message}`,
+                severity: "error",
+              });
+              setIsGenerating(false);
+              return;
+            }
+          } else if (formData.description) {
+            // Format description into metrics (option 2)
+            const metrics = ContractParserWebSocket.formatDescriptionToMetrics(formData.description);
+            initialData = { metrics };
+          } else {
+            // No PDF or description - use default
+            initialData = { 
+              metrics: ContractParserWebSocket.formatDescriptionToMetrics("Workflow description") 
+            };
+          }
+          
+          // Connect and send initial data
+          await ws.connect(initialData);
           wsRef.current = ws;
         } catch (error) {
           console.error("Error connecting WebSocket:", error);

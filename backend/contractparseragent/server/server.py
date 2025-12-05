@@ -2,8 +2,10 @@ import json
 import sys
 from pathlib import Path
 from typing import Optional, Dict, Any, List
+import tempfile
+import os
 
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, UploadFile, File, HTTPException
 import uuid
 import shutil
 from fastapi.middleware.cors import CORSMiddleware
@@ -36,6 +38,10 @@ app.add_middleware(
 # Ensure the default generated_flowcharts directory exists on startup
 DEFAULT_OUTPUT_DIR = Path(__file__).parent / "generated_flowcharts"
 DEFAULT_OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+
+# Directory for temporary PDF uploads
+TEMP_PDF_DIR = Path(__file__).parent / "temp_pdfs"
+TEMP_PDF_DIR.mkdir(parents=True, exist_ok=True)
 
 
 class WSAgenticSession:
@@ -606,6 +612,38 @@ class WSAgenticSession:
         print("="*60 + "\n")
 
 
+@app.post("/upload-pdf")
+async def upload_pdf(file: UploadFile = File(...)):
+    """Upload a PDF file and return the path for use in WebSocket connection."""
+    if not file.filename:
+        raise HTTPException(status_code=400, detail="No file provided")
+    
+    # Validate file extension
+    if not file.filename.lower().endswith('.pdf'):
+        raise HTTPException(status_code=400, detail="File must be a PDF")
+    
+    try:
+        # Create a unique filename to avoid conflicts
+        file_id = str(uuid.uuid4())
+        file_path = TEMP_PDF_DIR / f"{file_id}_{file.filename}"
+        
+        # Save the uploaded file
+        with open(file_path, "wb") as f:
+            content = await file.read()
+            f.write(content)
+        
+        print(f"[SERVER] PDF uploaded: {file_path} ({len(content)} bytes)")
+        
+        return {
+            "pdf_path": str(file_path),
+            "filename": file.filename,
+            "size": len(content),
+        }
+    except Exception as e:
+        print(f"[SERVER] Error uploading PDF: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error uploading PDF: {str(e)}")
+
+
 @app.websocket("/ws")
 async def websocket_endpoint(ws: WebSocket):
     await ws.accept()
@@ -632,15 +670,49 @@ async def websocket_endpoint(ws: WebSocket):
                 metrics_list = load_metrics_from_file(path)
             elif init_data.get("pdf_path"):
                 pdf_path = init_data["pdf_path"]
-                metrics_list, saved_path = generate_metrics_from_pdf(
-                    pdf_path,
-                    Path(output_dir),
-                    api_key=api_key,
-                )
-                await ws.send_json({
-                    "type": "metrics_loaded",
-                    "message": f"Extracted metrics from {pdf_path} into {saved_path}",
-                })
+                additional_description = init_data.get("description", "").strip() if init_data.get("description") else None
+                print(f"\n[SERVER] Processing PDF: {pdf_path}")
+                if additional_description:
+                    print(f"[SERVER] → Using description as additional context: {additional_description[:100]}...")
+                print(f"[SERVER] → Extracting metrics from PDF using LLM...")
+                try:
+                    metrics_list, saved_path = generate_metrics_from_pdf(
+                        pdf_path,
+                        Path(output_dir),
+                        api_key=api_key,
+                        additional_context=additional_description,
+                    )
+                    print(f"[SERVER] ✓ Extracted {len(metrics_list)} metrics from PDF")
+                    print(f"[SERVER] → Metrics saved to: {saved_path}")
+                    await ws.send_json({
+                        "type": "metrics_loaded",
+                        "message": f"Extracted {len(metrics_list)} metrics from PDF. Saved to {saved_path}",
+                    })
+                    # Clean up uploaded PDF file after processing
+                    try:
+                        pdf_path_obj = Path(pdf_path)
+                        if pdf_path_obj.exists() and pdf_path_obj.parent == TEMP_PDF_DIR:
+                            pdf_path_obj.unlink()
+                            print(f"[SERVER] ✓ Cleaned up temporary PDF: {pdf_path}")
+                    except Exception as cleanup_error:
+                        print(f"[SERVER] Warning: Could not clean up PDF file: {cleanup_error}")
+                except Exception as pdf_error:
+                    print(f"[SERVER] ❌ Error processing PDF: {str(pdf_error)}")
+                    import traceback
+                    traceback.print_exc()
+                    await ws.send_json({
+                        "type": "error",
+                        "message": f"Error extracting metrics from PDF: {str(pdf_error)}",
+                    })
+                    # Clean up uploaded PDF file on error
+                    try:
+                        pdf_path_obj = Path(pdf_path)
+                        if pdf_path_obj.exists() and pdf_path_obj.parent == TEMP_PDF_DIR:
+                            pdf_path_obj.unlink()
+                    except Exception:
+                        pass
+                    await ws.close()
+                    return
             else:
                 metric = init_data.get("metric", "Payment Latency")
                 description = init_data.get(
