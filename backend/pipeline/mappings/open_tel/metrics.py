@@ -3,7 +3,7 @@ from typing import Optional
 import json
 from lib.open_tel.utils import flatten_attributes, safe_int, safe_float
 from lib.open_tel.input_nodes import OpenTelMetricsNode
-from lib.utils import convert_rdkafka_settings
+from lib.kafka_utils import convert_rdkafka_settings
 
 
 class Metric(pw.Schema):
