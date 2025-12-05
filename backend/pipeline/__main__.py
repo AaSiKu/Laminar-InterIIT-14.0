@@ -184,7 +184,6 @@ def main():
         answer_tables = setup_trigger_tables(graph, node_outputs, supervisor)
 
         # Setup prompt input and answers
-        # TODO: Shift to a better input connector for prompts
         prompts = pw.io.csv.read("prompts.csv", schema=Prompt, mode="streaming")
         prompt_answers = setup_prompt_table(prompts, supervisor)
 

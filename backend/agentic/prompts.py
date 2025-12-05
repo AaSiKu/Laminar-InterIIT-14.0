@@ -43,9 +43,8 @@ model = create_agent_model()
 
 def build_agent(agent: AgentPayload) -> BaseTool:
     agent.name = agent.name.replace(" ", "_")
-    # TODO: Create our pre defined custom tools array based on what the user has defined the agent's tools as
-        # The custom tools feature should also include a human in the loop implementation
-        # Implement mappings from tool ids to the actual tool function for custom tools
+    # TODO: Implement alert tool
+
         
     pii_results = gateway.pii_analyzer.detect_all(agent.description)
     secrets_results = gateway.secrets_analyzer.detect_all(agent.description)
@@ -56,7 +55,7 @@ def build_agent(agent: AgentPayload) -> BaseTool:
     
     if secrets_results:
         pass
-        #TODO: custom_logger.critical("Secret Data detected in agent description")
+        # TODO: custom_logger.critical("Secret Data detected in agent description")
 
     all_findings = (pii_results or []) + (secrets_results or [])
     sanitized_description = InputScanner._sanitize_text(agent.description, all_findings)

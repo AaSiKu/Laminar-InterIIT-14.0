@@ -110,7 +110,6 @@ async def add_notification(
     Accepts notification data and broadcasts via WebSocket
     The change stream watcher will automatically broadcast the notification
     '''
-    # TODO: Implement agent authentication via X-Agent-Token
     # For now, we assume the token is validated elsewhere or will be implemented
     # if not x_agent_token:
     #     raise HTTPException(status_code=401, detail="Agent token required")
@@ -145,7 +144,6 @@ async def add_notification(
 #     Accepts log data and broadcasts via WebSocket
 #     The change stream watcher will automatically broadcast the log
 #     '''
-#     # TODO: Implement agent authentication via X-Agent-Token
 #     # For now, we assume the token is validated elsewhere or will be implemented
 #     # if not x_agent_token:
 #     #     raise HTTPException(status_code=401, detail="Agent token required")
@@ -303,7 +301,6 @@ async def update_notification_action(
     # if update_result.modified_count == 0:
     #     raise HTTPException(status_code=400, detail="Failed to update notification")
     
-    #TODO: backend does whatever it needs to do to take action and update the value of notifications
     return {
         "status": "success",
         "message": "Notification action updated successfully"
