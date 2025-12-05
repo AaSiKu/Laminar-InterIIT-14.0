@@ -5,6 +5,12 @@ from langchain_mcp_adapters.client import MultiServerMCPClient
 from langchain.agents import create_agent
 import os
 from ..llm_factory import create_summarization_model
+from ..guardrails.before_agent import InputScanner
+from backend.pipeline.logger import create_logger
+from backend.agentic.guardrails.gateway import MCPSecurityGateway
+from backend.agentic.guardrails.before_agent import detect
+
+gateway = MCPSecurityGateway()
 
 reasoning_model = create_summarization_model()
 summarize_prompt = """
@@ -63,10 +69,11 @@ mcp_client = MultiServerMCPClient({
 })
 
 summarize_agent = None
+input_scanner = None
 
 
 async def init_summarize_agent():
-    global summarize_agent
+    global summarize_agent, input_scanner
     init_cache_db()
     tools =  await mcp_client.get_tools()
     summarize_agent = create_agent(
@@ -75,12 +82,22 @@ async def init_summarize_agent():
         system_prompt=summarize_prompt,
         response_format=SummarizeOutput
     )
+    input_scanner = InputScanner()
+    await input_scanner.preload_models()
 
 
 async def summarize(request: SummarizeRequest):
     """
     Generate natural language descriptions for special columns in SLA metric tables.
     """
+    global input_scanner
+    if input_scanner is None:
+        await init_summarize_agent()
+
+    # Scan inputs
+    request.metric_description = detect(request.metric_description)
+
+    request.pipeline_description = detect(request.pipeline_description)
     
     # Format semantic origins for the prompt
     semantic_origins_text = "\n".join(

@@ -11,3 +11,4 @@ langchain-docs/
 *venv/
 .DS_Store
 .github/copilot-instructions.md
+*.csv

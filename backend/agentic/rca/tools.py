@@ -1,6 +1,6 @@
 from typing import List, Union, Dict, Any, TypedDict
 from sqlalchemy import text
-from postgres_util import postgre_engine
+from backend.postgres_util import postgre_engine
 import asyncio
 from functools import wraps
 class TablePayload(TypedDict):

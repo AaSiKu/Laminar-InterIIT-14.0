@@ -1,3 +1,4 @@
+import asyncio
 from typing import List, Union, Literal
 from langchain.agents import create_agent
 from langchain.agents.structured_output import ToolStrategy
@@ -7,8 +8,12 @@ from lib.agents import Agent
 from .sql_tool import TablePayload, create_sql_tool
 from .llm_factory import create_agent_model
 from langchain_mcp_adapters.client import MultiServerMCPClient
+import os
+from agentic.guardrails.gateway import MCPSecurityGateway
+from agentic.guardrails.before_agent import InputScanner
 
 
+gateway = MCPSecurityGateway()
 
 class Action(BaseModel):
     id: int
@@ -41,6 +46,20 @@ def build_agent(agent: AgentPayload) -> BaseTool:
     # TODO: Create our pre defined custom tools array based on what the user has defined the agent's tools as
         # The custom tools feature should also include a human in the loop implementation
         # Implement mappings from tool ids to the actual tool function for custom tools
+        
+    pii_results = gateway.pii_analyzer.detect_all(agent.description)
+    secrets_results = gateway.secrets_analyzer.detect_all(agent.description)
+
+    if pii_results:
+        pass
+        # TODO: custom_logger.critical("PII Data detected in agent description")
+    
+    if secrets_results:
+        pass
+        #TODO: custom_logger.critical("Secret Data detected in agent description")
+
+    all_findings = (pii_results or []) + (secrets_results or [])
+    sanitized_description = InputScanner._sanitize_text(agent.description, all_findings)
 
     tool_tables = [tool for tool in agent.tools if isinstance(tool,TablePayload)]
     tool_rags = [tool for tool in agent.tools if isinstance(tool,RagTool)]
@@ -98,7 +117,7 @@ def build_agent(agent: AgentPayload) -> BaseTool:
         "5. Convert raw data (objects, tuples, SQL results) into readable sentences\n"
         f"{rag_instructions}"
     )
-    
+        
     langchain_agent = create_agent(model=model, system_prompt=agent_system_prompt, tools=tools)
     agent_description = f"This is an agent with the following description:\n{agent.description}"
     
@@ -111,6 +130,17 @@ def build_agent(agent: AgentPayload) -> BaseTool:
     langchain_agent.description = agent_description
     langchain_agent.name = agent.name
     return langchain_agent
+    # @tool(agent.name, description=agent_description)
+    # async def secure_agent_tool(request: str) -> str:
+    #     """securely execute an agent request"""
+    #     issues = await gateway.scan_text_for_issues(request)
+    #     if issues:
+    #         raise ValueError(f"Request failed security checks: {', '.join(issues)}")
+        
+    #     result = await langchain_agent.ainvoke({"input": request})
+    #     return result
+    
+    # return secure_agent_tool
 
 def create_planner_executor(_agents: List[AgentPayload]):
     langchain_agents = [build_agent(_agent) for _agent in _agents]
@@ -141,7 +171,7 @@ def create_planner_executor(_agents: List[AgentPayload]):
         "complete: Plan all steps upfront when the full solution is deterministic\n"
         "  - Use when: All actions are independent or have clear $id dependencies\n"
         "  - After execution: An aggregator receives your reasoning + all outputs\n"
-        "  - The aggregator synthesizes the final answer, so focus on data gathering\n"
+        "  - The aggregator synthesizes the final answer, so focus on data gathering\n\n"
         "  - Example: 'Get revenue, get expenses, calculate margin' - all steps known\n\n"
         
         "staged: Plan partial steps, inspect results, then replan (USE SPARINGLY)\n"

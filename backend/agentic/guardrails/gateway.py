@@ -10,7 +10,6 @@ from urllib3.util.retry import Retry
 import os, sys
 import asyncio
 from dotenv import load_dotenv
-from google import genai
 from pydantic import Field
 from pydantic.dataclasses import dataclass
 from openai import AsyncClient
@@ -22,9 +21,10 @@ import nh3
 # from detect_secrets.core.secrets_collection import SecretsCollection
 import ipaddress
 import socket
+from backend.pipeline.logger import custom_logger
 
-from base import DetectorResult, BaseDetector, ExtrasImport, Extra
-from batch import PromptInjectionAnalyzer, PRESIDIO_EXTRA, transformers_extra
+from .base import DetectorResult, BaseDetector, ExtrasImport, Extra
+from .batch import PromptInjectionAnalyzer, PRESIDIO_EXTRA, transformers_extra
 
 load_dotenv()
 
@@ -155,6 +155,7 @@ class MCPSecurityGateway:
     (4) Process Layer: HITL Review Queue, Session Ephemerality (Memory Wiping).
     """
     def __init__(self):
+        super.__init__()
         self._init_connection_pool()
         self._init_rate_limits()
         self._init_permissions()

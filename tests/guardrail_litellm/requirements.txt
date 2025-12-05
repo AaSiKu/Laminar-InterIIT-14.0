@@ -1,7 +1,0 @@
-litellm
-fastmcp
-pytest
-python-dotenv
-google-generativeai
-uvicorn
-fastapi

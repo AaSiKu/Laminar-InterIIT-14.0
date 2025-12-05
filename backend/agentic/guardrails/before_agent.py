@@ -1,13 +1,16 @@
 import asyncio
 from dataclasses import dataclass, field
 from typing import List, Tuple
-from gateway import (
+from .gateway import (
     DetectorResult,
     PII_Analyzer,
     PromptInjectionAnalyzer,
     SecretsAnalyzer,
 )
+from backend.pipeline.logger import custom_logger
+from gateway import MCPSecurityGateway
 
+gateway = MCPSecurityGateway()
 
 @dataclass
 class ScanResult:
@@ -48,13 +51,18 @@ class InputScanner:
             A ScanResult object containing the outcome.
         """
         try:
+            # Run async detectors in parallel
+            # Note: PromptInjectionAnalyzer.adetect returns bool, PII_Analyzer.adetect returns list
             injection_task = self.prompt_injection_detector.adetect(text)
-            pii_task = self.pii_detector.adetect_all(text)
-            secrets_task = self.secrets_detector.detect_all(text)
+            pii_task = self.pii_detector.adetect(text)  # Fixed: use adetect not adetect_all
 
-            injection_detected, pii_results, secrets_results = await asyncio.gather(
-                injection_task, pii_task, secrets_task
+            injection_detected, pii_results = await asyncio.gather(
+                injection_task, pii_task
             )
+            
+            # Run synchronous secrets detector separately
+            secrets_results = self.secrets_detector.detect_all(text)
+            
             if injection_detected:
                 return ScanResult(is_safe=False, sanitized_input="Invalid input.", findings=[injection_detected])
 
@@ -85,6 +93,8 @@ class InputScanner:
         It sorts findings by start index in reverse to avoid issues with
         string index changes during replacement.
         """
+        if not findings:
+            return text
         findings.sort(key=lambda f: f.start, reverse=True)
 
         sanitized_text = list(text)
@@ -93,6 +103,25 @@ class InputScanner:
             sanitized_text[finding.start : finding.end] = redaction_str
 
         return "".join(sanitized_text)
+    
+
+def detect(text :str):
+    pii_results = gateway.pii_analyzer.detect_all(text)
+    secrets_results = gateway.secrets_analyzer.detect_all(text)
+    
+    if pii_results:
+        custom_logger.critical("PII Data detected in agent description")
+    
+    if secrets_results:
+        custom_logger.critical("Secret Data detected in agent description")
+
+    all_findings = (pii_results or []) + (secrets_results or [])
+    sanitized_description = InputScanner._sanitize_text(text, all_findings)
+    
+    if all_findings:
+        custom_logger.info("Input data was sanitized for PII/secrets.")
+    
+    return sanitized_description
 
 # async def main():
 #     """Demonstrates the InputScanner functionality."""

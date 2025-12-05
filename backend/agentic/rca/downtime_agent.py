@@ -8,7 +8,12 @@ from .output import RCAAnalysisOutput
 from langgraph.graph import StateGraph, END
 import operator
 from ..llm_factory import create_analyser_model
+from ..guardrails.before_agent import InputScanner
+from backend.pipeline.logger import custom_logger
+from backend.agentic.guardrails.gateway import MCPSecurityGateway
+from backend.agentic.guardrails.before_agent import detect
 
+gateway = MCPSecurityGateway()
 
 # Create the analyzer model instance
 analyser_model = create_analyser_model()
@@ -121,6 +126,7 @@ class DowntimeAnalysisState(TypedDict):
 
 individual_agent = None
 aggregation_agent = None
+input_scanner = None
 
 def format_timestamp(unix_nano: int) -> str:
     """Convert Unix nanoseconds to readable timestamp"""
@@ -176,7 +182,7 @@ def format_incident_logs(incident: DowntimeIncident, logs: List[Dict]) -> str:
 
 async def init_agents():
     """Initialize both agents"""
-    global individual_agent, aggregation_agent
+    global individual_agent, aggregation_agent, input_scanner
     
     if individual_agent is None:
         individual_agent = create_agent(
@@ -193,6 +199,10 @@ async def init_agents():
             system_prompt=aggregation_prompt,
             response_format=RCAAnalysisOutput
         )
+    
+    if input_scanner is None:
+        input_scanner = InputScanner()
+        await input_scanner.preload_models()
 
 async def analyze_single_incident(
     incident: DowntimeIncident,
@@ -218,9 +228,11 @@ async def analyze_single_incident(
     # Format logs for analysis
     formatted_logs = format_incident_logs(incident, logs)
     
+    sanitized_description = detect(formatted_logs)
+
     analysis_prompt = (
         f"Analyze this specific downtime incident:\n\n"
-        f"{formatted_logs}\n\n"
+        f"{sanitized_description}\n\n"
     )
     
     result = await individual_agent.ainvoke(
