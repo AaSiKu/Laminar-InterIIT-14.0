@@ -383,7 +383,7 @@ async def retrieve_all(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
     skip: int = 0,
-    limit: int = 10
+    limit: int = None
 ):
 
     workflow_collection = request.app.state.workflow_collection
@@ -393,14 +393,13 @@ async def retrieve_all(
     if current_user.role != "admin":
         query = {"owner_ids": str(current_user.id)}
 
-    workflows = await (
-        workflow_collection
-        .find(query)
-        .sort("last_updated", -1)
-        .skip(skip)
-        .limit(limit)
-        .to_list(length=limit)
-    )
+    cursor = workflow_collection.find(query).sort("last_updated", -1).skip(skip)
+
+    if limit is not None:
+        cursor = cursor.limit(limit)
+        workflows = await cursor.to_list(length=limit)
+    else:
+        workflows = await cursor.to_list(length=None)
 
     current_user_id = str(current_user.id)
 
