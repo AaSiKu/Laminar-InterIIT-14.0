@@ -4,14 +4,8 @@ from langchain.agents.structured_output import ToolStrategy
 from langchain_core.tools import BaseTool
 from pydantic import BaseModel, Field
 from lib.agents import Agent
-
-try:
-    from .sql_tool import TablePayload, create_sql_tool
-    from .llm_factory import create_agent_model
-except ImportError:
-    from sql_tool import TablePayload, create_sql_tool
-    from llm_factory import create_agent_model
-
+from .sql_tool import TablePayload, create_sql_tool
+from .llm_factory import create_agent_model
 import os
 
 
@@ -20,6 +14,8 @@ class Action(BaseModel):
     id: int
     agent: str = Field(description="Agent name to call")
     request: str = Field(description="Natural language request to the agent")
+
+
 class Plan(BaseModel):
     actions: List[Action]
     reasoning: str = Field(description="Reasoning behind the plan")

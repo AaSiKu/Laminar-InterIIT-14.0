@@ -90,6 +90,8 @@ def build_computational_graph(
     
     for node_index in parsing_order:
         node = nodes[node_index]
+        if node.node_id == "trigger_rca":
+            continue
         node_deps = dependencies.get(node_index, [])
         
         # Build the node's table

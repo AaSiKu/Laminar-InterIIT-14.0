@@ -353,3 +353,25 @@ def create_summarization_model(
         BaseChatModel instance
     """
     return get_model(LLMUseCase.SUMMARIZATION, provider=provider, **kwargs)
+
+
+def create_analyser_model(
+    provider: Optional[LLMProvider] = None,
+    **kwargs
+) -> BaseChatModel:
+    """
+    Create a model optimized for RCA (Root Cause Analysis) tasks.
+    
+    Default configuration:
+    - Provider: Gemini (gemini-2.0-flash-exp for fast analysis)
+    - Temperature: 0.3 (balanced - some creativity but mostly deterministic)
+    - Max retries: 3
+    
+    Args:
+        provider: Optional provider override
+        **kwargs: Additional parameters or overrides
+        
+    Returns:
+        BaseChatModel instance
+    """
+    return get_model(LLMUseCase.ANALYSER, provider=provider, **kwargs)
