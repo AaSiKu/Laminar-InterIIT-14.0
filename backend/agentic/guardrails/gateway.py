@@ -21,6 +21,7 @@ import nh3
 # from detect_secrets.core.secrets_collection import SecretsCollection
 import ipaddress
 import socket
+from backend.pipeline.logger import custom_logger
 
 from .base import DetectorResult, BaseDetector, ExtrasImport, Extra
 from .batch import PromptInjectionAnalyzer, PRESIDIO_EXTRA, transformers_extra

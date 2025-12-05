@@ -9,7 +9,11 @@ from langgraph.graph import StateGraph, END
 import operator
 from ..llm_factory import create_analyser_model
 from ..guardrails.before_agent import InputScanner
+from backend.pipeline.logger import custom_logger
+from backend.agentic.guardrails.gateway import MCPSecurityGateway
+from backend.agentic.guardrails.before_agent import detect
 
+gateway = MCPSecurityGateway()
 
 # Create the analyzer model instance
 analyser_model = create_analyser_model()
@@ -224,15 +228,11 @@ async def analyze_single_incident(
     # Format logs for analysis
     formatted_logs = format_incident_logs(incident, logs)
     
-    if input_scanner:
-        scan_result = await input_scanner.scan(formatted_logs)
-        if not scan_result.is_safe:
-            raise ValueError(f"Security scan failed: {scan_result.sanitized_input}")
-        formatted_logs = scan_result.sanitized_input
+    sanitized_description = detect(formatted_logs)
 
     analysis_prompt = (
         f"Analyze this specific downtime incident:\n\n"
-        f"{formatted_logs}\n\n"
+        f"{sanitized_description}\n\n"
     )
     
     result = await individual_agent.ainvoke(

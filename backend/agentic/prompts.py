@@ -10,6 +10,7 @@ from .llm_factory import create_agent_model
 import os
 from agentic.guardrails.gateway import MCPSecurityGateway
 from agentic.guardrails.before_agent import InputScanner
+from backend.pipeline.logger import custom_logger
 
 gateway = MCPSecurityGateway()
 
@@ -40,10 +41,16 @@ def build_agent(agent: AgentPayload) -> BaseTool:
     # TODO: Create our pre defined custom tools array based on what the user has defined the agent's tools as
         # The custom tools feature should also include a human in the loop implementation
         # Implement mappings from tool ids to the actual tool function for custom tools
-    
+        
     pii_results = gateway.pii_analyzer.detect_all(agent.description)
     secrets_results = gateway.secrets_analyzer.detect_all(agent.description)
+
+    if pii_results:
+        custom_logger.critical("PII Data detected in agent description")
     
+    if secrets_results:
+        custom_logger.critical("Secret Data detected in agent description")
+
     all_findings = (pii_results or []) + (secrets_results or [])
     sanitized_description = InputScanner._sanitize_text(agent.description, all_findings)
 

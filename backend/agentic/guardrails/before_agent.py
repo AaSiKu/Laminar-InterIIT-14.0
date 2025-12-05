@@ -7,7 +7,10 @@ from .gateway import (
     PromptInjectionAnalyzer,
     SecretsAnalyzer,
 )
+from backend.pipeline.logger import custom_logger
+from gateway import MCPSecurityGateway
 
+gateway = MCPSecurityGateway()
 
 @dataclass
 class ScanResult:
@@ -100,6 +103,25 @@ class InputScanner:
             sanitized_text[finding.start : finding.end] = redaction_str
 
         return "".join(sanitized_text)
+    
+
+def detect(text :str):
+    pii_results = gateway.pii_analyzer.detect_all(text)
+    secrets_results = gateway.secrets_analyzer.detect_all(text)
+    
+    if pii_results:
+        custom_logger.critical("PII Data detected in agent description")
+    
+    if secrets_results:
+        custom_logger.critical("Secret Data detected in agent description")
+
+    all_findings = (pii_results or []) + (secrets_results or [])
+    sanitized_description = InputScanner._sanitize_text(text, all_findings)
+    
+    if all_findings:
+        custom_logger.info("Input data was sanitized for PII/secrets.")
+    
+    return sanitized_description
 
 # async def main():
 #     """Demonstrates the InputScanner functionality."""
