@@ -39,12 +39,5 @@ langchain_mcp_adapters
 litellm==1.80.5
 sqlalchemy==2.0.44
 
-# === Pathway Document Store (Report Generation) ===
-pathway[xpack-llm]>=0.8.0
-
-# === Document Processing (Report Generation) ===
-pdf2image
-unstructured
-
 # === HTTP & Data ===
 requests>=2.31.0
