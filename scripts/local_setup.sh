@@ -1,4 +1,5 @@
 #!/bin/bash
+# TODO: Chance to production
 
 # --- Configuration ---
 # Set the name of the virtual environment directory

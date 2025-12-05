@@ -22,7 +22,9 @@ const LogsSection = ({ workflow }) => {
     const fetch_version_history = async () => {
       try {
         const res = await fetch(
-          `${import.meta.env.VITE_API_SERVER}/version/retrieve_versions?workflow_id=${workflow_id}`,
+          `${
+            import.meta.env.VITE_API_SERVER
+          }/version/retrieve_versions?workflow_id=${workflow_id}`,
           { credentials: "include" }
         );
 
@@ -129,10 +131,14 @@ const LogsSection = ({ workflow }) => {
               .filter((log) => {
                 const logWorkflowId = log.workflow_id || log.pipeline_id;
                 const workflowId = workflow?._id || workflow?.id;
-                return logWorkflowId && workflowId && String(logWorkflowId) === String(workflowId);
+                return (
+                  logWorkflowId &&
+                  workflowId &&
+                  String(logWorkflowId) === String(workflowId)
+                );
               })
               .map((log, index) => (
-              <Box key={log._id} sx={{ display: "flex", gap: 1.5 }}>
+              <Box key={index} sx={{ display: "flex", gap: 1.5 }}>
                 <Box
                   sx={{
                     width: 20,
@@ -177,71 +183,82 @@ const LogsSection = ({ workflow }) => {
             {lenVersions === 0 ? (
               <Typography
                 variant="body2"
-                sx={{ fontSize: "0.75rem", color: "text.secondary", textAlign: "center", py: 2 }}
+                sx={{
+                  fontSize: "0.75rem",
+                  color: "text.secondary",
+                  textAlign: "center",
+                  py: 2,
+                }}
               >
                 No versions available
               </Typography>
             ) : (
               <>
-                {versionHistory && versionHistory.map((item, index) => (
-                  <Box
-                    key={index}
-                    sx={{ display: "flex", gap: 1.5, position: "relative" }}
-                  >
-                    {index < versionHistory.length - 1 && (
+                {versionHistory &&
+                  versionHistory.map((item, index) => (
+                    <Box
+                      key={index}
+                      sx={{ display: "flex", gap: 1.5, position: "relative" }}
+                    >
+                      {index < versionHistory.length - 1 && (
+                        <Box
+                          sx={{
+                            position: "absolute",
+                            left: "6px",
+                            top: "24px",
+                            bottom: "-16px",
+                            width: "2px",
+                            bgcolor: "divider",
+                          }}
+                        />
+                      )}
                       <Box
                         sx={{
-                          position: "absolute",
-                          left: "6px",
-                          top: "24px",
-                          bottom: "-16px",
-                          width: "2px",
-                          bgcolor: "divider",
+                          width: 14,
+                          height: 14,
+                          borderRadius: "50%",
+                          bgcolor: `${colorPalette[index]}`,
+                          flexShrink: 0,
+                          mt: 0.25,
+                          zIndex: 1,
                         }}
                       />
-                    )}
-                    <Box
-                      sx={{
-                        width: 14,
-                        height: 14,
-                        borderRadius: "50%",
-                        bgcolor: `${colorPalette[index]}`,
-                        flexShrink: 0,
-                        mt: 0.25,
-                        zIndex: 1,
-                      }}
-                    />
-                    <Box sx={{ flex: 1 }}>
-                      <Typography
-                        variant="body2"
-                        sx={{
-                          fontSize: "0.8125rem",
-                          color: "text.primary",
-                          mb: 0.5,
-                          fontWeight: 600,
-                        }}
-                      >
-                        {item.date.split("T")[0]} at{" "}
-                        {item.date.split("T")[1].split(".")[0]}
-                      </Typography>
-                      <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                        <Avatar
-                          src={`https://avatar.iran.liara.run/public/boy?username=${encodeURIComponent(
-                            item.user
-                          )}&size=32`}
-                          alt={item.user}
-                          sx={{ width: 20, height: 20 }}
-                        />
+                      <Box sx={{ flex: 1 }}>
                         <Typography
                           variant="body2"
-                          sx={{ fontSize: "0.75rem", color: "text.secondary" }}
+                          sx={{
+                            fontSize: "0.8125rem",
+                            color: "text.primary",
+                            mb: 0.5,
+                            fontWeight: 600,
+                          }}
                         >
-                          User ID: {item.user}, Version ID: {item.version_id}
+                          {item.date.split("T")[0]} at{" "}
+                          {item.date.split("T")[1].split(".")[0]}
                         </Typography>
+                        <Box
+                          sx={{ display: "flex", alignItems: "center", gap: 1 }}
+                        >
+                          <Avatar
+                            src={`https://avatar.iran.liara.run/public/boy?username=${encodeURIComponent(
+                              item.user
+                            )}&size=32`}
+                            alt={item.user}
+                            sx={{ width: 20, height: 20 }}
+                          />
+                          <Typography
+                            variant="body2"
+                            sx={{
+                              fontSize: "0.75rem",
+                              color: "text.secondary",
+                            }}
+                          >
+                            User ID: {item.user}, Version ID: {item.version_id}
+                          </Typography>
+                        </Box>
                       </Box>
                     </Box>
-                  </Box>
-                ))}
+                  ))}
                 {lenVersions > 5 && (
                   <Typography
                     variant="body2"

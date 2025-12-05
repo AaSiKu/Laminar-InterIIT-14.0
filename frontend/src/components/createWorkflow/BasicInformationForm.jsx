@@ -14,9 +14,10 @@ import {
 } from "@mui/material";
 import UploadFileIcon from "@mui/icons-material/UploadFile";
 import CloseIcon from "@mui/icons-material/Close";
-import aiIcon from "../../assets/ai_icon.svg";;
+import aiIcon from "../../assets/ai_icon.svg";
+import { fetchAllUsers } from "../../utils/developerDashboard.api";
 
-const BasicInformationForm = ({ formData, onInputChange, onFileChange, allUsers, setAllUsers, loadingUsers, setLoadingUsers }) => {
+const BasicInformationForm = ({ formData, onInputChange, onFileChange, onMembersChange, allUsers, setAllUsers, loadingUsers, setLoadingUsers }) => {
 
   // Load users when Autocomplete dropdown is opened
   const handleOpenAutocomplete = async () => {
@@ -299,16 +300,15 @@ const BasicInformationForm = ({ formData, onInputChange, onFileChange, allUsers,
             handleOpenAutocomplete();
           }}
           openOnFocus
-          disablePortal={true}
+          disablePortal={false}
           freeSolo={false}
           disableCloseOnSelect
           clearOnBlur={false}
           onChange={(event, newValue) => {
             console.log("Selected members:", newValue);
-            setFormData({
-              ...formData,
-              selectedMembers: newValue,
-            });
+            if (onMembersChange) {
+              onMembersChange(newValue);
+            }
           }}
           onInputChange={(event, value, reason) => {
             console.log("Input changed:", value, reason);
@@ -476,7 +476,7 @@ const BasicInformationForm = ({ formData, onInputChange, onFileChange, allUsers,
           slotProps={{
             paper: {
               sx: {
-                zIndex: 10001,
+                zIndex: 10005,
                 maxHeight: 400,
                 boxShadow: 3,
                 mt: 1,
@@ -506,8 +506,7 @@ const BasicInformationForm = ({ formData, onInputChange, onFileChange, allUsers,
             },
             popper: {
               placement: "bottom-start",
-              disablePortal: true,
-              container: (anchorEl) => anchorEl?.parentElement || document.body,
+              sx: { zIndex: 10005 },
               modifiers: [
                 {
                   name: "offset",
@@ -523,13 +522,6 @@ const BasicInformationForm = ({ formData, onInputChange, onFileChange, allUsers,
               maxHeight: "400px",
               overflowY: "auto",
               overflowX: "hidden",
-            },
-          }}
-          componentsProps={{
-            paper: {
-              sx: {
-                zIndex: 10001,
-              },
             },
           }}
         />
