@@ -141,7 +141,7 @@ export const WorkflowsList = () => {
   const [error, setError] = useState(null);
   const [workflowDetailsCache, setWorkflowDetailsCache] = useState({});
   const [transformedWorkflows, setTransformedWorkflows] = useState([]);
-  const { workflows } = useGlobalState();
+  const { workflows, loading: globalLoading } = useGlobalState();
   const { alerts, getAlertsForPipeline, isConnected, ws } = useWebSocket();
 
   // Fetch details for a specific workflow
@@ -163,7 +163,7 @@ export const WorkflowsList = () => {
     }
   }, [workflowDetailsCache]);
 
-  // Update transformed workflows with details when workflows change (debounced)
+  // Update transformed workflows with details when workflows change (immediate display, async details)
   useEffect(() => {
     if (workflows.length === 0) {
       setTransformedWorkflows([]);
@@ -171,9 +171,28 @@ export const WorkflowsList = () => {
       return;
     }
 
-    const updateWorkflowsWithDetails = async () => {
+    // Immediately show workflows even without details (details will load in background)
+    const transformed = workflows.map(w => {
+      const workflowId = w.id || w._id;
+      const details = workflowId ? workflowDetailsCache[workflowId] || null : null;
+      return transformWorkflow(w, details);
+    });
+    
+    setTransformedWorkflows(transformed);
+    
+    // Update selected workflow if it exists
+    if (selectedWorkflow) {
+      const updated = transformed.find(w => w.id === selectedWorkflow.id);
+      if (updated) {
+        setSelectedWorkflow(updated);
+      }
+    } else if (transformed.length > 0) {
+      setSelectedWorkflow(transformed[0]);
+    }
+
+    // Load details in the background (non-blocking)
+    const loadDetailsInBackground = async () => {
       try {
-        setLoading(true);
         // Only fetch details for workflows that don't have them cached
         const workflowsToUpdate = workflows.filter(w => {
           const workflowId = w.id || w._id;
@@ -182,42 +201,32 @@ export const WorkflowsList = () => {
         
         // Fetch details for workflows that need them
         if (workflowsToUpdate.length > 0) {
-          await Promise.all(
+          // Don't block UI - fetch in background
+          Promise.all(
             workflowsToUpdate.map(async (w) => {
               const workflowId = w.id || w._id;
               await fetchWorkflowDetails(workflowId);
             })
-          );
-        }
-
-        // Transform all workflows with cached details
-        const transformed = workflows.map(w => {
-          const workflowId = w.id || w._id;
-          const details = workflowId ? workflowDetailsCache[workflowId] || null : null;
-          return transformWorkflow(w, details);
-        });
-        
-        setTransformedWorkflows(transformed);
-        
-        // Update selected workflow if it exists
-        if (selectedWorkflow) {
-          const updated = transformed.find(w => w.id === selectedWorkflow.id);
-          if (updated) {
-            setSelectedWorkflow(updated);
-          }
-        } else if (transformed.length > 0) {
-          setSelectedWorkflow(transformed[0]);
+          ).then(() => {
+            // Update transformed workflows again with newly loaded details
+            const updatedTransformed = workflows.map(w => {
+              const workflowId = w.id || w._id;
+              const details = workflowId ? workflowDetailsCache[workflowId] || null : null;
+              return transformWorkflow(w, details);
+            });
+            setTransformedWorkflows(updatedTransformed);
+          }).catch((err) => {
+            console.error("Error loading workflow details in background:", err);
+          });
         }
       } catch (err) {
         console.error("Error updating workflows with details:", err);
-      } finally {
-        setLoading(false);
       }
     };
 
-    const timeoutId = setTimeout(updateWorkflowsWithDetails, 300);
-    return () => clearTimeout(timeoutId);
-  }, [workflows, fetchWorkflowDetails]); // Update when workflows change
+    // Load details immediately (no delay)
+    loadDetailsInBackground();
+  }, [workflows, fetchWorkflowDetails, workflowDetailsCache]); // Update when workflows change
 
   // Handle WebSocket messages for workflow updates and alerts
   useEffect(() => {
@@ -339,7 +348,61 @@ export const WorkflowsList = () => {
   const handleCreateWorkflowComplete = async (workflowData) => {
     try {
       setLoading(true);
-      // Create workflow using pipelineUtils
+      
+      // Check if pipeline was already created (from WebSocket flow or Create button)
+      if (workflowData.pipelineId && workflowData.versionId) {
+        console.log("Pipeline created:", {
+          pipelineId: workflowData.pipelineId,
+          versionId: workflowData.versionId,
+        });
+        
+        // Refresh workflows list to show the new pipeline - try multiple times if needed
+        const refreshWorkflows = async (retryCount = 0) => {
+          try {
+            // Wait a bit for backend to process (longer wait on first attempt)
+            await new Promise(resolve => setTimeout(resolve, retryCount === 0 ? 1000 : 500));
+            
+            const workflowsResponse = await fetchWorkflows(0, 100);
+            if (workflowsResponse.status === "success" && workflowsResponse.data) {
+              // Update workflows in GlobalStateContext
+              if (setWorkflows) {
+                setWorkflows(workflowsResponse.data);
+              }
+              
+              // Find and select the newly created workflow
+              const newWorkflow = workflowsResponse.data.find(
+                w => (w.id || w._id) === workflowData.pipelineId || 
+                     String(w.id || w._id) === String(workflowData.pipelineId)
+              );
+              if (newWorkflow) {
+                setSelectedWorkflow(transformWorkflow(newWorkflow, null));
+                setLoading(false);
+                return true; // Success
+              } else if (retryCount < 3) {
+                // Retry up to 3 times
+                console.log(`Workflow not found, retrying... (attempt ${retryCount + 1}/3)`);
+                return await refreshWorkflows(retryCount + 1);
+              } else {
+                console.warn("Workflow not found after multiple retries");
+                setLoading(false);
+                return false;
+              }
+            }
+          } catch (error) {
+            console.error(`Error refreshing workflows (attempt ${retryCount + 1}):`, error);
+            if (retryCount < 3) {
+              return await refreshWorkflows(retryCount + 1);
+            }
+            setLoading(false);
+            return false;
+          }
+        };
+        
+        await refreshWorkflows();
+        return;
+      }
+      
+      // Fallback: Create workflow using pipelineUtils (old flow)
       let newWorkflowId = null;
       let newVersionId = null;
       
@@ -380,16 +443,27 @@ export const WorkflowsList = () => {
         }
       }
 
-      // Workflows will be updated automatically via GlobalStateContext WebSocket
-      // Just select the newly created workflow if we can find it
-      if (newWorkflowId) {
-        // Wait a bit for WebSocket to update, then find the workflow
-        setTimeout(() => {
-          const newWorkflow = workflows.find(w => w.id === newWorkflowId || w._id === newWorkflowId);
-          if (newWorkflow) {
-            setSelectedWorkflow(newWorkflow);
+      // Refresh workflows list after creation
+      try {
+        const workflowsResponse = await fetchWorkflows(0, 100);
+        if (workflowsResponse.status === "success" && workflowsResponse.data) {
+          // Update workflows in GlobalStateContext
+          if (setWorkflows) {
+            setWorkflows(workflowsResponse.data);
           }
-        }, 1000);
+          
+          // Find and select the newly created workflow
+          if (newWorkflowId) {
+            const newWorkflow = workflowsResponse.data.find(
+              w => (w.id || w._id) === newWorkflowId
+            );
+            if (newWorkflow) {
+              setSelectedWorkflow(transformWorkflow(newWorkflow, null));
+            }
+          }
+        }
+      } catch (refreshError) {
+        console.error("Error refreshing workflows:", refreshError);
       }
     } catch (err) {
       console.error("Error creating workflow:", err);
@@ -497,7 +571,7 @@ export const WorkflowsList = () => {
                 pb: 3,
               }}
             >
-              {loading ? (
+              {globalLoading && workflows.length === 0 ? (
                 <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", py: 4 }}>
                   <Loading />
                 </Box>

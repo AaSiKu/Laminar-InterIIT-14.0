@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Box,
   Typography,
@@ -7,10 +7,13 @@ import {
   CircularProgress,
   keyframes,
   Button,
+  alpha,
 } from "@mui/material";
 import SendIcon from "@mui/icons-material/Send";
 import CheckIcon from "@mui/icons-material/Check";
 import CloseIcon from "@mui/icons-material/Close";
+import Markdown from "react-markdown";
+import { useTheme } from "@mui/material/styles";
 
 // Animated gradient glow keyframes
 const gradientGlow = keyframes`
@@ -32,15 +35,37 @@ const AIChatbot = ({
   setIsGenerating,
   onAccept,
   onDecline,
+  chatMessages: externalMessages = [],
+  onSendMessage,
+  awaitingInput = false,
 }) => {
+  const theme = useTheme();
   const [chatMessages, setChatMessages] = useState([]);
   const [chatInput, setChatInput] = useState("");
   const [hasGeneratedWorkflow, setHasGeneratedWorkflow] = useState(false);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
 
+  // Sync external messages (from WebSocket)
+  useEffect(() => {
+    if (externalMessages.length > 0) {
+      setChatMessages(externalMessages);
+    }
+  }, [externalMessages]);
+
   const handleChatSubmit = async (analyzeMode = false) => {
     if ((!chatInput.trim() && !analyzeMode) || isGenerating) return;
 
+    // If WebSocket is connected, use it
+    if (onSendMessage) {
+      const message = analyzeMode ? "Analyze and generate workflow" : chatInput;
+      onSendMessage(message);
+      if (!analyzeMode) {
+        setChatInput("");
+      }
+      return;
+    }
+
+    // Fallback to old AI workflow generator
     const userMessage = analyzeMode 
       ? { role: "user", content: "Analyze and generate workflow" }
       : { role: "user", content: chatInput };
@@ -212,11 +237,57 @@ const AIChatbot = ({
                     msg.role === "user" ? "common.white" : "text.primary",
                 }}
               >
-                <Typography variant="body2">{msg.content}</Typography>
+                {msg.role === "assistant" || msg.role === "system" ? (
+                  <Typography
+                    component="div"
+                    variant="body2"
+                    sx={{
+                      "& p": { m: 0, mb: 1, lineHeight: 1.6, "&:last-child": { mb: 0 } },
+                      "& code": {
+                        px: 0.75,
+                        py: 0.25,
+                        borderRadius: 0.5,
+                        bgcolor: alpha(
+                          msg.role === "user" ? "rgba(255,255,255,0.2)" : theme.palette.action.hover,
+                          1
+                        ),
+                        fontFamily: "monospace",
+                        fontSize: "0.8125rem",
+                      },
+                      "& pre": {
+                        p: 1,
+                        borderRadius: 1,
+                        bgcolor: alpha(theme.palette.action.hover, 1),
+                        overflow: "auto",
+                        "& code": {
+                          bgcolor: "transparent",
+                          p: 0,
+                        },
+                      },
+                      "& ul, & ol": {
+                        pl: 2,
+                        mb: 1,
+                      },
+                      "& li": {
+                        mb: 0.5,
+                      },
+                      "& strong": {
+                        fontWeight: 600,
+                      },
+                      "& em": {
+                        fontStyle: "italic",
+                      },
+                    }}
+                  >
+                    <Markdown>{msg.content}</Markdown>
+                  </Typography>
+                ) : (
+                  <Typography variant="body2">{msg.content}</Typography>
+                )}
               </Box>
             </Box>
           ))}
-          {isGenerating && (
+          {isGenerating && !awaitingInput && (
             <Box
               sx={{
                 display: "flex",
@@ -227,6 +298,20 @@ const AIChatbot = ({
             >
               <CircularProgress size={16} />
               <Typography variant="body2">Generating workflow...</Typography>
+            </Box>
+          )}
+          {awaitingInput && !isGenerating && (
+            <Box
+              sx={{
+                display: "flex",
+                alignItems: "center",
+                gap: 1,
+                color: "primary.main",
+              }}
+            >
+              <Typography variant="body2" sx={{ fontStyle: "italic" }}>
+                Please type your response above...
+              </Typography>
             </Box>
           )}
         </Box>
@@ -244,7 +329,7 @@ const AIChatbot = ({
           <TextField
             fullWidth
             size="small"
-            placeholder="Ask AI to generate your workflow..."
+            placeholder={awaitingInput ? "Type your response and press Enter..." : "Ask AI to generate your workflow..."}
             value={chatInput}
             onChange={(e) => setChatInput(e.target.value)}
             onKeyPress={(e) => {
@@ -261,6 +346,7 @@ const AIChatbot = ({
                   disabled={isGenerating || !chatInput.trim()}
                   size="small"
                   sx={{ mr: -1 }}
+                  title={awaitingInput ? "Send response" : "Send message"}
                 >
                   <SendIcon fontSize="small" />
                 </IconButton>

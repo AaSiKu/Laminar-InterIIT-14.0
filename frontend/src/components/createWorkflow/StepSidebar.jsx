@@ -23,6 +23,9 @@ const StepSidebar = ({
   currentStepValue,
   onAcceptWorkflow,
   onDeclineWorkflow,
+  chatMessages = [],
+  onSendMessage,
+  awaitingInput = false,
 }) => {
   // Determine if chatbot is visible (step 2 and sidebar not collapsed)
   const isChatbotVisible = currentStepValue === 2 && !isSidebarCollapsed;
@@ -132,6 +135,9 @@ const StepSidebar = ({
                       setIsGenerating={setIsGenerating}
                       onAccept={onAcceptWorkflow}
                       onDecline={onDeclineWorkflow}
+                      chatMessages={chatMessages}
+                      onSendMessage={onSendMessage}
+                      awaitingInput={awaitingInput}
                     />
                   </Box>
                 )}

@@ -66,6 +66,8 @@ class WSAgenticSession:
         
         Returns True if Phase 1 completed successfully, False otherwise.
         """
+        print("\n[SERVER] Phase 1.1: Sending phase announcement")
+        print("[SERVER] → Informing client that Phase 1 is starting")
         await ws.send_json({
             "type": "phase",
             "phase": 1,
@@ -73,6 +75,8 @@ class WSAgenticSession:
         })
 
         metrics_text = json.dumps(self.metrics_list, indent=2)
+        print("\n[SERVER] Phase 1.2: Sending metrics summary")
+        print(f"[SERVER] → Sending summary of {len(self.metrics_list)} metric(s) to client")
         await ws.send_json({
             "type": "metrics_summary",
             "metrics": self.metrics_list,
@@ -87,6 +91,8 @@ class WSAgenticSession:
             f"{metrics_text}\n\nLet's start negotiating the filters for these metrics."
         )
 
+        print("\n[SERVER] Phase 1.3: Calling LLM for initial response")
+        print("[SERVER] → Sending metrics to LLM to generate initial filter configuration")
         response = self.builder.client.messages.create(
             model=self.builder.model_name,
             max_tokens=4000,
@@ -97,6 +103,9 @@ class WSAgenticSession:
         conversation_history.append({"role": "user", "content": initial_msg})
         conversation_history.append({"role": "assistant", "content": response_text})
 
+        print("\n[SERVER] Phase 1.4: Sending initial agent response")
+        print("[SERVER] → AI agent is asking user for filter configuration")
+        print("[SERVER] → User can type 'ok' to accept defaults or describe requirements")
         await ws.send_json({
             "type": "agent_response",
             "phase": 1,
@@ -132,29 +141,44 @@ class WSAgenticSession:
                                 props["topic"] = "otlp_spans"
                             node["data"]["properties"] = props
                     
+                    print("\n[SERVER] Phase 1.5: LLM returned complete flowchart")
+                    print(f"[SERVER] → Creating Phase 1 flowchart with:")
+                    print(f"[SERVER]   - {len(data.get('nodes', []))} nodes (input + filter)")
+                    print(f"[SERVER]   - {len(data.get('edges', []))} edges")
                     self.phase1_flowchart = data
                     self._prepare_filter_metadata()
+                    
+                    print("\n[SERVER] Phase 1.6: Sending Phase 1 completion message")
+                    print("[SERVER] → Sending flowchart to client with phase1_complete message")
                     await ws.send_json({
                         "type": "phase1_complete",
                         "flowchart": data,
                         "message": "Phase 1 completed successfully"
                     })
+                    print("[SERVER] ✓ Phase 1 completed successfully")
                     return True
             except Exception:
                 pass
             
             # Wait for user input
+            print("\n[SERVER] Phase 1.7: Waiting for user input...")
+            print("[SERVER] → Server is now waiting for client to send a message")
             await ws.send_json({
                 "type": "await_input",
                 "phase": 1
             })
             
             try:
+                print("[SERVER] ⏳ Blocking on ws.receive_text() - waiting for user message...")
                 msg = await ws.receive_text()
+                print(f"[SERVER] ✓ Received message from client: {msg[:100]}...")
+                
                 user_data = json.loads(msg)
                 user_input = user_data.get("message", "").strip()
+                print(f"[SERVER] → Parsed user input: '{user_input[:100]}...'")
                 
                 if user_input.lower() in ('quit', 'exit'):
+                    print("[SERVER] ❌ User requested to quit")
                     await ws.send_json({"type": "done", "reason": "quit"})
                     return False
                 
@@ -162,6 +186,7 @@ class WSAgenticSession:
                 conversation_history.append({"role": "user", "content": user_input})
                 
                 # Get response
+                print("[SERVER] → Calling LLM with user input...")
                 response = self.builder.client.messages.create(
                     model=self.builder.model_name,
                     max_tokens=4000,
@@ -170,6 +195,7 @@ class WSAgenticSession:
                 response_text = response.content[0].text
                 conversation_history.append({"role": "assistant", "content": response_text})
                 
+                print("[SERVER] → LLM response received, sending to client")
                 await ws.send_json({
                     "type": "agent_response",
                     "phase": 1,
@@ -177,6 +203,9 @@ class WSAgenticSession:
                 })
                 
             except Exception as e:
+                print(f"\n[SERVER] ❌ Error in Phase 1: {str(e)}")
+                import traceback
+                traceback.print_exc()
                 await ws.send_json({
                     "type": "error",
                     "message": f"Error: {str(e)}"
@@ -185,7 +214,8 @@ class WSAgenticSession:
 
     async def run_phase2_iterative(self, ws: WebSocket) -> bool:
         """Run Phase 2 iteratively via WebSocket with user approval for each node."""
-
+        print("\n[SERVER] Phase 2.1: Sending Phase 2 announcement")
+        print("[SERVER] → Informing client that Phase 2 (Metric Calculation Builder) is starting")
         await ws.send_json({
             "type": "phase",
             "phase": 2,
@@ -194,6 +224,8 @@ class WSAgenticSession:
 
         from contractparseragent.graph_builder import build_macro_plan, build_next_node
 
+        print("\n[SERVER] Phase 2.2: Sending filter assignments")
+        print(f"[SERVER] → Sending filter assignments for {len(self.metric_filter_map)} metric(s)")
         await ws.send_json({
             "type": "filter_assignments",
             "assignments": self.metric_filter_map,
@@ -206,6 +238,11 @@ class WSAgenticSession:
             primary_filter_id = (filter_ids or [self.input_node_id])[0]
             filter_context = summarize_filter_context(filter_ids, self.filter_index, self.input_node_id)
 
+            print(f"\n[SERVER] Phase 2.3.{metric_index + 1}: Processing metric '{metric_name}'")
+            print(f"[SERVER] → Starting calculation builder for metric {metric_index + 1}/{len(self.metrics_list)}")
+            
+            print(f"\n[SERVER] Phase 2.4.{metric_index + 1}: Sending metric start message")
+            print(f"[SERVER] → Informing client which metric we're building nodes for")
             await ws.send_json({
                 "type": "metric_start",
                 "metric_index": metric_index,
@@ -214,10 +251,16 @@ class WSAgenticSession:
                 "filter_context": filter_context,
             })
 
+            print(f"\n[SERVER] Phase 2.5.{metric_index + 1}: Calling LLM to build macro plan")
+            print(f"[SERVER] → Requesting LLM to create a step-by-step plan for metric '{metric_name}'")
             plan_data = build_macro_plan(metric_name, metric_desc, self.phase1_flowchart, filter_context)
             macro_plan = plan_data.get("steps", [])
             metric_desc_refined = plan_data.get("metric_description", metric_desc)
 
+            print(f"\n[SERVER] Phase 2.6.{metric_index + 1}: Sending macro plan")
+            print(f"[SERVER] → Sending {len(macro_plan)} step plan to client:")
+            for i, step in enumerate(macro_plan, 1):
+                print(f"[SERVER]   Step {i}: {step}")
             await ws.send_json({
                 "type": "macro_plan",
                 "metric_index": metric_index,
@@ -228,6 +271,9 @@ class WSAgenticSession:
 
             step_index = 0
             while step_index < len(macro_plan):
+                print(f"\n[SERVER] --- Node {step_index + 1}/{len(macro_plan)} ---")
+                print(f"[SERVER] Phase 2.7.{metric_index + 1}.{step_index + 1}: Sending step start")
+                print(f"[SERVER] → Informing client about step: {macro_plan[step_index]}")
                 await ws.send_json({
                     "type": "step_start",
                     "metric_index": metric_index,
@@ -236,6 +282,8 @@ class WSAgenticSession:
                     "step": macro_plan[step_index],
                 })
 
+                print(f"\n[SERVER] Phase 2.8.{metric_index + 1}.{step_index + 1}: Calling LLM to build next node")
+                print(f"[SERVER] → Requesting LLM to generate node for step {step_index + 1}")
                 current_graph = self._current_graph_snapshot()
                 llm_result = build_next_node(
                     current_graph,
@@ -248,18 +296,24 @@ class WSAgenticSession:
                 next_edges = llm_result.get("next_edges", [])
 
                 if not next_node:
+                    print(f"[SERVER] ❌ LLM did not return a node for step {step_index + 1}")
                     await ws.send_json({
                         "type": "error",
                         "message": "LLM did not return a node for this step",
                     })
                     return False
 
+                print(f"\n[SERVER] Phase 2.9.{metric_index + 1}.{step_index + 1}: Preparing node proposal")
+                print(f"[SERVER] → Node ID: {next_node.get('id', 'unknown')}, Type: {next_node.get('type', 'unknown')}")
                 rewritten_edges = self._rewrite_edges_for_filter(
                     next_edges,
                     primary_filter_id,
                     next_node.get("id"),
                 )
+                print(f"[SERVER] → Created {len(rewritten_edges)} edge(s) for this node")
 
+                print(f"\n[SERVER] Phase 2.10.{metric_index + 1}.{step_index + 1}: Sending node proposal")
+                print(f"[SERVER] → Sending proposed node and edges to client for approval")
                 await ws.send_json({
                     "type": "node_proposed",
                     "metric_index": metric_index,
@@ -268,6 +322,8 @@ class WSAgenticSession:
                     "edges": rewritten_edges,
                 })
 
+                print(f"\n[SERVER] Phase 2.11.{metric_index + 1}.{step_index + 1}: Requesting approval")
+                print(f"[SERVER] → Waiting for user to approve, reject, or quit")
                 await ws.send_json({
                     "type": "await_approval",
                     "metric_index": metric_index,
@@ -275,28 +331,42 @@ class WSAgenticSession:
                 })
 
                 try:
+                    print(f"[SERVER] ⏳ Blocking on ws.receive_text() - waiting for approval...")
                     msg = await ws.receive_text()
+                    print(f"[SERVER] ✓ Received approval response: {msg[:100]}...")
+                    
                     approval_data = json.loads(msg)
                     action = approval_data.get("action")
+                    print(f"[SERVER] → Parsed action: '{action}'")
 
                     if action == "quit":
+                        print(f"[SERVER] ❌ User requested to quit")
                         await ws.send_json({"type": "done", "reason": "quit"})
                         return False
                     if action == "reject":
+                        feedback = approval_data.get("feedback", "")
+                        print(f"[SERVER] ⚠️  User rejected node (feedback: '{feedback}')")
+                        print(f"[SERVER] → Regenerating step {step_index + 1} with feedback")
                         await ws.send_json({
                             "type": "status",
                             "message": f"Regenerating step {step_index + 1} for metric {metric_name}...",
                         })
+                        # TODO: Use feedback to improve next node generation
                         continue
                     if action != "approve":
+                        print(f"[SERVER] ⚠️  Invalid action: '{action}'")
                         await ws.send_json({
                             "type": "error",
                             "message": "Invalid action. Use 'approve', 'reject', or 'quit'",
                         })
                         continue
 
-                    self._finalize_node(next_node, rewritten_edges)
+                    print(f"\n[SERVER] Phase 2.12.{metric_index + 1}.{step_index + 1}: Adding node to graph")
+                    print(f"[SERVER] → Adding approved node to Phase 2 graph")
+                    self._finalize_node(next_node, rewritten_edges, step_index)
+                    print(f"[SERVER] → Phase 2 graph now has {len(self.phase2_graph['nodes'])} nodes, {len(self.phase2_graph['edges'])} edges")
 
+                    print(f"\n[SERVER] Phase 2.13.{metric_index + 1}.{step_index + 1}: Sending approval confirmation")
                     await ws.send_json({
                         "type": "node_approved",
                         "metric_index": metric_index,
@@ -307,16 +377,22 @@ class WSAgenticSession:
                     step_index += 1
 
                 except Exception as e:
+                    print(f"\n[SERVER] ❌ Error processing node approval: {str(e)}")
+                    import traceback
+                    traceback.print_exc()
                     await ws.send_json({
                         "type": "error",
                         "message": f"Error: {str(e)}",
                     })
                     return False
 
+        print(f"\n[SERVER] Phase 2.14: All metrics processed")
+        print(f"[SERVER] → Sending Phase 2 completion message")
         await ws.send_json({
             "type": "phase2_complete",
             "message": "Phase 2 completed successfully for all metrics",
         })
+        print(f"[SERVER] ✓ Phase 2 completed successfully")
         return True
 
     def _prepare_filter_metadata(self) -> None:
@@ -391,6 +467,7 @@ class WSAgenticSession:
         self,
         node: Dict[str, Any],
         edges: List[Dict[str, Any]],
+        step_index: Optional[int] = None,
     ) -> None:
         new_id = self._next_node_id()
         old_id = node.get("id")
@@ -408,25 +485,69 @@ class WSAgenticSession:
             self.phase2_graph["edges"].append(new_edge)
 
         self.snapshot_counter += 1
-        self.builder.merge_and_save(
+        
+        # Save incremental flowchart after each node approval
+        self._save_flowchart(step_index)
+
+    def _save_flowchart(self, step_index: Optional[int] = None):
+        """Save current flowchart state incrementally."""
+        print(f"\n[SERVER] Saving flowchart (step_index={step_index})")
+        print(f"[SERVER] → Merging Phase 1 ({len(self.phase1_flowchart.get('nodes', []))} nodes) + Phase 2 ({len(self.phase2_graph['nodes'])} nodes)")
+        
+        # Use builder's merge_and_save to get properly formatted output and save to file
+        merged = self.builder.merge_and_save(
             self.phase1_flowchart,
             self.phase2_graph,
             output_dir=str(self.output_dir),
         )
+        
+        # merged is a dict with nodes, edges, agents, viewport
+        node_count = len(merged.get("nodes", []))
+        edge_count = len(merged.get("edges", []))
+        
+        print(f"[SERVER] → Total: {node_count} nodes, {edge_count} edges")
+        print(f"[SERVER] ✓ Saved flowchart.json")
+
+        # Also save step file if step_index provided
+        if step_index is not None:
+            step_file = self.output_dir / f"flowchart_node_{step_index:02d}.json"
+            print(f"[SERVER] → Also saving step file: {step_file}")
+            with step_file.open("w", encoding="utf-8") as f:
+                json.dump(merged, f, indent=2)
+            print(f"[SERVER] ✓ Saved step file")
 
     async def save_final_flowchart(self, ws: WebSocket):
         """Merge Phase 1 and Phase 2 and save final flowchart."""
+        print("\n[SERVER] Saving final flowchart")
+        print("[SERVER] → This is the complete flowchart with all approved nodes")
+        self._save_flowchart()
+        
+        # merge_and_save already saved the file, just get the merged data
         merged = self.builder.merge_and_save(self.phase1_flowchart, self.phase2_graph, str(self.output_dir))
         
+        # merged is a dict with nodes, edges, agents, viewport - send this to client
+        print(f"\n[SERVER] Sending final flowchart to client")
+        print(f"[SERVER] → Final flowchart contains:")
+        print(f"[SERVER]   - {len(merged.get('nodes', []))} total nodes")
+        print(f"[SERVER]   - {len(merged.get('edges', []))} total edges")
+        print(f"[SERVER]   - Saved at: {self.output_dir / 'flowchart.json'}")
         await ws.send_json({
             "type": "final",
             "flowchart": merged,
             "path": str(self.output_dir / "flowchart.json"),
             "message": "Final flowchart saved successfully"
         })
+        print(f"[SERVER] ✓ Final flowchart sent to client")
 
     async def run(self, ws: WebSocket):
         """Main session flow: Phase 1 → Phase 2 → Save."""
+        print("\n" + "="*60)
+        print("[SERVER] STEP 1: Starting session")
+        print(f"[SERVER] → Processing {len(self.metrics_list)} metric(s)")
+        for i, metric in enumerate(self.metrics_list):
+            print(f"[SERVER]   - Metric {i+1}: {metric.get('metric_name', 'Unknown')}")
+        print("="*60)
+        
         await ws.send_json({
             "type": "session_start",
             "metrics": self.metrics_list,
@@ -434,15 +555,18 @@ class WSAgenticSession:
         })
         
         # Phase 1
+        print("\n[SERVER] STEP 2: Starting Phase 1 (Input & Filter Builder)")
+        print("[SERVER] → This phase will create input nodes and filter nodes using LLM")
+        print("[SERVER] → Waiting for user input to proceed...")
         phase1_success = await self.run_phase1_interactive(ws)
         if not phase1_success:
+            print("\n[SERVER] ❌ Phase 1 failed or user quit")
             await ws.send_json({"type": "done", "reason": "phase1_failed"})
             return
 
-        # Immediately after Phase 1 completes, persist a snapshot of just
-        # the input+filter flowchart before any metric-calculation nodes
-        # are added in Phase 2. This will typically be the first
-        # flowchart file the user sees.
+        # Save phase 1 flowchart
+        print("\n[SERVER] STEP 3: Saving Phase 1 flowchart")
+        print("[SERVER] → Saving initial flowchart with input and filter nodes")
         try:
             # Use an empty Phase 2 graph so the merged result is exactly
             # the Phase 1 flowchart (modulo id normalization in merge).
@@ -451,21 +575,35 @@ class WSAgenticSession:
                 {"nodes": [], "edges": []},
                 output_dir=str(self.output_dir),
             )
+            print(f"[SERVER] ✓ Saved to: {self.output_dir / 'flowchart.json'}")
         except Exception as e:
+            print(f"[SERVER] ❌ Error saving Phase 1 flowchart: {str(e)}")
             await ws.send_json({
                 "type": "error",
                 "message": f"Error saving Phase 1 flowchart snapshot: {str(e)}",
             })
         
         # Phase 2
+        print("\n[SERVER] STEP 4: Starting Phase 2 (Metric Calculation Builder)")
+        print("[SERVER] → This phase will propose calculation nodes one by one using LLM")
+        print("[SERVER] → Each node requires user approval (approve/reject/quit)")
         phase2_success = await self.run_phase2_iterative(ws)
         if not phase2_success:
+            print("\n[SERVER] ❌ Phase 2 failed or user quit")
             await ws.send_json({"type": "done", "reason": "phase2_failed"})
             return
         
         # Save final
+        print("\n[SERVER] STEP 5: Saving final flowchart")
+        print("[SERVER] → Merging Phase 1 and Phase 2 nodes into final flowchart")
         await self.save_final_flowchart(ws)
+        print("[SERVER] ✓ Final flowchart saved and sent to client")
+        
+        print("\n[SERVER] STEP 6: Session complete")
+        print("[SERVER] → Sending 'done' message to client")
         await ws.send_json({"type": "done", "reason": "complete"})
+        print("[SERVER] ✓ Session completed successfully")
+        print("="*60 + "\n")
 
 
 @app.websocket("/ws")
@@ -572,10 +710,13 @@ async def websocket_endpoint(ws: WebSocket):
 
 
 if __name__ == "__main__":
+    import os
+    # Use a different port to avoid conflict with main API server
+    port = int(os.getenv("CONTRACT_PARSER_PORT", "8001"))
     uvicorn.run(
         "server:app",
         host="0.0.0.0",
-        port=8000,
+        port=port,
         reload=True,
         ws_ping_interval=None,
         ws_ping_timeout=None,

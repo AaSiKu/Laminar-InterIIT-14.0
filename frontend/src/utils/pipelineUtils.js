@@ -526,6 +526,7 @@ export {
   deleteDrafts,
   deletePipeline,
   fetchPipelineDetails,
+  add_to_node_types,
 };
 
 /**

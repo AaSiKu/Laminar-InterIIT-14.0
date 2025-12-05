@@ -1,5 +1,5 @@
 from ..node import Node
-from lib.utils import RdKafkaSettings
+from ..common_types import RdKafkaSettings
 from typing import Literal
 
 
