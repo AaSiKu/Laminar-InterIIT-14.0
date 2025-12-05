@@ -76,7 +76,7 @@ Return ONLY a valid JSON array with this exact structure:
   {{
     "metric_name": "metric name here",
     "description": "detailed description here",
-    "category": "latency"
+    "category": "latency/error/uptime"
   }}
 ]
 

@@ -10,11 +10,20 @@ from .output import RCAAnalysisOutput
 from datetime import datetime, timedelta
 import asyncio
 from ..llm_factory import create_analyser_model
+from ..guardrails.before_agent import InputScanner
 
 load_dotenv()
 
 # Create the analyzer model instance
 analyser_model = create_analyser_model()
+input_scanner = None
+
+async def get_scanner():
+    global input_scanner
+    if input_scanner is None:
+        input_scanner = InputScanner()
+        await input_scanner.preload_models()
+    return input_scanner
 
 
 # We will run one subgraph per each trace id for the top 5 slowest traces which will take this state
@@ -165,12 +174,30 @@ async def analysis_agent_node(state: SLAAlert) -> Dict:
     log_context = format_logs(state.get("logs", []))
     topology_context = format_topology(state.get("topology", []))
 
+    scanner = await get_scanner()
+    
+    scan_result_logs = await scanner.scan(log_context)
+    if not scan_result_logs.is_safe:
+        raise ValueError(f"Security scan failed for logs: {scan_result_logs.sanitized_input}")
+    log_context = scan_result_logs.sanitized_input
+
+    scan_result_topology = await scanner.scan(topology_context)
+    if not scan_result_topology.is_safe:
+        raise ValueError(f"Security scan failed for topology: {scan_result_topology.sanitized_input}")
+    topology_context = scan_result_topology.sanitized_input
+
     error_context = ""
     if state.get("has_error"):
+        error_msg = state.get('error_message', 'No message')
+        scan_result_error = await scanner.scan(error_msg)
+        if not scan_result_error.is_safe:
+             raise ValueError(f"Security scan failed for error message: {scan_result_error.sanitized_input}")
+        error_msg = scan_result_error.sanitized_input
+
         error_context = f"""
     **Error Information:**
     - Error Span: {state.get('error_span', 'Unknown')}
-    - Error Message: {state.get('error_message', 'No message')}
+    - Error Message: {error_msg}
         """
 
     prompt = f"""
@@ -234,6 +261,20 @@ async def validate_hypothesis_with_llm(state: SLAAlert) -> Dict:
     """
     Uses an LLM to determine if the hypothesis is well-supported by evidence.
     """
+    scanner = await get_scanner()
+    
+    logs_text = format_logs(state.get("logs", []))
+    scan_result_logs = await scanner.scan(logs_text)
+    if not scan_result_logs.is_safe:
+        raise ValueError(f"Security scan failed for logs: {scan_result_logs.sanitized_input}")
+    logs_text = scan_result_logs.sanitized_input
+
+    topology_text = format_topology(state.get("topology", []))
+    scan_result_topology = await scanner.scan(topology_text)
+    if not scan_result_topology.is_safe:
+        raise ValueError(f"Security scan failed for topology: {scan_result_topology.sanitized_input}")
+    topology_text = scan_result_topology.sanitized_input
+
     prompt = f"""
 You are a validation agent. Determine if the hypothesis is well-supported by the evidence.
 
@@ -247,10 +288,10 @@ You are a validation agent. Determine if the hypothesis is well-supported by the
 - Error Message: {state.get("error_message", "None")}
 
 **Topology:**
-{format_topology(state.get("topology", []))}
+{topology_text}
 
 **Logs:**
-{format_logs(state.get("logs", []))}
+{logs_text}
 
 **Question:**
 Does the evidence clearly support and confirm the hypothesis? Consider:
@@ -410,6 +451,12 @@ async def synthesis_node(state: RCAState) -> Dict:
     
     error_logs_context = format_logs(all_error_logs[:10])  # Limit to 10 total
     
+    scanner = await get_scanner()
+    scan_result_logs = await scanner.scan(error_logs_context)
+    if not scan_result_logs.is_safe:
+        raise ValueError(f"Security scan failed for logs: {scan_result_logs.sanitized_input}")
+    error_logs_context = scan_result_logs.sanitized_input
+
     prompt = f"""
 You are a senior SRE synthesizing root cause analysis findings.
 
