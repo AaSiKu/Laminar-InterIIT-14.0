@@ -132,7 +132,7 @@ const LogsSection = ({ workflow }) => {
                 return logWorkflowId && workflowId && String(logWorkflowId) === String(workflowId);
               })
               .map((log, index) => (
-              <Box key={log._id} sx={{ display: "flex", gap: 1.5 }}>
+              <Box key={index} sx={{ display: "flex", gap: 1.5 }}>
                 <Box
                   sx={{
                     width: 20,

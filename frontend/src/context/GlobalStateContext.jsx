@@ -124,14 +124,10 @@ export const GlobalStateProvider = ({ children }) => {
       }
     }
 
-    // Handle logs (commented out for now)
+    // Handle logs
     if (messageType === "log") {
-      setLogs(prev => {
-        if (!itemExists(prev, data)) {
-          return [data, ...prev];
-        }
-        return prev;
-      });
+      console.log("Processing log message:", data);
+      setLogs(prev => [data, ...prev]);
     }
   }, [setWorkflows, setNotifications, setAlerts, itemExists]);
 
