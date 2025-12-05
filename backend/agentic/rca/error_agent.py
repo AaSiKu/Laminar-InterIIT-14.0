@@ -1,9 +1,12 @@
-from pydantic import Field
 from typing import List, Dict
 from langchain.agents import create_agent
-from ..chat_models import analyser_model
 from .output import RCAAnalysisOutput
 from datetime import datetime
+from ..llm_factory import create_analyser_model
+
+
+# Create the analyzer model instance
+analyser_model = create_analyser_model()
 
 error_analysis_prompt = """
 You are an expert Site Reliability Engineer (SRE) and system diagnostics specialist. Your task is to analyze error logs from distributed systems to identify root causes of failures that triggered SLA threshold violations.

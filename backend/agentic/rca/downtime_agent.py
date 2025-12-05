@@ -6,8 +6,12 @@ from .tools import get_logs_in_time_window
 from ..sql_tool import TablePayload
 from .output import RCAAnalysisOutput
 from langgraph.graph import StateGraph, END
-from ..chat_models import analyser_model
 import operator
+from ..llm_factory import create_analyser_model
+
+
+# Create the analyzer model instance
+analyser_model = create_analyser_model()
 
 # Downtime incident model
 class DowntimeIncident(BaseModel):

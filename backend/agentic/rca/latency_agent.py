@@ -9,9 +9,12 @@ from .tools import get_top_latency_traces, get_full_span_tree, get_logs_for_trac
 from .output import RCAAnalysisOutput
 from datetime import datetime, timedelta
 import asyncio
-from ..chat_models import analyser_model
+from ..llm_factory import create_analyser_model
 
 load_dotenv()
+
+# Create the analyzer model instance
+analyser_model = create_analyser_model()
 
 
 # We will run one subgraph per each trace id for the top 5 slowest traces which will take this state

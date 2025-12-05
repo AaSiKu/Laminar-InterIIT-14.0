@@ -4,8 +4,9 @@ from .cache import get_cached_response, cache_response, init_cache_db
 from langchain_mcp_adapters.client import MultiServerMCPClient
 from langchain.agents import create_agent
 import os
-from ..chat_models import reasoning_model
+from ..llm_factory import create_summarization_model
 
+reasoning_model = create_summarization_model()
 summarize_prompt = """
 You are a domain-expert telemetry analyst and technical summarizer. Your task is to interpret SLA-metric pipelines— and produce a clear, technically accurate natural-language summary of what each final special column (defined below) in the resulting metric table represents.
 A special column is a column which contains _open_tel_trace_id somewhere in its name.
