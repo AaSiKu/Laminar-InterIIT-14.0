@@ -1,5 +1,6 @@
 import React, { createContext, useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import Loading from "../components/common/Loading";
 
 export const AuthContext = createContext();
 
@@ -11,15 +12,32 @@ export const AuthProvider = ({ children }) => {
   useEffect(() => {
     const checkAuth = async () => {
       try {
-        const res = await fetch(`${import.meta.env.VITE_API_SERVER}/auth/me`, {
+        let res = await fetch(`${import.meta.env.VITE_API_SERVER}/auth/me`, {
           method: "GET",
           credentials: "include",
         });
+
+        // If 401, try to refresh token
+        if (res.status === 401) {
+          const refreshRes = await fetch(`${import.meta.env.VITE_API_SERVER}/auth/refresh`, {
+            method: "POST",
+            credentials: "include",
+          });
+
+          if (refreshRes.ok) {
+            // Retry /me after refresh
+            res = await fetch(`${import.meta.env.VITE_API_SERVER}/auth/me`, {
+              method: "GET",
+              credentials: "include",
+            });
+          }
+        }
+
         if (res.ok) {
           const data = await res.json();
           setUser(data);
         } else {
-          setUser(null); 
+          setUser(null);
         }
       } catch (err) {
         setUser(null);
@@ -30,8 +48,9 @@ export const AuthProvider = ({ children }) => {
     checkAuth();
   }, []);
 
+
   // Login: just update state and redirect; backend sets HttpOnly cookies
-  const login = (data) => {
+  const login = async (data) => {
     setUser(data);
     navigate("/overview");
   };
@@ -54,7 +73,7 @@ export const AuthProvider = ({ children }) => {
   const isAuthenticated = !!user;
 
   if (loading) {
-    return <div>Loading...</div>; 
+    return <Loading />;
   }
 
   return (
