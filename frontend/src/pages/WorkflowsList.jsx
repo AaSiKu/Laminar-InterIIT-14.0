@@ -13,7 +13,8 @@ import CreateWorkflowDrawer from "../components/createWorkflow/CreateWorkflowDra
 import { useGlobalState } from "../context/GlobalStateContext";
 import { useWebSocket } from "../context/WebSocketContext";
 import { formatTimeAgo } from "../helpers/datetime";
-import noDataSvg from "../assets/noData.svg";
+import planeLight from "../assets/plane_light.svg";
+import planeDark from "../assets/plane_dark.svg";
 
 // Transform backend workflow data to frontend format
 const transformWorkflow = (backendWorkflow, details = null) => {
@@ -488,7 +489,7 @@ export const WorkflowsList = () => {
                   >
                     <Box
                       component="img"
-                      src={noDataSvg}
+                      src={theme.palette.mode === "dark" ? planeDark : planeLight}
                       alt="No data"
                       sx={{ width: "8rem", height: "auto", opacity: 0.6 }}
                     />

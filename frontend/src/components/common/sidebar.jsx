@@ -14,9 +14,9 @@ import {
   drawerClasses,
 } from "@mui/material";
 import {
-  AccountTreeRounded,
-  TerminalRounded,
-  WorkspacePremiumRounded,
+  AccountTreeOutlined,
+  HomeOutlined,
+  AdminPanelSettingsOutlined,
   LogoutRounded,
   ChevronLeft,
   ChevronRight,
@@ -58,27 +58,28 @@ const Sidebar = () => {
 
   const menuItems = [
     {
-      icon: <TerminalRounded sx={{ fontSize: "1.5rem" }} />,
+      icon: <HomeOutlined sx={{ fontSize: "1.5rem" }} />,
       label: "Overview",
       path: "/overview",
     },
     {
-      icon: <AccountTreeRounded sx={{ fontSize: "1.5rem" }} />,
+      icon: <AccountTreeOutlined sx={{ fontSize: "1.5rem" }} />,
       label: "Workflows",
       path: "/workflows",
     },
     // Only show Admin menu item if user is admin
     ...(user?.role === "admin" ? [{
-      icon: <WorkspacePremiumRounded sx={{ fontSize: "1.5rem" }} />,
+      icon: <AdminPanelSettingsOutlined sx={{ fontSize: "1.5rem" }} />,
       label: "Admin",
       path: "/admin",
     }] : []),
-    {
-      icon: <LogoutRounded color="error" sx={{ fontSize: "1.5rem" }} />,
+  ];
+
+  const logoutItem = {
+    icon: <LogoutRounded sx={{ fontSize: "1.5rem", color: "#ffcdd2" }} />,
       label: "Logout",
       onClick: logout,
-    },
-  ];
+  };
 
   if (!sidebarOpen) return null;
 
@@ -116,6 +117,9 @@ const Sidebar = () => {
           borderColor: "divider",
           zIndex: 2500,
           boxShadow: drawerOpen ? theme.shadows[4] : theme.shadows[1],
+          display: "flex",
+          flexDirection: "column",
+          height: "100%",
         },
       }}
     >
@@ -148,7 +152,8 @@ const Sidebar = () => {
         />
       </Box>
 
-      <List sx={{ flex: 1 }}>
+      <Box sx={{ display: "flex", flexDirection: "column", flex: 1, overflow: "hidden" }}>
+        <List sx={{ flex: 1, overflowY: "auto" }}>
         {menuItems.map((item, index) => {
           const isActive = item.path && location.pathname.startsWith(item.path);
           return (
@@ -247,6 +252,90 @@ const Sidebar = () => {
           );
         })}
       </List>
+
+        {/* Logout button at the bottom */}
+        <List>
+          <ListItem disablePadding sx={{ display: "block" }}>
+            <Tooltip
+              title={logoutItem.label}
+              placement="right"
+              arrow
+              disableHoverListener={drawerOpen}
+            >
+              <ListItemButton
+                sx={{
+                  minHeight: 48,
+                  justifyContent: drawerOpen ? "initial" : "center",
+                  px: drawerOpen ? 3 : 2.5,
+                  my: 0.5,
+                  mx: 1,
+                  borderRadius: 1,
+                  backgroundColor: "transparent",
+                  transition: theme.transitions.create(
+                    ["background-color", "color"],
+                    {
+                      easing: theme.transitions.easing.easeInOut,
+                      duration: theme.transitions.duration.short,
+                    }
+                  ),
+                  "&:hover": {
+                    backgroundColor: "action.hover",
+                  },
+                }}
+                onClick={() => {
+                  if (logoutItem.onClick) {
+                    logoutItem.onClick();
+                  }
+                }}
+              >
+                 <ListItemIcon
+                   sx={{
+                     minWidth: 0,
+                     mr: drawerOpen ? 3 : "auto",
+                     justifyContent: "center",
+                     color: "#ffcdd2",
+                     transition: theme.transitions.create("color", {
+                       easing: theme.transitions.easing.easeInOut,
+                       duration: theme.transitions.duration.short,
+                     }),
+                     "& .MuiSvgIcon-root": {
+                       fontSize: "1.5rem !important",
+                     },
+                   }}
+                 >
+                   {logoutItem.icon}
+                 </ListItemIcon>
+                 <ListItemText
+                   primary={logoutItem.label}
+                   primaryTypographyProps={{
+                     sx: {
+                       color: "#ffcdd2",
+                       fontWeight: 400,
+                       fontSize: "0.875rem",
+                       transition: theme.transitions.create(
+                         ["color", "font-weight"],
+                         {
+                           easing: theme.transitions.easing.easeInOut,
+                           duration: theme.transitions.duration.short,
+                         }
+                       ),
+                     },
+                   }}
+                  sx={{
+                    opacity: drawerOpen ? 1 : 0,
+                    transition: theme.transitions.create("opacity", {
+                      easing: theme.transitions.easing.sharp,
+                      duration: drawerOpen
+                        ? theme.transitions.duration.enteringScreen
+                        : theme.transitions.duration.leavingScreen,
+                    }),
+                  }}
+                />
+              </ListItemButton>
+            </Tooltip>
+          </ListItem>
+        </List>
+      </Box>
 
       {/* Toggle Arrow Button - positioned at middle right edge */}
       <IconButton

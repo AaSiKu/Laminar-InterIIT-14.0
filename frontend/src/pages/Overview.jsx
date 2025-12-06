@@ -7,6 +7,7 @@ import {
   Grid,
   Box,
   Divider,
+  useTheme,
 } from "@mui/material";
 import OverviewSection from "../components/overview/OverviewSection";
 import KPICard from "../components/overview/KPICardDashboard";
@@ -25,7 +26,8 @@ import SpeedIcon from "@mui/icons-material/Speed";
 import HighlightIcon from "@mui/icons-material/Highlight";
 import CloseIcon from "@mui/icons-material/Close";
 import NotificationsActiveOutlinedIcon from "@mui/icons-material/NotificationsActiveOutlined";
-import NoDataImage from "../assets/noData.svg";
+import planeLight from "../assets/plane_light.svg";
+import planeDark from "../assets/plane_dark.svg";
 // Icon mapping utility
 const getIconComponent = (iconType) => {
   const iconMap = {
@@ -40,6 +42,7 @@ const getIconComponent = (iconType) => {
 
 export default function OverviewPage() {
   const navigate = useNavigate();
+  const theme = useTheme();
   const [overviewData, setOverviewData] = useState(null);
   const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false);
   const { workflows, setWorkflows, notifications, setNotifications } =
@@ -204,7 +207,7 @@ export default function OverviewPage() {
                       }}
                     >
                       <img
-                        src={NoDataImage}
+                        src={theme.palette.mode === "dark" ? planeDark : planeLight}
                         alt="No data"
                         style={{ width: "10rem", height: "auto", opacity: 0.7 }}
                       />

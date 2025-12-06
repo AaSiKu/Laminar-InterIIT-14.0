@@ -393,60 +393,7 @@ const AIChatbot = ({
           mb: 2, // Add margin bottom to prevent border clipping
         }}
       >
-        {!hasGeneratedWorkflow ? (
-          // Analyze Button - Show before workflow is generated
-          <Box
-            sx={{
-              borderRadius: "16px",
-              background: theme.palette.mode === "dark"
-                ? "linear-gradient(to bottom, rgba(63, 120, 176, 0.3) 0%, rgba(128, 187, 196, 0) 100%)"
-                : "linear-gradient(to bottom, #3F78B0 0%, rgba(128, 187, 196, 0) 100%)",
-              padding: "2px", // Reduced from 5px for minimalistic look
-              marginBottom: "2px", // Add spacing to prevent border clipping
-            }}
-          >
-            <Button
-              variant="contained"
-              onClick={() => {
-                handleChatSubmit(true);
-              }}
-              disabled={isGenerating || isAnalyzing}
-              sx={{
-                textTransform: "none",
-                borderRadius: "14px", // Inner radius (16px - 2px for border)
-                px: 3,
-                py: 1,
-                bgcolor: theme.palette.mode === "dark" 
-                  ? "rgba(255, 255, 255, 0.05)" 
-                  : "#EBF2F5",
-                color: "text.primary",
-                fontWeight: 500,
-                width: "100%",
-                height: "100%",
-                "&:hover": {
-                  bgcolor: theme.palette.mode === "dark"
-                    ? "rgba(255, 255, 255, 0.08)"
-                    : "#E0E8EB",
-                },
-                "&:disabled": {
-                  bgcolor: theme.palette.mode === "dark"
-                    ? "rgba(255, 255, 255, 0.05)"
-                    : "#EBF2F5",
-                  opacity: 0.6,
-                },
-              }}
-            >
-              {isAnalyzing ? (
-                <>
-                  <CircularProgress size={16} sx={{ mr: 1, color: "inherit" }} />
-                  Analyzing...
-                </>
-              ) : (
-                "Analyze"
-              )}
-            </Button>
-          </Box>
-        ) : (
+        {hasGeneratedWorkflow && (
           // Accept/Decline Buttons - Show after workflow is generated
           <>
             <Box

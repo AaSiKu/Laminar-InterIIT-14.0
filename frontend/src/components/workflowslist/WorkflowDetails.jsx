@@ -5,6 +5,7 @@ import {
   Avatar,
   IconButton,
   Button,
+  useTheme,
 } from "@mui/material";
 import EditIcon from "@mui/icons-material/Edit";
 import FileCopyIcon from "@mui/icons-material/FileCopy";
@@ -17,7 +18,8 @@ import { useGlobalState } from "../../context/GlobalStateContext";
 import { useEffect, useState, useMemo } from "react";
 import { fetchPipelineDetails } from "../../utils/pipelineUtils";
 import Loading from "../common/Loading";
-import noDataSvg from "../../assets/noData.svg";
+import planeLight from "../../assets/plane_light.svg";
+import planeDark from "../../assets/plane_dark.svg";
 
 const WorkflowDetails = ({
   workflow,
@@ -25,6 +27,7 @@ const WorkflowDetails = ({
   onActionFilterChange,
   logs,
 }) => {
+  const theme = useTheme();
   const { getAlertsForPipeline, alerts: allAlerts } = useWebSocket();
   const { notifications } = useGlobalState();
   const [workflowAlerts, setWorkflowAlerts] = useState([]);
@@ -39,7 +42,7 @@ const WorkflowDetails = ({
     }
 
     const workflowId = String(workflow.id || workflow._id);
-
+    
     // Filter notifications for this pipeline
     const pipelineNotifications = notifications.filter((notification) => {
       return String(notification?.pipeline_id || "") === workflowId;
@@ -49,7 +52,7 @@ const WorkflowDetails = ({
     switch (actionFilter) {
       case "notifications":
         return pipelineNotifications.filter((n) => n?.type !== "alert");
-
+      
       case "pending_actions":
         return pipelineNotifications.filter((n) => {
           if (n.type !== "alert") return false;
@@ -61,7 +64,7 @@ const WorkflowDetails = ({
             actionTaken === undefined
           );
         });
-
+      
       case "actions_taken":
         return pipelineNotifications.filter((n) => {
           if (n.type !== "alert") return false;
@@ -73,7 +76,7 @@ const WorkflowDetails = ({
             actionTaken !== undefined
           );
         });
-
+      
       default:
         return pipelineNotifications;
     }
@@ -135,11 +138,11 @@ const WorkflowDetails = ({
   // Format total running time from seconds to human readable format
   const formatRunningTime = (seconds) => {
     if (!seconds || seconds === 0) return "0 min";
-
+    
     const hours = Math.floor(seconds / 3600);
     const minutes = Math.floor((seconds % 3600) / 60);
     const secs = Math.floor(seconds % 60);
-
+    
     if (hours > 0) {
       return `${hours}h ${minutes}m`;
     } else if (minutes > 0) {
@@ -152,23 +155,23 @@ const WorkflowDetails = ({
   // Calculate %time run = (total_runtime / (date.now - create_time)) * 100
   const calculateTimeRunPercentage = () => {
     if (!workflow) return "0%";
-
+    
     const totalRuntime = workflow.runtime || 0; // in seconds
     // Use created_at from pipeline details API (first version_created_at) if available
     const createTime =
       pipelineDetails?.created_at ||
-      workflow.created_at ||
-      workflow.user_pipeline_version?.version_created_at ||
-      workflow.last_updated;
-
+                      workflow.created_at || 
+                      workflow.user_pipeline_version?.version_created_at || 
+                      workflow.last_updated;
+    
     if (!createTime) return "0%";
-
+    
     const now = new Date();
     const created = new Date(createTime);
     const timeSinceCreation = (now - created) / 1000; // Convert to seconds
-
+    
     if (timeSinceCreation <= 0) return "0%";
-
+    
     const percentage = (totalRuntime / timeSinceCreation) * 100;
     return `${percentage.toFixed(2)}%`;
   };
@@ -216,7 +219,7 @@ const WorkflowDetails = ({
         >
           <Box
             component="img"
-            src={noDataSvg}
+            src={theme.palette.mode === "dark" ? planeDark : planeLight}
             alt="No data"
             sx={{ width: "8rem", height: "auto", opacity: 0.6 }}
           />
@@ -225,7 +228,7 @@ const WorkflowDetails = ({
             sx={{ color: "text.secondary", fontSize: "0.875rem", mt: 2 }}
           >
             No Workflow Selected!
-          </Typography>
+        </Typography>
         </Box>
       </Box>
     );
@@ -247,14 +250,14 @@ const WorkflowDetails = ({
       <Box
         sx={{
           bgcolor: "background.paper",
-          border: "1px solid",
+        border: "1px solid", 
           borderColor: "divider",
-          borderRadius: 0,
-          p: 2,
-          mb: 0,
-          mx: -3,
-          mt: 0,
-          borderTop: "none",
+        borderRadius: 0, 
+        p: 2,
+        mb: 0,
+        mx: -3,
+        mt: 0,
+        borderTop: "none",
         }}
       >
         {loadingDetails && <Loading />}
@@ -310,12 +313,12 @@ const WorkflowDetails = ({
                   member.name || member.id || `user${index}`
                 )}&size=32`;
                 return (
-                  <Avatar
+                  <Avatar 
                     key={index}
                     src={avatarUrl}
                     alt={member.name}
-                    sx={{
-                      width: 32,
+                    sx={{ 
+                      width: 32, 
                       height: 32,
                     }}
                     title={member.name}
@@ -351,9 +354,9 @@ const WorkflowDetails = ({
       </Box>
 
       {/* 1x3 Grid: Pipeline, Average Running Time, Alerts Pending */}
-      <Box
-        sx={{
-          display: "grid",
+      <Box 
+        sx={{ 
+          display: "grid", 
           gridTemplateColumns: "1fr 1fr 1fr",
           gap: 0,
           mb: 0,
@@ -376,8 +379,8 @@ const WorkflowDetails = ({
       </Box>
 
       {/* Two Columns: Action Required and Logs */}
-      <Box
-        sx={{
+      <Box 
+        sx={{ 
           display: "grid",
           gridTemplateColumns: "1fr 1fr",
           gap: 0,

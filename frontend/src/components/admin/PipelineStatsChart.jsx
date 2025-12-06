@@ -5,15 +5,22 @@ import WarningIcon from "@mui/icons-material/Warning";
 
 export function PipelineStatsChart({ data }) {
   const theme = useTheme();
-  const maxValue = 20;
-  const barHeight = 12; // rem
+  const barHeight = 20; // rem
   const totalPipelines = (data.successful || 0) + (data.errors || 0);
+  
+  // Calculate maxValue dynamically from the data
+  const maxValue = Math.max(
+    data.successful || 0,
+    data.errors || 0,
+    data.broken || 0,
+    1 // Minimum of 1 to avoid division by zero
+  );
 
   return (
     <Box
       sx={{
         bgcolor: 'background.elevation1',
-        p: 2.5,
+        p: 4,
         display: 'flex',
         flexDirection: 'column',
         borderRadius: 2,
@@ -35,45 +42,49 @@ export function PipelineStatsChart({ data }) {
             flexDirection: 'column',
           }}
         >
-          <Typography
-            variant="body2"
-            sx={{
-              fontSize: '0.875rem',
-              color: 'text.secondary',
-              mb: 0.25,
-            }}
-          >
-            Total number of
-          </Typography>
-          <Typography
-            variant="h4"
-            sx={{
-              fontSize: '1.75rem',
-              fontWeight: 700,
-              color: 'text.primary',
-              lineHeight: 1.2,
-              mb: 0.25,
-            }}
-          >
-            Pipelines
-          </Typography>
-          <Typography
-            variant="h5"
-            sx={{
-              fontSize: '1.5rem',
-              fontWeight: 400,
-              color: 'text.primary',
-              mb: 3,
-            }}
-          >
-            {totalPipelines}
-          </Typography>
+          <Box>
+            <Typography
+              variant="body2"
+              sx={{
+                fontSize: '0.875rem',
+                color: 'text.secondary',
+                mb: 0.25,
+              }}
+            >
+              Total number of
+            </Typography>
+            <Typography
+              variant="h4"
+              sx={{
+                fontSize: '1.75rem',
+                fontWeight: 700,
+                color: 'text.primary',
+                lineHeight: 1.2,
+                mb: 0.25,
+              }}
+            >
+              Pipelines
+            </Typography>
+            <Typography
+              variant="h5"
+              sx={{
+                fontSize: '1.5rem',
+                fontWeight: 400,
+                color: 'text.primary',
+                mb: 3,
+              }}
+            >
+              {totalPipelines}
+            </Typography>
+          </Box>
           
           <Box
             sx={{
               display: 'flex',
               flexDirection: 'column',
               gap: 2,
+              justifyContent: 'center',
+              flex: 1,
             }}
           >
             <Box
@@ -204,7 +215,7 @@ export function PipelineStatsChart({ data }) {
             flex: 1,
             display: 'flex',
             flexDirection: 'column',
-            justifyContent: 'flex-end',
+            justifyContent: 'flex-start',
           }}
         >
           {/* Chart Area with Grid Lines */}
@@ -215,6 +226,7 @@ export function PipelineStatsChart({ data }) {
               display: 'flex',
               alignItems: 'flex-end',
               justifyContent: 'center',
+              flex: 1,
             }}
           >
             {/* Grid Lines Background */}
@@ -249,7 +261,7 @@ export function PipelineStatsChart({ data }) {
               sx={{
                 display: 'flex',
                 alignItems: 'flex-end',
-                gap: 6,
+                gap: 10,
                 position: 'relative',
                 zIndex: 1,
               }}
@@ -273,7 +285,7 @@ export function PipelineStatsChart({ data }) {
                 </Typography>
                 <Box
                   sx={{
-                    width: '3rem',
+                    width: '1rem',
                     height: `${(data.successful / maxValue) * barHeight}rem`,
                     borderRadius: '4px 4px 0 0',
                     bgcolor: 'success.main',
@@ -300,7 +312,7 @@ export function PipelineStatsChart({ data }) {
                 </Typography>
                 <Box
                   sx={{
-                    width: '3rem',
+                    width: '1rem',
                     height: `${(data.errors / maxValue) * barHeight}rem`,
                     borderRadius: '4px 4px 0 0',
                     bgcolor: 'error.main',
@@ -327,7 +339,7 @@ export function PipelineStatsChart({ data }) {
                 </Typography>
                 <Box
                   sx={{
-                    width: '3rem',
+                    width: '1rem',
                     height: `${((data.broken || 0) / maxValue) * barHeight}rem`,
                     borderRadius: '4px 4px 0 0',
                     bgcolor: 'warning.main',
@@ -343,7 +355,7 @@ export function PipelineStatsChart({ data }) {
             sx={{
               display: 'flex',
               justifyContent: 'center',
-              gap: 6,
+              gap: 10,
               mt: 1.5,
             }}
           >
@@ -351,7 +363,7 @@ export function PipelineStatsChart({ data }) {
               sx={{
                 fontSize: '0.75rem',
                 color: 'text.secondary',
-                width: '3rem',
+                width: '1rem',
                 textAlign: 'center',
               }}
             >
@@ -361,7 +373,7 @@ export function PipelineStatsChart({ data }) {
               sx={{
                 fontSize: '0.75rem',
                 color: 'text.secondary',
-                width: '3rem',
+                width: '1rem',
                 textAlign: 'center',
               }}
             >
@@ -371,7 +383,7 @@ export function PipelineStatsChart({ data }) {
               sx={{
                 fontSize: '0.75rem',
                 color: 'text.secondary',
-                width: '3rem',
+                width: '1rem',
                 textAlign: 'center',
               }}
             >
