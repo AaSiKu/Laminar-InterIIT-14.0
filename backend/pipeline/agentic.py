@@ -32,19 +32,24 @@ def build_agentic_graph(
     for i,agent in enumerate(agents):
         # Build table-backed tool context (when agent.tools contains int indexes into `nodes`)
         tool_tables = []
-
+        other_tools = []
         if getattr(agent, "tools", None):
             for t in agent.tools:
                 if isinstance(t, int):
                     if t < 0 or t >= len(nodes):
                         raise IndexError(f"Tool index {t} out of range for nodes.")
                     node = nodes[t]
-                    if node.node_id == "rag_node":
-                        # Handle RAG nodes as tools to agents
-                        continue
-                    out_tbl = node_outputs[t]
                     if not hasattr(node, "tool_description") or not node.tool_description:
                         raise ValueError(f"Node at index {t} must have tool_description.")
+                    if node.node_id == "rag_node":
+                        port = node_outputs[t]
+                        other_tools.append({
+                            "tool_id": "rag",
+                            "tool_description": node.tool_description,
+                            "port": port
+                        })
+                        continue
+                    out_tbl = node_outputs[t]
                     tool_tables.append({
                         "table_name": construct_table_name(node.node_id, t),
                         "table_schema": out_tbl.schema.columns_to_json_serializable_dict(),
@@ -54,7 +59,7 @@ def build_agentic_graph(
         payload.append({
             "name": agent.name,
             "description": agent.description,
-            "tools": tool_tables
+            "tools": [*tool_tables, *other_tools],
         })
 
        

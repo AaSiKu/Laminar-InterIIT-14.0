@@ -81,6 +81,7 @@ const PipelineNavBar = ({
   userAvatar,
   onExportJSON,
   pipelineId,
+  autoSaveStatus, // 'saving', 'saved', or null
 }) => {
   const theme = useTheme();
   const { mode, setMode } = useColorScheme();
@@ -190,6 +191,21 @@ const PipelineNavBar = ({
           >
             {pipelineName}
           </Typography>
+
+          {/* Auto-save Status Indicator */}
+          {autoSaveStatus && (
+            <Typography
+              variant="caption"
+              sx={{
+                color: autoSaveStatus === 'saving' ? 'text.secondary' : 'success.main',
+                fontSize: '0.7rem',
+                ml: 1,
+                fontStyle: 'italic',
+              }}
+            >
+              {autoSaveStatus === 'saving' ? 'Saving...' : 'Saved'}
+            </Typography>
+          )}
         </Box>
 
         {/* Right Section - Action Buttons */}
@@ -300,7 +316,7 @@ const PipelineNavBar = ({
             pipelineName={pipelineName}
           />
 
-          {/* Save Button */}
+          {/* Commit Version Button */}
           <Button
             variant="contained"
             onClick={onSave}
@@ -326,7 +342,7 @@ const PipelineNavBar = ({
               },
             }}
           >
-            Save
+            Commit Version
           </Button>
 
           {/* Activate Button */}
@@ -453,34 +469,43 @@ const PipelineNavBar = ({
             </span>
           </Tooltip>
 
-          {/* Run Book Button */}
+          {/* Run Book Button - only enabled when container is active */}
           {onRunBook && (
-            <Button
-              variant="contained"
-              onClick={onRunBook}
-              sx={{
-                bgcolor: "background.elevation1",
-                color: "text.primary",
-                textTransform: "none",
-                fontWeight: 700,
-                fontSize: "0.75rem",
-                px: 2,
-                py: 0.75,
-                minHeight: "32px",
-                borderRadius: "6px",
-                boxShadow: "none",
-                "&:hover": {
-                  bgcolor: "action.hover",
-                  boxShadow: "none",
-                },
-                "&.Mui-disabled": {
-                  bgcolor: "action.disabledBackground",
-                  color: "text.disabled",
-                },
-              }}
+            <Tooltip
+              title={!containerId ? "Spin up the container first to access Run Book" : ""}
+              arrow
+              placement="bottom"
             >
-              Run Book
-            </Button>
+              <span>
+                <Button
+                  variant="contained"
+                  onClick={onRunBook}
+                  disabled={!containerId}
+                  sx={{
+                    bgcolor: "background.elevation1",
+                    color: "text.primary",
+                    textTransform: "none",
+                    fontWeight: 700,
+                    fontSize: "0.75rem",
+                    px: 2,
+                    py: 0.75,
+                    minHeight: "32px",
+                    borderRadius: "6px",
+                    boxShadow: "none",
+                    "&:hover": {
+                      bgcolor: "action.hover",
+                      boxShadow: "none",
+                    },
+                    "&.Mui-disabled": {
+                      bgcolor: "action.disabledBackground",
+                      color: "text.disabled",
+                    },
+                  }}
+                >
+                  Run Book
+                </Button>
+              </span>
+            </Tooltip>
           )}
 
           {/* Avatar with Dropdown */}

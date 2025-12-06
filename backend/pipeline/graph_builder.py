@@ -46,7 +46,7 @@ def persist_table_to_postgres(table: pw.Table, node: Node, node_index: int) -> N
         node: The node that produced the table
         node_index: Index of the node in the graph
     """
-    if table is None:
+    if table is None or not isinstance(table,pw.Table):
         return
     
     # Get primary key columns
@@ -90,6 +90,8 @@ def build_computational_graph(
     
     for node_index in parsing_order:
         node = nodes[node_index]
+        if node.node_id == "trigger_rca":
+            continue
         node_deps = dependencies.get(node_index, [])
         
         # Build the node's table

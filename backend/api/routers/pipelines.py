@@ -1,7 +1,7 @@
 import socket
 from fastapi import APIRouter, HTTPException, status, Request, Depends
-from backend.api.routers.auth.routes import get_current_user
-from backend.api.routers.auth.models import User
+from .auth.routes import get_current_user
+from .auth.models import User
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 from bson.objectid import ObjectId
@@ -13,7 +13,7 @@ from datetime import datetime
 
 
 logger = logging.getLogger(__name__)
-from backend.api.dockerScript import (
+from ..dockerScript import (
     run_pipeline_container, stop_docker_container
 )
 router = APIRouter()
@@ -191,8 +191,7 @@ async def stop_pipeline_endpoint(request_obj: Request, request: PipelineIdReques
                     }
                 }
             )
-            return {}
-            return response.json()
+            return response.json() # TODO: Check this
         except httpx.RequestError as exc:
             raise HTTPException(status_code=500, detail=f"Failed to stop pipeline: {exc}")
 

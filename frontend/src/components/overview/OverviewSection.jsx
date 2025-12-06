@@ -13,8 +13,8 @@ const OverviewSection = ({ data, kpiData }) => {
       overview: {
         total: data?.total,
         running: data?.running,
-        broken: data?.broken,
         stopped: data?.stopped,
+        broken: data?.broken,
       },
       kpiCards: kpiData || [],
     };
@@ -36,16 +36,16 @@ const OverviewSection = ({ data, kpiData }) => {
       color: "#86C8BC", // Teal
     },
     {
-      name: "Broken",
-      value: data?.broken || 0,
-      color: "#F0B4C4", // Pink
-    },
-    {
       name: "Stopped",
       value: data?.stopped || 0,
       color: "#A2B8F4", // Blue
     },
-  ], [data?.running, data?.broken, data?.stopped]);
+    {
+      name: "Broken",
+      value: data?.broken || 0,
+      color: "#F4A2A2", // Red
+    },
+  ], [data?.running, data?.stopped, data?.broken]);
 
   const total = data?.total;
 

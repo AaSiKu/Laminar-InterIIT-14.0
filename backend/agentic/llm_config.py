@@ -42,12 +42,13 @@ class LLMProvider(str, Enum):
 
 
 class LLMUseCase(str, Enum):
-    """Different use cases for LLM models"""
+    """Enumeration of different LLM use cases."""
     AGENT = "agent"
     REASONING = "reasoning"
     ALERT = "alert"
     SQL = "sql"
     SUMMARIZATION = "summarization"
+    ANALYSER = "analyser"  # For RCA (Root Cause Analysis) tasks
 
 
 @dataclass
@@ -128,7 +129,13 @@ USE_CASE_PRESETS = {
         temperature=1.0,
         max_retries=3,
         additional_params={}
-    )
+    ),
+    LLMUseCase.ANALYSER: ModelConfig(
+        model_name="default",
+        temperature=0.3,  # Balanced - some creativity but mostly deterministic
+        max_retries=3,
+        additional_params={}
+    ),
 }
 
 
@@ -139,7 +146,8 @@ DEFAULT_PROVIDERS = {
     LLMUseCase.REASONING: LLMProvider.OPENAI,
     LLMUseCase.ALERT: LLMProvider.GROQ,
     LLMUseCase.SQL: LLMProvider.GROQ,
-    LLMUseCase.SUMMARIZATION: LLMProvider.OPENAI
+    LLMUseCase.SUMMARIZATION: LLMProvider.OPENAI,
+    LLMUseCase.ANALYSER: LLMProvider.GEMINI,  # Use Gemini for RCA analysis
 }
 
 

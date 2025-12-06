@@ -1,21 +1,34 @@
-import { useState } from "react";
-import { Box, Typography, TextField, MenuItem, Select, FormControl, Button } from "@mui/material";
+import { useState, useEffect, useMemo } from "react";
+import { Box, Typography, TextField, MenuItem, Select, FormControl, Button, Chip, OutlinedInput } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
 
-const AGENT_OPTIONS = [
-  { value: "a", label: "a" },
-  { value: "b", label: "b" },
-  { value: "c", label: "c" },
-  { value: "d", label: "d" },
-];
-
-const AddAIAgent = ({ formData, onInputChange, onSelectChange }) => {
+const AddAIAgent = ({ formData, onInputChange, onSelectChange, onAgentsChange, nodes = [] }) => {
+  // Convert nodes to tool options - use node id as tool id and node label or node_id as label
+  const toolOptions = useMemo(() => {
+    return nodes.map((node) => ({
+      id: node.id, // The unique instance id of the node in the canvas
+      label: node.data?.ui?.label || node.node_id || node.id,
+      nodeType: node.node_id, // The type of node (e.g., "csv", "kafka", etc.)
+    }));
+  }, [nodes]);
   const [agents, setAgents] = useState([]);
   const [currentAgent, setCurrentAgent] = useState({
     name: "",
     description: "",
-    agent: "",
+    tools: [],
   });
+
+  // Notify parent when agents change (include current agent if valid)
+  useEffect(() => {
+    if (onAgentsChange) {
+      // Include the current agent if it has valid data
+      const currentAgentIsValid = currentAgent.name && currentAgent.description && currentAgent.tools.length > 0;
+      const allAgents = currentAgentIsValid 
+        ? [...agents, { ...currentAgent }]
+        : [...agents];
+      onAgentsChange(allAgents);
+    }
+  }, [agents, currentAgent, onAgentsChange]);
 
   const handleFieldChange = (field) => (event) => {
     const newValue = event.target.value;
@@ -25,28 +38,30 @@ const AddAIAgent = ({ formData, onInputChange, onSelectChange }) => {
     }));
   };
 
-  const handleSelectChangeLocal = (field) => (event) => {
-    const newValue = event.target.value;
+  const handleToolsChange = (event) => {
+    const value = event.target.value;
+    // Handle both string and array (for multiple select)
     setCurrentAgent((prev) => ({
       ...prev,
-      [field]: newValue,
+      tools: typeof value === 'string' ? value.split(',') : value,
     }));
   };
 
   const handleAddAgent = () => {
-    if (currentAgent.name && currentAgent.description && currentAgent.agent) {
-      setAgents((prev) => [...prev, { ...currentAgent }]);
+    if (currentAgent.name && currentAgent.description && currentAgent.tools.length > 0) {
+      const newAgents = [...agents, { ...currentAgent }];
+      setAgents(newAgents);
       
       // Clear current agent form
       setCurrentAgent({
         name: "",
         description: "",
-        agent: "",
+        tools: [],
       });
     }
   };
 
-  const isFormComplete = currentAgent.name && currentAgent.description && currentAgent.agent;
+  const isFormComplete = currentAgent.name && currentAgent.description && currentAgent.tools.length > 0;
 
   // Render agent form section
   const renderAgentForm = (agentData, index, isEditable = false, showLabel = true) => (
@@ -200,7 +215,7 @@ const AddAIAgent = ({ formData, onInputChange, onSelectChange }) => {
         )}
       </Box>
 
-      {/* Agent Selection Dropdown */}
+      {/* Tools Selection Dropdown (Multi-select) */}
       <Box sx={{ display: "flex", flexDirection: "column", gap: 0.75 }}>
         <Typography
           component="label"
@@ -210,7 +225,7 @@ const AddAIAgent = ({ formData, onInputChange, onSelectChange }) => {
             color: "text.primary",
           }}
         >
-          Agent
+          Tools
         </Typography>
         {isEditable ? (
           <FormControl
@@ -247,11 +262,26 @@ const AddAIAgent = ({ formData, onInputChange, onSelectChange }) => {
             }}
           >
             <Select
-              value={agentData.agent}
-              onChange={handleSelectChangeLocal("agent")}
+              multiple
+              value={agentData.tools}
+              onChange={handleToolsChange}
               displayEmpty
               disabled={false}
               required
+              input={<OutlinedInput />}
+              renderValue={(selected) => {
+                if (selected.length === 0) {
+                  return <Typography sx={{ color: "text.secondary" }}>Select tools (nodes)</Typography>;
+                }
+                return (
+                  <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+                    {selected.map((value) => {
+                      const tool = toolOptions.find(t => t.id === value);
+                      return <Chip key={value} label={tool?.label || value} size="small" />;
+                    })}
+                  </Box>
+                );
+              }}
               MenuProps={{
                 disablePortal: false,
                 style: { zIndex: 10004 },
@@ -259,38 +289,51 @@ const AddAIAgent = ({ formData, onInputChange, onSelectChange }) => {
               sx={{
                 pointerEvents: "auto !important",
                 cursor: "pointer",
+                bgcolor: "background.elevation2",
+                borderRadius: 2,
+                "& .MuiOutlinedInput-notchedOutline": {
+                  border: "none",
+                },
                 "& .MuiSelect-select": {
                   pointerEvents: "auto !important",
                   cursor: "pointer",
+                  py: 1.5,
                   "&:focus": {
                     bgcolor: "transparent",
                   },
                 },
               }}
             >
-              <MenuItem value="" disabled>
-                <Typography sx={{ color: "text.secondary" }}>Select an agent</Typography>
-              </MenuItem>
-              {AGENT_OPTIONS.map((option) => (
-                <MenuItem key={option.value} value={option.value}>
-                  {option.label}
+              {toolOptions.length === 0 ? (
+                <MenuItem disabled value="">
+                  No nodes available - add nodes in Step 2
                 </MenuItem>
-              ))}
+              ) : (
+                toolOptions.map((option) => (
+                  <MenuItem key={option.id} value={option.id}>
+                    {option.label}
+                  </MenuItem>
+                ))
+              )}
             </Select>
           </FormControl>
         ) : (
-          <Typography
-            variant="body2"
+          <Box
             sx={{
-              color: "text.primary",
               py: 1.5,
               px: 2,
               bgcolor: "background.elevation2",
               borderRadius: 2,
+              display: 'flex',
+              flexWrap: 'wrap',
+              gap: 0.5,
             }}
           >
-            {agentData.agent}
-          </Typography>
+            {agentData.tools.map((toolId) => {
+              const tool = toolOptions.find(t => t.id === toolId);
+              return <Chip key={toolId} label={tool?.label || toolId} size="small" />;
+            })}
+          </Box>
         )}
       </Box>
     </Box>

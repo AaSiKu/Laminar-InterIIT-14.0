@@ -3,7 +3,7 @@ from typing import Optional
 import json
 from lib.open_tel.utils import flatten_attributes, safe_int, safe_float
 from lib.open_tel.input_nodes import OpenTelMetricsNode
-from lib.utils import convert_rdkafka_settings
+from lib.kafka_utils import convert_rdkafka_settings
 
 
 class Metric(pw.Schema):
@@ -35,12 +35,12 @@ def process_data_point(dp: dict, metric_type: str) -> dict:
     dp_attrs = flatten_attributes(dp.get("attributes", []))
     
     # Required time field (0 = invalid, should skip)
-    time = dp.get("timeUnixNano", "0")
-    if time == "0":
+    time = safe_int(dp.get("timeUnixNano"),0)
+    if time == 0:
         return None  # Invalid data point
     
     # Optional but strongly encouraged
-    start_time = dp.get("startTimeUnixNano")
+    start_time = safe_int(dp.get("startTimeUnixNano"),0)
     
     # Extract value based on metric type
     value = None
@@ -98,7 +98,7 @@ def process_data_point(dp: dict, metric_type: str) -> dict:
         
         exemplars.append({
             "filtered_attributes": flatten_attributes(ex.get("filteredAttributes", [])),
-            "time_unix_nano": ex.get("timeUnixNano", "0"),
+            "time_unix_nano": safe_int(ex.get("timeUnixNano"),0),
             "value": ex_value,
             "span_id": ex.get("spanId"),  # Optional
             "trace_id": ex.get("traceId"),  # Optional

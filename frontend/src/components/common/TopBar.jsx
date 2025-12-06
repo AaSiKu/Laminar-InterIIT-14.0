@@ -1,4 +1,5 @@
 import { useState, useContext, useEffect } from "react";
+import { useNavigate, useLocation } from "react-router-dom";
 import {
   Box,
   TextField,
@@ -54,17 +55,50 @@ const StyledBadge = styled(Badge)(({ theme }) => ({
 const TopBar = ({
   showSearch = true,
   userAvatar,
-  searchPlaceholder = "Search",
+  searchPlaceholder = "Search workflows...",
   onLogout,
   searchValue = "",
   onSearchChange,
 }) => {
+  const navigate = useNavigate();
+  const location = useLocation();
   const [anchorEl, setAnchorEl] = useState(null);
+  const [localSearchValue, setLocalSearchValue] = useState(searchValue);
   const open = Boolean(anchorEl);
   const { mode, setMode } = useColorScheme();
   const { logout: authLogout, user } = useContext(AuthContext);
   const [currentUser, setCurrentUser] = useState(null);
   const [loadingUser, setLoadingUser] = useState(false);
+
+  // Handle search - redirect to workflows page with search query
+  const handleSearchChange = (value) => {
+    setLocalSearchValue(value);
+
+    // If on workflows page, use the provided callback
+    if (location.pathname === "/workflows" && onSearchChange) {
+      onSearchChange(value);
+    }
+  };
+
+  const handleSearchKeyPress = (e) => {
+    if (e.key === "Enter" && localSearchValue.trim()) {
+      // Navigate to workflows page with search query
+      if (location.pathname !== "/workflows") {
+        navigate(
+          `/workflows?search=${encodeURIComponent(localSearchValue.trim())}`
+        );
+      }
+    }
+  };
+
+  const handleSearchFocus = () => {
+    // If not on workflows page, redirect there
+    if (location.pathname !== "/workflows" && localSearchValue.trim()) {
+      navigate(
+        `/workflows?search=${encodeURIComponent(localSearchValue.trim())}`
+      );
+    }
+  };
 
   // Fetch current user details when menu opens
   useEffect(() => {
@@ -137,22 +171,27 @@ const TopBar = ({
             display: "flex",
             alignItems: "center",
             gap: 2,
-           
           }}
         >
           <TextField
             placeholder={searchPlaceholder}
             size="small"
-            value={searchValue}
-            onChange={(e) => onSearchChange && onSearchChange(e.target.value)}
+            value={
+              location.pathname === "/workflows"
+                ? searchValue
+                : localSearchValue
+            }
+            onChange={(e) => handleSearchChange(e.target.value)}
+            onKeyPress={handleSearchKeyPress}
+            onFocus={handleSearchFocus}
             sx={{
               minWidth: { xs: 150, sm: 200, md: 280 },
-              '& .MuiOutlinedInput-root': {
-                borderRadius: '50px',
-                bgcolor: 'background.elevation1',
-                height: '28px',
-                '& fieldset': {
-                  borderColor: 'divider',
+              "& .MuiOutlinedInput-root": {
+                borderRadius: "50px",
+                bgcolor: "background.elevation1",
+                height: "28px",
+                "& fieldset": {
+                  borderColor: "divider",
                 },
                 "&:hover fieldset": {
                   borderColor: "divider",
@@ -307,7 +346,7 @@ const TopBar = ({
             )}
           </Box>
           <Divider sx={{ my: 0.5 }} />
-          
+
           {/* Dark Mode Toggle */}
           <Box
             sx={{

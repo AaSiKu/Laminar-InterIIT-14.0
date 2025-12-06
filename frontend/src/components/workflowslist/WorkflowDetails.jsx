@@ -89,7 +89,12 @@ const WorkflowDetails = ({
       try {
         setLoadingDetails(true);
         setDetailsError(null);
-        const details = await fetchPipelineDetails(workflow.id);
+        // Ensure workflow.id is converted to string
+        const workflowId = typeof workflow.id === 'string' ? workflow.id : String(workflow.id || workflow._id || '');
+        if (!workflowId || workflowId === '[object Object]') {
+          throw new Error('Invalid workflow ID');
+        }
+        const details = await fetchPipelineDetails(workflowId);
         if (details.status === "success") {
           setPipelineDetails(details);
         }
@@ -235,6 +240,7 @@ const WorkflowDetails = ({
         display: "flex",
         flexDirection: "column",
         px: 3,
+        overflowY: "scroll"
       }}
     >
       {/* Header Box */}
@@ -317,18 +323,6 @@ const WorkflowDetails = ({
                 );
               })}
             </AvatarGroup>
-            <IconButton
-              size="small"
-              sx={{
-                color: "primary.main",
-                bgcolor: "rgba(25, 118, 210, 0.08)",
-                "&:hover": {
-                  bgcolor: "rgba(25, 118, 210, 0.16)",
-                },
-              }}
-            >
-              <EditIcon sx={{ fontSize: 18 }} />
-            </IconButton>
           </Box>
         </Box>
         <Typography
