@@ -1,7 +1,7 @@
 import { addNodeType, fetchNodeSchema } from "./dashboard.utils";
 
 //Create a pipeline first to avoid the error of using a random id
-//TODO: a user should only first create a piepline thn use these fucntion, useing currentPipelineId or version id uses random and undefined values
+// TODO: a user should only first create a piepline thn use these fucntion, useing currentPipelineId or version id uses random and undefined values
 //----------------------- Create Pipeline--------------------------------//
 
 const create_pipeline = async (
@@ -107,6 +107,7 @@ const savePipelineAPI = async (
 
 const saveDraftsAPI = async (
   version_id,
+  pipeline_id,
   rfInstance,
   setCurrentVersionId,
   pipelineId,
@@ -114,8 +115,8 @@ const saveDraftsAPI = async (
   setError,
   description = ""
 ) => {
-  if (!version_id || !rfInstance) {
-    setError("Can't save draft");
+  if (!version_id || !pipeline_id || !rfInstance) {
+    setError("Can't save draft: missing version_id, pipeline_id, or rfInstance");
     setLoading(false);
     return null;
   }
@@ -498,12 +499,28 @@ async function add_to_node_types(nodes = []) {
 
 /**
  * Fetch pipeline details including creation time and alerts
- * @param {string} pipelineId - The pipeline ID
+ * @param {string|Object} pipelineId - The pipeline ID (string or object with id/_id property)
  * @returns {Promise<Object>} Pipeline details with created_at and alerts
  */
 async function fetchPipelineDetails(pipelineId) {
+  // Ensure pipelineId is a string - handle both string and object cases
+  let idString;
+  if (typeof pipelineId === 'string') {
+    idString = pipelineId;
+  } else if (pipelineId && typeof pipelineId === 'object') {
+    // If it's an object, try to extract the ID
+    idString = String(pipelineId.id || pipelineId._id || pipelineId);
+  } else {
+    idString = String(pipelineId || '');
+  }
+  
+  // Validate that we have a valid ID string (not empty and not '[object Object]')
+  if (!idString || idString === '[object Object]' || idString.trim() === '') {
+    throw new Error(`Invalid pipeline ID: ${pipelineId}`);
+  }
+  
   const response = await fetch(
-    `${import.meta.env.VITE_API_SERVER}/version/pipeline/${pipelineId}/details`,
+    `${import.meta.env.VITE_API_SERVER}/version/pipeline/${idString}/details`,
     {
       credentials: "include",
       headers: {
@@ -530,6 +547,7 @@ export {
   deleteDrafts,
   deletePipeline,
   fetchPipelineDetails,
+  add_to_node_types,
 };
 
 /**

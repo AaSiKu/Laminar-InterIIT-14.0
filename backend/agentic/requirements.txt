@@ -13,6 +13,7 @@ typing-extensions>=4.0.0
 # === Database ===
 psycopg2-binary==2.9.11
 sqlalchemy==2.0.44
+motor>=3.3.0  # Async MongoDB driver
 
 # === LangChain Core ===
 langchain==1.0.3
@@ -20,12 +21,12 @@ langchain_core
 langchain_community
 
 # === LLM Providers (Unified Configuration) ===
-langchain_groq==1.0.0
+langchain_groq
 langchain_openai
 langchain_mcp_adapters
 litellm
 langchain_anthropic
-langchain_google_genai>=2.0.0
+langchain_google_genai
 groq>=0.4.0
 cohere>=5.0.0
 

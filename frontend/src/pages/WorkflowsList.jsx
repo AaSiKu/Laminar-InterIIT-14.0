@@ -100,7 +100,7 @@ export const WorkflowsList = () => {
   const [error, setError] = useState(null);
   const [workflowDetailsCache, setWorkflowDetailsCache] = useState({});
   const [transformedWorkflows, setTransformedWorkflows] = useState([]);
-  const { workflows } = useGlobalState();
+  const { workflows, loading: globalLoading } = useGlobalState();
   const { alerts, getAlertsForPipeline, isConnected, ws } = useWebSocket();
 
   // Update URL when search changes
@@ -120,25 +120,26 @@ export const WorkflowsList = () => {
         return workflowDetailsCache[workflowId];
       }
 
-      try {
-        const details = await fetchPipelineDetails(workflowId);
-        setWorkflowDetailsCache((prev) => ({
-          ...prev,
-          [workflowId]: details,
-        }));
-        return details;
-      } catch (err) {
-        console.warn(
-          `Failed to fetch details for pipeline ${workflowId}:`,
-          err
-        );
+    try {
+      // Ensure workflowId is a string
+      const idString = typeof workflowId === 'string' ? workflowId : String(workflowId?.id || workflowId?._id || workflowId || '');
+      if (!idString || idString === '[object Object]') {
+        console.warn(`Invalid workflow ID for fetchPipelineDetails:`, workflowId);
         return null;
       }
-    },
-    [workflowDetailsCache]
-  );
+      const details = await fetchPipelineDetails(workflowId);
+      setWorkflowDetailsCache(prev => ({
+        ...prev,
+        [workflowId]: details
+      }));
+      return details;
+    } catch (err) {
+      console.warn(`Failed to fetch details for pipeline ${workflowId}:`, err);
+      return null;
+    }
+  }, [workflowDetailsCache]);
 
-  // Update transformed workflows with details when workflows change (debounced)
+  // Update transformed workflows with details when workflows change (immediate display, async details)
   useEffect(() => {
     if (workflows.length === 0) {
       setTransformedWorkflows([]);
@@ -187,14 +188,14 @@ export const WorkflowsList = () => {
         }
       } catch (err) {
         console.error("Error updating workflows with details:", err);
-      } finally {
+      }finally {
         setLoading(false);
       }
     };
 
-    const timeoutId = setTimeout(updateWorkflowsWithDetails, 300);
-    return () => clearTimeout(timeoutId);
-  }, [workflows, fetchWorkflowDetails]); // Update when workflows change
+    // Load details immediately (no delay)
+    updateWorkflowsWithDetails()
+  }, [workflows, fetchWorkflowDetails, workflowDetailsCache]); // Update when workflows change
 
   // Handle WebSocket messages for workflow updates and alerts
   useEffect(() => {
@@ -338,8 +339,8 @@ export const WorkflowsList = () => {
           if (newWorkflow) {
             setSelectedWorkflow(newWorkflow);
           }
-        }, 1000);
-      }
+      }, 1000);
+    }
     } catch (err) {
       console.error("Error handling workflow creation:", err);
       setError(err.message || "Failed to handle workflow creation");
@@ -452,15 +453,8 @@ export const WorkflowsList = () => {
                 pb: 3,
               }}
             >
-              {loading ? (
-                <Box
-                  sx={{
-                    display: "flex",
-                    justifyContent: "center",
-                    alignItems: "center",
-                    py: 4,
-                  }}
-                >
+              {globalLoading || loading ? (
+                <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", py: 4 }}>
                   <Loading />
                 </Box>
               ) : error ? (

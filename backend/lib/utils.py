@@ -44,47 +44,6 @@ def get_node_class_map():
 node_map = get_node_class_map()
 
 
-
-def convert_rdkafka_settings(settings: RdKafkaSettings) -> Dict[str, str]:
-    """
-    
-    Converts RdKafkaSettings to rdkafka format (dot.notation) (i.e pathway's expected format)
-    
-    Args:
-        settings: RdKafkaSettings
-        
-    Returns:
-        Dictionary with rdkafka settings in Pathway's expected format
-        
-    Example:
-        Input: {"bootstrap_servers": "localhost:9092", "group_id": "my-group"}
-        Output: {"bootstrap.servers": "localhost:9092", "group.id": "my-group"}
-    """
-    rdkafka_config = {}
-    
-    # Key mapping from snake_case to dot.notation
-    key_mapping = {
-        "bootstrap_servers": "bootstrap.servers",
-        "security_protocol": "security.protocol",
-        "sasl_mechanism": "sasl.mechanism",
-        "sasl_username": "sasl.username",
-        "sasl_password": "sasl.password",
-        "group_id": "group.id",
-        "auto_offset_reset": "auto.offset.reset",
-    }
-    
-    for key, value in settings.items():
-        if value is None or value == "":
-            continue
-            
-        # Use mapping if available, otherwise convert snake_case to dot.notation
-        rdkafka_key = key_mapping.get(key, key.replace("_", "."))
-        rdkafka_config[rdkafka_key] = str(value)
-    
-    return rdkafka_config
-
-
-
 if __name__ == "__main__":
     for nid, cls in node_map.items():
         print(f"{nid}: {cls.__name__}")

@@ -214,36 +214,6 @@ export const addViewerToPipeline = async (pipelineId, userId) => {
   }
 };
 
-// Create pipeline with all details
-// export const createPipelineWithDetails = async (name, description, viewerIds, pipeline) => {
-//   try {
-//     const response = await fetch(
-//       `${import.meta.env.VITE_API_SERVER}/version/create_pipeline_with_details`,
-//       {
-//         method: "POST",
-//         credentials: "include",
-//         headers: {
-//           "Content-Type": "application/json",
-//         },
-//         body: JSON.stringify({
-//           name: name || "",
-//           description: description || "",
-//           viewer_ids: viewerIds || [],
-//           pipeline: pipeline,
-//         }),
-//       }
-//     );
-//     if (!response.ok) {
-//       const errorData = await response.json().catch(() => ({ detail: "Failed to create pipeline" }));
-//       throw new Error(errorData.detail || `Failed to create pipeline: ${response.status}`);
-//     }
-//     const data = await response.json();
-//     return data;
-//   } catch (error) {
-//     console.error("Error creating pipeline with details:", error);
-//     throw error;
-//   }
-// };
 
 // Get current user details
 export const getCurrentUser = async () => {

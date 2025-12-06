@@ -3,7 +3,7 @@ from typing import Optional
 import json
 from lib.open_tel.utils import flatten_attributes, safe_int
 from lib.open_tel.input_nodes import OpenTelSpansNode
-from lib.utils import convert_rdkafka_settings
+from lib.kafka_utils import convert_rdkafka_settings
 
 class Span(pw.Schema):
     # Span identity fields

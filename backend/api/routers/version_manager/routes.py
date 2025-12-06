@@ -302,8 +302,13 @@ async def save_draft(
         if not existing_version or not existing_workflow:
             raise HTTPException(status_code=404, detail="Version or pipeline not found")
         
-        if not existing_version["user_id"]==user_identifier and not user_identifier in existing_workflow["owner_ids"] or current_user.role!="admin":
-            raise HTTPException(status_code=403, detail="You are not authorised to Edit the workfow")
+        # Check authorization: user must be version creator, workflow owner, or admin
+        is_version_creator = existing_version.get("user_id") == user_identifier
+        is_workflow_owner = user_identifier in existing_workflow.get("owner_ids", [])
+        is_admin = current_user.role == "admin"
+        
+        if not (is_version_creator or is_workflow_owner or is_admin):
+            raise HTTPException(status_code=403, detail="You are not authorised to Edit the workflow")
 
         result = await version_collection.update_one(
             version_query,

@@ -347,6 +347,18 @@ class LLMDiscoveryAgent:
             'security': [list(s.keys())[0] for s in operation_spec.get('security', [])] if operation_spec.get('security') else []
         }
         
+               
+        # Store full security scheme definitions for execution engine
+        if operation_spec.get('security') and swagger_context.get('components', {}).get('securitySchemes'):
+            components_security = swagger_context['components']['securitySchemes']
+            action_metadata['security_schemes'] = {}
+            
+            for sec_req in operation_spec.get('security', []):
+                for scheme_name in sec_req.keys():
+                    if scheme_name in components_security:
+                        action_metadata['security_schemes'][scheme_name] = \
+                            components_security[scheme_name]
+
         # Use LLM ONLY for: action_id, definition, risk_level, requires_approval
         system_prompt = textwrap.dedent(f"""
             You are a specialist agent processing ONE API endpoint for remediation.
@@ -414,7 +426,21 @@ class LLMDiscoveryAgent:
                 action.validated = False
                 action.execution = execution
                 action.parameters = parameters
-                action.secrets = secrets
+                # Convert secrets list to dict with secret_references for execution engine
+                # OpenAPI secrets are never auto-stored, so stored=False for all
+                if secrets:
+                    action.secrets = {
+                        'secret_references': [
+                            {
+                                'name': f"{service_name}_{secret}",
+                                'path': f"{service_name}_{secret}",
+                                'stored': False  # OpenAPI secrets need user provisioning
+                            }
+                            for secret in secrets
+                        ]
+                    }
+                else:
+                    action.secrets = {'secret_references': []}
                 action.action_metadata = action_metadata
                 
                 return action
@@ -482,7 +508,16 @@ class LLMDiscoveryAgent:
             # Check description
             if any(keyword in desc_lower for keyword in ['sensitive', 'confidential', 'secret', 'credential']):
                 secrets.append(param_name)
-        
+               # Check security requirements (API keys, bearer tokens, etc.)
+        security_schemes = operation_spec.get('security', [])
+        if security_schemes:
+            for scheme in security_schemes:
+                for scheme_name in scheme.keys():
+                    # Add the security scheme name as a secret requirement
+                    # e.g., "ApiKeyAuth" -> "api_key_auth"
+                    secret_name = scheme_name.lower().replace('-', '_')
+                    if secret_name not in secrets:
+                        secrets.append(secret_name)
         return secrets
     
     async def _discover_monolithic(
@@ -655,7 +690,29 @@ class LLMDiscoveryAgent:
                         'security': [list(s.keys())[0] for s in matched_spec.get('security', [])] if matched_spec.get('security') else [],
                         'estimated_runtime_seconds': 30
                     }
-        
+                        
+                # Debug logging
+                import logging
+                logger = logging.getLogger(__name__)
+                logger.info(f"Processing action {action.action_id}, matched_spec security: {matched_spec.get('security')}")
+                
+                # Store full security scheme definitions for execution engine
+                # Always add this regardless of whether action_metadata was empty
+                if matched_spec.get('security'):
+                    components_security = swagger_doc.get('components', {}).get('securitySchemes', {})
+                    if not action.action_metadata:
+                        action.action_metadata = {}
+                    action.action_metadata['security_schemes'] = {}
+                    
+                    logger.info(f"Matched spec has security: {matched_spec.get('security')}")
+                    logger.info(f"Components security: {list(components_security.keys())}")
+                    
+                    for sec_req in matched_spec.get('security', []):
+                        for scheme_name in sec_req.keys():
+                            if scheme_name in components_security:
+                                action.action_metadata['security_schemes'][scheme_name] = \
+                                    components_security[scheme_name]
+                                logger.info(f"Added security scheme {scheme_name}: {components_security[scheme_name]}")
         return actions
     
     async def discover_from_scripts(
@@ -814,13 +871,49 @@ class LLMDiscoveryAgent:
             except Exception as e:
                 logger.warning(f"SSH Discovery: Failed to store credentials in secrets manager: {e}")
         
+                # Generate unique secret keys based on host and service
+        # This ensures credentials for different hosts/services don't conflict
+        secret_prefix = f"{service_name}_{host.replace('.', '_')}"
+        ssh_host_key = f"{secret_prefix}_ssh_host"
+        ssh_username_key = f"{secret_prefix}_ssh_username"
+        ssh_password_key = f"{secret_prefix}_ssh_password"
+        ssh_port_key = f"{secret_prefix}_ssh_port"
+        
+        # Store SSH credentials in secrets manager if provided
+        if secrets_manager:
+            try:
+                logger.info(f"SSH Discovery: Attempting to store credentials with secrets_manager={secrets_manager}")
+                secrets_manager.set_secret(ssh_host_key, host)
+                secrets_manager.set_secret(ssh_username_key, credentials.get('username', 'root'))
+                if credentials.get('password'):
+                    secrets_manager.set_secret(ssh_password_key, credentials.get('password'))
+                secrets_manager.set_secret(ssh_port_key, str(credentials.get('port', 22)))
+                logger.info(f"SSH Discovery: Stored credentials in secrets manager with prefix '{secret_prefix}'")
+            except Exception as e:
+                logger.warning(f"SSH Discovery: Failed to store credentials in secrets manager: {e}")
+        else:
+            logger.warning(f"SSH Discovery: secrets_manager is None, cannot auto-store credentials")
+        
         # Add SSH credential secret references to each action
+        ssh_credentials_stored = secrets_manager is not None
+        
         for action in actions:
-            if not action.secrets:
-                action.secrets = []
-            # Reference the stored secret keys
-            action.secrets.extend([ssh_host_key, ssh_username_key, ssh_password_key, ssh_port_key])
-            # Store metadata about which secrets map to which SSH parameters
+            secret_references = [
+            {'name': ssh_host_key, 'path': ssh_host_key, 'stored': ssh_credentials_stored},
+            {'name': ssh_username_key, 'path': ssh_username_key, 'stored': ssh_credentials_stored},
+            {'name': ssh_password_key, 'path': ssh_password_key, 'stored': ssh_credentials_stored},
+            {'name': ssh_port_key, 'path': ssh_port_key, 'stored': ssh_credentials_stored}
+            ]
+            if isinstance(action.secrets, list) and action.secrets:
+                for secret_name in action.secrets:
+                    secret_references.append({
+                        'name': f"{service_name}_{secret_name}",
+                        'path': f"{service_name}_{secret_name}",
+                        'stored': False  # Application secrets need user provisioning
+                    })
+            
+            # Set secrets as dict with secret_references array for execution engine
+            action.secrets = {'secret_references': secret_references}
             if not action.action_metadata:
                 action.action_metadata = {}
             action.action_metadata['ssh_secret_mapping'] = {

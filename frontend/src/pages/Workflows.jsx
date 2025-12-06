@@ -58,7 +58,7 @@ export default function WorkflowPage() {
     setStatus: setCurrentPipelineStatus,
     id: currentPipelineId,
     setId: setCurrentPipelineId,
-    rfInstance,
+        rfInstance,
     versionId: currentVersionId,
     setVersionId: setCurrentVersionId,
     workflowData: currentWorkflowData,
@@ -75,11 +75,28 @@ export default function WorkflowPage() {
   useEffect(() => {
     // Skip if no pipelineId
     if (!pipelineId) {
+      // Clear state if no pipelineId
+      setCurrentNodes([]);
+      setCurrentEdges([]);
+      setCurrentPipelineId(null);
+      setCurrentVersionId(null);
+      setCurrentPipelineStatus("Stopped");
       return;
     }
 
-    // Skip if already loading or already loaded this pipeline
-    if (isLoadingRef.current || loadedPipelineRef.current === pipelineId) {
+    // Normalize pipelineId to string for comparison
+    const normalizedPipelineId = String(pipelineId);
+    
+    // Clear old workflow data immediately when pipelineId changes
+    if (loadedPipelineRef.current !== normalizedPipelineId) {
+      setCurrentNodes([]);
+      setCurrentEdges([]);
+      setError(null);
+      setLoading(true); // Show loading state immediately
+    }
+    
+    // Skip if already loading the same pipeline
+    if (isLoadingRef.current && loadedPipelineRef.current === normalizedPipelineId) {
       return;
     }
 
@@ -93,7 +110,12 @@ export default function WorkflowPage() {
       try {
         // First, try to find the workflow in the workflows list to get current_version_id
         let versionId = null;
-        const workflow = workflows?.find((w) => w._id === pipelineId);
+        
+        // Check both _id and id fields, and normalize to strings for comparison
+        const workflow = workflows?.find((w) => {
+          const workflowId = String(w._id || w.id || '');
+          return workflowId === normalizedPipelineId;
+        });
 
         if (workflow && workflow.current_version_id) {
           versionId = workflow.current_version_id;
@@ -101,12 +123,12 @@ export default function WorkflowPage() {
           // If not found in workflows list, fetch from retrieve_all
           const workflowResponse = await fetchAllWorkflows();
           if (workflowResponse.status === "success" && workflowResponse.data) {
-            const foundWorkflow = workflowResponse.data.find(
-              (w) => w._id === pipelineId
-            );
+            const foundWorkflow = workflowResponse.data.find((w) => {
+              const workflowId = String(w._id || w.id || '');
+              return workflowId === normalizedPipelineId;
+            });
             setCurrentWorkflowData(foundWorkflow);
             setCurrentPipelineStatus(foundWorkflow?.status);
-            console.log(foundWorkflow);
             if (foundWorkflow && foundWorkflow.current_version_id) {
               versionId = foundWorkflow.current_version_id;
             }
@@ -139,7 +161,7 @@ export default function WorkflowPage() {
 
         // Mark as loaded
         if (isMounted) {
-          loadedPipelineRef.current = pipelineId;
+          loadedPipelineRef.current = normalizedPipelineId;
         }
       } catch (err) {
         console.error("Error loading pipeline:", err);
@@ -163,13 +185,38 @@ export default function WorkflowPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pipelineId]); // Only depend on pipelineId to avoid infinite loops
 
-  // Reset loaded ref when pipelineId changes
+  // Reset loaded ref when pipelineId changes (runs before main load effect)
   useEffect(() => {
-    if (pipelineId && loadedPipelineRef.current !== pipelineId) {
+    if (pipelineId) {
+      const normalizedPipelineId = String(pipelineId);
+      if (loadedPipelineRef.current !== normalizedPipelineId) {
+        // Reset refs for new pipeline (don't reset isLoadingRef here to avoid race condition)
+        loadedPipelineRef.current = null;
+        viewportDataRef.current = null;
+      }
+    } else {
+      // Clear everything if no pipelineId
       loadedPipelineRef.current = null;
       viewportDataRef.current = null;
+      isLoadingRef.current = false;
     }
   }, [pipelineId]);
+
+  // Clear workflow state when component unmounts
+  useEffect(() => {
+    return () => {
+      // Clear workflow state when navigating away
+      setCurrentNodes([]);
+      setCurrentEdges([]);
+      setCurrentPipelineId(null);
+      setCurrentVersionId(null);
+      setCurrentPipelineStatus("Stopped");
+      setRfInstance(null);
+      loadedPipelineRef.current = null;
+      viewportDataRef.current = null;
+      isLoadingRef.current = false;
+    };
+  }, [setCurrentNodes, setCurrentEdges, setCurrentPipelineId, setCurrentVersionId, setCurrentPipelineStatus, setRfInstance]);
 
   // Apply viewport when rfInstance and nodes are ready
   useEffect(() => {
@@ -371,10 +418,10 @@ export default function WorkflowPage() {
   const handleExportJSON = useCallback(() => {
     if (!rfInstance) {
       setError("No workflow data available to export");
-      return;
-    }
+        return;
+      }
 
-    try {
+      try {
       const flowData = rfInstance.toObject();
       const exportData = {
         ...flowData,
@@ -468,18 +515,18 @@ export default function WorkflowPage() {
     [setCurrentEdges]
   );
 
-  return (
+    return (
     <>
       {/* Fullscreen Mode */}
       {isFullscreen && (
-        <Box
-          sx={{
-            position: "fixed",
-            top: 0,
-            left: 0,
-            width: "100vw",
-            height: "100vh",
-            zIndex: 9999,
+      <Box
+        sx={{
+          position: "fixed",
+          top: 0,
+          left: 0,
+          width: "100vw",
+          height: "100vh",
+          zIndex: 9999,
             bgcolor: "background.default",
           }}
         >
@@ -501,18 +548,19 @@ export default function WorkflowPage() {
 
       {/* Normal Mode */}
       {!isFullscreen && (
-        <Box
-          sx={{
-            transition: "margin-left 0.3s ease",
+      <Box
+        sx={{
+          transition: "margin-left 0.3s ease",
             left: DRAWER_WIDTH,
-            position: "absolute",
+          position: "absolute",
             width: `calc(100vw - ${DRAWER_WIDTH}px)`,
-            height: "100vh",
-            bgcolor: "background.default",
-            overflow: "hidden",
-          }}
-        >
+          height: "100vh",
+          bgcolor: "background.default",
+          overflow: "hidden",
+        }}
+      >
           {/* Pipeline Navigation Bar */}
+          {/* TODO: Name rendering */}
           <PipelineNavBar
             onBackClick={handleBackClick}
             pipelineName={`${
@@ -520,18 +568,18 @@ export default function WorkflowPage() {
                 ? pipelineId.toLowerCase()
                 : "Unnamed Workflow"
             }`}
-            loading={loading}
-            shareAnchorEl={shareAnchorEl}
-            onShareClick={handleShareClick}
-            onShareClose={handleShareClose}
+          loading={loading}
+          shareAnchorEl={shareAnchorEl}
+          onShareClick={handleShareClick}
+          onShareClose={handleShareClose}
             onSave={handleSave}
-            onSpinup={handleSpinup}
-            onSpindown={handleSpindown}
-            onToggleStatus={handleToggleStatus}
-            currentPipelineStatus={currentPipelineStatus}
-            currentPipelineId={currentPipelineId}
-            containerId={containerId}
-            onFullscreenClick={handleEnterFullscreen}
+          onSpinup={handleSpinup}
+          onSpindown={handleSpindown}
+          onToggleStatus={handleToggleStatus}
+          currentPipelineStatus={currentPipelineStatus}
+          currentPipelineId={currentPipelineId}
+          containerId={containerId}
+          onFullscreenClick={handleEnterFullscreen}
             onRunBook={() => setRunBookOpen((state) => !state)}
             onExportJSON={handleExportJSON}
             pipelineId={pipelineId}
@@ -550,8 +598,8 @@ export default function WorkflowPage() {
             showToolbar={true}
             showFullscreenButton={false}
           />
-        </Box>
-      )}
+            </Box>
+          )}
 
       <RunBook open={isRunBookOpen} onClose={() => setRunBookOpen(false)} />
 

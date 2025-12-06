@@ -312,74 +312,74 @@ export function WorkflowsTable({ data = [], onWorkflowSelect, selectedWorkflowId
               const isSelected = selectedWorkflowId === workflow._id;
               
               return (
-                <TableRow
+              <TableRow
                   key={workflow._id}
                   onClick={() => onWorkflowSelect && onWorkflowSelect(workflow)}
-                  sx={{
+                sx={{
                     cursor: 'pointer',
-                    transition: 'background-color 0.2s ease',
+                  transition: 'background-color 0.2s ease',
                     bgcolor: isSelected ? 'action.selected' : 'transparent',
-                    '&:hover .MuiTableCell-root': {
+                  '&:hover .MuiTableCell-root': {
                       bgcolor: isSelected ? 'action.selected' : 'action.hover',
-                    },
-                    '&:active .MuiTableCell-root': {
-                      bgcolor: 'action.selected',
-                    },
-                    '& .MuiTableCell-root': {
-                      borderBottom: 'none',
+                  },
+                  '&:active .MuiTableCell-root': {
+                    bgcolor: 'action.selected',
+                  },
+                  '& .MuiTableCell-root': {
+                    borderBottom: 'none',
                       bgcolor: isSelected ? 'action.selected' : 'background.elevation1',
-                      '&:first-of-type': {
-                        borderTopLeftRadius: '0.75rem',
-                        borderBottomLeftRadius: '0.75rem',
-                      },
-                      '&:last-of-type': {
-                        borderTopRightRadius: '0.75rem',
-                        borderBottomRightRadius: '0.75rem',
-                      },
+                    '&:first-of-type': {
+                      borderTopLeftRadius: '0.75rem',
+                      borderBottomLeftRadius: '0.75rem',
                     },
+                    '&:last-of-type': {
+                      borderTopRightRadius: '0.75rem',
+                      borderBottomRightRadius: '0.75rem',
+                    },
+                  },
+                }}
+              >
+                <TableCell
+                  sx={{
+                    py: 1.75,
+                    fontSize: '0.875rem',
                   }}
                 >
-                  <TableCell
+                  <Typography
                     sx={{
-                      py: 1.75,
-                      fontSize: '0.875rem',
-                    }}
-                  >
-                    <Typography
-                      sx={{
-                        color: 'text.primary',
-                        fontWeight: 500,
-                      }}
-                    >
-                      {formatPipelineName(workflow, workflowNames)}
-                    </Typography>
-                  </TableCell>
-                  <TableCell
-                    sx={{
-                      py: 1.75,
-                      fontSize: '0.875rem',
-                    }}
-                  >
-                    <AvatarStack count={memberCount} />
-                  </TableCell>
-                  <TableCell
-                    sx={{
-                      py: 1.75,
-                      fontSize: '0.875rem',
                       color: 'text.primary',
+                      fontWeight: 500,
                     }}
                   >
+                      {formatPipelineName(workflow, workflowNames)}
+                  </Typography>
+                </TableCell>
+                <TableCell
+                  sx={{
+                    py: 1.75,
+                    fontSize: '0.875rem',
+                  }}
+                >
+                    <AvatarStack count={memberCount} />
+                </TableCell>
+                <TableCell
+                  sx={{
+                    py: 1.75,
+                    fontSize: '0.875rem',
+                    color: 'text.primary',
+                  }}
+                >
                     {formatLastActivity(workflow.last_updated)}
-                  </TableCell>
-                  <TableCell
-                    sx={{
-                      py: 1.75,
-                      fontSize: '0.875rem',
-                    }}
-                  >
+                </TableCell>
+                <TableCell
+                  sx={{
+                    py: 1.75,
+                    fontSize: '0.875rem',
+                  }}
+                >
                     <StatusChip status={workflow.status || "Stopped"} />
-                  </TableCell>
-                </TableRow>
+                </TableCell>
+              </TableRow>
               );
             })}
             {/* Empty rows to maintain consistent table height */}

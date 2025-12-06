@@ -8,7 +8,7 @@ const STEP_SIDEBAR_COLLAPSED_WIDTH = 64;
 const STEP_SIDEBAR_DEFAULT_WIDTH = 360; // Default width when chatbot is not visible
 // Chatbot width is 40vh, plus sidebar padding (24px left + 24px right = 48px) + left margin (32px) = 80px total
 // Width should just fit the chatbot with padding
-const STEP_SIDEBAR_WITH_CHATBOT_WIDTH = "calc(40vh + 80px)";
+const STEP_SIDEBAR_WITH_CHATBOT_WIDTH = "calc(30vw + 80px)";
 
 const StepSidebar = ({
   steps,
@@ -23,6 +23,9 @@ const StepSidebar = ({
   currentStepValue,
   onAcceptWorkflow,
   onDeclineWorkflow,
+  chatMessages = [],
+  onSendMessage,
+  awaitingInput = false,
 }) => {
   // Determine if chatbot is visible (step 2 and sidebar not collapsed)
   const isChatbotVisible = currentStepValue === 2 && !isSidebarCollapsed;
@@ -132,6 +135,9 @@ const StepSidebar = ({
                       setIsGenerating={setIsGenerating}
                       onAccept={onAcceptWorkflow}
                       onDecline={onDeclineWorkflow}
+                      chatMessages={chatMessages}
+                      onSendMessage={onSendMessage}
+                      awaitingInput={awaitingInput}
                     />
                   </Box>
                 )}
