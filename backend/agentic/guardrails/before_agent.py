@@ -8,7 +8,7 @@ from .gateway import (
     SecretsAnalyzer,
 )
 from lib.logger import custom_logger
-from gateway import MCPSecurityGateway
+from .gateway import MCPSecurityGateway
 
 gateway = MCPSecurityGateway()
 

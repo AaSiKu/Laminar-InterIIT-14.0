@@ -113,7 +113,15 @@ def run_pipeline_container(client: docker.DockerClient, pipeline_id: str):
             "MONGO_URI": os.getenv("MONGO_URI", ""),
             "MONGO_DB": os.getenv("MONGO_DB", "easyworkflow"),
             "LOGS_COLLECTION": os.getenv("LOGS_COLLECTION", "logs"),
-            # TODO: add LLM API keys
+            # LLM API keys
+            "GROQ_API_KEY": os.getenv("GROQ_API_KEY", ""),
+            "OPENAI_API_KEY": os.getenv("OPENAI_API_KEY", ""),
+            "GOOGLE_API_KEY": os.getenv("GOOGLE_API_KEY", ""),
+            "LANGSMITH_API_KEY": os.getenv("LANGSMITH_API_KEY", ""),
+            "LANGSMITH_TRACING": os.getenv("LANGSMITH_TRACING", "true"),
+            "ANTHROPIC_API_KEY": os.getenv("ANTHROPIC_API_KEY", ""),
+            "GEMINI_API_KEY": os.getenv("GEMINI_API_KEY", ""),
+            "CONTEXT7_API_KEY": os.getenv("CONTEXT7_API_KEY", ""),
         },
         network=network_name,
         ports={AGENTIC_CONTAINER_PORT: AGENTIC_CONTAINER_PORT if not dynamic_ports else None},   # dynamic host port

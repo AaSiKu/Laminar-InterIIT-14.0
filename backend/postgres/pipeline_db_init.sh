@@ -1,9 +1,27 @@
 #!/bin/bash
 set -e
 
-psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" <<-EOF
+psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" <<-EOSQL
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+
 CREATE USER $POSTGRES_WRITE_USER WITH PASSWORD '$POSTGRES_WRITE_PASSWORD';
 CREATE USER $POSTGRES_READ_USER WITH PASSWORD '$POSTGRES_READ_PASSWORD';
+
+CREATE TABLE logs (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    timestamp TIMESTAMP,
+    level VARCHAR(20),
+    level_no INTEGER,
+    logger VARCHAR(255),
+    message TEXT,
+    module VARCHAR(255),
+    function VARCHAR(255),
+    line BIGINT,
+    pathname TEXT,
+    process_id BIGINT,
+    thread_id BIGINT,
+    exception TEXT
+);
 
 -- Write user permissions
 GRANT CONNECT ON DATABASE $POSTGRES_DB TO $POSTGRES_WRITE_USER;
@@ -17,6 +35,9 @@ GRANT CONNECT ON DATABASE $POSTGRES_DB TO $POSTGRES_READ_USER;
 GRANT USAGE ON SCHEMA public TO $POSTGRES_READ_USER;
 GRANT SELECT ON ALL TABLES IN SCHEMA public TO $POSTGRES_READ_USER;
 
+-- Grant write access to logs table for read user
+GRANT INSERT, UPDATE, DELETE ON TABLE logs TO $POSTGRES_READ_USER;
+
 -- Grant default privileges for tables created BY the write user
 ALTER DEFAULT PRIVILEGES FOR ROLE $POSTGRES_WRITE_USER IN SCHEMA public
 GRANT SELECT ON TABLES TO $POSTGRES_READ_USER;
@@ -24,7 +45,7 @@ GRANT SELECT ON TABLES TO $POSTGRES_READ_USER;
 -- Also grant on sequences (for auto-increment columns)
 ALTER DEFAULT PRIVILEGES FOR ROLE $POSTGRES_WRITE_USER IN SCHEMA public
 GRANT USAGE ON SEQUENCES TO $POSTGRES_READ_USER;
-EOF
+EOSQL
 
 echo "===================================================="
 echo "Generated database users:"
