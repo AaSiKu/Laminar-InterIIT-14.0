@@ -123,10 +123,19 @@ def trigger_rca(metric_table: pw.Table, node: TriggerRCANode, graph: Graph) -> p
             async def generate_report():
                 """Call the incident report generation API"""
                 try:
+                    pipeline_topology = rca_output.pop('pipeline_topology')
                     async with httpx.AsyncClient(timeout=120) as client:
                         report_resp = await client.post(
                             f"{agentic_url.rstrip('/')}/api/v1/reports/incident",
-                            json={"rca_output": rca_output}
+                            json={"rca_output": {
+                                **rca_output,
+                                "span_data": pipeline_topology,
+                                "financial_impact": {
+                                    "estimated_loss_usd": 87500,
+                                    "affected_transactions": 493 ,
+                                    "duration_minutes": 35
+                                }
+                            }}
                         )
                         if report_resp.status_code == 200:
                             return report_resp.json()

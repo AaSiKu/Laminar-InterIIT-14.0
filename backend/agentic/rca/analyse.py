@@ -3,16 +3,79 @@ from typing_extensions import TypedDict
 import hashlib
 from datetime import datetime, timedelta
 from .summarize import SummarizeOutput
-from .tools import get_error_logs_for_trace_ids, get_downtime_timestamps, TablePayload
+from .tools import get_error_logs_for_trace_ids, get_downtime_timestamps, get_full_span_tree, TablePayload
 from .error_agent import analyze_error_logs
 from .downtime_agent import analyze_downtime_incidents, DowntimeIncident
 from .latency_agent import build_graph, MetricAlert
-from .output import RCAAnalysisOutput
+from .output import RCAAnalysisOutput, PipelineTopology
 from .rca_logger import rca_logger
 
 # RCA cache to prevent concurrent runs for the same metric
 rca_cache: Dict[str, Dict[str, Any]] = {}
 RCA_TIMEOUT_MINUTES = 10
+
+async def build_pipeline_topology(trace_ids: Union[List[str], str], spans_table: TablePayload) -> PipelineTopology:
+    """
+    Build pipeline topology from trace_ids by aggregating all spans.
+    Creates nodes and edges representing the trace tree structure.
+    Identifies affected nodes (status_code >= 2).
+    """
+    if isinstance(trace_ids, str):
+        trace_ids = [trace_ids]
+    
+    all_spans = []
+    span_id_to_node_id = {}  # Map span_id to node_id (incremental)
+    node_id_counter = 1
+    
+    # Collect all spans from all traces
+    for trace_id in trace_ids:
+        spans = await get_full_span_tree(trace_id, spans_table)
+        all_spans.extend(spans)
+    
+    # Build nodes list with incremental node_ids
+    nodes = []
+    edges = []
+    affected_nodes = []
+    
+    for span in all_spans:
+        span_id = span.get('_open_tel_span_id')
+        if span_id not in span_id_to_node_id:
+            span_id_to_node_id[span_id] = node_id_counter
+            
+            nodes.append({
+                "node_id": node_id_counter,
+                "name": span.get('name', 'Unknown'),
+                "service": span.get('_open_tel_service_name', 'Unknown'),
+                "span_id": span_id
+            })
+            
+            # Check if span is affected (status_code >= 2)
+            # OpenTelemetry status codes: 0=UNSET, 1=OK, 2=ERROR
+            status_code = span.get('status_code', 'UNSET')
+            if isinstance(status_code, str):
+                if status_code == 'ERROR':
+                    affected_nodes.append(node_id_counter)
+            elif isinstance(status_code, int) and status_code >= 2:
+                affected_nodes.append(node_id_counter)
+            
+            node_id_counter += 1
+    
+    # Build edges from parent-child relationships
+    for span in all_spans:
+        span_id = span.get('_open_tel_span_id')
+        parent_span_id = span.get('_open_tel_parent_span_id')
+        
+        if parent_span_id and parent_span_id in span_id_to_node_id:
+            edges.append({
+                "source": span_id_to_node_id[parent_span_id],
+                "target": span_id_to_node_id[span_id]
+            })
+    
+    return PipelineTopology(
+        nodes=nodes,
+        edges=edges,
+        affected_nodes=affected_nodes
+    )
 
 
 class InitRCA(SummarizeOutput):
@@ -80,6 +143,15 @@ async def rca(init_rca_request: InitRCA):
                     # Analyze error logs to find root cause
                     analysis: RCAAnalysisOutput = await analyze_error_logs(logs_by_trace)
                     
+                    # Build pipeline topology
+                    pipeline_topology = await build_pipeline_topology(
+                        trace_ids,
+                        init_rca_request.table_data["spans"]
+                    )
+                    
+                    # Add topology to analysis
+                    analysis.pipeline_topology = pipeline_topology
+                    
                     rca_logger.info(f"Root Cause Analysis completed for error metric: {init_rca_request.description}")
                     
                     return {
@@ -123,6 +195,15 @@ async def rca(init_rca_request: InitRCA):
                             }
                         }
                     
+                    # Build pipeline topology
+                    pipeline_topology = await build_pipeline_topology(
+                        trace_ids,
+                        init_rca_request.table_data["spans"]
+                    )
+                    
+                    # Add topology to analysis
+                    analysis.pipeline_topology = pipeline_topology
+                    
                     rca_logger.info(f"Root Cause Analysis completed for latency metric: {init_rca_request.description}")
                     
                     return {
@@ -160,6 +241,15 @@ async def rca(init_rca_request: InitRCA):
                         logs_table=init_rca_request.table_data["logs"],
                         window_seconds=30
                     )
+                    
+                    # Build pipeline topology
+                    pipeline_topology = await build_pipeline_topology(
+                        trace_ids,
+                        init_rca_request.table_data["spans"]
+                    )
+                    
+                    # Add topology to analysis
+                    analysis.pipeline_topology = pipeline_topology
                     
                     rca_logger.info(f"Root Cause Analysis completed for uptime metric: {init_rca_request.description}")
                     
