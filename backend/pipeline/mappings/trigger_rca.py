@@ -139,7 +139,9 @@ def trigger_rca(metric_table: pw.Table, node: TriggerRCANode, graph: Graph) -> p
                 """Call the runbook remediation API"""
                 try:
                     # Use root_cause as the error message for remediation
-                    error_message = rca_output.get("root_cause", "Unknown error")
+                    error_message = rca_output.get("root_cause", None)
+                    if error_message is None:
+                        return {"error": "Unknown error"}
                     async with httpx.AsyncClient(timeout=120) as client:
                         remediation_resp = await client.post(
                             f"{agentic_url.rstrip('/')}/runbook/remediate",
