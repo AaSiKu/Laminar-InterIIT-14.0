@@ -70,11 +70,23 @@ export const BaseNode = memo(
     styles = {},
     contextMenu = [],
     category,
+    nodeType,
     onEditClick,
   }) => {
     const theme = useTheme();
-    const { setNodes, getNode } = useReactFlow();
+    const { setNodes, getNode, getNodes } = useReactFlow();
     const { status } = useGlobalWorkflow();
+    
+    // Compute table name for NodeDataTable: {node_id}__{index}
+    const getTableName = useCallback(() => {
+      if (!nodeType) return id; // fallback
+      const nodes = getNodes();
+      const nodeIndex = nodes.findIndex(n => n.id === id);
+      if (nodeIndex >= 0) {
+        return `${nodeType}__${nodeIndex}`;
+      }
+      return id;
+    }, [nodeType, id, getNodes]);
 
     // Convert properties to array and get top 3
     const getDisplayProperties = () => {
@@ -567,6 +579,7 @@ export const BaseNode = memo(
         {status == "Running" ? (
           <NodeDataTable
             nodeId={id}
+            tableName={getTableName()}
             isVisible={showDataTable}
             nodeRef={nodeRef}
             onMouseEnter={handleTableMouseEnter}

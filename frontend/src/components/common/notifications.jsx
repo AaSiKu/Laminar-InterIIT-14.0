@@ -437,12 +437,14 @@ export const NotificationIcon = () => {
                   backgroundColor: notification.read ? 'transparent' : 'action.hover',
                   borderLeft: `3px solid ${
                     notification.type === 'success'
-                      ? '#4caf50'
-                      : notification.type === 'error'
-                      ? '#f44336'
+                      ? '#10b981'  // green - matches LogsSection
+                      : notification.type === 'error' || notification.type === 'critical'
+                      ? '#ef4444'  // red - matches LogsSection error
                       : notification.type === 'warning'
-                      ? '#ff9800'
-                      : '#2196f3'
+                      ? '#f59e0b'  // amber - matches LogsSection warning
+                      : notification.type === 'debug'
+                      ? '#6b7280'  // gray - matches LogsSection debug
+                      : '#3b82f6'  // blue - matches LogsSection info
                   }`,
                   py: 1.5,
                   px: 2,
@@ -456,12 +458,14 @@ export const NotificationIcon = () => {
                       borderRadius: '50%',
                       backgroundColor:
                         notification.type === 'success'
-                          ? '#4caf50'
-                          : notification.type === 'error'
-                          ? '#f44336'
+                          ? '#10b981'  // green
+                          : notification.type === 'error' || notification.type === 'critical'
+                          ? '#ef4444'  // red
                           : notification.type === 'warning'
-                          ? '#ff9800'
-                          : '#2196f3',
+                          ? '#f59e0b'  // amber
+                          : notification.type === 'debug'
+                          ? '#6b7280'  // gray
+                          : '#3b82f6',  // blue
                       opacity: notification.read ? 0.5 : 1,
                     }}
                   />
@@ -539,16 +543,16 @@ export const NotificationToastContainer = () => {
           background: linear-gradient(to right, ${theme.palette.primary.main}, ${theme.palette.secondary.main}) !important;
         }
         .Toastify__toast--success {
-          border-left: 4px solid ${theme.palette.secondary.main} !important;
+          border-left: 4px solid #10b981 !important; /* green - matches LogsSection */
         }
         .Toastify__toast--error {
-          border-left: 4px solid #f44336 !important;
+          border-left: 4px solid #ef4444 !important; /* red - matches LogsSection error */
         }
         .Toastify__toast--warning {
-          border-left: 4px solid #ff9800 !important;
+          border-left: 4px solid #f59e0b !important; /* amber - matches LogsSection warning */
         }
         .Toastify__toast--info {
-          border-left: 4px solid ${theme.palette.primary.main} !important;
+          border-left: 4px solid #3b82f6 !important; /* blue - matches LogsSection info */
         }
         .Toastify__close-button {
           color: ${theme.palette.text.secondary} !important;

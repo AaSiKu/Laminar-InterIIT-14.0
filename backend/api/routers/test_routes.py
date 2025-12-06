@@ -3,7 +3,7 @@ import random
 from fastapi import APIRouter, Request
 from .version_manager.routes import serialize_mongo
 from .version_manager.schema import Notification, Log
-from ...lib.notifications import add_notification as add_notification_util
+from backend.lib.notifications import add_notification as add_notification_util
 
 
 router = APIRouter()
@@ -29,17 +29,42 @@ async def test_rca_event(
         else:
             pipeline_id = "test_pipeline_id"
 
-    # Create a test RCA event
+    # Create RCA-specific test events
+    rca_scenarios = [
+        {
+            "title": "High Latency Anomaly Detected",
+            "description": "ML model detected unusual latency spike in data processing nodes. Triggering root cause analysis.",
+            "severity": "high"
+        },
+        {
+            "title": "Error Rate Threshold Breached",
+            "description": "Error rate exceeded 5% threshold. Initiating automated RCA to identify failing components.",
+            "severity": "critical"
+        },
+        {
+            "title": "SLA Violation Predicted",
+            "description": "Predictive model forecasts SLA breach in next 15 minutes based on current throughput trends.",
+            "severity": "high"
+        },
+        {
+            "title": "Pipeline Performance Degradation",
+            "description": "Significant drop in pipeline throughput detected. Analyzing upstream dependencies.",
+            "severity": "medium"
+        }
+    ]
+    
+    scenario = random.choice(rca_scenarios)
+
     test_rca_data = {
         "pipeline_id": pipeline_id,
-        "title": f"Test RCA Event - {random.randint(1000, 9999)}",
-        "description": "This is a test RCA event created for testing purposes.",
+        "title": scenario["title"],
+        "description": scenario["description"],
         "triggered_at": datetime.now(),
         "trace_ids": [f"trace_{random.randint(100, 999)}", f"trace_{random.randint(100, 999)}"],
         "metadata": {
             "test": True,
             "source": "test_endpoint",
-            "severity": random.choice(["low", "medium", "high", "critical"]),
+            "severity": scenario["severity"],
             "status": "in_progress"
         }
     }
@@ -62,11 +87,11 @@ async def test_notification(
     notification_type: str = None
 ):
     '''
-    Test endpoint to create a sample notification for WebSocket testing.
+    Test endpoint to create pipeline-specific notifications for WebSocket testing.
     
     Parameters:
     - pipeline_id: Optional. If not provided, uses first available workflow.
-    - notification_type: Optional. One of: success, error, warning, info, alert
+    - notification_type: Optional. One of: success, error, warning, info
     
     This will:
     1. Insert notification into MongoDB
@@ -84,43 +109,43 @@ async def test_notification(
         else:
             pipeline_id = "test_pipeline_id"
     
-    # Random notification types and messages
+    # Pipeline-specific notification types and messages
     types = ["success", "error", "warning", "info"]
     selected_type = notification_type if notification_type in types else random.choice(types)
     
     messages = {
         "success": [
-            "Pipeline completed successfully",
-            "Data sync completed",
-            "Backup created successfully",
-            "Node configuration saved"
+            ("RCA Completed", "Root cause analysis completed successfully. Sending detailed report over Slack."),
+            ("Pipeline Recovered", "Pipeline recovered from error state. All nodes operational."),
+            ("Runbook Executed", "Automated runbook executed successfully. System stabilized."),
+            ("SLA Maintained", "Pipeline met SLA requirements. No action needed.")
         ],
         "error": [
-            "Pipeline execution failed",
-            "Connection timeout",
-            "Data validation error",
-            "Node crashed unexpectedly"
+            ("Pipeline Execution Failed", "Critical error in data processing node. RCA triggered."),
+            ("Node Connection Lost", "Lost connection to upstream data source. Attempting reconnection."),
+            ("Data Validation Failed", "Incoming data failed schema validation. Pipeline paused."),
+            ("Runbook Execution Failed", "Automated remediation failed. Manual intervention required.")
         ],
         "warning": [
-            "High memory usage detected",
-            "Slow query performance",
-            "Rate limit approaching",
-            "Disk space running low"
+            ("Latency Threshold Approaching", "Processing latency at 80% of SLA threshold."),
+            ("Throughput Degradation", "Data throughput dropped by 30%. Monitoring closely."),
+            ("Resource Utilization High", "Pipeline memory usage at 85%. Consider scaling."),
+            ("Prediction: SLA Risk", "ML model predicts potential SLA breach in next 30 minutes.")
         ],
         "info": [
-            "New data received",
-            "Processing started",
-            "Scheduled maintenance upcoming",
-            "System update available"
+            ("RCA Triggered", "Root cause analysis initiated for detected anomaly."),
+            ("Pipeline Started", "Data pipeline started processing incoming stream."),
+            ("Runbook Available", "New automated runbook available for this error pattern."),
+            ("Report Generated", "Analysis report generated. Will be available for download shortly.")
         ]
     }
     
-    title = random.choice(messages[selected_type])
+    title, desc = random.choice(messages[selected_type])
     
     notification_data = {
         "pipeline_id": pipeline_id,
         "title": title,
-        "desc": f"Test notification: {title}. Random ID: {random.randint(1000, 9999)}",
+        "desc": desc,
         "type": selected_type,
         "timestamp": datetime.now()
     }
@@ -142,11 +167,11 @@ async def test_alert(
     pipeline_id: str = None
 ):
     '''
-    Test endpoint to create a sample ALERT (actionable notification) for WebSocket testing.
+    Test endpoint to create an ALERT (actionable notification) for WebSocket testing.
     
     Alerts are special notifications with:
     - type = "alert"
-    - alert object containing actions and status
+    - alert object containing binary actions (Proceed/Ignore) and status
     
     This will trigger WebSocket broadcast and show in the pending actions panel.
     '''
@@ -161,32 +186,31 @@ async def test_alert(
         else:
             pipeline_id = "test_pipeline_id"
     
-    # Random alert scenarios
+    # RCA and Pipeline-specific alert scenarios with binary actions
     alert_scenarios = [
         {
-            "title": "High Latency Detected",
-            "desc": "Pipeline processing time exceeded threshold",
-            "actions": ["Scale Up Resources", "Ignore", "Investigate"]
+            "title": "RCA Suggests Runbook Execution",
+            "desc": "Root cause analysis completed. Agent recommends executing Runbook `restart_upstream_service`. Sending detailed report over Slack.",
         },
         {
-            "title": "Data Quality Issue",
-            "desc": "Missing values detected in incoming data stream",
-            "actions": ["Retry", "Skip Bad Records", "Pause Pipeline"]
+            "title": "Anomaly Detected: High Latency",
+            "desc": "ML model detected latency anomaly. Agent suggests applying Runbook `scale_pipeline_nodes`. Report will be available for download shortly.",
         },
         {
-            "title": "Memory Threshold Exceeded",
-            "desc": "Container memory usage at 90%",
-            "actions": ["Restart Container", "Scale Horizontally", "Ignore"]
+            "title": "SLA Breach Predicted",
+            "desc": "Predictive model forecasts SLA violation in 15 minutes. Agent recommends Runbook `increase_throughput`. Sending detailed report over Slack.",
         },
         {
-            "title": "Failed Authentication",
-            "desc": "External API authentication failed",
-            "actions": ["Refresh Token", "Use Backup Credentials", "Alert Admin"]
+            "title": "Error Pattern Matched",
+            "desc": "Detected known error pattern in logs. Agent suggests Runbook `clear_cache_restart`. Report will be available for download shortly.",
         },
         {
-            "title": "SLA Breach Warning",
-            "desc": "Pipeline may breach SLA in 15 minutes",
-            "actions": ["Prioritize", "Notify Stakeholders", "Escalate"]
+            "title": "Pipeline Recovery Action",
+            "desc": "Pipeline recovered from failure. Agent recommends Runbook `validate_data_integrity` to ensure consistency. Sending detailed report over Slack.",
+        },
+        {
+            "title": "Throughput Degradation Alert",
+            "desc": "Data throughput dropped 40%. RCA identified upstream bottleneck. Agent suggests Runbook `optimize_query`. Report will be available for download shortly.",
         }
     ]
     
@@ -195,11 +219,11 @@ async def test_alert(
     alert_data = {
         "pipeline_id": pipeline_id,
         "title": scenario["title"],
-        "desc": f"{scenario['desc']}. Test ID: {random.randint(1000, 9999)}",
+        "desc": scenario["desc"],
         "type": "alert",
         "timestamp": datetime.now(),
         "alert": {
-            "actions": scenario["actions"],
+            "actions": ["Proceed", "Ignore"],  # Binary actions only
             "action_taken": None,
             "taken_at": None,
             "action_executed_by": None,
@@ -227,7 +251,7 @@ async def test_log(
     level: str = None
 ):
     '''
-    Test endpoint to create a sample log entry for WebSocket testing.
+    Test endpoint to create pipeline-specific log entries for WebSocket testing.
     
     Parameters:
     - pipeline_id: Optional. If not provided, uses first available workflow.
@@ -250,56 +274,53 @@ async def test_log(
         else:
             pipeline_id = "test_pipeline_id"
     
-    # Log levels and messages
+    # Pipeline-specific log levels and messages
     levels = ["debug", "info", "warning", "error", "critical"]
     selected_level = level if level in levels else random.choice(levels)
     
     log_messages = {
         "debug": [
-            "Processing batch of 1000 records",
-            "Cache hit ratio: 95%",
-            "Query execution time: 45ms",
-            "Connection pool status: 8/10 active"
+            "Processing batch: 1000 records",
+            "Latency check: 45ms",
+            "Throughput: 5000 rec/s",
+            "Memory usage: 65%"
         ],
         "info": [
-            "Pipeline started successfully",
-            "Data ingestion completed",
-            "New node added to workflow",
-            "Configuration reloaded"
+            "Pipeline started",
+            "Pipeline stopped",
+            "Node execution completed",
+            "RCA analysis started",
+            "Runbook queued for execution",
+            "Data ingestion resumed"
         ],
         "warning": [
-            "Retrying failed operation (attempt 2/3)",
-            "Response time degraded",
-            "Queue depth increasing",
-            "Token expires in 1 hour"
+            "Latency approaching threshold",
+            "Throughput degradation detected",
+            "Retry attempt 2/3",
+            "Prediction: SLA risk in 30min"
         ],
         "error": [
-            "Failed to connect to database",
-            "Invalid data format received",
-            "Node execution timeout",
-            "API rate limit exceeded"
+            "Node execution failed",
+            "Connection timeout",
+            "Data validation failed",
+            "Runbook execution failed"
         ],
         "critical": [
-            "System out of memory",
-            "Database connection lost",
-            "Pipeline crash detected",
-            "Data corruption detected"
+            "Pipeline crashed",
+            "Data loss detected",
+            "SLA breached",
+            "System unresponsive"
         ]
     }
     
-    sources = ["pipeline", "agent", "system", "node", "scheduler"]
+    sources = ["pipeline", "rca_agent", "runbook", "predictor", "monitor"]
     
     message = random.choice(log_messages[selected_level])
     
     log_data = {
         "pipeline_id": pipeline_id,
         "level": selected_level,
-        "message": f"{message} [Test ID: {random.randint(1000, 9999)}]",
-        "details": {
-            "test": True,
-            "random_metric": random.randint(1, 100),
-            "node_id": f"node_{random.randint(1, 10)}"
-        },
+        "message": message,
         "timestamp": datetime.now(),
         "source": random.choice(sources)
     }
@@ -339,40 +360,39 @@ async def test_all(
     
     results = []
     
-    # 1. Create a notification
+    # 1. Create a notification (pipeline-specific)
     notification_data = {
         "pipeline_id": pipeline_id,
-        "title": "Test Notification",
-        "desc": f"Bulk test notification. ID: {random.randint(1000, 9999)}",
-        "type": random.choice(["success", "info", "warning"]),
+        "title": "RCA Completed",
+        "desc": "Root cause analysis completed. Sending detailed report over Slack.",
+        "type": "success",
         "timestamp": datetime.now()
     }
     notif_result = await notification_collection.insert_one(notification_data)
     results.append({"type": "notification", "id": str(notif_result.inserted_id)})
     
-    # 2. Create an alert
+    # 2. Create an alert (with binary actions)
     alert_data = {
         "pipeline_id": pipeline_id,
-        "title": "Test Alert - Action Required",
-        "desc": f"Bulk test alert. ID: {random.randint(1000, 9999)}",
+        "title": "RCA Suggests Runbook Execution",
+        "desc": "Agent recommends executing Runbook `restart_service`. Report will be available for download shortly.",
         "type": "alert",
         "timestamp": datetime.now(),
         "alert": {
-            "actions": ["Approve", "Reject", "Investigate"],
+            "actions": ["Proceed", "Ignore"],  # Binary actions
             "status": "pending"
         }
     }
     alert_result = await notification_collection.insert_one(alert_data)
     results.append({"type": "alert", "id": str(alert_result.inserted_id)})
     
-    # 3. Create a log
+    # 3. Create a log (pipeline-specific)
     log_data = {
         "pipeline_id": pipeline_id,
-        "level": random.choice(["info", "warning", "error"]),
-        "message": f"Bulk test log entry. ID: {random.randint(1000, 9999)}",
-        "details": {"test": True, "bulk": True},
+        "level": "info",
+        "message": "Pipeline started",
         "timestamp": datetime.now(),
-        "source": "test"
+        "source": "pipeline"
     }
     log_result = await log_collection.insert_one(log_data)
     results.append({"type": "log", "id": str(log_result.inserted_id)})
@@ -393,6 +413,7 @@ async def test_critical_log(
 ):
     '''
     Test endpoint to specifically test critical log with Slack notification.
+    Creates pipeline-specific critical logs.
     '''
     log_collection = request.app.state.log_collection
     workflow_collection = request.app.state.workflow_collection
@@ -405,27 +426,32 @@ async def test_critical_log(
         else:
             pipeline_id = "test_pipeline_id"
     
+    # Pipeline-specific critical scenarios
+    critical_scenarios = [
+        ("Pipeline crashed", "pipeline"),
+        ("SLA breached", "monitor"),
+        ("Data loss detected", "pipeline"),
+        ("System unresponsive", "monitor"),
+    ]
+    
+    message, source = random.choice(critical_scenarios)
+    
     log_data = {
         "pipeline_id": pipeline_id,
         "level": "critical",
-        "message": f"CRITICAL: System failure detected [Test ID: {random.randint(1000, 9999)}]",
-        "details": {
-            "test": True,
-            "error_code": "CRITICAL_001",
-            "affected_component": "main_pipeline"
-        },
+        "message": message,
         "timestamp": datetime.now(),
-        "source": "test_critical"
+        "source": source
     }
     
     result = await log_collection.insert_one(log_data)
     
     return serialize_mongo({
         "status": "success",
-        "message": "Test critical log created",
+        "message": "Critical log created",
         "inserted_id": str(result.inserted_id),
         "inserted_data": log_data,
-        "slack_notification": "Will be sent via change stream watcher"
+        "slack_notification": "Sending detailed report over Slack"
     })
 
 

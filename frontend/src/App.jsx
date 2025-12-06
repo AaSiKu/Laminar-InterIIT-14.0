@@ -11,6 +11,7 @@ import OverviewPage from "./pages/Overview.jsx";
 import { AdminPage } from "./pages/Admin.jsx";
 import { WorkflowsList } from "./pages/WorkflowsList.jsx";
 import NotFoundPage from "./pages/NotFoundPage.jsx";
+import NotificationToast from "./components/common/NotificationToast.jsx";
 
 function AppContent() {
   const location = useLocation();
@@ -19,6 +20,8 @@ function AppContent() {
   return (
     <>
       {!isPublicRoute.includes(location.pathname) && <Sidebar />}
+      {/* Global notification toast for logs, notifications, and alerts */}
+      {!isPublicRoute.includes(location.pathname) && <NotificationToast />}
       <Routes>
         {/* Public routes */}
         <Route path="/login" element={<LoginPage />} />

@@ -1,8 +1,14 @@
-import os, sys
+import sys
+import logging
 from pydantic.dataclasses import dataclass
 from pydantic import Field, BaseModel
 
-TERMINATE_ON_EXTRA_FAILURE: bool = True
+# Get logger for guardrails
+logger = logging.getLogger(__name__)
+
+# Changed to False - never call sys.exit() in a container environment
+# This would crash the entire container. Use exceptions instead.
+TERMINATE_ON_EXTRA_FAILURE: bool = False
 
 @dataclass
 class DetectorResult:
@@ -141,13 +147,13 @@ class Extra:
     def install(self):
         """Installs all required packages for this extra (using pip if available)."""
         # like for imports, but all in one go
-        msg = "warning: you are trying to use a feature that relies on the extra dependency '{}', which requires the following packages to be installed:\n".format(
+        msg = "You are trying to use a feature that relies on the extra dependency '{}', which requires the following packages to be installed:\n".format(
             self.name
         )
         for imp in self.packages.values():
             msg += "   - " + imp.package_name + imp.version_constraint + "\n"
 
-        sys.stderr.write(msg + "\n")
+        logger.warning(msg)
 
         # check if terminal input is possible
         if sys.stdin.isatty():

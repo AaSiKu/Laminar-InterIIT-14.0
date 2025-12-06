@@ -1,6 +1,7 @@
 import logging
 import json
 import os
+import time
 from typing import Any
 
 import pathway as pw
@@ -100,7 +101,7 @@ class JsonIndexingApp:
         if json_sources:
             self.json_sources = json_sources
         else:
-            self.json_sources = {"default": "/app/pipeline/Error_registry/Errors.json"}
+            self.json_sources = {"default": "/errors.json"}
         
         self.host = host
         self.port = port
@@ -169,9 +170,15 @@ class JsonIndexingApp:
         splitter = None
         
         # 4. EMBEDDER - For semantic search on first column (Google Gemini)
+        api_key = get_gemini_api_key()
+        if not api_key:
+            raise ValueError(
+                "Missing GEMINI_API_KEY or GOOGLE_API_KEY environment variable. "
+                "Please set one of these to use the embedder."
+            )
         embedder = embedders.GeminiEmbedder(
             model=self.embedding_model,
-            api_key=os.getenv("GEMINI_API_KEY")
+            api_key=api_key
         )
         
         # 5. RETRIEVER - Vector index for similarity search
@@ -209,27 +216,25 @@ class JsonIndexingApp:
 
 # ===== RUN THE APPLICATION =====
 if __name__ == "__main__":
-    import sys
-    
     # Check if data file exists
-    if not os.path.exists("mongo_data.json"):
-        logging.error("mongo_data.json not found!")
-        logging.info("Please ensure your data file exists before starting the server.")
-        sys.exit(1)
-    
-    # Option 1: Single source (simple)
+    if not os.path.exists("/errors.json"):
+        logging.warning("/errors.json not found! Creating empty file.")
+        with open("/errors.json", "w") as f:
+            f.write("[]")
     # Get configuration from environment variables
     host = os.getenv("ERROR_INDEXING_HOST", "0.0.0.0")
     port = int(os.getenv("ERROR_INDEXING_PORT", "11111"))
-    errors_json = os.getenv("ERRORS_JSON_PATH", "/app/pipeline/Error_registry/Errors.json")
+    errors_json = os.getenv("ERRORS_JSON_PATH", "/errors.json")
     embedding_model = os.getenv("EMBEDDING_MODEL", "models/text-embedding-004")
-    
-    app = JsonIndexingApp(
-        json_file_path=errors_json,
-        host=host,
-        port=port,
-        embedding_model=embedding_model,
-        with_cache=True,
-    )  
-    logging.info("Starting Pathway document indexing server...")
-    app.run()
+    try:
+        app = JsonIndexingApp(
+            json_sources={"default": errors_json},
+            host=host,
+            port=port,
+            embedding_model=embedding_model,
+            with_cache=True,
+        )  
+        logging.info("Starting Pathway document indexing server...")
+        app.run()
+    except Exception as e:
+        logging.error(f"Error running indexing server: {e}")

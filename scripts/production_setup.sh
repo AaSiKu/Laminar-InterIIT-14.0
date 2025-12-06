@@ -161,31 +161,30 @@ log_info "Error logs: $LOG_DIR/api_error.log"
 
 echo "---"
 
-## 8. Serve Frontend Static Files
-log_info "Starting frontend static file server..."
-
-# Check if serve is installed globally
-if ! command -v serve &> /dev/null; then
-    log_info "Installing 'serve' package globally..."
-    npm install -g serve > /dev/null 2>&1
-fi
+## 8. Serve Frontend with Vite Preview
+log_info "Starting frontend with Vite preview..."
 
 cd frontend
 export VITE_API_SERVER="http://localhost:$API_SERVER_PORT"
-nohup serve -s dist -l $FRONTEND_PORT > ../$LOG_DIR/frontend.log 2>&1 &
+# Use npm run preview with --port flag for Vite's built-in preview server
+nohup npm run preview -- --port $FRONTEND_PORT --host $HOST > ../$LOG_DIR/frontend.log 2>&1 &
 FRONTEND_PID=$!
 echo $FRONTEND_PID > "../$PID_DIR/frontend.pid"
 
 log_success "Frontend started with PID: $FRONTEND_PID"
 log_info "Frontend logs: $LOG_DIR/frontend.log"
 
+cd ..
+
 echo "---"
 
 ## 9. Start Contract Parser Agent Server (Production mode)
 if [ -d "backend/contractparseragent/server" ]; then
-    log_info "Starting Contract Parser Agent server..."
+    log_info "Starting Contract Parser Agent server on port $CONTRACT_PARSER_PORT..."
     cd backend/contractparseragent/server
-    nohup python server.py > ../../../$LOG_DIR/contractparseragent.log 2>&1 &
+    # Export port for the server to use
+    export CONTRACT_PARSER_PORT=$CONTRACT_PARSER_PORT
+    nohup python server.py --port $CONTRACT_PARSER_PORT > ../../../$LOG_DIR/contractparseragent.log 2>&1 &
     CONTRACTPARSERAGENT_PID=$!
     echo $CONTRACTPARSERAGENT_PID > "../../../$PID_DIR/contractparseragent.pid"
     cd ../../..
@@ -219,8 +218,9 @@ log_success "Production deployment completed!"
 echo "=============================================="
 echo ""
 echo "Services running:"
-echo "  - API Server:      http://localhost:$API_SERVER_PORT"
-echo "  - Frontend:        http://localhost:$FRONTEND_PORT"
+echo "  - API Server:           http://localhost:$API_SERVER_PORT"
+echo "  - Frontend:             http://localhost:$FRONTEND_PORT"
+echo "  - Contract Parser:      http://localhost:$CONTRACT_PARSER_PORT"
 echo ""
 echo "Log files:"
 echo "  - API access:      $LOG_DIR/api_access.log"
