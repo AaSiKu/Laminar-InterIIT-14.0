@@ -48,6 +48,7 @@ planner_executor: CompiledStateGraph = None
 orchestrator: Optional[Any] = None
 discovery_agent: Optional[LLMDiscoveryAgent] = None
 registry: Optional[Any] = None
+secrets_manager: Optional[SecretsManager] = None
 
 # MongoDB for notifications
 mongo_client: Optional[AsyncIOMotorClient] = None
@@ -58,7 +59,7 @@ notification_collection: Optional[Any] = None
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    global orchestrator, discovery_agent, registry, mongo_client, notification_collection
+    global orchestrator, discovery_agent, registry, mongo_client, notification_collection, secrets_manager
     
     # Initialize MongoDB for notifications
     try:
@@ -96,6 +97,10 @@ async def lifespan(app: FastAPI):
             discovery_agent = LLMDiscoveryAgent(ssh_client_factory=ssh_client_factory)
             logger.info("Discovery agent initialized successfully")
             
+            # Initialize secrets manager (uses SQLite, always available)
+            secrets_manager = SecretsManager()
+            logger.info("Secrets manager initialized successfully")
+
             # Try to initialize DB components (optional)
             try:
                 db_url = postgre_url
@@ -104,8 +109,7 @@ async def lifespan(app: FastAPI):
                 await registry.initialize()
                 
                 validator = SafetyValidator(otel_client=None, metrics_client=None)
-                secrets_mgr = SecretsManager()
-                executor = ActionExecutor(validator, secrets_mgr, None)
+                executor = ActionExecutor(validator, secrets_manager, None)
                 
                 try:
                     suggestion_service = LLMSuggestionService()
@@ -578,11 +582,12 @@ if RUNBOOK_AVAILABLE:
         service_name: str
 
     class SecretDefinition(BaseModel):
-        key: str
-        description: str
-        source: str
-        required: bool
-        value: Optional[str] = None
+        """Definition of a secret that needs to be provisioned"""
+        key: str = Field(..., description="Unique secret key")
+        description: str = Field(..., description="Description of what this secret is for")
+        source: str = Field(..., description="Source of secret (ssh, openapi, script)")
+        required: bool = Field(True, description="Whether this secret is required")
+        value: Optional[str] = Field(None, description="Secret value (set by user)")
 
     class SecretsProvisionRequest(BaseModel):
         service_name: str
@@ -600,7 +605,23 @@ if RUNBOOK_AVAILABLE:
         actions: List[Dict]
         registered: bool
         summary: Dict = {}
-        secrets_required: Optional[List[SecretDefinition]] = None
+        secrets_required: Optional[List[SecretDefinition]] = Field(None, description="Secrets that need user-provided values")
+        secrets_stored: Optional[List[str]] = Field(None, description="Secrets that were auto-stored during discovery")
+    
+    class SecretsProvisionRequest(BaseModel):
+        """Request to provision secret values"""
+        secrets: List[SecretDefinition] = Field(..., description="List of secrets with values")
+        service_name: str = Field(..., description="Service name for context")
+
+
+    class SecretsProvisionResponse(BaseModel):
+        """Response from secrets provisioning"""
+        status: str
+        secrets_saved: int
+        secrets_skipped: int
+        errors: Optional[List[str]] = None
+
+
 
     # Runbook Endpoints
     @app.get("/runbook/health", response_model=RunbookHealthResponse, tags=["runbook"])
@@ -904,15 +925,19 @@ if RUNBOOK_AVAILABLE:
     async def discover_from_swagger(request: DiscoverSwaggerRequest):
         """Discover remediation actions from Swagger/OpenAPI specification"""
         if not discovery_agent:
-            raise HTTPException(status_code=503, detail="Discovery agent not initialized")
-        
+                raise HTTPException(status_code=503, detail="Discovery agent not initialized")
+            
         try:
+            # Fetch swagger doc if URL provided
             base_url = None
             if request.swagger_url:
                 import aiohttp
                 from urllib.parse import urlparse
+                
+                # Extract base URL from swagger_url
                 parsed = urlparse(request.swagger_url)
                 base_url = f"{parsed.scheme}://{parsed.netloc}"
+                
                 async with aiohttp.ClientSession() as session:
                     async with session.get(request.swagger_url) as resp:
                         if resp.status != 200:
@@ -923,8 +948,10 @@ if RUNBOOK_AVAILABLE:
             else:
                 raise HTTPException(status_code=400, detail="Provide either swagger_url or swagger_doc")
             
+            # Discover actions
             actions = await discovery_agent.discover_from_swagger(swagger_doc, request.service_name, base_url=base_url)
             
+            # Try to register in database (optional)
             registered = False
             summary = {}
             if registry:
@@ -935,26 +962,53 @@ if RUNBOOK_AVAILABLE:
                 except Exception as reg_error:
                     logger.warning(f"Could not register actions in DB: {reg_error}")
             
+            # Extract unique secrets that need values
             secrets_required = []
             seen_secrets = set()
             for action in actions:
-                for secret_name in action.secrets:
-                    if secret_name not in seen_secrets:
-                        seen_secrets.add(secret_name)
-                        description = f"Secret '{secret_name}' for {action.action_id}"
-                        if 'api_key' in secret_name.lower():
-                            description = f"API key for {action.service}"
-                        elif 'token' in secret_name.lower():
-                            description = f"Authentication token for {action.service}"
-                        elif 'password' in secret_name.lower():
-                            description = f"Password for {action.service}"
-                        secrets_required.append(SecretDefinition(
-                            key=secret_name,
-                            description=description,
-                            source="openapi",
-                            required=True,
-                            value=None
-                        ))
+                # Handle new dict structure with secret_references
+                if isinstance(action.secrets, dict) and 'secret_references' in action.secrets:
+                    secret_refs = action.secrets['secret_references']
+                    for ref in secret_refs:
+                        secret_name = ref.get('name')
+                        if secret_name and secret_name not in seen_secrets:
+                            seen_secrets.add(secret_name)
+                            # Determine description based on secret name
+                            description = f"Secret '{secret_name}' for {action.action_id}"
+                            if 'api_key' in secret_name.lower():
+                                description = f"API key for {action.service}"
+                            elif 'token' in secret_name.lower():
+                                description = f"Authentication token for {action.service}"
+                            elif 'password' in secret_name.lower():
+                                description = f"Password for {action.service}"
+                            
+                            secrets_required.append(SecretDefinition(
+                                key=secret_name,
+                                description=description,
+                                source="openapi",
+                                required=True,
+                                value=None
+                            ))
+                # Handle legacy list structure for backward compatibility
+                elif isinstance(action.secrets, list):
+                    for secret_name in action.secrets:
+                        if secret_name not in seen_secrets:
+                            seen_secrets.add(secret_name)
+                            description = f"Secret '{secret_name}' for {action.action_id}"
+                            if 'api_key' in secret_name.lower():
+                                description = f"API key for {action.service}"
+                            elif 'token' in secret_name.lower():
+                                description = f"Authentication token for {action.service}"
+                            elif 'password' in secret_name.lower():
+                                description = f"Password for {action.service}"
+                            
+                            secrets_required.append(SecretDefinition(
+                                key=secret_name,
+                                description=description,
+                                source="openapi",
+                                required=True,
+                                value=None
+                            ))
             
             return DiscoveryResponse(
                 status="pending_secrets" if secrets_required else "completed",
@@ -962,7 +1016,8 @@ if RUNBOOK_AVAILABLE:
                 actions=[a.model_dump() for a in actions],
                 registered=registered,
                 summary=summary,
-                secrets_required=secrets_required if secrets_required else None
+                secrets_required=secrets_required if secrets_required else None,
+                secrets_stored=None  # OpenAPI doesn't auto-store secrets
             )
         except HTTPException:
             raise
@@ -972,13 +1027,21 @@ if RUNBOOK_AVAILABLE:
 
     @app.post("/runbook/discover/scripts", response_model=DiscoveryResponse, tags=["runbook"])
     async def discover_from_scripts(request: DiscoverScriptsRequest):
-        """Discover remediation actions from script files"""
+        """
+        Discover remediation actions from script files
+        
+        Provide list of scripts with path and content
+        """
         if not discovery_agent:
             raise HTTPException(status_code=503, detail="Discovery agent not initialized")
         
         try:
-            actions = await discovery_agent.discover_from_scripts(request.scripts, request.service_name)
+            actions = await discovery_agent.discover_from_scripts(
+                request.scripts,
+                request.service_name
+            )
             
+            # Try to register in database (optional)
             registered = False
             summary = {}
             if registry:
@@ -989,19 +1052,21 @@ if RUNBOOK_AVAILABLE:
                 except Exception as reg_error:
                     logger.warning(f"Could not register actions in DB: {reg_error}")
             
+            # Extract unique secrets that need values
             secrets_required = []
             seen_secrets = set()
             for action in actions:
                 for secret_name in action.secrets:
                     if secret_name not in seen_secrets:
                         seen_secrets.add(secret_name)
+                        description = f"Secret '{secret_name}' for {action.action_id}"
                         secrets_required.append(SecretDefinition(
                             key=secret_name,
-                            description=f"Secret '{secret_name}' for {action.action_id}",
+                            description=description,
                             source="script",
                             required=True,
                             value=None
-                        ))
+                            ))
             
             return DiscoveryResponse(
                 status="pending_secrets" if secrets_required else "completed",
@@ -1009,7 +1074,8 @@ if RUNBOOK_AVAILABLE:
                 actions=[a.model_dump() for a in actions],
                 registered=registered,
                 summary=summary,
-                secrets_required=secrets_required if secrets_required else None
+                secrets_required=secrets_required if secrets_required else None,
+                secrets_stored=None  # Script discovery doesn't auto-store secrets
             )
         except Exception as e:
             logger.error(f"Script discovery failed: {e}")
@@ -1022,14 +1088,16 @@ if RUNBOOK_AVAILABLE:
             raise HTTPException(status_code=503, detail="Discovery agent not initialized")
         
         try:
+            # Pass secrets_manager to auto-store SSH credentials during discovery
             actions = await discovery_agent.discover_from_ssh(
                 request.host,
                 request.scripts_path,
                 request.credentials,
                 request.service_name,
-                secrets_manager=None
+                secrets_manager=secrets_manager  # Auto-store SSH credentials
             )
             
+            # Try to register in database (optional)
             registered = False
             summary = {}
             if registry:
@@ -1040,42 +1108,66 @@ if RUNBOOK_AVAILABLE:
                 except Exception as reg_error:
                     logger.warning(f"Could not register actions in DB: {reg_error}")
             
+            # Extract unique secrets that need values
+            # Check the 'stored' flag in secret_references to determine which secrets need user input
             secrets_required = []
+            secrets_stored = []
             seen_secrets = set()
+            seen_stored = set()
+            
             for action in actions:
-                for secret_name in action.secrets:
-                    if secret_name not in seen_secrets:
-                        seen_secrets.add(secret_name)
-                        description = f"Secret for {action.service}"
-                        if 'ssh_host' in secret_name:
-                            description = f"SSH host for {action.service}"
-                        elif 'ssh_username' in secret_name:
-                            description = f"SSH username for {action.service}"
-                        elif 'ssh_password' in secret_name:
-                            description = f"SSH password for {action.service}"
-                        elif 'ssh_port' in secret_name:
-                            description = f"SSH port for {action.service}"
-                        else:
-                            description = f"Secret '{secret_name}' for {action.action_id}"
-                        secrets_required.append(SecretDefinition(
-                            key=secret_name,
-                            description=description,
-                            source="ssh",
-                            required=True,
-                            value=None
-                        ))
+                # Handle dict structure with secret_references
+                if isinstance(action.secrets, dict) and 'secret_references' in action.secrets:
+                    secret_refs = action.secrets['secret_references']
+                    for ref in secret_refs:
+                        secret_name = ref.get('name')
+                        is_stored = ref.get('stored', False)
+                        
+                        if secret_name:
+                            # Track stored secrets
+                            if is_stored and secret_name not in seen_stored:
+                                seen_stored.add(secret_name)
+                                secrets_stored.append(secret_name)
+                            # Only add to secrets_required if not already stored
+                            elif not is_stored and secret_name not in seen_secrets:
+                                seen_secrets.add(secret_name)
+                                description = f"Secret '{secret_name}' for {action.action_id}"
+                                
+                                secrets_required.append(SecretDefinition(
+                                    key=secret_name,
+                                    description=description,
+                                    source="ssh",
+                                    required=True,
+                                    value=None
+                                ))
+                # Handle legacy list structure for backward compatibility
+                elif isinstance(action.secrets, list):
+                    for secret_name in action.secrets:
+                        if secret_name not in seen_secrets:
+                            seen_secrets.add(secret_name)
+                            description = f"Secret for {action.service}"
+                            
+                            secrets_required.append(SecretDefinition(
+                                key=secret_name,
+                                description=description,
+                                source="ssh",
+                                required=True,
+                                value=None
+                            ))
             
             return DiscoveryResponse(
                 status="pending_secrets" if secrets_required else "completed",
                 actions_discovered=len(actions),
-                actions=[a.model_dump() for a in actions],
+                actions=[a.dict() for a in actions],
                 registered=registered,
                 summary=summary,
-                secrets_required=secrets_required if secrets_required else None
+                secrets_required=secrets_required if secrets_required else None,
+                secrets_stored=secrets_stored if secrets_stored else None
             )
         except Exception as e:
             logger.error(f"SSH discovery failed: {e}")
             raise HTTPException(status_code=500, detail=str(e))
+
 
     @app.post("/runbook/discover/documentation", response_model=DiscoveryResponse, tags=["runbook"])
     async def discover_from_documentation(request: DiscoverDocsRequest):
@@ -1101,7 +1193,9 @@ if RUNBOOK_AVAILABLE:
                 actions_discovered=len(actions),
                 actions=[a.model_dump() for a in actions],
                 registered=registered,
-                summary=summary
+                summary=summary,
+                secrets_required=None,
+                secrets_stored=None  # Documentation discovery doesn't handle secrets
             )
         except Exception as e:
             logger.error(f"Documentation discovery failed: {e}")
@@ -1109,7 +1203,33 @@ if RUNBOOK_AVAILABLE:
 
     @app.post("/runbook/secrets/provision", response_model=SecretsProvisionResponse, tags=["runbook"])
     async def provision_secrets(request: SecretsProvisionRequest):
-        """Provision secret values for discovered actions"""
+        """
+        Provision secret values for discovered actions
+        
+        User provides values for secrets identified during discovery.
+        Secrets are stored in the secrets manager with uniqueness enforced.
+        
+        Example request:
+        {
+            "service_name": "webapp",
+            "secrets": [
+                {
+                    "key": "webapp_prod-server-01_ssh_host",
+                    "description": "SSH host",
+                    "source": "ssh",
+                    "required": true,
+                    "value": "prod-server-01.example.com"
+                },
+                {
+                    "key": "webapp_prod-server-01_ssh_password",
+                    "description": "SSH password",
+                    "source": "ssh", 
+                    "required": true,
+                    "value": "secure_password_123"
+                }
+            ]
+        }
+        """
         secrets_mgr = get_secrets_manager()
         secrets_saved = 0
         secrets_skipped = 0
@@ -1117,6 +1237,7 @@ if RUNBOOK_AVAILABLE:
         
         try:
             for secret in request.secrets:
+                # Skip if no value provided
                 if secret.value is None or secret.value.strip() == "":
                     if secret.required:
                         errors.append(f"Required secret '{secret.key}' has no value")
@@ -1126,6 +1247,7 @@ if RUNBOOK_AVAILABLE:
                     continue
                 
                 try:
+                    # Store secret in database (automatically handles uniqueness)
                     secrets_mgr.set_secret(secret.key, secret.value)
                     secrets_saved += 1
                     logger.info(f"Provisioned secret: {secret.key} (source: {secret.source})")
@@ -1135,6 +1257,7 @@ if RUNBOOK_AVAILABLE:
                     logger.error(error_msg)
                     secrets_skipped += 1
             
+            # Determine overall status
             if secrets_saved == len(request.secrets):
                 status = "completed"
             elif secrets_saved > 0:
@@ -1148,6 +1271,7 @@ if RUNBOOK_AVAILABLE:
                 secrets_skipped=secrets_skipped,
                 errors=errors if errors else None
             )
+            
         except Exception as e:
             logger.error(f"Secrets provisioning failed: {e}")
             raise HTTPException(status_code=500, detail=str(e))
