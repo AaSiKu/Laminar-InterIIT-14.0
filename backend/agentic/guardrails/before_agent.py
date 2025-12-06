@@ -120,10 +120,12 @@ async def detect(text :str):
     if secrets_results:
         custom_logger.critical("Secret Data detected in agent description")
 
+    # Filter out DATE_TIME entities to prevent timestamp redaction
     all_findings = (pii_results or []) + (secrets_results or [])
-    sanitized_description = InputScanner._sanitize_text(text, all_findings)
+    filtered_findings = [f for f in all_findings if f.entity != 'DATE_TIME']
+    sanitized_description = InputScanner._sanitize_text(text, filtered_findings)
     
-    if all_findings:
+    if filtered_findings:
         custom_logger.info("Input data was sanitized for PII/secrets.")
     
     return sanitized_description
