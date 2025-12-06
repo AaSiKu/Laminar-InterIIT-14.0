@@ -16,6 +16,7 @@ import CloseIcon from "@mui/icons-material/Close";
 import SearchIcon from "@mui/icons-material/Search";
 import FilterListIcon from "@mui/icons-material/FilterList";
 import CheckIcon from "@mui/icons-material/Check";
+import aiIcon from "../../assets/ai_icon.svg";
 
 // Template data
 const templates = {
@@ -23,7 +24,7 @@ const templates = {
     {
       id: "blank",
       name: "Create New AI Workflow",
-      image: null,
+      image: aiIcon,
       bgColor: "#e8f4f8",
     },
   ],
@@ -332,6 +333,9 @@ const NewProjectModal = ({ open, onClose, onSelectTemplate }) => {
                         position: "relative",
                         flexShrink: 0,
                         backgroundColor: template.bgColor,
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
                       }}
                     >
                       {template.image && (
@@ -340,9 +344,11 @@ const NewProjectModal = ({ open, onClose, onSelectTemplate }) => {
                           src={template.image}
                           alt={template.name}
                           sx={{
-                            width: "100%",
-                            height: "100%",
-                            objectFit: "cover",
+                            maxWidth: sectionKey === "blank" ? "60%" : "100%",
+                            maxHeight: sectionKey === "blank" ? "60%" : "100%",
+                            width: sectionKey === "blank" ? "auto" : "100%",
+                            height: sectionKey === "blank" ? "auto" : "100%",
+                            objectFit: sectionKey === "blank" ? "contain" : "cover",
                             display: "block",
                           }}
                         />
