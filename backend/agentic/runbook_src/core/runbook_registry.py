@@ -4,7 +4,7 @@ Clean, simple, production-ready implementation using SQLAlchemy
 """
 
 from datetime import datetime
-from typing import Dict, List, Any, Optional
+from typing import Dict, List, Any, Optional,Union
 import json
 
 from pydantic import BaseModel, Field, field_validator
@@ -36,7 +36,7 @@ class RemediationAction(BaseModel):
     # Execution details
     execution: Dict[str, Any] = Field(default_factory=dict, description="Execution configuration (endpoint, script_path, command, etc.)")
     parameters: Dict[str, Dict[str, Any]] = Field(default_factory=dict, description="Action parameters with validation rules")
-    secrets: List[str] = Field(default_factory=list, description="List of secret parameter names")
+    secrets: Any = Field(default_factory=list, description="List of secret parameter names or dict with secret_references for execution")
     action_metadata: Dict[str, Any] = Field(default_factory=dict, description="Additional metadata")
     
     @field_validator('risk_level')

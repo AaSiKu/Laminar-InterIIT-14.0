@@ -352,6 +352,9 @@ class ActionExecutor:
         # Resolve secrets for authentication
         secrets = await self._resolve_secrets(action.get('secrets', {}))
         
+        # Apply security schemes dynamically
+        headers, query_params, cookies = await self._apply_security_schemes(secrets, action)
+        
         # Build request payload
         param_dict = {}
         for param in parameters:
@@ -368,12 +371,14 @@ class ActionExecutor:
             elif param.get('required', False):
                 raise ValueError(f"Required parameter '{param_name}' not provided")
         
-        # Make RPC call
-        headers = {}
-        if 'admin_api_token' in secrets:
-            headers['Authorization'] = f"Bearer {secrets['admin_api_token']}"
+        # Merge query params from security with any existing params
+        if query_params:
+            # Add security query params to URL
+            from urllib.parse import urlencode
+            query_string = urlencode(query_params)
+            endpoint = f"{endpoint}?{query_string}" if '?' not in endpoint else f"{endpoint}&{query_string}"
         
-        async with aiohttp.ClientSession() as session:
+        async with aiohttp.ClientSession(cookies=cookies) as session:
             request_method = getattr(session, http_method.lower(), session.post)
             async with request_method(
                 endpoint,
@@ -403,12 +408,16 @@ class ActionExecutor:
         
         secrets = await self._resolve_secrets(action.get('secrets', {}))
         
-        # Build request
-        headers = {}
-        if 'api_key' in secrets:
-            headers['X-API-Key'] = secrets['api_key']
+        # Apply security schemes dynamically
+        headers, query_params, cookies = await self._apply_security_schemes(secrets, action)
         
-        async with aiohttp.ClientSession() as session:
+        # Merge query params from security into endpoint
+        if query_params:
+            from urllib.parse import urlencode
+            query_string = urlencode(query_params)
+            endpoint = f"{endpoint}?{query_string}" if '?' not in endpoint else f"{endpoint}&{query_string}"
+        
+        async with aiohttp.ClientSession(cookies=cookies) as session:
             async with session.request(
                 method,
                 endpoint,
@@ -585,6 +594,85 @@ class ActionExecutor:
             secrets[secret_name] = secret_value
         
         return secrets
+    
+    async def _apply_security_schemes(
+        self,
+        secrets: Dict[str, str],
+        action: Dict[str, Any]
+    ) -> tuple:
+        """
+        Apply security schemes to request based on OpenAPI metadata.
+        
+        Returns:
+            (headers, query_params, cookies)
+        """
+        headers = {}
+        query_params = {}
+        cookies = {}
+        
+        security_schemes = action.get('action_metadata', {}).get('security_schemes', {})
+        secret_refs = action.get('secrets', {}).get('secret_references', [])
+        
+        # If no security scheme metadata, fall back to legacy behavior
+        if not security_schemes:
+            # Legacy: hardcoded patterns
+            if 'admin_api_token' in secrets:
+                headers['Authorization'] = f"Bearer {secrets['admin_api_token']}"
+            if 'api_key' in secrets:
+                headers['X-API-Key'] = secrets['api_key']
+            return headers, query_params, cookies
+        
+        for ref in secret_refs:
+            secret_name = ref['name']
+            secret_value = secrets.get(secret_name)
+            
+            if not secret_value:
+                continue
+            
+            # Find matching security scheme by name
+            # Map from secret_name like "payment_remediation_apikeyheader"
+            # to scheme name like "ApiKeyHeader"
+            scheme_name = None
+            for name in security_schemes.keys():
+                if name.lower().replace('-', '_') in secret_name.lower():
+                    scheme_name = name
+                    break
+            
+            if not scheme_name:
+                # Fallback: try to apply as bearer token
+                headers['Authorization'] = f"Bearer {secret_value}"
+                continue
+            
+            scheme_def = security_schemes[scheme_name]
+            
+            if scheme_def['type'] == 'apiKey':
+                location = scheme_def['in']
+                param_name = scheme_def['name']
+                
+                if location == 'header':
+                    headers[param_name] = secret_value
+                elif location == 'query':
+                    query_params[param_name] = secret_value
+                elif location == 'cookie':
+                    cookies[param_name] = secret_value
+            
+            elif scheme_def['type'] == 'http':
+                scheme = scheme_def['scheme']
+                
+                if scheme == 'basic':
+                    # Expect secret_value as "username:password"
+                    import base64
+                    credentials = base64.b64encode(secret_value.encode()).decode()
+                    headers['Authorization'] = f"Basic {credentials}"
+                
+                elif scheme == 'bearer':
+                    headers['Authorization'] = f"Bearer {secret_value}"
+            
+            elif scheme_def['type'] in ['oauth2', 'openIdConnect']:
+                # Treat as bearer token (assume pre-obtained access token)
+                headers['Authorization'] = f"Bearer {secret_value}"
+        
+        return headers, query_params, cookies
     
     async def _resolve_parameters(
         self,
