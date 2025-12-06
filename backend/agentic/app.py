@@ -9,7 +9,8 @@ from contextlib import asynccontextmanager
 from pydantic import BaseModel, Field
 from motor.motor_asyncio import AsyncIOMotorClient
 from langgraph.graph.state import CompiledStateGraph
-from .prompts import create_planner_executor, AgentPayload
+from .prompts import AgentPayload
+from .workflow import create_workflow, run_agentic_query
 from .rca.summarize import init_summarize_agent, summarize, SummarizeRequest
 from .alerts import generate_alert, AlertRequest
 from .rca.analyse import InitRCA, rca
@@ -159,7 +160,7 @@ class InferModel(BaseModel):
 @app.post("/build")
 async def build(request: InferModel):
     global planner_executor
-    planner_executor = create_planner_executor(request.agents)
+    planner_executor = create_workflow(request.agents)
 
     return {"status": "built"}
 
@@ -184,17 +185,7 @@ class Prompt(BaseModel):
 async def infer(prompt: Prompt):
     if not planner_executor:
         raise HTTPException(status_code=502, detail="PIPELINE_ID not set in environment")
-    answer = await planner_executor.ainvoke(
-        {
-            "messages": [
-                {
-                    "role": "user",
-                    "content": prompt.content
-                }
-            ]
-        }
-    )
-    answer = answer["messages"][-1].content
+    answer = await run_agentic_query(prompt,planner_executor)
     return {"status": "ok", "answer": answer}
 
 # ============ Report Generation Endpoints ============
