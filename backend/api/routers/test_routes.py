@@ -3,6 +3,7 @@ import random
 from fastapi import APIRouter, Request
 from .version_manager.routes import serialize_mongo
 from .version_manager.schema import Notification, Log
+from lib.notifications import add_notification as add_notification_util
 
 
 router = APIRouter()
@@ -440,20 +441,9 @@ async def add_notification(
     '''
     notification_collection = request.app.state.notification_collection
 
-    # Convert to dict and ensure timestamp is set
+    # Convert to dict and use the utility function
     notification_data = data.model_dump()
-    if "timestamp" not in notification_data or not notification_data["timestamp"]:
-        notification_data["timestamp"] = datetime.now()
-
-    # Insert notification into database
-    # The watch_notifications change stream will automatically broadcast it via WebSocket
-    result = await notification_collection.insert_one(notification_data)
-
-    return serialize_mongo({
-        "status": "success",
-        "inserted_id": str(result.inserted_id),
-        "inserted_data": notification_data
-    })
+    return await add_notification_util(notification_data, notification_collection)
 
 @router.post("/add_log")
 async def add_log(

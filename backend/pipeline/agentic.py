@@ -55,6 +55,12 @@ def build_agentic_graph(
                         "table_schema": out_tbl.schema.columns_to_json_serializable_dict(),
                         "description": node.tool_description,
                     })
+                else:
+                    # Handle alert tool
+                    if t == "alert":
+                        other_tools.append({
+                            "tool_id": "alert",
+                        })
 
         payload.append({
             "name": agent.name,
