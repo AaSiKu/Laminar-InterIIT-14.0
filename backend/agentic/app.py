@@ -7,6 +7,7 @@ import os
 from fastapi import FastAPI, HTTPException
 from contextlib import asynccontextmanager
 from pydantic import BaseModel, Field
+from motor.motor_asyncio import AsyncIOMotorClient
 from langgraph.graph.state import CompiledStateGraph
 from .prompts import create_planner_executor, AgentPayload
 from .rca.summarize import init_summarize_agent, summarize, SummarizeRequest
@@ -48,12 +49,28 @@ orchestrator: Optional[Any] = None
 discovery_agent: Optional[LLMDiscoveryAgent] = None
 registry: Optional[Any] = None
 
+# MongoDB for notifications
+mongo_client: Optional[AsyncIOMotorClient] = None
+notification_collection: Optional[Any] = None
+
 # Use OpenAI's o1 reasoning model for complex analysis
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    global orchestrator, discovery_agent, registry
+    global orchestrator, discovery_agent, registry, mongo_client, notification_collection
+    
+    # Initialize MongoDB for notifications
+    try:
+        mongo_uri = os.getenv("MONGO_URI", "mongodb://localhost:27017")
+        mongo_db_name = os.getenv("MONGO_DB_NAME", "pathway")
+        mongo_client = AsyncIOMotorClient(mongo_uri)
+        notification_collection = mongo_client[mongo_db_name]["notifications"]
+        logger.info("MongoDB notification collection initialized")
+    except Exception as e:
+        logger.warning(f"Could not initialize MongoDB for notifications: {e}")
+        mongo_client = None
+        notification_collection = None
     
     # Initialize existing agentic components
     await init_summarize_agent()
@@ -115,6 +132,10 @@ async def lifespan(app: FastAPI):
             logger.error(f"Failed to initialize runbook components: {e}")
     
     yield
+    
+    # Cleanup
+    if mongo_client:
+        mongo_client.close()
     
     logger.info("Shutting down...")
 
@@ -372,6 +393,112 @@ async def create_weekly_report(request: WeeklyReportRequest):
 # ============ Runbook Remediation Endpoints ============
 
 if RUNBOOK_AVAILABLE:
+    # Helper function to send approval notifications
+    async def send_approval_notification(
+        request_id: str,
+        error_message: str,
+        matched_error: str,
+        actions: List[str],
+        confidence: str,
+        description: str,
+        pipeline_id: str = None,
+        actions_requiring_individual_approval: List[str] = None,
+        approval_reason: str = None
+    ) -> bool:
+        """
+        Send approval request notification to MongoDB
+        This will trigger WebSocket broadcast via change stream watcher
+        """
+        if not notification_collection:
+            logger.warning("Notification collection not initialized, skipping notification")
+            return False
+        
+        try:
+            # Determine approval type and build appropriate message
+            if actions_requiring_individual_approval:
+                approval_type = "per-action"
+                approval_details = f"Actions requiring individual approval: {', '.join(actions_requiring_individual_approval)}"
+            else:
+                approval_type = "request-level"
+                approval_details = f"All {len(actions)} action(s) require approval due to {confidence} confidence match"
+            
+            notification_doc = {
+                "pipeline_id": pipeline_id or "runbook-system",
+                "title": "Approval Required for Remediation Action",
+                "desc": f"Error: {error_message}\nMatched: {matched_error}\nConfidence: {confidence}\n\n{approval_details}",
+                "type": "alert",
+                "timestamp": datetime.now(timezone.utc),
+                "alert": {
+                    "actions": actions,
+                    "action_taken": None,
+                    "taken_at": None,
+                    "action_executed_by": None,
+                    "action_executed_by_user": None,
+                    "status": "pending"
+                },
+                "remediation_metadata": {
+                    "request_id": request_id,
+                    "error_message": error_message,
+                    "matched_error": matched_error,
+                    "confidence": confidence,
+                    "description": description,
+                    "type": "approval_request",
+                    "approval_type": approval_type,
+                    "actions_requiring_individual_approval": actions_requiring_individual_approval or [],
+                    "all_actions": actions,
+                    "approval_reason": approval_reason or f"{confidence} confidence match"
+                }
+            }
+            
+            result = await notification_collection.insert_one(notification_doc)
+            logger.info(f"Approval notification sent for request {request_id}: {result.inserted_id}")
+            return True
+            
+        except Exception as e:
+            logger.error(f"Failed to send approval notification: {e}")
+            return False
+    
+    async def update_notification_status(
+        request_id: str,
+        status: str,
+        action_taken: str = None,
+        executed_by: str = None
+    ) -> bool:
+        """
+        Update notification status when approval is processed
+        """
+        if not notification_collection:
+            logger.warning("Notification collection not initialized, skipping update")
+            return False
+        
+        try:
+            update_doc = {
+                "alert.status": status,
+                "alert.taken_at": datetime.now(timezone.utc)
+            }
+            
+            if action_taken:
+                update_doc["alert.action_taken"] = action_taken
+            
+            if executed_by:
+                update_doc["alert.action_executed_by"] = executed_by
+            
+            result = await notification_collection.update_one(
+                {"remediation_metadata.request_id": request_id},
+                {"$set": update_doc}
+            )
+            
+            if result.modified_count > 0:
+                logger.info(f"Updated notification for request {request_id} to status: {status}")
+                return True
+            else:
+                logger.warning(f"No notification found for request {request_id}")
+                return False
+                
+        except Exception as e:
+            logger.error(f"Failed to update notification status: {e}")
+            return False
+    
     # Runbook Request/Response Models
     class RemediationRequest(BaseModel):
         error_message: str = Field(..., description="Error message to remediate")
@@ -380,7 +507,10 @@ if RUNBOOK_AVAILABLE:
 
     class ApprovalRequest(BaseModel):
         request_id: str = Field(..., description="Approval request ID")
-        approved_by: str = Field(default="api_user", description="Who approved the request")
+        action_id: Optional[str] = Field(None, description="Specific action ID to approve (optional)")
+        approved: bool = Field(True, description="True to approve, False to reject")
+        approved_by: str = Field(default="api_user", description="Who approved/rejected the request")
+        rejection_reason: Optional[str] = Field(None, description="Reason for rejection (optional)")
 
     class ActionSuggestionItem(BaseModel):
         action_id: str
@@ -408,6 +538,8 @@ if RUNBOOK_AVAILABLE:
         actions: Optional[List[str]] = None
         description: Optional[str] = None
         suggestion: Optional[ErrorSuggestion] = None
+        rejection_reason: Optional[str] = None
+        rejected_by: Optional[str] = None
 
     class RunbookHealthResponse(BaseModel):
         status: str
@@ -493,6 +625,21 @@ if RUNBOOK_AVAILABLE:
                 auto_execute_high_confidence=request.auto_execute,
                 require_approval_medium=request.require_approval_medium
             )
+            
+            # Send notification if approval is required
+            if result.get("status") == "approval_required":
+                await send_approval_notification(
+                    request_id=result.get("request_id"),
+                    error_message=result.get("error"),
+                    matched_error=result.get("best_match", result.get("matched_error", "")),
+                    actions=result.get("actions", []),
+                    confidence=result.get("confidence", "unknown"),
+                    description=result.get("description", ""),
+                    pipeline_id=None,  # Could be passed in request if needed
+                    actions_requiring_individual_approval=result.get("actions_requiring_individual_approval"),
+                    approval_reason=result.get("message")
+                )
+            
             return RemediationResponse(**result)
         except Exception as e:
             logger.error(f"Remediation failed: {e}")
@@ -500,19 +647,79 @@ if RUNBOOK_AVAILABLE:
 
     @app.post("/runbook/remediate/approve", response_model=RemediationResponse, tags=["runbook"])
     async def execute_with_approval(request: ApprovalRequest):
-        """Execute approved actions for medium confidence matches"""
+        """
+        Execute or reject approved actions for medium confidence matches
+        
+        This endpoint handles:
+        - Request-level approval/rejection (when action_id is None)
+        - Action-level approval/rejection (when action_id is specified)
+        - Resuming execution after per-action approval
+        
+        Use this endpoint after receiving 'approval_required' status
+        from /runbook/remediate endpoint
+        """
         if not orchestrator:
             raise HTTPException(status_code=503, detail="Orchestrator not initialized")
         
         try:
-            logger.info(f"Executing approved request: {request.request_id}")
-            result = await orchestrator.execute_with_approval(
-                request_id=request.request_id,
-                approved_by=request.approved_by
-            )
+            # Handle rejection - call orchestrator method
+            if not request.approved:
+                logger.info(
+                    f"Rejecting {'action ' + request.action_id if request.action_id else 'request'} "
+                    f"{request.request_id}: {request.rejection_reason or 'No reason provided'}"
+                )
+                
+                # Call orchestrator's reject_approval method
+                result = await orchestrator.reject_approval(
+                    request_id=request.request_id,
+                    rejected_by=request.approved_by,
+                    reason=request.rejection_reason
+                )
+                
+                # Update notification status to rejected
+                await update_notification_status(
+                    request_id=request.request_id,
+                    status="rejected",
+                    action_taken=f"Rejected: {request.rejection_reason or 'No reason'}",
+                    executed_by=request.approved_by
+                )
+                
+                return RemediationResponse(**result)
+            
+            # Handle action-specific approval
+            if request.action_id:
+                logger.info(f"Approving action {request.action_id} in request {request.request_id}")
+                result = await orchestrator.approve_action(
+                    request_id=request.request_id,
+                    action_id=request.action_id,
+                    approved_by=request.approved_by
+                )
+            else:
+                # Handle request-level approval
+                logger.info(f"Executing approved request: {request.request_id}")
+                result = await orchestrator.execute_with_approval(
+                    request_id=request.request_id,
+                    approved_by=request.approved_by
+                )
+            
+            # Update notification status based on result
+            if result.get("status") in ["executed", "completed"]:
+                actions_executed = result.get("actions_executed", 0)
+                overall_success = result.get("overall_success", False)
+                status = "resolved" if overall_success else "failed"
+                action_taken = f"Executed {actions_executed} action(s) - {'Success' if overall_success else 'Failed'}"
+                
+                await update_notification_status(
+                    request_id=request.request_id,
+                    status=status,
+                    action_taken=action_taken,
+                    executed_by=request.approved_by
+                )
+            
             return RemediationResponse(**result)
+            
         except Exception as e:
-            logger.error(f"Approved execution failed: {e}")
+            logger.error(f"Approval/rejection processing failed: {e}")
             raise HTTPException(status_code=500, detail=str(e))
 
     @app.get("/runbook/query-errors", tags=["runbook"])
@@ -539,6 +746,43 @@ if RUNBOOK_AVAILABLE:
             }
         except Exception as e:
             logger.error(f"Query failed: {e}")
+            raise HTTPException(status_code=500, detail=str(e))
+
+    @app.get("/runbook/approvals/pending", tags=["runbook"])
+    async def list_pending_approvals():
+        """List all pending approval requests"""
+        if not orchestrator:
+            raise HTTPException(status_code=503, detail="Orchestrator not initialized")
+        
+        try:
+            pending = orchestrator.get_pending_approvals()
+            return {
+                'status': 'success',
+                'pending_approvals': pending,
+                'count': len(pending)
+            }
+        except Exception as e:
+            logger.error(f"Failed to list pending approvals: {e}")
+            raise HTTPException(status_code=500, detail=str(e))
+    
+    @app.get("/runbook/approvals/{request_id}", tags=["runbook"])
+    async def get_approval_status(request_id: str):
+        """Get status of a specific approval request"""
+        if not orchestrator:
+            raise HTTPException(status_code=503, detail="Orchestrator not initialized")
+        
+        try:
+            status = orchestrator.get_approval_status(request_id)
+            if not status:
+                raise HTTPException(status_code=404, detail="Approval request not found")
+            return {
+                'status': 'success',
+                'approval_request': status
+            }
+        except HTTPException:
+            raise
+        except Exception as e:
+            logger.error(f"Failed to get approval status: {e}")
             raise HTTPException(status_code=500, detail=str(e))
 
     @app.get("/runbook/actions", tags=["runbook"])
