@@ -21,8 +21,11 @@ services:
       MONGODB_URI: ${MONGO_URI}
       MONGODB_DATABASE: "runbook"
       EMBEDDING_MODEL: "models/text-embedding-004"
-      GEMINI_API_KEY: ${GEMINI_API_KEY}
-      PATHWAY_LICENSE_KEY: ${PATHWAY_LICENSE_KEY}
+      MONGO_URI: ${MONGO_URI}
+      MONGO_DB: ${MONGO_DB}
+      MONGO_COLLECTION: ${MONGO_COLLECTION}
+      LOGS_COLLECTION: ${LOGS_COLLECTION}
+      NOTIFICATION_COLLECTION: ${NOTIFICATION_COLLECTION}
     volumes:
       - ./pipeline:/app/pipeline:ro
       - ./lib:/app/lib:ro
@@ -42,6 +45,12 @@ services:
       RUNBOOK_DATABASE_URL: postgresql+asyncpg://${_POSTGRES_WRITE_USER}:${_POSTGRES_WRITE_PASSWORD}@postgres:5432/db
       DATABASE_URL: postgresql+asyncpg://${_POSTGRES_WRITE_USER}:${_POSTGRES_WRITE_PASSWORD}@postgres:5432/db
       PATHWAY_API_URL: http://pipeline:11111
+      MONGO_URI: ${MONGO_URI}
+      MONGO_DB: ${MONGO_DB}
+      MONGO_COLLECTION: ${MONGO_COLLECTION}
+      NOTIFICATION_COLLECTION: ${NOTIFICATION_COLLECTION}
+      LOGS_COLLECTION: ${LOGS_COLLECTION}
+      PIPELINE_ID: ${_PIPELINE_ID}
     ports:
       - "5333:5333"
     volumes:

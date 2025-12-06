@@ -13,3 +13,4 @@ river
 psutil
 torch
 pathway
+pymongo==4.15.3

@@ -4,6 +4,13 @@
     { "id": "group_by", "category": "table", "n_inputs": 1, "description": "Groups table rows by specified columns and applies reducer functions (sum, avg, count, min, max, etc.) to compute aggregate values for each group" },
     { "id": "json_select", "category": "table", "n_inputs": 1, "description": "Extracts and selects specific properties from JSON column data, creating new columns with typed values (json, str, int, float, bool) from nested JSON structures" },
     { "id": "flatten", "category": "table", "n_inputs": 1, "description": "Flattens array or nested structures in a specified column, expanding each element into separate rows for denormalization" },
+
+    { "id": "arithmetic", "category": "table", "n_inputs": 1, "description": "Applies arithmetic operations (+, -, *, /, //, %) between two columns and stores the result in a new column." },
+
+    { "id": "comparison", "category": "table", "n_inputs": 1, "description": "Performs comparison operations (==, !=, >, <, >=, <=) between two columns and stores the boolean result in a new column." },
+
+    { "id": "boolean", "category": "table", "n_inputs": 1, "description": "Applies boolean operations (&, |, ^, ~) between columns and stores the result in a new column." },
+
     { "id": "window_by", "category": "temporal", "n_inputs": 1, "description": "Creates time-based windows (session, sliding, or tumbling) over streaming data grouped by time column and optional instance column, with configurable reducers to aggregate data within each window" },
     { "id": "join", "category": "table", "n_inputs": 2, "description": "Joins two tables based on equality of specified columns from each table with configurable join mode (inner, left, right, outer) and exactness constraints" },
     { "id": "asof_now_join", "category": "table", "n_inputs": 2, "description": "Performs an as-of join where rows are matched based on the current processing time, useful for joining streaming data with reference data using latest available values" },
@@ -27,6 +34,12 @@
     { "id": "mqtt_write", "category": "io", "n_inputs": 1, "description": "Writes messages to MQTT broker topics with broker address and topic configuration for IoT device communication" },
     { "id": "logstash_write", "category": "io", "n_inputs": 1, "description": "Writes data to Logstash endpoint for further processing in the ELK (Elasticsearch, Logstash, Kibana) stack" },
     { "id": "questdb_write", "category": "io", "n_inputs": 1, "description": "Writes time-series data to QuestDB database with host and port configuration for high-performance time-series storage" },
+
+    { "id": "open_tel_spans_input", "category": "io", "n_inputs": 0, "description": "Reads OpenTelemetry spans from Kafka topic for distributed tracing data" },
+
+    { "id": "open_tel_metrics_input", "category": "io", "n_inputs": 0, "description": "Reads OpenTelemetry metrics from Kafka topic for performance and system metrics" },
+
+    { "id": "open_tel_logs_input", "category": "io", "n_inputs": 0, "description": "Reads OpenTelemetry logs from Kafka topic for application logging data" },
     
     { "id": "alert", "category": "action", "n_inputs": 1, "description": "Generates intelligent alerts by processing trigger data with LLM-based analysis, determining alert severity (error, warning, info) and creating contextual alert messages based on configured alert prompts and trigger conditions" },
     { "id": "rag_node", "category": "rag", "n_inputs": 1, "description": "Builds a complete Retrieval-Augmented Generation (RAG) pipeline that parses documents using Unstructured parser, splits them into chunks with token-based splitting (configurable min/max tokens), generates embeddings using configurable models (Gemini, OpenAI, SentenceTransformer), and creates searchable indices with vector-based (BruteForceKnn) or hybrid (vector + BM25 keyword) retrieval strategies for semantic document search and question-answering" },

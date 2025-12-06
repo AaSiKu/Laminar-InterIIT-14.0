@@ -119,7 +119,7 @@ async def lifespan(app: FastAPI):
                     logger.warning(f"Could not initialize LLM suggestion service: {llm_error}")
                     suggestion_service = None
                 
-                pathway_url = os.getenv("PATHWAY_API_URL", "http://localhost:8000")
+                pathway_url = os.getenv("PATHWAY_API_URL", "http://localhost:8001")
                 orchestrator = RemediationOrchestrator(
                     pathway_api_url=pathway_url,
                     runbook_registry=registry,

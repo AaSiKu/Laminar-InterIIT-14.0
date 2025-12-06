@@ -3,6 +3,7 @@ from typing import List, Union, Literal
 from langchain.agents import create_agent
 from langchain.agents.structured_output import ToolStrategy
 from langchain_core.tools import BaseTool
+from langchain_core.tools import tool
 from pydantic import BaseModel, Field
 from lib.agents import Agent
 from .sql_tool import TablePayload, create_sql_tool
@@ -11,7 +12,10 @@ from langchain_mcp_adapters.client import MultiServerMCPClient
 import os
 from agentic.guardrails.gateway import MCPSecurityGateway
 from agentic.guardrails.before_agent import InputScanner
-
+from datetime import datetime
+from lib.notifications import add_notification
+from motor.motor_asyncio import AsyncIOMotorClient
+import certifi
 
 gateway = MCPSecurityGateway()
 
@@ -33,13 +37,65 @@ class RagTool(BaseModel):
     tool_id: Literal["rag"]
     tool_description: str
     port: int
+
+class AlertTool(BaseModel):
+    tool_id: Literal["alert"]
+
 class AgentPayload(Agent):
-    tools: List[Union[TablePayload, RagTool]]
+    tools: List[Union[TablePayload, RagTool, AlertTool, str]]
 
 # Create agent model using the factory
 # This will use the default provider (Groq) with agent-optimized settings
 # To change provider, set DEFAULT_AGENT_PROVIDER environment variable
 model = create_agent_model()
+
+def create_alert_tool():
+    """Create an alert tool that sends notifications using add_notification"""
+    @tool
+    async def send_alert(
+        title: str,
+        description: str,
+        alert_type: str = "alert",
+    ) -> str:
+        """
+        Send an alert notification to the system.
+        
+        Args:
+            title: The title of the alert
+            description: Detailed description of the alert
+            alert_type: Type of alert (default: 'alert', can be 'warning', 'error', 'info', 'success')
+        
+        Returns:
+            Status message indicating if the alert was sent successfully
+        """
+        # Get environment variables directly
+
+        
+        mongo_uri = os.getenv("MONGO_URI")
+        if not mongo_uri:
+            return "Error: MONGO_URI environment variable not set. Cannot send alert."
+        
+       
+        try:
+            # Connect to MongoDB
+            mongo_client = AsyncIOMotorClient(mongo_uri, tlsCAFile=certifi.where())
+            db = mongo_client[os.getenv("MONGO_DB", "db")]
+            notification_collection = db[os.getenv("NOTIFICATION_COLLECTION", "notifications")]
+            
+            notification_data = {
+                "pipeline_id": os.getenv("PIPELINE_ID"),
+                "title": title,
+                "desc": description,
+                "type": alert_type,
+                "timestamp": datetime.now(),
+            }
+            
+            result = await add_notification(notification_data, notification_collection)
+            return f"Alert sent successfully: {title}"
+        except Exception as e:
+            return f"Error sending alert: {str(e)}"
+    
+    return send_alert
 
 def build_agent(agent: AgentPayload) -> BaseTool:
     agent.name = agent.name.replace(" ", "_")
@@ -62,10 +118,11 @@ def build_agent(agent: AgentPayload) -> BaseTool:
 
     tool_tables = [tool for tool in agent.tools if isinstance(tool,TablePayload)]
     tool_rags = [tool for tool in agent.tools if isinstance(tool,RagTool)]
-    
+    tool_alerts = [tool for tool in agent.tools if isinstance(tool,AlertTool)]
     tools = []
     table_descriptions = None
     rag_descriptions = []
+    alert_description = None
     
     # Add SQL query tools for database tables
     if len(tool_tables) > 0: 
@@ -96,7 +153,17 @@ def build_agent(agent: AgentPayload) -> BaseTool:
                 f"  Use the provided tools to search and retrieve relevant documents"
             )
     
-    # Build system prompt with RAG tool instructions
+    # Add alert tool
+    if len(tool_alerts) > 0:
+        alert_tool = create_alert_tool()
+        tools.append(alert_tool)
+        alert_description = (
+            "- Alert System: Send notifications and alerts to the system\n"
+            "  Use this tool to create alerts when important events or issues are detected\n"
+            "  Alerts will be visible in the notification center"
+        )
+    
+    # Build system prompt with RAG and Alert tool instructions
     rag_instructions = ""
     if len(rag_descriptions) > 0:
         rag_instructions = (
@@ -104,6 +171,18 @@ def build_agent(agent: AgentPayload) -> BaseTool:
             "You have access to document retrieval tools (RAG - Retrieval Augmented Generation).\n"
             + "\n".join(rag_descriptions) + "\n"
             "When a query requires knowledge from documents, use these tools to search and retrieve relevant information.\n"
+        )
+    
+    alert_instructions = ""
+    if alert_description:
+        alert_instructions = (
+            "\n\nALERT TOOL USAGE:\n"
+            "You have access to an alert system tool.\n"
+            f"{alert_description}\n"
+            "Use this tool to send notifications when:\n"
+            "- Critical issues or errors are detected\n"
+            "- Important thresholds are exceeded\n"
+            "- Significant events occur that require attention\n"
         )
     
     agent_system_prompt = (
@@ -115,6 +194,7 @@ def build_agent(agent: AgentPayload) -> BaseTool:
         "4. Format: Clear, natural language with actual values\n"
         "5. Convert raw data (objects, tuples, SQL results) into readable sentences\n"
         f"{rag_instructions}"
+        f"{alert_instructions}"
     )
         
     langchain_agent = create_agent(model=model, system_prompt=agent_system_prompt, tools=tools)
@@ -125,6 +205,9 @@ def build_agent(agent: AgentPayload) -> BaseTool:
     
     if len(rag_descriptions) > 0:
         agent_description += "\nIt has access to the following document stores (RAG):\n" + "\n".join(rag_descriptions)
+    
+    if alert_description:
+        agent_description += "\nIt has access to an alert system for sending notifications"
     
     langchain_agent.description = agent_description
     langchain_agent.name = agent.name

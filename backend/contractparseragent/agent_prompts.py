@@ -197,6 +197,43 @@ CURRENT INPUT/FILTER PIPELINE (from open_tel_spans_input):
 STRINGIFIED NODE CATALOG (ALLOWED BEHAVIORS ONLY):
 {catalog_block}
 
+SLA METRIC CATEGORIZATION:
+1. First, evaluate if this SLA metric can be BROADLY categorized as LATENCY, ERROR RATE, or DOWNTIME based on its logical derivation.
+2. If it matches one of these categories, note this categorization in your reasoning.
+3. If it does not match, proceed with planning normally (do not fail or reject the metric).
+
+MACRO PLAN EXAMPLES:
+Use these examples to understand how to build macro plans for each category. Adapt them to the specific metric, not copy-paste.
+
+# Macro Logic for Downtime 
+1. Reads from Kafka topic 'otlp_spans' in otel-spans format
+2. Filters input $1 where 'name == "payment healthcheck"'
+3. Filters input $2 where 'status_code == 2'
+4. Groups input $3 by tumbling(30s) window on start_time_unix_nano and reduces with count(_open_tel_trace_id) AS n_failed_healthchecks
+5. Groups input $2 by tumbling(30s) window on start_time_unix_nano and reduces with count(_open_tel_trace_id) AS n_healthchecks
+6. Inner Joins input $4 with input $5 on (_pw_window_start = _pw_window_start)
+7. Performs </> operation on columns <_pw_left_n_failed_healthchecks> and <_pw_right_n_healthchecks> from input $6, storing result in <downtime_percentage>"
+9. Filters input $7 where 'downtime_percentage < 0.01'
+10. Triggers root cause analysis on metric data from input $8 for 'Downtime percentage of payment service over 30 seconds must be < 1%'
+11. Generates intelligent alerts from input $8 using LLM-based analysis and publishes them to Kafka alerts topic
+
+# Macro Logic for Error Rate
+1. Reads from Kafka topic otlp_spans in otel-spans format
+2. Filters input $1 where 'name == POST /api/checkout'
+3. Filters input $2 where 'status_code == 2'
+4. Groups input $3 by tumbling 30s window on start_time_unix_nano and reduces with count(_open_tel_trace_id) as n_failed_checkouts
+5. Filters input $4 where n_failed_checkouts >= 5
+6. Triggers root cause analysis on metric data from input $5 for 'Number of failed checkout requests in a window of 30 seconds must be < 5'
+7. Generate intelligent alerts from input $5 using LLM-based analysis and publishes them to Kafka alerts topic
+
+# Macro Logic for Latency
+1. Read from Kafka topic otlp_spans in otel-spans format
+2. Performs <-> operation on columns <end_time_unix_nano> and <start_time_unix_nano> from input $1, storing result in *latency*,
+4. Groups input $2 by tumbling 30s window on start_time_unix_nano and reduces with reducer as <p99>/<p95>/<p90> as *p_latency*
+5. Filters input $5 where p_latency>= 100 ms
+6. Triggers root cause analysis on metric data from input $5 for 'P99 Latency greater than 100 ms'
+7. Generate intelligent alerts from input $5 using LLM-based analysis and publishes them to Kafka alerts topic
+
 BASE RULES (CRITICAL - ALWAYS FOLLOW):
 1. OpenTelemetry column naming:
    - The trace ID column is ALWAYS '_open_tel_trace_id' (not 'trace_id')
@@ -215,9 +252,16 @@ BASE RULES (CRITICAL - ALWAYS FOLLOW):
    - DO NOT use: p95, p99, percentile, median, or any other reducer not in this list
    - For percentile calculations, you must use alternative approaches
 
-4. PIPELINE TERMINATION:
-   - Always try to end a pipeline for A metric with a `trigger_rca` node. This node requires a `metric_description` parameter.
-   - Lastly, append an `alert` node. This node requires an `alert_prompt` parameter.
+4. COLUMN NAMING FOR JOINS AND WINDOW_BY:
+   - After joins, new columns have prefixes: _pw_left_<original_column> and _pw_right_<original_column>
+   - After window_by, new columns have: _pw_window_start and _pw_window_end
+   - Use these exact prefixes when referencing joined or windowed columns in subsequent operations
+
+5. PIPELINE TERMINATION:
+   - The final processing node in the pipeline should split into two independent branches.
+   - One branch connects to a `trigger_rca` node, which requires a `metric_description` parameter for root cause analysis.
+   - The other branch connects to an `alert` node, which requires an `alert_prompt` parameter for generating alerts.
+   - The `trigger_rca` node does NOT connect to the `alert` node; they operate as separate, parallel outputs from the final processing node.
 
 TASK:
 1. Propose a macro plan as a small ordered list of steps that transform the already-filtered spans into the final SLA metric.
@@ -260,7 +304,7 @@ CURRENT STEP TO IMPLEMENT:
 AVAILABLE NODE TYPES (with behavior descriptions):
 {catalog_block}
 
-VERY IMPORTANT RULE::
+VERY IM"agent_promptPORTANT RULE::
 - The AVAILABLE NODE TYPES contain N_INPUTS, CHECK IT BEFORE DECIDING NODES
 - READ THE FULL MACRO PLAN, IF A PREVIOUS NODE HAS 1 INPUT AND IT HAS BEEN ASSIGNED, DO NOT CONNECT ANOTHER NODE TO THE SAME NODE
 - If you need to merge multiple branches but the desired node only allows one

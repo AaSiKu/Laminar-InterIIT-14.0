@@ -109,6 +109,10 @@ def trigger_rca(metric_table: pw.Table, node: TriggerRCANode, graph: Graph) -> p
                     raise Exception(f"Request Data: {json.dumps(request_data,indent=4)}\n\n{resp.text}")
                 rca_data = resp.json()
             
+            # Check if RCA returned empty dict (indicating another RCA is running)
+            if not rca_data or rca_data == {}:
+                return {}
+            
             # Extract RCA analysis output for parallel API calls
             rca_output = rca_data.get("analysis")
             
