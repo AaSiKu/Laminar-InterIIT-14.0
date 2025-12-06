@@ -139,7 +139,7 @@ async def summarize(request: SummarizeRequest):
             ]
         }
     )
-    
+    print(answer)
     summarized = answer["structured_response"]
     
     # Cache the response

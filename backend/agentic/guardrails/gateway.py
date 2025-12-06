@@ -22,7 +22,7 @@ import nh3
 import ipaddress
 import socket
 
-from .base import DetectorResult, BaseDetector, ExtrasImport, Extra
+from .base import DetectorResult, BaseDetector, ExtrasImport, Extra, model_DetectorResult
 from .batch import PromptInjectionAnalyzer, PRESIDIO_EXTRA, transformers_extra
 
 load_dotenv()
@@ -91,11 +91,11 @@ class PII_Analyzer(BaseDetector):
         if not self._initialized:
             raise RuntimeError("PII_Analyzer not initialized. Call adetect() instead of detect_all().")
         results = self.analyzer.analyze(text, language="en", entities=entities)
-        res_matches = set()
+        res_matches = []
         for res in results:
             if res.score > self.threshold:
                 print(res, type(res))
-                res_matches.add(DetectorResult(entity=str(res.entity_type), start=res.start,end=res.end))
+                res_matches.append(model_DetectorResult(entity=str(res.entity_type), start=res.start,end=res.end))
         return list(res_matches)
 
     async def adetect(self, text: str, entities: list[str] | None = None):

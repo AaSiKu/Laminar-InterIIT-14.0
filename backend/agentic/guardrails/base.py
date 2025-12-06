@@ -1,6 +1,6 @@
 import os, sys
 from pydantic.dataclasses import dataclass
-from pydantic import Field
+from pydantic import Field, BaseModel
 
 TERMINATE_ON_EXTRA_FAILURE: bool = True
 
@@ -10,6 +10,11 @@ class DetectorResult:
     start: int = Field(..., description="The start index of the detected entity.")
     end: int = Field(..., description="The end index of the detected entity.")
 
+
+class model_DetectorResult(BaseModel):
+    entity: str = Field(..., description="The type of entity that was detected.")
+    start: int = Field(..., description="The start index of the detected entity.")
+    end: int = Field(..., description="The end index of the detected entity.")
 
 class BaseDetector:
     """Base class for detectors."""
