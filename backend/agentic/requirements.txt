@@ -2,16 +2,17 @@
 # Install with: pip install -r requirements.txt
 
 # === Core Web Framework ===
+typing-extensions>=4.12.2
 fastapi==0.120.4
 uvicorn==0.38.0
 pydantic==2.12.3
 
 # === Environment & Configuration ===
 python-dotenv==1.1.1
-typing-extensions>=4.0.0
 
 # === Database ===
 psycopg2-binary==2.9.11
+asyncpg>=0.30.0  # Async PostgreSQL driver
 sqlalchemy==2.0.44
 motor>=3.3.0  # Async MongoDB driver
 

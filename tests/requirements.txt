@@ -4,3 +4,7 @@ pathway
 fastapi
 faker
 uvicorn
+pytest
+pytest-asyncio
+requests
+httpx
