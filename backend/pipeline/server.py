@@ -81,7 +81,7 @@ async def lifespan(app: FastAPI):
             
             mongodb_uri = os.getenv("MONGODB_URI", MONGO_URI)
             database_name = os.getenv("MONGODB_DATABASE", "runbook")
-            local_file_path = os.getenv("ERRORS_JSON_PATH", "/app/pipeline/Error_registry/Errors.json")
+            local_file_path = os.getenv("ERRORS_JSON_PATH", "/errors.json")
             
             logger.info(f"MongoDB URI: {mongodb_uri}")
             logger.info(f"Database: {database_name}")

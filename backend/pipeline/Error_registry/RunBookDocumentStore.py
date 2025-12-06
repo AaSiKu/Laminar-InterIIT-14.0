@@ -123,7 +123,8 @@ class JsonIndexingApp:
                     try:
                         data = json.loads(contents.decode('utf-8'))
                         results = []
-                        
+                        if not data:
+                            return []
                         if isinstance(data, list):
                             for idx, entry in enumerate(data):
                                 if isinstance(entry, dict):
@@ -150,7 +151,8 @@ class JsonIndexingApp:
             """Generic parser - source name added via metadata"""
             try:
                 data = json.loads(contents.decode('utf-8'))
-                
+                if not data:
+                    return []
                 if isinstance(data, list):
                     return _parse_array(data)
                 elif isinstance(data, dict):
@@ -170,7 +172,7 @@ class JsonIndexingApp:
         splitter = None
         
         # 4. EMBEDDER - For semantic search on first column (Google Gemini)
-        api_key = get_gemini_api_key()
+        api_key = os.getenv("GOOGLE_API_KEY")
         if not api_key:
             raise ValueError(
                 "Missing GEMINI_API_KEY or GOOGLE_API_KEY environment variable. "

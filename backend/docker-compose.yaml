@@ -16,7 +16,7 @@ services:
       AGENTIC_URL: http://agentic:5333
       ERROR_INDEXING_HOST: "0.0.0.0"
       ERROR_INDEXING_PORT: "11111"
-      ERRORS_JSON_PATH: "/app/pipeline/Error_registry/Errors.json"
+      ERRORS_JSON_PATH: "/errors.json"
       MONGO_URI: ${MONGO_URI}
       MONGODB_URI: ${MONGO_URI}
       MONGODB_DATABASE: "runbook"
