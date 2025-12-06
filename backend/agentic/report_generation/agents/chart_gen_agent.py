@@ -57,47 +57,76 @@ class ChartGenAgent:
             ("system", """You are a data visualization expert specializing in Mermaid diagrams for operational reports.
 
 CRITICAL RULES - FOLLOW EXACTLY:
-1. Create ONLY pipeline topology flowcharts
+1. Create span topology flowcharts showing error propagation through the system
 2. ABSOLUTELY NO STYLING - no "style" lines, no colors, no fill, no stroke
-3. Use subgraph ONLY to highlight affected nodes
-4. Keep it simple - just nodes, arrows, and one subgraph
+3. Use subgraph(s) labeled "⚠︎AFFECTED NODE(S)" to highlight affected nodes
+4. Show ALL nodes and edges from the span data
+5. Create separate subgraphs for affected nodes that are not connected
+6. Keep it simple - just nodes, arrows, and subgraph(s) for affected nodes
 
 EXAMPLE OF CORRECT OUTPUT (copy this pattern exactly):
 ```
 graph TD
-    A[Kafka Consumer] --> B[JSON Parser]
-    B --> C[Transform Node]
-    C --> D[ML Model]
-    D --> E[API Gateway]
+    N1[api_gateway] --> N2[auth_service]
+    N2 --> N3[user_service]
+    N3 --> N4[database_query]
+    N3 --> N5[cache_lookup]
+    N1 --> N6[payment_service]
+    N6 --> N7[payment_processor]
     
-    subgraph AFFECTED
-        C
+    subgraph "⚠︎AFFECTED NODE(S)"
+        N1
+        N4
+    end
+```
+
+IF affected nodes are disconnected, create MULTIPLE subgraphs:
+```
+graph TD
+    N1[api_gateway] --> N2[auth_service]
+    N5[email_service] --> N6[smtp_server]
+    
+    subgraph "⚠︎AFFECTED NODE(S)"
+        N1
+    end
+    
+    subgraph "⚠︎AFFECTED NODE(S) "
+        N6
     end
 ```
 
 FORBIDDEN - DO NOT INCLUDE:
-- style commands (e.g., "style C fill:#f9f")
+- style commands (e.g., "style N1 fill:#f9f")
 - color specifications
 - stroke specifications
 - fill specifications
 - Any line starting with "style"
+- classDef commands
+- class assignments
 
 Guidelines:
-- Normal nodes: Use square brackets [Node Name]
-- Affected nodes: Reference by letter only inside subgraph AFFECTED
+- Node naming: Use N{{node_id}} as the node identifier (e.g., N1, N2, N3)
+- Node labels: Use square brackets with the node name [node_name]
+- Edges: Use --> to connect nodes (e.g., N1 --> N2)
+- Affected nodes: Place affected node identifiers inside subgraph(s) labeled "⚠︎AFFECTED NODE(S)"
 - Use graph TD for top-down layout
-- Simple subgraph label: just "AFFECTED" with no quotes or emoji
-- If chart data is time-series, skip it completely"""),
-            ("user", """Generate Mermaid chart syntax for these chart requirements:
+- All nodes from span_data must be included in the diagram
+- All edges from span_data must be included as arrows"""),
+            ("user", """Generate Mermaid chart syntax from this span topology data:
 
 {chart_data}
 
-For each chart, provide:
-1. title: A clear chart title
-2. mermaid_syntax: Valid Mermaid diagram code (without ``` markers)
-3. chart_type: The type (line, flowchart, timeline, bar)
+The span_data contains:
+- nodes: List of all nodes with node_id and name
+- edges: List of connections between nodes (source -> target)
+- affected_nodes: List of node_ids that should be highlighted in subgraph(s)
 
-Return structured output with all charts.""")
+For the chart, provide:
+1. title: "Span Topology - Error Propagation"
+2. mermaid_syntax: Valid Mermaid diagram code showing ALL nodes and edges with affected nodes in subgraph(s)
+3. chart_type: "flowchart"
+
+Return structured output with the chart.""")
         ])
         
         self.chain = self.prompt | self.structured_llm

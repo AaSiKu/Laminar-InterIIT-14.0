@@ -77,18 +77,16 @@ IMPORTANT - Output Format:
 - DO NOT use a single object with section names as keys
 
 For chart_requirements:
-- DO NOT request any charts - all data should be presented in tables and highlighted text
-- NEVER request time-series trend charts, pipeline diagrams, or architecture visualizations
-- Example: "Latency increased from 82ms to 319ms" should be a highlighted statement, NOT a chart
-- All metric changes should be conveyed through emphasized text and data tables
-- Keep chart_requirements list empty or minimal"""),
+- ALWAYS request a "Span Topology Diagram" to visualize the error trace through the system
+- The topology diagram will show all nodes/services with affected nodes highlighted
+- This is the PRIMARY chart type - it shows how the error propagated through the system
+- Example chart requirement: "Span topology flowchart showing error propagation with affected nodes highlighted"
+- All metric changes should also be conveyed through emphasized text and data tables
+- Keep chart_requirements focused on the span topology visualization"""),
             ("user", """Analyze this diagnostic data from telemetry analysis and create a report plan:
 
 **RCA Output:**
 {rca_output}
-
-**External News (GNews API):**
-{external_news}
 
 **Live Data Stream (30-minute window):**
 {live_data_stream}

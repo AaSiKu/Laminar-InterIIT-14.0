@@ -5,13 +5,19 @@ Handles the workflow execution for generating incident reports.
 
 import time
 import json
+import sys
 from datetime import datetime
 from typing import Dict, Any, Tuple
 from pathlib import Path
 
-# Import from parent agentic module (relative)
-from ... import llm_config, llm_factory
-from ..langgraph_workflow import create_workflow, ReportState
+# Add parent directories to path for imports
+backend_path = Path(__file__).parent.parent.parent
+sys.path.insert(0, str(backend_path))
+
+# Import from agentic module
+import llm_config
+import llm_factory
+from report_generation.langgraph_workflow import create_workflow, ReportState
 
 def generate_incident_report(
     rca_output: Dict[str, Any]
