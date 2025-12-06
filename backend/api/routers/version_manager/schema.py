@@ -70,6 +70,7 @@ class save_workflow_payload(BaseModel):
     current_version_id: str
     workflow_id: str
     pipeline: Any
+    viewer_ids: Optional[List[str]] = None
 
 class save_draft_payload(BaseModel):
     version_id:str

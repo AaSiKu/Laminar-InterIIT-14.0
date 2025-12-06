@@ -158,6 +158,7 @@ export const addNodeType = (schema) => {
         data={data}
         selected={selected}
         category={schema.properties.category?.const}
+        nodeType={type}
         onEditClick={onEditClick}
         styles={{
           bgColor: categoryColor, // solid color

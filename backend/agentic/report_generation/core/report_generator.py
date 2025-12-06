@@ -3,8 +3,6 @@ Core incident report generation logic.
 Handles the workflow execution for generating incident reports.
 """
 
-import os
-import sys
 import time
 import json
 from datetime import datetime
@@ -14,7 +12,6 @@ from pathlib import Path
 # Import from parent agentic module (relative)
 from ... import llm_config, llm_factory
 from ..langgraph_workflow import create_workflow, ReportState
-
 
 def generate_incident_report(
     rca_output: Dict[str, Any]
@@ -113,10 +110,10 @@ def generate_incident_report(
         "filename": filename,
         "filepath": str(filepath)
     }
-    
+
     with open(metadata_file, "w", encoding="utf-8") as f:
         json.dump(report_metadata, f, indent=2)
-    
+
     # Return metadata for API response
     metadata = {
         "report_id": filename.replace(".md", ""),
@@ -126,5 +123,4 @@ def generate_incident_report(
         "execution_time": execution_time,
         "generated_at": current_time
     }
-    
     return report_content, metadata

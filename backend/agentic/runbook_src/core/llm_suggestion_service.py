@@ -45,7 +45,7 @@ class LLMSuggestionService:
         Initialize the suggestion service
         
         Args:
-            api_key: Google AI API key (defaults to GOOGLE_API_KEY from .env)
+            api_key: Google AI API key (defaults to GOOGLE_API_KEY or GEMINI_API_KEY from .env)
             model: Model to use (defaults to LLM_MODEL from .env)
         """
         api_key = api_key or os.getenv('GOOGLE_API_KEY')

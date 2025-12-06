@@ -161,7 +161,7 @@ def run_pipeline_container(client: docker.DockerClient, pipeline_id: str):
             "POSTGRES_PASSWORD": write_pass,
             "ERROR_INDEXING_HOST": "0.0.0.0",
             "ERROR_INDEXING_PORT": PIPELINE_ERROR_INDEXING_PORT.split('/')[0],
-            "ERRORS_JSON_PATH": "pipeline/errors_table/Errors.json",
+            "ERRORS_JSON_PATH": "/errors.json",
             "EMBEDDING_MODEL": "models/text-embedding-004",
             "GEMINI_API_KEY": os.getenv("GEMINI_API_KEY", ""),
             "PATHWAY_LICENSE_KEY": os.getenv("PATHWAY_LICENSE_KEY", ""),

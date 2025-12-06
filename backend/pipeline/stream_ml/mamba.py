@@ -4,7 +4,7 @@ import torch.optim as optim
 import numpy as np
 import time
 import math
-from model import BaseModel as StreamBaseModel, BaseModelConfig
+from .model import BaseModel as StreamBaseModel, BaseModelConfig
 from numpy.typing import NDArray
 import psutil
 import os
