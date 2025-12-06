@@ -250,17 +250,17 @@ export function AlertsChart({ data }) {
               {
                 dataKey: "warning",
                 label: "Warning",
-                color: theme.palette.error.main,
+                color: "#FFB6C1",
               },
               {
                 dataKey: "critical",
                 label: "Critical",
-                color: theme.palette.warning.main,
+                color: "#FFD4A3",
               },
               {
                 dataKey: "low",
                 label: "Low",
-                color: theme.palette.success.main,
+                color: "#90EE90",
               },
             ]}
             slotProps={{
