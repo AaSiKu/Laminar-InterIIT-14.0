@@ -74,6 +74,7 @@ MODEL_NAMES = {
     LLMProvider.OPENAI: {
         "default": "gpt-4o",
         "reasoning": "o1",
+        "summarization": "o1",
         "alternatives": [
             "gpt-4-turbo",
             "gpt-3.5-turbo"

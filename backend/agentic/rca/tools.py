@@ -1,4 +1,5 @@
-from typing import List, Union, Dict, Any, TypedDict
+from typing import List, Union, Dict, Any
+from typing_extensions import TypedDict
 from sqlalchemy import text
 from postgres_util import postgre_engine
 import asyncio

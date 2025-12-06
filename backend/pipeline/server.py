@@ -81,7 +81,7 @@ async def lifespan(app: FastAPI):
             
             mongodb_uri = os.getenv("MONGODB_URI", MONGO_URI)
             database_name = os.getenv("MONGODB_DATABASE", "runbook")
-            local_file_path = os.getenv("ERRORS_JSON_PATH", "/app/pipeline/Error_registry/Errors.json")
+            local_file_path = os.getenv("ERRORS_JSON_PATH", "/errors.json")
             
             logger.info(f"MongoDB URI: {mongodb_uri}")
             logger.info(f"Database: {database_name}")
@@ -276,7 +276,7 @@ if ERROR_REGISTRY_AVAILABLE:
     async def add_error_mapping(mapping: ErrorMapping):
         """
         Add or update an error-to-actions mapping.
-        Automatically syncs to local Errors.json file.
+        Automatically syncs to local errors.json file.
         """
         if not error_registry:
             raise HTTPException(status_code=503, detail="Error registry not initialized")
@@ -355,7 +355,7 @@ if ERROR_REGISTRY_AVAILABLE:
     async def delete_error_mapping(error: str):
         """
         Delete an error mapping.
-        Automatically syncs to local Errors.json file.
+        Automatically syncs to local errors.json file.
         """
         if not error_registry:
             raise HTTPException(status_code=503, detail="Error registry not initialized")
@@ -388,7 +388,7 @@ if ERROR_REGISTRY_AVAILABLE:
     async def bulk_add_mappings(request: BulkMappingsRequest):
         """
         Bulk add or update multiple error mappings.
-        Automatically syncs to local Errors.json file after all operations.
+        Automatically syncs to local errors.json file after all operations.
         """
         if not error_registry:
             raise HTTPException(status_code=503, detail="Error registry not initialized")
@@ -414,7 +414,7 @@ if ERROR_REGISTRY_AVAILABLE:
     )
     async def force_sync():
         """
-        Force synchronization from MongoDB to local Errors.json file.
+        Force synchronization from MongoDB to local errors.json file.
         Use this to manually refresh the local file.
         """
         if not error_registry:
@@ -426,7 +426,7 @@ if ERROR_REGISTRY_AVAILABLE:
             return {
                 "success": True,
                 "count": len(mappings),
-                "message": f"Successfully synced {len(mappings)} mappings to Errors.json"
+                "message": f"Successfully synced {len(mappings)} mappings to errors.json"
             }
         except Exception as e:
             logger.error(f"Failed to sync: {e}")
@@ -442,7 +442,7 @@ if ERROR_REGISTRY_AVAILABLE:
     )
     async def load_from_local_file():
         """
-        Load error mappings from local Errors.json file.
+        Load error mappings from local errors.json file.
         Useful for checking local file contents without querying MongoDB.
         """
         if not error_registry:

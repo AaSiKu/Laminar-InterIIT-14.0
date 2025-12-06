@@ -164,6 +164,7 @@ def run_pipeline_container(client: docker.DockerClient, pipeline_id: str):
             "ERRORS_JSON_PATH": "/errors.json",
             "EMBEDDING_MODEL": "models/text-embedding-004",
             "GEMINI_API_KEY": os.getenv("GEMINI_API_KEY", ""),
+            "GOOGLE_API_KEY": os.getenv("GOOGLE_API_KEY", ""),
             "PATHWAY_LICENSE_KEY": os.getenv("PATHWAY_LICENSE_KEY", ""),
             "MONGO_URI": os.getenv("MONGO_URI", ""),
             "MONGO_DB": os.getenv("MONGO_DB", "easyworkflow"),

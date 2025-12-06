@@ -1,7 +1,7 @@
 import sys
 import logging
 from pydantic.dataclasses import dataclass
-from pydantic import Field
+from pydantic import Field, BaseModel
 
 # Get logger for guardrails
 logger = logging.getLogger(__name__)
@@ -16,6 +16,11 @@ class DetectorResult:
     start: int = Field(..., description="The start index of the detected entity.")
     end: int = Field(..., description="The end index of the detected entity.")
 
+
+class model_DetectorResult(BaseModel):
+    entity: str = Field(..., description="The type of entity that was detected.")
+    start: int = Field(..., description="The start index of the detected entity.")
+    end: int = Field(..., description="The end index of the detected entity.")
 
 class BaseDetector:
     """Base class for detectors."""

@@ -43,7 +43,7 @@ def main():
             graph["parsing_order"],
             graph["dependencies"]
         )
-
+        custom_logger.info("Built workflow")
         graph["node_outputs"] = node_outputs
         for metric_node_idx in graph["metric_node_descriptions"].keys():
             graph["metric_node_descriptions"][metric_node_idx]["special_columns_source_indexes"] = {
@@ -63,6 +63,8 @@ def main():
             graph["nodes"],
             node_outputs
         )
+        custom_logger.info("Built agents")
+
 
         # Setup trigger tables
         answer_tables = setup_trigger_tables(graph, node_outputs, supervisor)
@@ -76,7 +78,7 @@ def main():
 
         # Persist to database
         persist_answers(all_answers, connection_string)
-
+        
         pw.run()
     except Exception as e:
         custom_logger.error(f"Error running pipeline: {e}")

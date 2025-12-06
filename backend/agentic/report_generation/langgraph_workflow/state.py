@@ -2,7 +2,8 @@
 State definition for LangGraph workflow
 """
 
-from typing import TypedDict, Dict, Any, List
+from typing import Dict, Any, List
+from typing_extensions import TypedDict
 
 
 class ReportState(TypedDict):

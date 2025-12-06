@@ -16,7 +16,7 @@ services:
       AGENTIC_URL: http://agentic:5333
       ERROR_INDEXING_HOST: "0.0.0.0"
       ERROR_INDEXING_PORT: "11111"
-      ERRORS_JSON_PATH: "/app/pipeline/Error_registry/Errors.json"
+      ERRORS_JSON_PATH: "/errors.json"
       MONGO_URI: ${MONGO_URI}
       MONGODB_URI: ${MONGO_URI}
       MONGODB_DATABASE: "runbook"
@@ -41,7 +41,6 @@ services:
       POSTGRES_DB: db
       POSTGRES_PASSWORD: ${_POSTGRES_READ_PASSWORD}
       POSTGRES_USER: ${_POSTGRES_READ_USER}
-      RUNBOOK_DATABASE_URL: postgresql+asyncpg://${_POSTGRES_WRITE_USER}:${_POSTGRES_WRITE_PASSWORD}@postgres:5432/db
       DATABASE_URL: postgresql+asyncpg://${_POSTGRES_WRITE_USER}:${_POSTGRES_WRITE_PASSWORD}@postgres:5432/db
       PATHWAY_API_URL: http://pipeline:11111
       MONGO_URI: ${MONGO_URI}

@@ -1,7 +1,8 @@
 import json
 import os
 from dotenv import load_dotenv
-from typing import List, TypedDict, Annotated, Dict, Optional
+from typing import List, Annotated, Dict, Optional
+from typing_extensions import TypedDict
 from pydantic import BaseModel, Field
 from langgraph.graph import StateGraph, END
 from langgraph.graph.message import add_messages
@@ -10,24 +11,11 @@ from .output import RCAAnalysisOutput
 from datetime import datetime, timedelta
 import asyncio
 from ..llm_factory import create_analyser_model
-from ..guardrails.gateway import MCPSecurityGateway
-from ..guardrails.before_agent import InputScanner
-from ..guardrails.before_agent import detect
-
-gateway = MCPSecurityGateway()
 
 load_dotenv()
 
 # Create the analyzer model instance
 analyser_model = create_analyser_model()
-input_scanner = None
-
-async def get_scanner():
-    global input_scanner
-    if input_scanner is None:
-        input_scanner = InputScanner()
-        await input_scanner.preload_models()
-    return input_scanner
 
 
 # We will run one subgraph per each trace id for the top 5 slowest traces which will take this state
@@ -177,21 +165,14 @@ async def analysis_agent_node(state: SLAAlert) -> Dict:
     log_context = format_logs(state.get("logs", []))
     topology_context = format_topology(state.get("topology", []))
 
-    scanner = await get_scanner()
-    
-    sanitized_log_description = detect(log_context)
-    
-    sanitized_topology_description = detect(topology_context)
-
     error_context = ""
     if state.get("has_error"):
         error_msg = state.get('error_message', 'No message')
-        sanitized_error_msg = detect(error_msg)
 
         error_context = f"""
     **Error Information:**
     - Error Span: {state.get('error_span', 'Unknown')}
-    - Error Message: {sanitized_error_msg}
+    - Error Message: {error_msg}
         """
 
     prompt = f"""
@@ -205,10 +186,10 @@ Your task is to identify the root cause of an SLA breach.
 {error_context}
 
 **Topology (Span Tree):**
-{sanitized_topology_description}
+{topology_context}
 
 **Error Logs:**
-{sanitized_log_description}
+{log_context}
 
 **Previous Analysis:**
 {state.get('validation_result', 'This is the first analysis attempt.')}
@@ -255,13 +236,8 @@ async def validate_hypothesis_with_llm(state: SLAAlert) -> Dict:
     """
     Uses an LLM to determine if the hypothesis is well-supported by evidence.
     """
-    scanner = await get_scanner()
-    
     logs_text = format_logs(state.get("logs", []))
-    sanitized_log_text = detect(logs_text)
-
     topology_text = format_topology(state.get("topology", []))
-    sanitized_topology_text = detect(topology_text)
 
     prompt = f"""
 You are a validation agent. Determine if the hypothesis is well-supported by the evidence.
@@ -276,10 +252,10 @@ You are a validation agent. Determine if the hypothesis is well-supported by the
 - Error Message: {state.get("error_message", "None")}
 
 **Topology:**
-{sanitized_topology_text}
+{topology_text}
 
 **Logs:**
-{sanitized_log_text}
+{logs_text}
 
 **Question:**
 Does the evidence clearly support and confirm the hypothesis? Consider:
