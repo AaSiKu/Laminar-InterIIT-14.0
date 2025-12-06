@@ -4,12 +4,18 @@ Handles requests to generate incident reports from RCA output.
 """
 
 import logging
+import sys
 from datetime import datetime
+from pathlib import Path
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import JSONResponse
 
-from ..schemas import IncidentReportRequest, IncidentReportResponse, ErrorResponse
-from ...core.report_generator import generate_incident_report
+# Add parent directories to path for imports
+backend_path = Path(__file__).parent.parent.parent.parent
+sys.path.insert(0, str(backend_path))
+
+from report_generation.api.schemas import IncidentReportRequest, IncidentReportResponse, ErrorResponse
+from report_generation.core.report_generator import generate_incident_report
 
 # Configure logging
 logger = logging.getLogger(__name__)

@@ -49,11 +49,12 @@ Your writing guidelines:
 5. **Focus**: Balance technical accuracy with business impact
 
 Report sections to include:
-- **Executive Summary**: 3-5 bullet points highlighting key findings
+- **Executive Summary**: 3-5 bullet points highlighting key findings (include brief mention of financial impact)
 - **Incident Overview**: What happened, when, and impact
 - **Root Cause Analysis**: Detailed RCA findings with evidence from error_citations
 - **Technical Analysis**: Deep dive with error log citations in a table
 - **Affected Services**: List all affected services (from affected_services field)
+- **Span Topology Diagram**: Include the mermaid diagram showing error propagation (from charts)
 - **Impact Assessment**: Business and technical impact quantification
 - **Remediation Actions**: Immediate fixes and long-term improvements
 - **Recommendations**: Strategic recommendations based on matched rules
@@ -64,6 +65,8 @@ RCA Output Structure (use these fields):
 - narrative: Clear explanation of what happened and why
 - error_citations: Specific log entries with timestamp, service, and message
 - root_cause: Technical root cause (specific and actionable)
+- financial_impact: Estimated financial impact with estimated_loss_usd, affected_transactions, duration_minutes
+- span_data: Topology showing how the error propagated (visualized in charts)
 
 Writing best practices:
 - Start each section with a clear topic sentence
@@ -71,17 +74,24 @@ Writing best practices:
 - Use error_citations to create the error log table with columns: | Timestamp | Service | Message |
 - List all affected_services and their roles in the incident
 - Quote the root_cause directly in the Root Cause Analysis section
+- **IMPORTANT**: Mention financial_impact BRIEFLY in executive summary with disclaimer: "(Note: Financial impact values are currently hardcoded estimates for demo purposes)"
+- Include the span topology diagram from charts to visualize error propagation
 - Quantify impact wherever possible based on telemetry data
 - Provide actionable next steps
 - Use clear subheadings for readability
 
 Data presentation:
-- Present all data in tables and highlighted text - NO charts or diagrams
+- Present data in tables and highlighted text
 - For error logs: create a markdown table from error_citations
 - Use tables for metric comparisons (before/after values)
 - Highlight key metrics and thresholds in bold text
-- NO flowcharts, NO mermaid diagrams, NO visualizations
-- NO emoji, NO colors in the final output"""),
+- Include the span topology mermaid diagram in a dedicated section
+- The chart will show affected nodes in subgraph(s) labeled "⚠︎AFFECTED NODE(S)"
+- CRITICAL: DO NOT add any "style" commands after the chart - use the chart exactly as provided
+- For metric changes: write as clear text paragraphs
+- Keep table formatting clean with properly aligned pipes
+- NO time-series flowcharts - convey trends through text only
+- NO emoji (except in mermaid diagrams as provided), NO colors, NO style commands in the final output"""),
             ("user", """Write a comprehensive operational report based on this telemetry analysis:
 
 **Report Plan:**
@@ -95,7 +105,13 @@ Live Data Stream (30-minute window): {live_data_stream}
 **Matched Rules:**
 {matched_rules}
 
-Write a complete, professional report that is at least 2000 words. Follow the report plan structure. Present all data in tables and text format - no charts or diagrams.""")
+**Charts (Span Topology):**
+{charts}
+
+Write a complete, professional report that is at least 2000 words. Follow the report plan structure. 
+Include the span topology diagram to visualize error propagation.
+Mention the financial_impact briefly in the executive summary with the disclaimer about hardcoded demo values.
+Present other data in tables and text format.""")
         ])
         
         self.chain = self.prompt | self.llm
@@ -124,7 +140,8 @@ Write a complete, professional report that is at least 2000 words. Follow the re
             "rca_output": json.dumps(diagnostic_data.get("rca_output", {}), indent=2),
             "external_news": json.dumps(diagnostic_data.get("external_news", []), indent=2),
             "live_data_stream": json.dumps(diagnostic_data.get("live_data_stream", {}), indent=2),
-            "matched_rules": json.dumps(matched_rules, indent=2)
+            "matched_rules": json.dumps(matched_rules, indent=2),
+            "charts": json.dumps(charts, indent=2)
         })
         
         return result.content

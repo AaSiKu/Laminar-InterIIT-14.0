@@ -12,9 +12,13 @@ from typing import Dict, Any, List, Tuple, Optional
 from pathlib import Path
 from collections import Counter
 
+# Add parent directories to path for imports
+backend_path = Path(__file__).parent.parent.parent
+sys.path.insert(0, str(backend_path))
+
 # Import from agentic module
-from ... import llm_factory
-from ..agents.weekly_summarizer_agent import WeeklySummarizerAgent
+import llm_factory
+from report_generation.agents.weekly_summarizer_agent import WeeklySummarizerAgent
 
 logger = logging.getLogger(__name__)
 
@@ -36,7 +40,7 @@ def parse_incident_report(report_content: str, metadata: Dict[str, Any]) -> Dict
     """
     incident_data = {
         "incident_id": metadata.get("incident_id", "UNKNOWN"),
-        "timestamp": metadata.get("timestamp"),
+        "timestamp": metadata.get("timestamp").isoformat() if metadata.get("timestamp") else "unknown",
         "severity": metadata.get("severity", "unknown"),
         "affected_node": metadata.get("affected_node", "unknown"),  # Primary service
         "root_cause": "Not specified",
@@ -113,7 +117,8 @@ def load_incident_reports_from_files(
     end_date: Optional[datetime] = None
 ) -> List[Dict[str, Any]]:
     """
-    Load incident reports from JSON metadata files in the reports directory.
+    Load incident reports from markdown files in the reports directory.
+    Tries to load JSON metadata first, falls back to parsing filenames.
     
     Args:
         reports_dir: Path to reports directory
@@ -128,34 +133,79 @@ def load_incident_reports_from_files(
     if not reports_dir.exists():
         return reports
     
-    # Load all JSON metadata files
-    for json_file in reports_dir.glob("incident_*.json"):
-        try:
-            with open(json_file, 'r', encoding='utf-8') as f:
-                metadata = json.load(f)
-            
-            # Parse timestamp
-            timestamp = datetime.fromisoformat(metadata.get("timestamp", ""))
-            
-            # Filter by date range if specified
-            if start_date and timestamp < start_date:
+    # First try to load from JSON metadata files (preferred)
+    json_files = list(reports_dir.glob("incident_*.json"))
+    
+    if json_files:
+        # Load from JSON metadata
+        for json_file in json_files:
+            try:
+                with open(json_file, 'r', encoding='utf-8') as f:
+                    metadata = json.load(f)
+                
+                # Parse timestamp
+                timestamp = datetime.fromisoformat(metadata.get("timestamp", ""))
+                
+                # Filter by date range if specified
+                if start_date and timestamp < start_date:
+                    continue
+                if end_date and timestamp > end_date:
+                    continue
+                
+                # Add timestamp as datetime object
+                metadata["timestamp"] = timestamp
+                metadata["affected_node"] = metadata.get("primary_service", "unknown")
+                
+                reports.append(metadata)
+                
+            except Exception as e:
+                logger.warning(f"Failed to load metadata from {json_file}: {str(e)}")
                 continue
-            if end_date and timestamp > end_date:
+    else:
+        # Fallback: Load from markdown files and parse filenames
+        logger.info("No JSON metadata found, parsing markdown files directly")
+        for md_file in reports_dir.glob("incident_*.md"):
+            try:
+                # Parse filename: incident_20251207_044620_critical.md
+                filename = md_file.name
+                parts = filename.replace('.md', '').split('_')
+                
+                if len(parts) >= 4:
+                    # Extract date/time and severity
+                    date_str = parts[1]  # YYYYMMDD
+                    time_str = parts[2]  # HHMMSS
+                    severity = parts[3]  # critical/high/medium/low
+                    
+                    # Parse timestamp
+                    timestamp = datetime.strptime(f"{date_str}{time_str}", "%Y%m%d%H%M%S")
+                    
+                    # Filter by date range if specified
+                    if start_date and timestamp < start_date:
+                        continue
+                    if end_date and timestamp > end_date:
+                        continue
+                    
+                    # Create basic metadata
+                    metadata = {
+                        "incident_id": f"INC-{date_str}_{time_str}",
+                        "timestamp": timestamp,
+                        "severity": severity,
+                        "primary_service": "unknown",
+                        "affected_services": [],
+                        "filename": filename,
+                        "affected_node": "unknown"
+                    }
+                    
+                    reports.append(metadata)
+                    
+            except Exception as e:
+                logger.warning(f"Failed to parse markdown file {md_file}: {str(e)}")
                 continue
-            
-            # Add timestamp as datetime object
-            metadata["timestamp"] = timestamp
-            metadata["affected_node"] = metadata.get("primary_service", "unknown")
-            
-            reports.append(metadata)
-            
-        except Exception as e:
-            logger.warning(f"Failed to load metadata from {json_file}: {str(e)}")
-            continue
     
     # Sort by timestamp descending
     reports.sort(key=lambda x: x.get("timestamp", datetime.min), reverse=True)
     
+    logger.info(f"Loaded {len(reports)} incident reports from {reports_dir}")
     return reports
 
 
@@ -317,11 +367,11 @@ def generate_weekly_report(
     
     # Perform cleanup if requested
     if cleanup_after_report and reports_dir.exists():
-        logger.info("Cleanup requested - deleting all report files")
+        logger.info("Cleanup requested - deleting JSON metadata files only (keeping markdown reports)")
         deleted_files = 0
         
-        # Delete all markdown and JSON files
-        for file in reports_dir.glob("incident_*.*"):
+        # Delete only JSON metadata files, keep markdown reports
+        for file in reports_dir.glob("incident_*.json"):
             try:
                 file.unlink()
                 deleted_files += 1
@@ -330,6 +380,6 @@ def generate_weekly_report(
         
         metadata["cleanup_performed"] = True
         metadata["deleted_files"] = deleted_files
-        logger.info(f"Cleanup complete: Deleted {deleted_files} files")
+        logger.info(f"Cleanup complete: Deleted {deleted_files} JSON files")
     
     return report_content, metadata

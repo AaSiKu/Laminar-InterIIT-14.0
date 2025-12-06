@@ -13,6 +13,32 @@ class ErrorCitation(BaseModel):
     timestamp: str = Field(..., description="Timestamp of the log entry")
     service: str = Field(..., description="Service or scope name where the error occurred")
     message: str = Field(..., description="Relevant error message or excerpt from the log body")
+
+
+class FinancialImpact(BaseModel):
+    """Schema for financial impact estimation (hardcoded demo values)."""
+    estimated_loss_usd: float = Field(..., description="Estimated financial loss in USD")
+    affected_transactions: int = Field(..., description="Number of transactions affected")
+    duration_minutes: int = Field(..., description="Duration of the incident in minutes")
+
+
+class SpanNode(BaseModel):
+    """Schema for a node in the span topology."""
+    node_id: int = Field(..., description="Unique identifier for the node")
+    name: str = Field(..., description="Name of the node/service")
+
+
+class SpanEdge(BaseModel):
+    """Schema for an edge in the span topology."""
+    source: int = Field(..., description="Source node ID")
+    target: int = Field(..., description="Target node ID")
+
+
+class SpanData(BaseModel):
+    """Schema for span topology data representing the error trace."""
+    nodes: List[SpanNode] = Field(..., description="List of nodes in the span")
+    edges: List[SpanEdge] = Field(..., description="List of edges connecting nodes")
+    affected_nodes: List[int] = Field(..., description="List of node IDs that are affected by the error")
     
     class Config:
         json_schema_extra = {
@@ -31,6 +57,8 @@ class RCAOutputSchema(BaseModel):
     narrative: str = Field(..., description="Clear, concise explanation of what happened and why (max 5 sentences)")
     error_citations: List[ErrorCitation] = Field(..., description="2-5 specific log entries that support the analysis", min_length=2, max_length=5)
     root_cause: str = Field(..., description="Technical root cause of the failure (be specific and actionable)")
+    financial_impact: FinancialImpact = Field(..., description="Estimated financial impact (hardcoded demo values)")
+    span_data: SpanData = Field(..., description="Span topology showing trace of the error through the system")
     
     class Config:
         json_schema_extra = {
@@ -50,7 +78,26 @@ class RCAOutputSchema(BaseModel):
                         "message": "SLA breach: P99 latency 342ms exceeds threshold 200ms"
                     }
                 ],
-                "root_cause": "Bad deployment v1.3 introduced memory-intensive operations without sufficient container memory allocation, triggering frequent garbage collection pauses."
+                "root_cause": "Bad deployment v1.3 introduced memory-intensive operations without sufficient container memory allocation, triggering frequent garbage collection pauses.",
+                "financial_impact": {
+                    "estimated_loss_usd": 45000.0,
+                    "affected_transactions": 12487,
+                    "duration_minutes": 45
+                },
+                "span_data": {
+                    "nodes": [
+                        {"node_id": 1, "name": "api_gateway"},
+                        {"node_id": 2, "name": "auth_service"},
+                        {"node_id": 3, "name": "transform-001"},
+                        {"node_id": 4, "name": "ml-tide-001"}
+                    ],
+                    "edges": [
+                        {"source": 1, "target": 2},
+                        {"source": 2, "target": 3},
+                        {"source": 3, "target": 4}
+                    ],
+                    "affected_nodes": [3, 4]
+                }
             }
         }
 
@@ -78,7 +125,24 @@ class IncidentReportRequest(BaseModel):
                             "message": "Response time SLA breach: P99 latency 3500ms exceeds 500ms threshold"
                         }
                     ],
-                    "root_cause": "Database connection pool exhaustion due to long-running queries not releasing connections, combined with increased traffic load."
+                    "root_cause": "Database connection pool exhaustion due to long-running queries not releasing connections, combined with increased traffic load.",
+                    "financial_impact": {
+                        "estimated_loss_usd": 87500.0,
+                        "affected_transactions": 2847,
+                        "duration_minutes": 35
+                    },
+                    "span_data": {
+                        "nodes": [
+                            {"node_id": 1, "name": "api_gateway"},
+                            {"node_id": 2, "name": "payment-service"},
+                            {"node_id": 3, "name": "database-service"}
+                        ],
+                        "edges": [
+                            {"source": 1, "target": 2},
+                            {"source": 2, "target": 3}
+                        ],
+                        "affected_nodes": [2, 3]
+                    }
                 }
             }
         }

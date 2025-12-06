@@ -34,10 +34,10 @@ class WeeklyReportResponse(BaseModel):
     """Response containing the generated weekly summary report."""
     success: bool = Field(..., description="Whether report generation was successful")
     report_content: str = Field(..., description="Full markdown content of the weekly summary")
-    start_date: datetime = Field(..., description="Start date of the report period")
-    end_date: datetime = Field(..., description="End date of the report period")
+    start_date: str = Field(..., description="Start date of the report period (ISO format)")
+    end_date: str = Field(..., description="End date of the report period (ISO format)")
     incident_count: int = Field(..., description="Number of incidents included in the summary")
-    generated_at: datetime = Field(..., description="Timestamp when the report was generated")
+    generated_at: str = Field(..., description="Timestamp when the report was generated (ISO format)")
     processing_time_seconds: float = Field(..., description="Time taken to generate the report")
     
     class Config:
