@@ -1,39 +1,32 @@
-# Laminar
+# Laminar 
 
-In complex data ecosystems, teams need more than functional pipelines. They need guaranteed performance. This is where Service Level Agreements (SLAs) come into play. SLAs provide clear guarantees for data timeliness, accuracy, and availability. Within this platform, SLAs are essential, not an afterthought. Each part: ingestion, transformation, AI inference, or delivery includes SLA definitions. This ensures that each stage meets the targets for latency, throughput, and reliability. The system monitors these metrics, identifies issues in real time, and initiates recovery using smart agents.
-
-This close link between SLA governance and data operations changes Pathway Tasks. They become more than just a workflow builder; they turn into a reliable orchestration layer. It helps users design, deploy, and check real-time data flows confidently. They can trust that SLA compliance is automatically maintained.
-
-From this SLA-driven base, the platform’s technical architecture flows into Pathway’s real-time engine. This engine supports low-latency computation, fault-tolerant streaming, and stateful transformations. The visual builder converts user-defined workflows into efficient, responsive execution graphs. It has built-in monitoring and AI feedback loops. This keeps performance strong under various loads, ensuring each pipeline is robust and adaptable.
+Laminar is a low-code operational intelligence platform designed for fintech startups. It can automatically ingest live data, parse documents, predict SLA risks, perform streaming-based reconciliation and utilize agentic reasoning to provide proactive Root Cause Analysis. It is built on top of Pathway, a high-performance streaming computation engine enabling Laminar to process billions of events with deterministic outputs, ensuring that workflows behave consistently under scale. Laminar aims to bridge market gaps by transforming traditionally manual, slow and reactive peripheral fintech workflows into real-time, automated and intelligent systems
 
 ## Key Features
 
-### Visual Pipeline Designer
-- **Drag-and-Drop Interface**: Build complex data pipelines visually using React Flow
-- **Real-time Validation**: Instant feedback on node configurations and connections
-- **Dynamic Node System**: Extensible architecture supporting 40+ node types
+**Visual Pipeline Designer**  
+Drag-and-drop interface for building complex data pipelines by connecting pre-configured nodes that uses real-time validation to ensure node schema compatibility while Pathway compiles visual workflows into pipelines. Support for multiple connectors across message queues, databases, cloud storage, and APIs.
+ 
+**Context-Aware Pipeline Generation**  
+Upload business documents to the UI and Laminar automatically extracts requirements, thresholds, and obligations to generate fully-configured metric monitoring and processing pipelines. This eliminates manual translation layers, ensuring direct alignment between business commitments and technical implementations.
 
-### Comprehensive Data Connectors
-- **Input Sources**: Kafka, Redpanda, CSV, JSON Lines, S3, MinIO, PostgreSQL, MongoDB, Delta Lake, Iceberg, HTTP, Google Drive, and more
-- **Output Destinations**: Write to Kafka, databases (PostgreSQL, MySQL, MongoDB), cloud storage, search engines (Elasticsearch), and streaming platforms
-- **Streaming & Batch**: Support for both real-time streaming and batch processing
+**Predictive Analytics with Streaming ML**  
+Continuous forecasting using online learning models (TiDE, ARF, Mamba) that adapt in real-time to data patterns. The platform predicts threshold breaches in advance, allowing for proactive intervention before issues impact operations and customers. Models update automatically with each data point without manual retraining.
 
-### Advanced Processing
-- **Table Operations**: Filter, sort, join, concatenate, and update data streams
-- **Temporal Processing**: Sliding windows, tumbling windows, and session-based windowing
-- **Custom Transformations**: Extensible node system for custom logic
+**Autonomous Root Cause Analysis**  
+Leveraging the extensive power of agentic AI and Pathway’s compatibility with streaming data sources, our platform gets rid of the need to manually correlate outputs from various tools when an incident occurs, through our Root Cause Analysis agent, which analyses relevant data sources and historical issues to diagnose the root cause. It then suggests
+confidence-scored fixes, and executes the ones it is confident about (without the need of human intervention).
 
-### AI-Powered Features
-- **Agentic Workflows**: LLM-powered agents for intelligent data processing and decision-making
-- **Alert Generation**: AI-generated alerts with contextual awareness
-- **SQL Agent Integration**: Natural language to SQL query generation
+**Autonomous Execution of High-Confidence Fixes**
+Graduated automation framework that executes high-confidence fixes automatically while escalating ambiguous situations with recommended actions and supporting evidence. Organizations progressively expand automation as confidence builds, balancing efficiency with risk tolerance.
 
-### Enterprise-Ready
-- **User Authentication**: JWT-based authentication with role management
-- **Multi-User Support**: Individual workspaces and collaborative features
-- **Docker Containerization**: Isolated pipeline execution in Docker containers
-- **Real-time Monitoring**: WebSocket-based live updates and alerts
+**Production-Ready Guardrails**  
+Comprehensive 4-layer security gateway covering network (SSRF, TLS), access (rate limiting, RBAC, BOLA prevention), data (prompt injection detection, PII scanning, secrets detection), and process controls (human-in-the-loop approval, XSS prevention). Sub-200ms overhead maintains real-time responsiveness.
 
+**Distributed Architecture**  
+Five-layer architecture with React frontend, FastAPI control layer, Pathway streaming engine in isolated Docker containers, LangGraph-orchestrated agentic services, and multi-database persistence (PostgreSQL, MongoDB, vector search). Sub-second end-to-end latency with exactly-once processing semantics.
+
+---
 
 ##  Prerequisites
 
