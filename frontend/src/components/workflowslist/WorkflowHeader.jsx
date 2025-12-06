@@ -57,7 +57,7 @@ const WorkflowHeader = ({ onAddNew, selectedTab, onTabChange }) => {
       }}
     >
       {/* Header */}
-      <Box sx={{ mb: 2 }}>
+      <Box sx={{ mb: 2, px: 2 }}>
         <Box
           sx={{
             display: "flex",

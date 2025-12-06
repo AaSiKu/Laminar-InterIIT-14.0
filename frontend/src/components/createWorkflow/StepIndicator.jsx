@@ -1,5 +1,6 @@
 import { Box, Typography } from "@mui/material";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
+import aiIcon from "../../assets/ai_icon.svg";
 
 const StepIndicator = ({
   step,
@@ -96,15 +97,28 @@ const StepIndicator = ({
               flex: 1,
             }}
           >
-            <Typography
-              variant="body2"
-              sx={{
-                color: "text.primary",
-                fontWeight: isCompleted ? 600 : 500,
-              }}
-            >
-              {step.label}
-            </Typography>
+            <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+              <Typography
+                variant="body2"
+                sx={{
+                  color: "text.primary",
+                  fontWeight: isCompleted ? 600 : 500,
+                }}
+              >
+                {step.label}
+              </Typography>
+              {step.id === 2 && (
+                <Box
+                  component="img"
+                  src={aiIcon}
+                  alt="AI"
+                  sx={{
+                    width: 16,
+                    height: 16,
+                  }}
+                />
+              )}
+            </Box>
           </Box>
         )}
       </Box>

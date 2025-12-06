@@ -76,7 +76,7 @@ const WorkflowCard = ({ workflow, isSelected, onClick }) => {
                   fontWeight: 500,
                   fontSize: "0.6875rem",
                   height: "22px",
-                  borderRadius: "2px",
+                  borderRadius: "12px",
                 }}
               />
             </Box>

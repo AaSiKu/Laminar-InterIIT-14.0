@@ -13,7 +13,7 @@ export function RuntimeChart({ data = [] }) {
       <Box
         sx={{
           bgcolor: "background.elevation1",
-          p: 2.5,
+          p: 4,
           display: "flex",
           flexDirection: "column",
           borderRadius: 2,
@@ -63,16 +63,16 @@ export function RuntimeChart({ data = [] }) {
   }));
 
   return (
-    <Box
-      sx={{
-        bgcolor: "background.elevation1",
-        p: 2.5,
-        display: "flex",
-        flexDirection: "column",
-        borderRadius: 2,
-        height: "100%",
-      }}
-    >
+        <Box
+          sx={{
+            bgcolor: "background.elevation1",
+            p: 4,
+            display: "flex",
+            flexDirection: "column",
+            borderRadius: 2,
+            height: "100%",
+          }}
+        >
       <Typography
         variant="h6"
         sx={{
@@ -114,6 +114,7 @@ export function RuntimeChart({ data = [] }) {
                 fontSize: 10,
                 fill: theme.palette.text.secondary,
               },
+              categoryGapRatio: 0.8,
             },
           ]}
           yAxis={[
@@ -137,13 +138,16 @@ export function RuntimeChart({ data = [] }) {
               hidden: true,
             },
           }}
-          margin={{ top: 20, right: 20, bottom: 40, left: 50 }}
+          margin={{ top: 20, right: 20, bottom: 40, left: 15 }}
           sx={{
             "& .MuiChartsAxis-line": {
               stroke: theme.palette.divider,
             },
             "& .MuiChartsAxis-tick": {
               stroke: theme.palette.divider,
+            },
+            "& .MuiChartsBar-root": {
+              width: "50% !important",
             },
           }}
         />

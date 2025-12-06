@@ -2,7 +2,8 @@ import { Box, Typography, Button, IconButton, useTheme } from "@mui/material";
 import AutoAwesomeOutlinedIcon from "@mui/icons-material/AutoAwesomeOutlined";
 import dayjs from "dayjs";
 import relativeTime from "dayjs/plugin/relativeTime";
-import noDataSvg from "../../assets/noData.svg";
+import planeLight from "../../assets/plane_light.svg";
+import planeDark from "../../assets/plane_dark.svg";
 dayjs.extend(relativeTime);
 
 const ActionRequired = ({
@@ -125,7 +126,7 @@ const ActionRequired = ({
             >
               <Box
                 component="img"
-                src={noDataSvg}
+                src={theme.palette.mode === "dark" ? planeDark : planeLight}
                 alt="No data"
                 sx={{ width: "8rem", height: "auto", opacity: 0.6 }}
               />

@@ -335,7 +335,7 @@ const NewProjectModal = ({ open, onClose, onSelectTemplate }) => {
                         overflow: "hidden",
                         position: "relative",
                         flexShrink: 0,
-                        backgroundColor: template.bgColor,
+                        backgroundColor: theme.palette.mode === "dark" ? "#424242" : "#e8f4f8",
                         display: "flex",
                         alignItems: "center",
                         justifyContent: "center",
@@ -347,13 +347,13 @@ const NewProjectModal = ({ open, onClose, onSelectTemplate }) => {
                           src={template.image}
                           alt={template.name}
                           sx={{
-                            maxWidth: sectionKey === "blank" || sectionKey === "sla" ? "60%" : "100%",
-                            maxHeight: sectionKey === "blank" || sectionKey === "sla" ? "60%" : "100%",
-                            width: sectionKey === "blank" || sectionKey === "sla" ? "auto" : "100%",
-                            height: sectionKey === "blank" || sectionKey === "sla" ? "auto" : "100%",
+                            maxWidth: sectionKey === "blank" ? "100%" : sectionKey === "sla" ? "60%" : "100%",
+                            maxHeight: sectionKey === "blank" ? "100%" : sectionKey === "sla" ? "60%" : "100%",
+                            width: sectionKey === "blank" ? "100px" : sectionKey === "sla" ? "auto" : "100%",
+                            height: sectionKey === "blank" ? "100px" : sectionKey === "sla" ? "auto" : "100%",
                             objectFit: sectionKey === "blank" || sectionKey === "sla" ? "contain" : "cover",
                             display: "block",
-                            filter: sectionKey === "sla" ? "brightness(0) invert(1)" : "none",
+                            filter: sectionKey === "sla" ? "brightness(0)" : "none",
                           }}
                         />
                       )}
