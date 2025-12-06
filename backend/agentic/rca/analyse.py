@@ -8,12 +8,7 @@ from .error_agent import analyze_error_logs
 from .downtime_agent import analyze_downtime_incidents, DowntimeIncident
 from .latency_agent import build_graph, MetricAlert
 from .output import RCAAnalysisOutput
-from ..guardrails.before_agent import InputScanner
-from ..guardrails.gateway import MCPSecurityGateway
-from ..guardrails.before_agent import detect 
 from .rca_logger import rca_logger
-
-gateway = MCPSecurityGateway()
 
 # RCA cache to prevent concurrent runs for the same metric
 rca_cache: Dict[str, Dict[str, Any]] = {}
@@ -29,8 +24,6 @@ class InitRCA(SummarizeOutput):
     # For latency analysis
     breach_time_utc: Optional[str] = None
     breach_value: Optional[float] = None
-
-input_scanner = None
 
 async def rca(init_rca_request: InitRCA):
     # Generate cache key from metric description hash
@@ -61,12 +54,6 @@ async def rca(init_rca_request: InitRCA):
         rca_logger.info(f"Starting Root Cause Analysis for {init_rca_request.metric_type} metric: {init_rca_request.description}")
         
         print("RCA invoked")
-        global input_scanner
-        if input_scanner is None:
-            input_scanner = InputScanner()
-            await input_scanner.preload_models()
-
-        sanitized_description = await detect(init_rca_request.description)
         
         if len(init_rca_request.trace_ids.keys()) == 1:
             # Get the single column name and its trace_ids

@@ -5,11 +5,6 @@ from langchain_mcp_adapters.client import MultiServerMCPClient
 from langchain.agents import create_agent
 import os
 from ..llm_factory import create_summarization_model
-from ..guardrails.before_agent import InputScanner
-from ..guardrails.gateway import MCPSecurityGateway
-from ..guardrails.before_agent import detect
-
-gateway = MCPSecurityGateway()
 
 reasoning_model = create_summarization_model()
 summarize_prompt = """
@@ -68,11 +63,10 @@ mcp_client = MultiServerMCPClient({
 })
 
 summarize_agent = None
-input_scanner = None
 
 
 async def init_summarize_agent():
-    global summarize_agent, input_scanner
+    global summarize_agent
     init_cache_db()
     tools =  await mcp_client.get_tools()
     summarize_agent = create_agent(
@@ -81,22 +75,14 @@ async def init_summarize_agent():
         system_prompt=summarize_prompt,
         response_format=SummarizeOutput
     )
-    input_scanner = InputScanner()
-    await input_scanner.preload_models()
 
 
 async def summarize(request: SummarizeRequest):
     """
     Generate natural language descriptions for special columns in SLA metric tables.
     """
-    global input_scanner
-    if input_scanner is None:
+    if summarize_agent is None:
         await init_summarize_agent()
-
-    # Scan inputs
-    request.metric_description = await detect(request.metric_description)
-
-    request.pipeline_description = await detect(request.pipeline_description)
     
     # Format semantic origins for the prompt
     semantic_origins_text = "\n".join(
@@ -110,7 +96,7 @@ async def summarize(request: SummarizeRequest):
         "Your goal is to produce structured output with two components:\n\n"
         "1. SPECIAL COLUMN DESCRIPTIONS: For each special column listed in the semantic origins, provide a concise, "
         "professional, and technically precise natural-language description (MAXIMUM 3 lines per column) explaining what "
-        "the column represents and its relation to telemetry entities or relationships.\n\n"
+        "the column represents and its relation to telemetry entities or relationships in the form of a dict { column_name: description } \n\n"
         "2. METRIC CALCULATION EXPLANATION: Provide a comprehensive explanation (MAXIMUM 4 lines) of how these special "
         "columns work together to calculate the SLA metric, describing how different telemetry sources or event streams "
         "contribute to the derived metric value.\n\n"

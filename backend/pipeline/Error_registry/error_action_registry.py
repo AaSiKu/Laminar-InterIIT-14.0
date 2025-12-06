@@ -1,6 +1,6 @@
 """
 Error-Action Registry - MongoDB-backed mapping between errors and remediation actions
-Maintains a local Errors.json file synchronized with MongoDB
+Maintains a local errors.json file synchronized with MongoDB
 """
 
 import asyncio
@@ -21,17 +21,17 @@ except ImportError:
 class ErrorActionRegistry:
     """
     Registry that maps errors to ordered remediation actions
-    Stores in MongoDB and maintains synchronized Errors.json file
+    Stores in MongoDB and maintains synchronized errors.json file
     """
     
-    def __init__(self, mongodb_uri: str, database_name: str = "runbook", local_file_path: str = "Errors.json"):
+    def __init__(self, mongodb_uri: str, database_name: str = "runbook", local_file_path: str = "errors.json"):
         """
         Initialize the error-action registry
         
         Args:
             mongodb_uri: MongoDB connection string (e.g., 'mongodb://localhost:27017')
             database_name: Database name to use
-            local_file_path: Path to local Errors.json file
+            local_file_path: Path to local errors.json file
         """
         if not MONGODB_AVAILABLE:
             raise ImportError("Install MongoDB support: pip install motor pymongo")
@@ -214,7 +214,7 @@ class ErrorActionRegistry:
     
     async def _sync_to_local_file(self):
         """
-        Synchronize MongoDB data to local Errors.json file
+        Synchronize MongoDB data to local errors.json file
         This is called automatically after any write operation
         """
         try:
@@ -239,7 +239,7 @@ class ErrorActionRegistry:
     
     def load_from_local_file(self) -> List[Dict[str, Any]]:
         """
-        Load error mappings from local Errors.json file
+        Load error mappings from local errors.json file
         Useful for offline access or as fallback
         
         Returns:
@@ -270,7 +270,7 @@ async def example_usage():
     registry = ErrorActionRegistry(
         mongodb_uri="mongodb://localhost:27017",
         database_name="runbook",
-        local_file_path="Errors.json"
+        local_file_path="errors.json"
     )
     
     await registry.connect()
@@ -328,7 +328,7 @@ async def example_usage():
         await registry.force_sync()
         
         # Load from local file (offline access)
-        print("\nLoading from local Errors.json:")
+        print("\nLoading from local errors.json:")
         local_mappings = registry.load_from_local_file()
         print(f"  Loaded {len(local_mappings)} mappings from local file")
         

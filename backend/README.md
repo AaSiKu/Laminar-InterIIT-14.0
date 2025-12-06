@@ -70,7 +70,7 @@ Automated remediation system with error matching and action execution.
 
 **Key Files:**
 - `app.py` - Pathway document store server for error semantic search
-- `Errors.json` - Error knowledge base with remediation actions
+- `errors.json` - Error knowledge base with remediation actions
 - Vector indexing for similarity-based error matching
 - Integration with remediation orchestrator
 

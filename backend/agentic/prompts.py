@@ -10,14 +10,10 @@ from .sql_tool import TablePayload, create_sql_tool
 from .llm_factory import create_agent_model
 from langchain_mcp_adapters.client import MultiServerMCPClient
 import os
-from agentic.guardrails.gateway import MCPSecurityGateway
-from agentic.guardrails.before_agent import InputScanner
 from datetime import datetime
 from lib.notifications import add_notification
 from motor.motor_asyncio import AsyncIOMotorClient
 import certifi
-
-gateway = MCPSecurityGateway()
 
 class Action(BaseModel):
     id: int
@@ -100,21 +96,6 @@ def create_alert_tool():
 def build_agent(agent: AgentPayload) -> BaseTool:
     agent.name = agent.name.replace(" ", "_")
     # TODO: Implement alert tool
-
-        
-    pii_results = gateway.pii_analyzer.adetect(agent.description)
-    secrets_results = gateway.secrets_analyzer.detect_all(agent.description)
-
-    if pii_results:
-        pass
-        # custom_logger.critical("PII Data detected in agent description")
-    
-    if secrets_results:
-        pass
-        # custom_logger.critical("Secret Data detected in agent description")
-
-    all_findings = (pii_results or []) + (secrets_results or [])
-    sanitized_description = InputScanner._sanitize_text(agent.description, all_findings)
 
     tool_tables = [tool for tool in agent.tools if isinstance(tool,TablePayload)]
     tool_rags = [tool for tool in agent.tools if isinstance(tool,RagTool)]
