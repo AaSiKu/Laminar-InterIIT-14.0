@@ -1396,7 +1396,8 @@ const CreateWorkflowDrawer = ({ open, onClose, onComplete }) => {
                         rfInstanceRef.current = instance;
                         handlePlaygroundInit(instance);
                       }}
-                      isReadOnly={false}
+                      readOnly={false}
+                      drawerZIndex={10001}
                     />
 
                     {/* Node Approval Popup - positioned over the canvas */}

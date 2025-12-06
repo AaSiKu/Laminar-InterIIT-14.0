@@ -257,7 +257,15 @@ try {
     handleSortClose();
   };
 
-  // Sort notifications based on selected option
+  // Helper function to get timestamp as Date for sorting
+  const getTimestamp = (notification) => {
+    if (!notification.timestamp) return new Date(0);
+    return typeof notification.timestamp === "string" 
+      ? new Date(notification.timestamp) 
+      : new Date(notification.timestamp);
+  };
+
+  // Sort notifications based on selected option (always by time descending - most recent first)
   const enhancedNotifications = useMemo(() => {
     if (!notifications || notifications.length === 0) {
       return [];
@@ -265,24 +273,35 @@ try {
 
     let sorted = [...notifications];
 
+    // Always sort by timestamp first (most recent on top)
+    sorted.sort((a, b) => {
+      const timeA = getTimestamp(a);
+      const timeB = getTimestamp(b);
+      return timeB - timeA; // Descending order (most recent first)
+    });
+
     if (sortBy === "all") {
       return sorted;
     }
 
     else if (sortBy === "type") {
+      // Group by type priority, but maintain time order within each group
       sorted.sort((a, b) => {
         const priorityA = typePriority[a.type] ?? 999;
         const priorityB = typePriority[b.type] ?? 999;
-        return priorityA - priorityB;
+        if (priorityA !== priorityB) {
+          return priorityA - priorityB;
+        }
+        // Same type priority, sort by time (most recent first)
+        return getTimestamp(b) - getTimestamp(a);
       });
     } else if (typePriority[sortBy] !== undefined) {
-      // Sort by specific type - show that type first
+      // Sort by specific type - show that type first, then by time
       sorted.sort((a, b) => {
         if (a.type === sortBy && b.type !== sortBy) return -1;
         if (a.type !== sortBy && b.type === sortBy) return 1;
-        const priorityA = typePriority[a.type] ?? 999;
-        const priorityB = typePriority[b.type] ?? 999;
-        return priorityA - priorityB;
+        // Same type category, sort by time (most recent first)
+        return getTimestamp(b) - getTimestamp(a);
       });
     }
 
@@ -290,6 +309,8 @@ try {
       sorted = notifications.filter(
         (notif) => notif.type === sortBy
       );
+      // Also sort filtered results by time
+      sorted.sort((a, b) => getTimestamp(b) - getTimestamp(a));
     }
 
     return sorted;

@@ -5,10 +5,17 @@ import {
   Avatar,
   IconButton,
   Button,
+  Menu,
+  MenuItem,
+  ListItemIcon,
+  ListItemText,
+  CircularProgress,
   useTheme,
 } from "@mui/material";
 import EditIcon from "@mui/icons-material/Edit";
 import FileCopyIcon from "@mui/icons-material/FileCopy";
+import DownloadIcon from "@mui/icons-material/Download";
+import DescriptionIcon from "@mui/icons-material/Description";
 import PipelinePreview from "./PipelinePreview";
 import MetricCard from "./MetricCard";
 import ActionRequired from "./ActionRequired";
@@ -34,6 +41,77 @@ const WorkflowDetails = ({
   const [pipelineDetails, setPipelineDetails] = useState(null);
   const [loadingDetails, setLoadingDetails] = useState(false);
   const [detailsError, setDetailsError] = useState(null);
+  
+  // Report menu state
+  const [reportMenuAnchor, setReportMenuAnchor] = useState(null);
+  const [reports, setReports] = useState([]);
+  const [loadingReports, setLoadingReports] = useState(false);
+  const [downloadingReport, setDownloadingReport] = useState(null);
+
+  // Handle report menu open
+  const handleReportMenuOpen = async (event) => {
+    setReportMenuAnchor(event.currentTarget);
+    if (!workflow?.id) return;
+    
+    setLoadingReports(true);
+    try {
+      const workflowId = String(workflow.id || workflow._id);
+      const response = await fetch(
+        `${import.meta.env.VITE_API_SERVER}/agentic/${workflowId}/reports/list`,
+        { credentials: "include" }
+      );
+      if (response.ok) {
+        const data = await response.json();
+        setReports(data.reports || []);
+      } else {
+        console.error("Failed to fetch reports:", response.statusText);
+        setReports([]);
+      }
+    } catch (error) {
+      console.error("Error fetching reports:", error);
+      setReports([]);
+    } finally {
+      setLoadingReports(false);
+    }
+  };
+
+  // Handle report menu close
+  const handleReportMenuClose = () => {
+    setReportMenuAnchor(null);
+  };
+
+  // Handle report download
+  const handleDownloadReport = async (reportId) => {
+    if (!workflow?.id) return;
+    
+    setDownloadingReport(reportId);
+    try {
+      const workflowId = String(workflow.id || workflow._id);
+      const response = await fetch(
+        `${import.meta.env.VITE_API_SERVER}/agentic/${workflowId}/reports/${reportId}/download`,
+        { credentials: "include" }
+      );
+      
+      if (response.ok) {
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `${reportId}.md`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        window.URL.revokeObjectURL(url);
+      } else {
+        console.error("Failed to download report:", response.statusText);
+      }
+    } catch (error) {
+      console.error("Error downloading report:", error);
+    } finally {
+      setDownloadingReport(null);
+      handleReportMenuClose();
+    }
+  };
 
   // Filter notifications for this pipeline based on the selected filter
   const filteredNotifications = useMemo(() => {
@@ -281,6 +359,7 @@ const WorkflowDetails = ({
             <Button
               variant="text"
               size="small"
+              onClick={handleReportMenuOpen}
               startIcon={<FileCopyIcon sx={{ fontSize: 16 }} />}
               sx={{
                 color: "primary.main",
@@ -298,6 +377,53 @@ const WorkflowDetails = ({
             >
               Get Report
             </Button>
+            <Menu
+              anchorEl={reportMenuAnchor}
+              open={Boolean(reportMenuAnchor)}
+              onClose={handleReportMenuClose}
+              PaperProps={{
+                sx: {
+                  maxHeight: 300,
+                  minWidth: 250,
+                },
+              }}
+            >
+              {loadingReports ? (
+                <MenuItem disabled>
+                  <CircularProgress size={20} sx={{ mr: 1 }} />
+                  Loading reports...
+                </MenuItem>
+              ) : reports.length === 0 ? (
+                <MenuItem disabled>
+                  <ListItemText primary="No reports available" />
+                </MenuItem>
+              ) : (
+                reports.map((report) => (
+                  <MenuItem
+                    key={report.report_id}
+                    onClick={() => handleDownloadReport(report.report_id)}
+                    disabled={downloadingReport === report.report_id}
+                  >
+                    <ListItemIcon>
+                      {downloadingReport === report.report_id ? (
+                        <CircularProgress size={20} />
+                      ) : (
+                        <DescriptionIcon fontSize="small" />
+                      )}
+                    </ListItemIcon>
+                    <ListItemText
+                      primary={report.report_id}
+                      secondary={`${report.severity?.toUpperCase() || "Unknown"} - ${
+                        report.timestamp
+                          ? new Date(report.timestamp).toLocaleDateString()
+                          : "N/A"
+                      }`}
+                    />
+                    <DownloadIcon fontSize="small" sx={{ ml: 1, color: "text.secondary" }} />
+                  </MenuItem>
+                ))
+              )}
+            </Menu>
             <AvatarGroup
               max={3}
               sx={{

@@ -19,9 +19,11 @@ import RefreshIcon from '@mui/icons-material/Refresh';
 import NavigateNextIcon from '@mui/icons-material/NavigateNext';
 import NavigateBeforeIcon from '@mui/icons-material/NavigateBefore';
 import AutorenewIcon from '@mui/icons-material/Autorenew';
+import { useGlobalWorkflow } from '../../context/GlobalWorkflowContext';
 
-const NodeDataTable = ({ nodeId, isVisible, nodeRef, onMouseEnter, onMouseLeave}) => {
+const NodeDataTable = ({ nodeId, tableName, isVisible, nodeRef, onMouseEnter, onMouseLeave}) => {
   const theme = useTheme();
+  const { id: workflowId } = useGlobalWorkflow();
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -40,34 +42,47 @@ const NodeDataTable = ({ nodeId, isVisible, nodeRef, onMouseEnter, onMouseLeave}
   const intervalRef = useRef(null);
   const countdownIntervalRef = useRef(null);
   const tableRef = useRef(null);
-  const serverUrl = import.meta.env.VITE_POSTGRES_SERVER;
-  // Fetch data from API
+  const apiServer = import.meta.env.VITE_API_SERVER;
+  
+  // Fetch data from container's /data endpoint via action proxy
   const fetchData = useCallback(async (startRow = 0) => {
-    if (!isVisible) return;
+    if (!isVisible || !workflowId) return;
     
     setLoading(true);
     setError(null);
     
     try {
       const limit = rowsPerPage;
-      const url = `${serverUrl}/api/node-data/${nodeId}?start_row=${startRow}&limit=${limit}`;
+      // Use the action proxy route to reach the container's /data endpoint
+      const url = `${apiServer}/action/${workflowId}/data`;
+
+      console.log(`Fetching data: table=${tableName || nodeId}, start=${startRow}, limit=${limit}`);
       
-      console.log(`Fetching data: startRow=${startRow}, limit=${limit}, rowsPerPage=${rowsPerPage}`);
-      
-      const response = await fetch(url);
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+        body: JSON.stringify({
+          table_name: tableName || nodeId,
+          start: startRow,
+          limit: limit
+        })
+      });
       
       if (!response.ok) {
         const errorText = await response.text();
         console.error('API Error:', response.status, errorText);
-        throw new Error(`Failed to fetch data: ${response.status} ${response.statusText}`);
+        throw new Error(`Failed to fetch data: Please ensure pipeline is saved and running`);
       }
       
       const result = await response.json();
       
-      console.log(`Received ${result.data?.length || 0} rows, total: ${result.total_rows}`);
+      console.log(`Received ${result.data?.length || 0} rows, total: ${result.total}`);
       
       setData(result.data || []);
-      setTotalRows(result.total_rows || 0);
+      setTotalRows(result.total || 0);
       setHasMore(result.has_more || false);
       setCountdown(10); // Reset countdown after fetch
       
@@ -81,7 +96,7 @@ const NodeDataTable = ({ nodeId, isVisible, nodeRef, onMouseEnter, onMouseLeave}
     } finally {
       setLoading(false);
     }
-  }, [isVisible, rowsPerPage, nodeId]);
+  }, [isVisible, rowsPerPage, nodeId, tableName, workflowId, apiServer]);
 
   // Handle page navigation
   const handleNext = (e) => {

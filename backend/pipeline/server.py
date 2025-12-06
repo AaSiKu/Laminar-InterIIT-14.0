@@ -139,7 +139,7 @@ def stop_pipeline():
         except Exception:
             pass
         pipeline_log_file = None
-    custom_logger.critical("Pipeline stopped.")
+    custom_logger.critical("Pipeline stopped, If unintentional please look in details.")
     pipeline_process = None
 
 

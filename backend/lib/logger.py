@@ -120,15 +120,37 @@ class MultiEndpointLogHandler(logging.Handler):
                 logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
             )
 
+    def _get_short_message(self, record: logging.LogRecord) -> str:
+        """
+        Get a short message for system-generated logs.
+        Extracts just the core message without extra formatting.
+        """
+        # Get the raw message (without any formatting applied)
+        msg = record.getMessage()
+        
+        # If it's a system-generated message (from internal modules), keep it short
+        system_modules = ['uvicorn', 'fastapi', 'sqlalchemy', 'pymongo', 'motor', 'httpx', 'httpcore']
+        if any(mod in record.name.lower() for mod in system_modules):
+            # Keep only the first line and limit length
+            first_line = msg.split('\n')[0]
+            if len(first_line) > 100:
+                return first_line[:97] + "..."
+            return first_line
+        
+        return msg
+
     def _build_log_dict(self, record: logging.LogRecord) -> dict:
         """Build a dictionary from a log record."""
+        # Use short message for system-generated logs
+        message = self._get_short_message(record)
+        
         log_entry = {
             "pipeline_id": self.workflow_id,  # Use pipeline_id for consistency with API
             "timestamp": get_ist_now(),
             "level": record.levelname.lower(),  # Lowercase for frontend consistency
             "level_no": record.levelno,
             "logger": record.name,
-            "message": self.format(record),
+            "message": message,
             "module": record.module,
             "function": record.funcName,
             "line": record.lineno,

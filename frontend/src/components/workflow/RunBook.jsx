@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import {
   Dialog,
   DialogContent,
@@ -22,6 +22,7 @@ import {
   Divider,
   ButtonGroup,
   Chip,
+  CircularProgress,
 } from "@mui/material";
 import CloseIcon from "@mui/icons-material/Close";
 import ExpandLessIcon from "@mui/icons-material/ExpandLess";
@@ -31,15 +32,23 @@ import ContentCopyIcon from "@mui/icons-material/ContentCopy";
 import DeleteIcon from "@mui/icons-material/Delete";
 import AddIcon from "@mui/icons-material/Add";
 import CloudUploadIcon from "@mui/icons-material/CloudUpload";
-import actionsDta from "../../../actionsdata.js";
+import RefreshIcon from "@mui/icons-material/Refresh";
 import { useGlobalWorkflow } from "../../context/GlobalWorkflowContext";
 
 const RunBook = ({ open, onClose, formData = {}, onSave }) => {
   const [activeTab, setActiveTab] = useState(0);
   const { id: currentPipelineId } = useGlobalWorkflow();
   
-  // Get all actions from actionsDta for dropdown
-  const allActionsForDropdown = actionsDta.actions || [];
+  // Actions fetched from API (agentic container)
+  const [allActionsForDropdown, setAllActionsForDropdown] = useState([]);
+  const [actionsLoading, setActionsLoading] = useState(false);
+  const [actionsError, setActionsError] = useState(null);
+  
+  // Error catalog (error-registry) fetched from API (pipeline container)
+  const [errorCatalog, setErrorCatalog] = useState([]);
+  const [errorCatalogLoading, setErrorCatalogLoading] = useState(false);
+  const [errorCatalogError, setErrorCatalogError] = useState(null);
+  
   const [name, setName] = useState(formData.name || "");
   const [userConfirmation, setUserConfirmation] = useState(
     formData.userConfirmation || false
@@ -94,19 +103,6 @@ const RunBook = ({ open, onClose, formData = {}, onSave }) => {
     formData.runBookErrorDescription || ""
   );
   const [actions, setActions] = useState(formData.actions || [""]);
-
-  const protocols = [
-    { id: "A", count: 35 },
-    { id: "B", count: 35 },
-    { id: "C", count: 35 },
-    { id: "D", count: 28 },
-    { id: "E", count: 42 },
-    { id: "F", count: 31 },
-    { id: "G", count: 39 },
-    { id: "H", count: 26 },
-    { id: "I", count: 45 },
-    { id: "J", count: 33 },
-  ];
 
   // Track previous formData to prevent unnecessary updates
   const prevFormDataRef = useRef(null);
@@ -174,30 +170,125 @@ const RunBook = ({ open, onClose, formData = {}, onSave }) => {
     }
   }, [open]);
 
+  // Fetch actions from agentic container API
+  const fetchActions = useCallback(async () => {
+    if (!currentPipelineId) {
+      console.log("No pipeline ID, skipping actions fetch");
+      return;
+    }
+    
+    setActionsLoading(true);
+    setActionsError(null);
+    
+    try {
+      const response = await fetch(
+        `${import.meta.env.VITE_API_SERVER}/agentic/${currentPipelineId}/runbook/actions`,
+        {
+          method: "GET",
+          credentials: "include",
+          headers: {
+            "Content-Type": "application/json",
+          },
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error(`Failed to fetch actions: ${response.status}`);
+      }
+
+      const result = await response.json();
+      console.log("Fetched actions:", result);
+      setAllActionsForDropdown(result.actions || []);
+    } catch (error) {
+      console.error("Error fetching actions:", error);
+      setActionsError(error.message);
+      setAllActionsForDropdown([]);
+    } finally {
+      setActionsLoading(false);
+    }
+  }, [currentPipelineId]);
+
+  // Fetch error catalog from pipeline container API
+  const fetchErrorCatalog = useCallback(async () => {
+    if (!currentPipelineId) {
+      console.log("No pipeline ID, skipping error catalog fetch");
+      return;
+    }
+    
+    setErrorCatalogLoading(true);
+    setErrorCatalogError(null);
+    
+    try {
+      const response = await fetch(
+        `${import.meta.env.VITE_API_SERVER}/action/${currentPipelineId}/error-registry/mappings`,
+        {
+          method: "GET",
+          credentials: "include",
+          headers: {
+            "Content-Type": "application/json",
+          },
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error(`Failed to fetch error catalog: ${response.status}`);
+      }
+
+      const result = await response.json();
+      console.log("Fetched error catalog:", result);
+      setErrorCatalog(result || []);
+    } catch (error) {
+      console.error("Error fetching error catalog:", error);
+      setErrorCatalogError(error.message);
+      setErrorCatalog([]);
+    } finally {
+      setErrorCatalogLoading(false);
+    }
+  }, [currentPipelineId]);
+
+  // Fetch data when dialog opens or pipeline changes
+  useEffect(() => {
+    if (open && currentPipelineId) {
+      fetchActions();
+      fetchErrorCatalog();
+    }
+  }, [open, currentPipelineId, fetchActions, fetchErrorCatalog]);
+
   const handleSave = async () => {
-    // Handle Run Book tab (activeTab === 0)
+    // Handle Run Book tab (activeTab === 0) - Save to Error Registry
     if (activeTab === 0) {
       const runBookData = {
         error: runBookErrorDescription,
         actions: actions.filter(action => action.trim() !== ""),
         description: runBookName,
+        pipeline_id: currentPipelineId || null,
         updated_at: new Date().toISOString(),
       };
 
       console.log("Run Book Data:", JSON.stringify(runBookData, null, 2));
-      console.log("runBookData", runBookData);
+      
+      if (!currentPipelineId) {
+        console.error("Pipeline ID is required to save runbook");
+        return;
+      }
+      
     try {
+      // Use the error-registry endpoint to add the error mapping
       const response = await fetch(
-        `${import.meta.env.VITE_API_SERVER}/book/add_action`,
+        `${import.meta.env.VITE_API_SERVER}/action/${currentPipelineId}/error-registry/mappings`,
         {
           method: "POST",
           credentials: "include",
           headers: {
             "Content-Type": "application/json",
           },
-            body: JSON.stringify(runBookData),
-          }
-        );
+          body: JSON.stringify({
+            error: runBookErrorDescription,
+            actions: actions.filter(action => action.trim() !== ""),
+            description: runBookName
+          }),
+        }
+      );
 
         if (!response.ok) {
           const errorText = await response.text();
@@ -209,9 +300,17 @@ const RunBook = ({ open, onClose, formData = {}, onSave }) => {
         const result = await response.json();
         console.log("run book saved successfully:", result);
 
+        // Refresh the error catalog after successful save
+        await fetchErrorCatalog();
+
         if (onSave) {
           onSave(runBookData);
         }
+        
+        // Clear form after successful save
+        setRunBookName("");
+        setRunBookErrorDescription("");
+        setActions([""]);
       } catch (error) {
         console.error("Error saving run book:", error);
       }
@@ -247,16 +346,23 @@ const RunBook = ({ open, onClose, formData = {}, onSave }) => {
           };
 
       console.log("swaggerData", swaggerData);
+      
+      if (!currentPipelineId) {
+        console.error("Pipeline ID is required for swagger discovery");
+        return;
+      }
+      
     try {
+      // Use the action proxy to route to the container's swagger discovery endpoint
       const response = await fetch(
-          "http://cache-service:8080/v1/discover/swagger",
+        `${import.meta.env.VITE_API_SERVER}/action/${currentPipelineId}/runbook/discover/swagger`,
         {
           method: "POST",
           credentials: "include",
           headers: {
             "Content-Type": "application/json",
           },
-            body: JSON.stringify(swaggerData),
+          body: JSON.stringify(swaggerData),
         }
       );
 
@@ -296,9 +402,16 @@ const RunBook = ({ open, onClose, formData = {}, onSave }) => {
       };
 
       console.log("scriptData", scriptData);
+      
+      if (!currentPipelineId) {
+        console.error("Pipeline ID is required for SSH discovery");
+        return;
+      }
+      
       try {
+        // Use the action proxy to route to the container's SSH discovery endpoint
         const response = await fetch(
-          "http://cache-service:8080/v1/discover/ssh",
+          `${import.meta.env.VITE_API_SERVER}/action/${currentPipelineId}/runbook/discover/ssh`,
           {
             method: "POST",
             credentials: "include",
@@ -386,8 +499,9 @@ const RunBook = ({ open, onClose, formData = {}, onSave }) => {
     }
     
     try {
+      // Use the action proxy to route to the container's add action endpoint
       const response = await fetch(
-        `${import.meta.env.VITE_API_SERVER}/actions/${pipelineId}/v1/actions`,
+        `${import.meta.env.VITE_API_SERVER}/action/${pipelineId}/runbook/actions/add`,
         {
           method: "POST",
           credentials: "include",
@@ -487,60 +601,184 @@ const RunBook = ({ open, onClose, formData = {}, onSave }) => {
             }}
           >
             {activeTab === 0 ? (
-              // Protocol Cards for Run Book tab
-              protocols.map((protocol) => (
-              <Card
-                key={protocol.id}
-                sx={{
-                  mb: 2,
-                    bgcolor: "background.elevation1",
-                  borderRadius: 2,
-                  border: 1,
-                    borderColor: "background.elevation1",
-                }}
-              >
-                <CardContent>
-                  <Box
-                    sx={{
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "space-between",
-                      mb: 1,
-                    }}
+              // Error Catalog Cards for Run Book tab
+              <>
+                {/* Header with refresh button */}
+                <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 2 }}>
+                  <Typography variant="h6" fontWeight={600}>Error Catalog</Typography>
+                  <IconButton 
+                    onClick={fetchErrorCatalog} 
+                    disabled={errorCatalogLoading}
+                    size="small"
+                    title="Refresh error catalog"
                   >
-                    <Typography variant="h6">Protocol {protocol.id}</Typography>
-                    <IconButton
-                      size="small"
-                      sx={{
-                        width: 32,
-                        height: 32,
-                        bgcolor: "primary.lighter",
-                        "&:hover": {
-                          bgcolor: "primary.light",
-                        },
-                        "& svg": {
-                          fontSize: "1rem",
-                        },
-                      }}
-                    >
-                      <ContentCopyIcon />
-                    </IconButton>
+                    {errorCatalogLoading ? <CircularProgress size={20} /> : <RefreshIcon />}
+                  </IconButton>
+                </Box>
+                
+                {errorCatalogError && (
+                  <Typography color="error" variant="body2" sx={{ mb: 2 }}>
+                    {errorCatalogError}
+                  </Typography>
+                )}
+                
+                {errorCatalogLoading && errorCatalog.length === 0 ? (
+                  <Box sx={{ display: "flex", justifyContent: "center", py: 4 }}>
+                    <CircularProgress />
                   </Box>
-                  <Typography variant="h3" fontWeight={700} sx={{ mb: 0.5 }}>
-                    {protocol.count}
+                ) : errorCatalog.length === 0 ? (
+                  <Typography color="text.secondary" variant="body2" sx={{ textAlign: "center", py: 4 }}>
+                    No error mappings found. Create one using the form on the right.
                   </Typography>
-                  <Typography variant="caption" color="text.secondary">
-                    Total number of pipeline running
-                  </Typography>
-                </CardContent>
-              </Card>
-              ))
+                ) : (
+                  errorCatalog.map((mapping, index) => {
+                    const handleCopyMapping = async () => {
+                      try {
+                        await navigator.clipboard.writeText(JSON.stringify(mapping, null, 2));
+                      } catch (err) {
+                        console.error("Failed to copy:", err);
+                      }
+                    };
+
+                    const handleDeleteMapping = async () => {
+                      if (!currentPipelineId) {
+                        console.error("Pipeline ID is required");
+                        return;
+                      }
+
+                      try {
+                        const response = await fetch(
+                          `${import.meta.env.VITE_API_SERVER}/action/${currentPipelineId}/error-registry/mappings/${encodeURIComponent(mapping.error)}`,
+                          {
+                            method: "DELETE",
+                            credentials: "include",
+                            headers: {
+                              "Content-Type": "application/json",
+                            },
+                          }
+                        );
+
+                        if (!response.ok) {
+                          throw new Error(`Failed to delete mapping: ${response.status}`);
+                        }
+
+                        // Refresh the error catalog
+                        await fetchErrorCatalog();
+                      } catch (error) {
+                        console.error("Error deleting mapping:", error);
+                      }
+                    };
+
+                    return (
+                      <Card
+                        key={`${mapping.error}-${index}`}
+                        sx={{
+                          mb: 2,
+                          bgcolor: "background.elevation1",
+                          borderRadius: 2,
+                          border: 1,
+                          borderColor: "background.elevation1",
+                        }}
+                      >
+                        <CardContent>
+                          <Box
+                            sx={{
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "space-between",
+                              mb: 1,
+                            }}
+                          >
+                            <Typography variant="subtitle1" fontWeight={600} sx={{ flex: 1, mr: 1, wordBreak: "break-word" }}>
+                              {mapping.error || "Unknown Error"}
+                            </Typography>
+                            <Box sx={{ display: "flex", gap: 0.5 }}>
+                              <IconButton
+                                size="small"
+                                onClick={handleCopyMapping}
+                                sx={{
+                                  width: 28,
+                                  height: 28,
+                                  bgcolor: "primary.lighter",
+                                  "&:hover": { bgcolor: "primary.light" },
+                                  "& svg": { fontSize: "0.875rem" },
+                                }}
+                              >
+                                <ContentCopyIcon />
+                              </IconButton>
+                              <IconButton
+                                size="small"
+                                onClick={handleDeleteMapping}
+                                sx={{
+                                  width: 28,
+                                  height: 28,
+                                  bgcolor: "error.lighter",
+                                  "&:hover": { bgcolor: "error.light" },
+                                  "& svg": { fontSize: "0.875rem" },
+                                }}
+                              >
+                                <DeleteIcon />
+                              </IconButton>
+                            </Box>
+                          </Box>
+                          {mapping.description && (
+                            <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+                              {mapping.description}
+                            </Typography>
+                          )}
+                          <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.5 }}>
+                            {(mapping.actions || []).map((actionId, actionIdx) => (
+                              <Chip
+                                key={`${actionId}-${actionIdx}`}
+                                label={actionId}
+                                size="small"
+                                variant="outlined"
+                                sx={{ fontSize: "0.75rem" }}
+                              />
+                            ))}
+                          </Box>
+                        </CardContent>
+                      </Card>
+                    );
+                  })
+                )}
+              </>
             ) : (
               // Action Cards for Actions tab
               (() => {
-                // Get all actions from actionsDta
-                const allActions = actionsDta.actions || [];
-                return allActions.map((action, index) => {
+                // Get all actions from API (agentic container)
+                const allActions = allActionsForDropdown || [];
+                return (
+                  <>
+                    {/* Header with refresh button */}
+                    <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 2 }}>
+                      <Typography variant="h6" fontWeight={600}>Actions</Typography>
+                      <IconButton 
+                        onClick={fetchActions} 
+                        disabled={actionsLoading}
+                        size="small"
+                        title="Refresh actions"
+                      >
+                        {actionsLoading ? <CircularProgress size={20} /> : <RefreshIcon />}
+                      </IconButton>
+                    </Box>
+                    
+                    {actionsError && (
+                      <Typography color="error" variant="body2" sx={{ mb: 2 }}>
+                        {actionsError}
+                      </Typography>
+                    )}
+                    
+                    {actionsLoading && allActions.length === 0 ? (
+                      <Box sx={{ display: "flex", justifyContent: "center", py: 4 }}>
+                        <CircularProgress />
+                      </Box>
+                    ) : allActions.length === 0 ? (
+                      <Typography color="text.secondary" variant="body2" sx={{ textAlign: "center", py: 4 }}>
+                        No actions found. Discover or add actions using the form on the right.
+                      </Typography>
+                    ) : (
+                      allActions.map((action, index) => {
                   const handleCopy = async () => {
                     try {
                       await navigator.clipboard.writeText(JSON.stringify(action, null, 2));
@@ -564,7 +802,7 @@ const RunBook = ({ open, onClose, formData = {}, onSave }) => {
 
                     try {
                       const response = await fetch(
-                        `${import.meta.env.VITE_API_SERVER}/actions/${pipelineId}/v1/actions/delete/${action.action_id}`,
+                        `${import.meta.env.VITE_API_SERVER}/agentic/${pipelineId}/runbook/actions/${action.action_id}`,
                         {
                           method: "DELETE",
                           credentials: "include",
@@ -581,10 +819,8 @@ const RunBook = ({ open, onClose, formData = {}, onSave }) => {
                         );
                       }
 
-                      const result = await response.json();
-                      console.log("action deleted successfully:", result);
-                      
-                      // Optionally refresh the actions list or show a success message
+                      // Refresh the actions list after deletion
+                      await fetchActions();
                     } catch (error) {
                       console.error("Error deleting action:", error);
                     }
@@ -674,7 +910,10 @@ const RunBook = ({ open, onClose, formData = {}, onSave }) => {
                       </CardContent>
                     </Card>
                   );
-                });
+                })
+                    )}
+                  </>
+                );
               })()
             )}
           </Box>

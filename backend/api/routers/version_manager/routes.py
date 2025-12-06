@@ -235,10 +235,17 @@ async def save_workflow(
                         detail="Error updating Workflow"
                     )
 
+                # Build workflow update operations
+                workflow_set_ops = {"current_version_id": str(new_version.inserted_id)}
+                
+                # Optionally update viewer_ids if provided
+                if payload.viewer_ids is not None:
+                    workflow_set_ops["viewer_ids"] = payload.viewer_ids
+
                 workflow_update_result = await workflow_collection.update_one(
                     workflow_query,
                     {   
-                        '$set': {"current_version_id": str(new_version.inserted_id)},
+                        '$set': workflow_set_ops,
                         "$push": {"versions": str(new_version.inserted_id)}
                     },
                     session=session

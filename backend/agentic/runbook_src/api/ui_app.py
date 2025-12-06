@@ -172,7 +172,7 @@ class RunbookUI:
                         return f"ERROR: Failed to fetch Swagger spec: HTTP {response.status}", await self._get_all_actions()
                     swagger_doc = await response.json()
             
-            # Use discovery planner
+            # Use discovery planner, TODO: error here not defined
             from discovery_planner import CoordinatedDiscoveryAgent
             agent = CoordinatedDiscoveryAgent()
             
