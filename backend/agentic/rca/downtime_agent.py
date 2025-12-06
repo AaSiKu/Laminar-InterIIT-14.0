@@ -1,5 +1,6 @@
 from pydantic import BaseModel, Field
-from typing import List, Dict, Literal, Optional, TypedDict, Annotated
+from typing import List, Dict, Literal, Optional, Annotated
+from typing_extensions import TypedDict
 from langchain.agents import create_agent
 from datetime import datetime
 from .tools import get_logs_in_time_window
@@ -227,7 +228,7 @@ async def analyze_single_incident(
     # Format logs for analysis
     formatted_logs = format_incident_logs(incident, logs)
     
-    sanitized_description = detect(formatted_logs)
+    sanitized_description = await detect(formatted_logs)
 
     analysis_prompt = (
         f"Analyze this specific downtime incident:\n\n"

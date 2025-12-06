@@ -1,7 +1,8 @@
 import json
 import os
 from dotenv import load_dotenv
-from typing import List, TypedDict, Annotated, Dict, Optional
+from typing import List, Annotated, Dict, Optional
+from typing_extensions import TypedDict
 from pydantic import BaseModel, Field
 from langgraph.graph import StateGraph, END
 from langgraph.graph.message import add_messages
@@ -179,14 +180,14 @@ async def analysis_agent_node(state: SLAAlert) -> Dict:
 
     scanner = await get_scanner()
     
-    sanitized_log_description = detect(log_context)
+    sanitized_log_description = await detect(log_context)
     
-    sanitized_topology_description = detect(topology_context)
+    sanitized_topology_description = await detect(topology_context)
 
     error_context = ""
     if state.get("has_error"):
         error_msg = state.get('error_message', 'No message')
-        sanitized_error_msg = detect(error_msg)
+        sanitized_error_msg = await detect(error_msg)
 
         error_context = f"""
     **Error Information:**
@@ -258,10 +259,10 @@ async def validate_hypothesis_with_llm(state: SLAAlert) -> Dict:
     scanner = await get_scanner()
     
     logs_text = format_logs(state.get("logs", []))
-    sanitized_log_text = detect(logs_text)
+    sanitized_log_text = await detect(logs_text)
 
     topology_text = format_topology(state.get("topology", []))
-    sanitized_topology_text = detect(topology_text)
+    sanitized_topology_text = await detect(topology_text)
 
     prompt = f"""
 You are a validation agent. Determine if the hypothesis is well-supported by the evidence.

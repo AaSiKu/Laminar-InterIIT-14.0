@@ -57,20 +57,52 @@ Extra.extras = {}
 
 class PII_Analyzer(BaseDetector):
     def __init__(self, threshold=0.5):
+        self.analyzer = None
+        self.threshold = threshold
+        self._initializing = False
+        self._initialized = False
+
+    async def _ensure_initialized(self):
+        """Lazy initialization of the analyzer to avoid blocking the event loop."""
+        if self._initialized:
+            return
+        
+        if self._initializing:
+            # Wait for another coroutine to finish initialization
+            while self._initializing:
+                await asyncio.sleep(0.01)
+            return
+        
+        self._initializing = True
+        try:
+            # Run the blocking initialization in a thread pool
+            loop = asyncio.get_event_loop()
+            await loop.run_in_executor(None, self._init_analyzer)
+            self._initialized = True
+        finally:
+            self._initializing = False
+    
+    def _init_analyzer(self):
+        """Initialize the analyzer in a separate thread."""
         AnalyzerEngine = PRESIDIO_EXTRA.package("presidio_analyzer").import_names("AnalyzerEngine")
         self.analyzer = AnalyzerEngine()
-        self.threshold = threshold
 
     def detect_all(self, text: str, entities: list[str] | None = None):
+        if not self._initialized:
+            raise RuntimeError("PII_Analyzer not initialized. Call adetect() instead of detect_all().")
         results = self.analyzer.analyze(text, language="en", entities=entities)
         res_matches = set()
         for res in results:
             if res.score > self.threshold:
-                res_matches.add(res)
+                print(res, type(res))
+                res_matches.add(DetectorResult(entity=str(res.entity_type), start=res.start,end=res.end))
         return list(res_matches)
 
     async def adetect(self, text: str, entities: list[str] | None = None):
-        return self.detect_all(text, entities)
+        await self._ensure_initialized()
+        # Run the analysis in a thread pool to avoid blocking
+        loop = asyncio.get_event_loop()
+        return await loop.run_in_executor(None, self.detect_all, text, entities)
     
 class UnicodeDetector(BaseDetector):
     """
@@ -170,7 +202,7 @@ class MCPSecurityGateway:
         """Scans text for PII, secrets, and prompt injections."""
         issues = []
         
-        pii_results = self.pii_analyzer.detect_all(text)
+        pii_results = await self.pii_analyzer.adetect(text)
         if pii_results:
             issues.append(f"PII detected: {[res.entity for res in pii_results]}")
 

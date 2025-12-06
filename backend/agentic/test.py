@@ -1,7 +1,8 @@
 
 
 import pathway as pw
-from typing import TypedDict, Annotated, Sequence, Literal
+from typing import Annotated, Sequence, Literal
+from typing_extensions import TypedDict
 from langgraph.graph import StateGraph, END
 from langgraph.graph.message import add_messages
 from langchain_core.messages import BaseMessage, HumanMessage, SystemMessage

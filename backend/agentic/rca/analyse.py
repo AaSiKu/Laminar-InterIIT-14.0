@@ -1,4 +1,5 @@
-from typing import List, Dict, Union, Literal, TypedDict, Any, Optional
+from typing import List, Dict, Union, Literal, Any, Optional
+from typing_extensions import TypedDict
 import hashlib
 from datetime import datetime, timedelta
 from .summarize import SummarizeOutput
@@ -65,7 +66,7 @@ async def rca(init_rca_request: InitRCA):
             input_scanner = InputScanner()
             await input_scanner.preload_models()
 
-        sanitized_description = detect(init_rca_request.description)
+        sanitized_description = await detect(init_rca_request.description)
         
         if len(init_rca_request.trace_ids.keys()) == 1:
             # Get the single column name and its trace_ids

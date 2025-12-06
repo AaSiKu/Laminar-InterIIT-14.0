@@ -146,7 +146,7 @@ async def analyze_error_logs(logs_by_trace: Dict[str, List[Dict]], skip_injectio
     # Format logs for analysis
     formatted_logs = format_logs_for_analysis(logs_by_trace)
     
-    sanitized_description = detect(formatted_logs)
+    sanitized_description = await detect(formatted_logs)
     
     # Scan formatted logs (skip for trusted internal data like system logs)
     # if input_scanner and not skip_security_scan:

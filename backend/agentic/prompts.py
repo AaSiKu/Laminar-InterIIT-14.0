@@ -102,7 +102,7 @@ def build_agent(agent: AgentPayload) -> BaseTool:
     # TODO: Implement alert tool
 
         
-    pii_results = gateway.pii_analyzer.detect_all(agent.description)
+    pii_results = gateway.pii_analyzer.adetect(agent.description)
     secrets_results = gateway.secrets_analyzer.detect_all(agent.description)
 
     if pii_results:

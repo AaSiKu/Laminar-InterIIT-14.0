@@ -94,9 +94,9 @@ async def summarize(request: SummarizeRequest):
         await init_summarize_agent()
 
     # Scan inputs
-    request.metric_description = detect(request.metric_description)
+    request.metric_description = await detect(request.metric_description)
 
-    request.pipeline_description = detect(request.pipeline_description)
+    request.pipeline_description = await detect(request.pipeline_description)
     
     # Format semantic origins for the prompt
     semantic_origins_text = "\n".join(
