@@ -58,7 +58,7 @@ export default function WorkflowPage() {
     setStatus: setCurrentPipelineStatus,
     id: currentPipelineId,
     setId: setCurrentPipelineId,
-        rfInstance,
+    rfInstance,
     versionId: currentVersionId,
     setVersionId: setCurrentVersionId,
     workflowData: currentWorkflowData,
@@ -86,7 +86,7 @@ export default function WorkflowPage() {
 
     // Normalize pipelineId to string for comparison
     const normalizedPipelineId = String(pipelineId);
-    
+
     // Clear old workflow data immediately when pipelineId changes
     if (loadedPipelineRef.current !== normalizedPipelineId) {
       setCurrentNodes([]);
@@ -94,9 +94,12 @@ export default function WorkflowPage() {
       setError(null);
       setLoading(true); // Show loading state immediately
     }
-    
+
     // Skip if already loading the same pipeline
-    if (isLoadingRef.current && loadedPipelineRef.current === normalizedPipelineId) {
+    if (
+      isLoadingRef.current &&
+      loadedPipelineRef.current === normalizedPipelineId
+    ) {
       return;
     }
 
@@ -110,10 +113,10 @@ export default function WorkflowPage() {
       try {
         // First, try to find the workflow in the workflows list to get current_version_id
         let versionId = null;
-        
+
         // Check both _id and id fields, and normalize to strings for comparison
         const workflow = workflows?.find((w) => {
-          const workflowId = String(w._id || w.id || '');
+          const workflowId = String(w._id || w.id || "");
           return workflowId === normalizedPipelineId;
         });
 
@@ -124,7 +127,7 @@ export default function WorkflowPage() {
           const workflowResponse = await fetchAllWorkflows();
           if (workflowResponse.status === "success" && workflowResponse.data) {
             const foundWorkflow = workflowResponse.data.find((w) => {
-              const workflowId = String(w._id || w.id || '');
+              const workflowId = String(w._id || w.id || "");
               return workflowId === normalizedPipelineId;
             });
             setCurrentWorkflowData(foundWorkflow);
@@ -216,7 +219,14 @@ export default function WorkflowPage() {
       viewportDataRef.current = null;
       isLoadingRef.current = false;
     };
-  }, [setCurrentNodes, setCurrentEdges, setCurrentPipelineId, setCurrentVersionId, setCurrentPipelineStatus, setRfInstance]);
+  }, [
+    setCurrentNodes,
+    setCurrentEdges,
+    setCurrentPipelineId,
+    setCurrentVersionId,
+    setCurrentPipelineStatus,
+    setRfInstance,
+  ]);
 
   // Apply viewport when rfInstance and nodes are ready
   useEffect(() => {
@@ -418,10 +428,10 @@ export default function WorkflowPage() {
   const handleExportJSON = useCallback(() => {
     if (!rfInstance) {
       setError("No workflow data available to export");
-        return;
-      }
+      return;
+    }
 
-      try {
+    try {
       const flowData = rfInstance.toObject();
       const exportData = {
         ...flowData,
@@ -515,18 +525,18 @@ export default function WorkflowPage() {
     [setCurrentEdges]
   );
 
-    return (
+  return (
     <>
       {/* Fullscreen Mode */}
       {isFullscreen && (
-      <Box
-        sx={{
-          position: "fixed",
-          top: 0,
-          left: 0,
-          width: "100vw",
-          height: "100vh",
-          zIndex: 9999,
+        <Box
+          sx={{
+            position: "fixed",
+            top: 0,
+            left: 0,
+            width: "100vw",
+            height: "100vh",
+            zIndex: 9999,
             bgcolor: "background.default",
           }}
         >
@@ -548,17 +558,17 @@ export default function WorkflowPage() {
 
       {/* Normal Mode */}
       {!isFullscreen && (
-      <Box
-        sx={{
-          transition: "margin-left 0.3s ease",
+        <Box
+          sx={{
+            transition: "margin-left 0.3s ease",
             left: DRAWER_WIDTH,
-          position: "absolute",
+            position: "absolute",
             width: `calc(100vw - ${DRAWER_WIDTH}px)`,
-          height: "100vh",
-          bgcolor: "background.default",
-          overflow: "hidden",
-        }}
-      >
+            height: "100vh",
+            bgcolor: "background.default",
+            overflow: "hidden",
+          }}
+        >
           {/* Pipeline Navigation Bar */}
           {/* TODO: Name rendering */}
           <PipelineNavBar
@@ -568,18 +578,18 @@ export default function WorkflowPage() {
                 ? pipelineId.toLowerCase()
                 : "Unnamed Workflow"
             }`}
-          loading={loading}
-          shareAnchorEl={shareAnchorEl}
-          onShareClick={handleShareClick}
-          onShareClose={handleShareClose}
+            loading={loading}
+            shareAnchorEl={shareAnchorEl}
+            onShareClick={handleShareClick}
+            onShareClose={handleShareClose}
             onSave={handleSave}
-          onSpinup={handleSpinup}
-          onSpindown={handleSpindown}
-          onToggleStatus={handleToggleStatus}
-          currentPipelineStatus={currentPipelineStatus}
-          currentPipelineId={currentPipelineId}
-          containerId={containerId}
-          onFullscreenClick={handleEnterFullscreen}
+            onSpinup={handleSpinup}
+            onSpindown={handleSpindown}
+            onToggleStatus={handleToggleStatus}
+            currentPipelineStatus={currentPipelineStatus}
+            currentPipelineId={currentPipelineId}
+            containerId={containerId}
+            onFullscreenClick={handleEnterFullscreen}
             onRunBook={() => setRunBookOpen((state) => !state)}
             onExportJSON={handleExportJSON}
             pipelineId={pipelineId}
@@ -598,8 +608,8 @@ export default function WorkflowPage() {
             showToolbar={true}
             showFullscreenButton={false}
           />
-            </Box>
-          )}
+        </Box>
+      )}
 
       <RunBook open={isRunBookOpen} onClose={() => setRunBookOpen(false)} />
 

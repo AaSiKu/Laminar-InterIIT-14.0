@@ -8,6 +8,7 @@ from .websocket import router as websocket_router
 from .overview import router as overview_router
 from .rca import router as rca_router
 from .test_routes import router as test_router
+from .action import router as action_router
 
 router = APIRouter()
 
@@ -20,3 +21,4 @@ router.include_router(websocket_router, prefix="/ws", tags=["websocket"])  # Pre
 router.include_router(overview_router, prefix="/overview", tags=["overview"])
 router.include_router(rca_router, prefix="/rca", tags=["rca"])
 router.include_router(test_router, prefix="/test", tags=["test"])
+router.include_router(action_router, prefix="/actions", tags=["action"])

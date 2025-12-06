@@ -21,17 +21,25 @@ import {
   InputLabel,
   Divider,
   ButtonGroup,
+  Chip,
 } from "@mui/material";
 import CloseIcon from "@mui/icons-material/Close";
 import ExpandLessIcon from "@mui/icons-material/ExpandLess";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import AutoAwesomeIcon from "@mui/icons-material/AutoAwesome";
 import ContentCopyIcon from "@mui/icons-material/ContentCopy";
+import DeleteIcon from "@mui/icons-material/Delete";
 import AddIcon from "@mui/icons-material/Add";
 import CloudUploadIcon from "@mui/icons-material/CloudUpload";
+import actionsDta from "../../../actionsdata.js";
+import { useGlobalWorkflow } from "../../context/GlobalWorkflowContext";
 
 const RunBook = ({ open, onClose, formData = {}, onSave }) => {
   const [activeTab, setActiveTab] = useState(0);
+  const { id: currentPipelineId } = useGlobalWorkflow();
+  
+  // Get all actions from actionsDta for dropdown
+  const allActionsForDropdown = actionsDta.actions || [];
   const [name, setName] = useState(formData.name || "");
   const [userConfirmation, setUserConfirmation] = useState(
     formData.userConfirmation || false
@@ -45,7 +53,6 @@ const RunBook = ({ open, onClose, formData = {}, onSave }) => {
   const [actionId, setActionId] = useState(formData.actionId || "");
   const [serviceName, setServiceName] = useState(formData.serviceName || "");
   const [executionMethod, setExecutionMethod] = useState(formData.executionMethod || "");
-  const [actionDescription, setActionDescription] = useState(formData.actionDescription || "");
   const [riskLevel, setRiskLevel] = useState(formData.riskLevel || "");
   const [requiresApproval, setRequiresApproval] = useState(formData.requiresApproval || false);
   const [secrets, setSecrets] = useState(
@@ -53,14 +60,11 @@ const RunBook = ({ open, onClose, formData = {}, onSave }) => {
       ? Object.entries(formData.secrets).map(([key, value]) => ({ key, value }))
       : [{ key: "", value: "" }]
   );
-  const [command, setCommand] = useState(formData.command || "");
-  const [timeoutSeconds, setTimeoutSeconds] = useState(formData.timeoutSeconds || "");
   const [parameters, setParameters] = useState(
     formData.parameters && typeof formData.parameters === 'object' 
       ? Object.entries(formData.parameters).map(([key, value]) => ({ key, value }))
       : [{ key: "", value: "" }]
   );
-  const [tags, setTags] = useState(formData.metadata?.tags || [""]);
 
   // Swagger/OpenAPI form state
   const [swaggerUrl, setSwaggerUrl] = useState(formData.swaggerUrl || "");
@@ -76,6 +80,8 @@ const RunBook = ({ open, onClose, formData = {}, onSave }) => {
   const [sshUsername, setSshUsername] = useState(formData.sshUsername || "");
   const [sshPassword, setSshPassword] = useState(formData.sshPassword || "");
   const [sshKeyPath, setSshKeyPath] = useState(formData.sshKeyPath || "");
+  const [privateKeyPassphrase, setPrivateKeyPassphrase] = useState(formData.privateKeyPassphrase || "");
+  const [sshPort, setSshPort] = useState(formData.sshPort || "");
 
   // Documentation Discovery form state
   const [documentation, setDocumentation] = useState(formData.documentation || "");
@@ -83,6 +89,7 @@ const RunBook = ({ open, onClose, formData = {}, onSave }) => {
   const [documentationFileName, setDocumentationFileName] = useState("");
 
   // Run Book form state
+  const [runBookName, setRunBookName] = useState(formData.runBookName || "");
   const [runBookErrorDescription, setRunBookErrorDescription] = useState(
     formData.runBookErrorDescription || ""
   );
@@ -129,13 +136,13 @@ const RunBook = ({ open, onClose, formData = {}, onSave }) => {
       setName(formData.name || "");
       setUserConfirmation(formData.userConfirmation || false);
       setErrorDescription(formData.errorDescription || "");
+      setRunBookName(formData.runBookName || "");
       setRunBookErrorDescription(formData.runBookErrorDescription || "");
       setActions(formData.actions || [""]);
       setActionDiscoveryMode(formData.actionDiscoveryMode || "");
       setActionId(formData.actionId || "");
       setServiceName(formData.serviceName || "");
       setExecutionMethod(formData.executionMethod || "");
-      setActionDescription(formData.actionDescription || "");
       setRiskLevel(formData.riskLevel || "");
       setRequiresApproval(formData.requiresApproval || false);
       setSecrets(
@@ -143,14 +150,11 @@ const RunBook = ({ open, onClose, formData = {}, onSave }) => {
           ? Object.entries(formData.secrets).map(([key, value]) => ({ key, value }))
           : [{ key: "", value: "" }]
       );
-      setCommand(formData.command || "");
-      setTimeoutSeconds(formData.timeoutSeconds || "");
       setParameters(
         formData.parameters && typeof formData.parameters === 'object'
           ? Object.entries(formData.parameters).map(([key, value]) => ({ key, value }))
           : [{ key: "", value: "" }]
       );
-      setTags(formData.metadata?.tags || [""]);
       setSwaggerUrl(formData.swaggerUrl || "");
       setSwaggerFile(null);
       setSwaggerFileName("");
@@ -162,6 +166,8 @@ const RunBook = ({ open, onClose, formData = {}, onSave }) => {
       setSshUsername(formData.sshUsername || "");
       setSshPassword(formData.sshPassword || "");
       setSshKeyPath(formData.sshKeyPath || "");
+      setPrivateKeyPassphrase(formData.privateKeyPassphrase || "");
+      setSshPort(formData.sshPort || "");
       setDocumentation(formData.documentation || "");
       setDocumentationFile(null);
       setDocumentationFileName("");
@@ -169,66 +175,17 @@ const RunBook = ({ open, onClose, formData = {}, onSave }) => {
   }, [open]);
 
   const handleSave = async () => {
-    // Read file contents if files are selected
-    let swaggerFileContent = null;
-    let documentationFileContent = null;
-    
-    if (swaggerFile) {
-      swaggerFileContent = await swaggerFile.text();
-    }
-    
-    if (documentationFile) {
-      documentationFileContent = await documentationFile.text();
-    }
+    // Handle Run Book tab (activeTab === 0)
+    if (activeTab === 0) {
+      const runBookData = {
+        error: runBookErrorDescription,
+        actions: actions.filter(action => action.trim() !== ""),
+        description: runBookName,
+        updated_at: new Date().toISOString(),
+      };
 
-    const data = {
-      name,
-      userConfirmation,
-      errorDescription,
-      runBookErrorDescription,
-      actions,
-      actionDiscoveryMode,
-      actionId,
-      serviceName,
-      executionMethod,
-      actionDescription,
-      riskLevel,
-      requiresApproval,
-      secrets: secrets.reduce((acc, secret) => {
-        if (secret.key.trim() !== "") {
-          acc[secret.key] = secret.value;
-        }
-        return acc;
-      }, {}),
-      executionDetails: {
-        command: command,
-        timeout_seconds: timeoutSeconds,
-      },
-      parameters: parameters.reduce((acc, param) => {
-        if (param.key.trim() !== "") {
-          acc[param.key] = param.value;
-        }
-        return acc;
-      }, {}),
-      metadata: {
-        tags: tags.filter(tag => tag.trim() !== ""),
-      },
-      swaggerUrl: swaggerFile ? null : swaggerUrl,
-      swaggerFile: swaggerFileContent,
-      swaggerFileName: swaggerFileName || null,
-      swaggerServiceName,
-      scriptPath,
-      scriptServiceName,
-      accessViaSSH,
-      sshHost,
-      sshUsername,
-      sshPassword,
-      sshKeyPath,
-      documentation: documentationFile ? null : documentation,
-      documentationFile: documentationFileContent,
-      documentationFileName: documentationFileName || null,
-    };
-    console.log("data", data);
+      console.log("Run Book Data:", JSON.stringify(runBookData, null, 2));
+      console.log("runBookData", runBookData);
     try {
       const response = await fetch(
         `${import.meta.env.VITE_API_SERVER}/book/add_action`,
@@ -238,7 +195,68 @@ const RunBook = ({ open, onClose, formData = {}, onSave }) => {
           headers: {
             "Content-Type": "application/json",
           },
-          body: JSON.stringify(data),
+            body: JSON.stringify(runBookData),
+          }
+        );
+
+        if (!response.ok) {
+          const errorText = await response.text();
+          throw new Error(
+            `Failed to save run book: ${errorText || response.status}`
+          );
+        }
+
+        const result = await response.json();
+        console.log("run book saved successfully:", result);
+
+        if (onSave) {
+          onSave(runBookData);
+        }
+      } catch (error) {
+        console.error("Error saving run book:", error);
+      }
+      return;
+    }
+
+    // Handle Swagger/OpenAPI mode
+    if (actionDiscoveryMode === "swagger") {
+      // Read file contents if file is selected
+      let swaggerFileContent = null;
+      let swaggerDoc = null;
+      
+      if (swaggerFile) {
+        swaggerFileContent = await swaggerFile.text();
+        // Parse the file content as JSON
+        try {
+          swaggerDoc = JSON.parse(swaggerFileContent);
+        } catch (e) {
+          console.error("Error parsing swagger file as JSON:", e);
+          swaggerDoc = swaggerFileContent; // Fallback to raw content if not valid JSON
+        }
+      }
+
+      // Build the swagger data
+      const swaggerData = swaggerFile
+        ? {
+            swagger_doc: swaggerDoc,
+            service_name: swaggerServiceName,
+          }
+        : {
+            swagger_url: swaggerUrl,
+            service_name: swaggerServiceName,
+          };
+
+      console.log("swaggerData", swaggerData);
+    try {
+      const response = await fetch(
+          "http://cache-service:8080/v1/discover/swagger",
+        {
+          method: "POST",
+          credentials: "include",
+          headers: {
+            "Content-Type": "application/json",
+          },
+            body: JSON.stringify(swaggerData),
         }
       );
 
@@ -253,7 +271,145 @@ const RunBook = ({ open, onClose, formData = {}, onSave }) => {
       console.log("action added successfully:", result);
 
       if (onSave) {
-        onSave(data);
+          onSave(swaggerData);
+        }
+      } catch (error) {
+        console.error("Error saving action:", error);
+      }
+      return;
+    }
+
+    // Handle Script Discovery mode
+    if (actionDiscoveryMode === "script") {
+      // Build the script discovery data
+      const scriptData = {
+        host: sshHost,
+        scripts_path: scriptPath,
+        credentials: {
+          username: sshUsername,
+          password: sshPassword || "",
+          private_key_path: sshKeyPath || "",
+          private_key_passphrase: privateKeyPassphrase || "",
+          port: sshPort ? parseInt(sshPort) : null,
+        },
+        service_name: scriptServiceName,
+      };
+
+      console.log("scriptData", scriptData);
+      try {
+        const response = await fetch(
+          "http://cache-service:8080/v1/discover/ssh",
+          {
+            method: "POST",
+            credentials: "include",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify(scriptData),
+          }
+        );
+
+        if (!response.ok) {
+          const errorText = await response.text();
+          throw new Error(
+            `Failed to add action: ${errorText || response.status}`
+          );
+        }
+
+        const result = await response.json();
+        console.log("action added successfully:", result);
+
+        if (onSave) {
+          onSave(scriptData);
+        }
+      } catch (error) {
+        console.error("Error saving action:", error);
+      }
+      return;
+    }
+
+    // Handle manual mode
+    if (actionDiscoveryMode !== "manual") {
+      // Handle other discovery modes (documentation) if needed
+      console.log("Non-manual action discovery modes not yet implemented for backend");
+      return;
+    }
+
+    // Read file contents if files are selected
+    let documentationFileContent = null;
+    
+    if (documentationFile) {
+      documentationFileContent = await documentationFile.text();
+    }
+
+    // Transform parameters from key-value pairs to Dict[str, Any]
+    const parametersDict = {};
+    parameters.forEach((param) => {
+      if (param.key.trim() !== "") {
+        parametersDict[param.key] = param.value || null;
+      }
+    });
+
+    // Transform secrets from key-value pairs to List[str] (just the keys/names)
+    const secretsList = secrets
+      .filter((secret) => secret.key.trim() !== "")
+      .map((secret) => secret.key);
+
+    // Build execution object with fixed values
+    const execution = {
+      endpoint: "/api/cache/clear",
+      http_method: "POST",
+      base_url: "http://cache-service:8080",
+    };
+
+    // Build the action data according to the Pydantic model
+    const actionData = {
+      action_id: actionId,
+      service: serviceName,
+      method: executionMethod,
+      definition: errorDescription,
+      risk_level: riskLevel,
+      requires_approval: requiresApproval,
+      execution: execution,
+      parameters: parametersDict,
+      secrets: secretsList,
+    };
+
+    console.log("actionData", actionData);
+    
+    // Get pipelineId from context or formData
+    const pipelineId = currentPipelineId || formData.pipelineId || formData.pipeline_id || "";
+    
+    if (!pipelineId) {
+      console.error("Pipeline ID is required");
+      return;
+    }
+    
+    try {
+      const response = await fetch(
+        `${import.meta.env.VITE_API_SERVER}/actions/${pipelineId}/v1/actions`,
+        {
+          method: "POST",
+          credentials: "include",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(actionData),
+        }
+      );
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(
+          `Failed to add action: ${errorText || response.status}`
+        );
+      }
+
+      const result = await response.json();
+      console.log("action added successfully:", result);
+
+      if (onSave) {
+        onSave(actionData);
       }
     } catch (error) {
       console.error("Error saving action:", error);
@@ -321,7 +477,7 @@ const RunBook = ({ open, onClose, formData = {}, onSave }) => {
 
         {/* Main Content - Two Column Layout */}
         <Box sx={{ display: "flex", flex: 1, minHeight: 0 }}>
-          {/* Left Panel - Protocol Cards */}
+          {/* Left Panel - Protocol Cards or Action Cards */}
           <Box
             sx={{
               width: "50%",
@@ -330,15 +486,17 @@ const RunBook = ({ open, onClose, formData = {}, onSave }) => {
               bgcolor: "background.paper",
             }}
           >
-            {protocols.map((protocol) => (
+            {activeTab === 0 ? (
+              // Protocol Cards for Run Book tab
+              protocols.map((protocol) => (
               <Card
                 key={protocol.id}
                 sx={{
                   mb: 2,
-                  bgcolor: "background.elevation1",
+                    bgcolor: "background.elevation1",
                   borderRadius: 2,
                   border: 1,
-                  borderColor: "background.elevation1",
+                    borderColor: "background.elevation1",
                 }}
               >
                 <CardContent>
@@ -376,7 +534,149 @@ const RunBook = ({ open, onClose, formData = {}, onSave }) => {
                   </Typography>
                 </CardContent>
               </Card>
-            ))}
+              ))
+            ) : (
+              // Action Cards for Actions tab
+              (() => {
+                // Get all actions from actionsDta
+                const allActions = actionsDta.actions || [];
+                return allActions.map((action, index) => {
+                  const handleCopy = async () => {
+                    try {
+                      await navigator.clipboard.writeText(JSON.stringify(action, null, 2));
+                    } catch (err) {
+                      console.error("Failed to copy:", err);
+                    }
+                  };
+
+                  const handleDelete = async () => {
+                    const pipelineId = currentPipelineId || formData.pipelineId || formData.pipeline_id || "";
+                    
+                    if (!pipelineId) {
+                      console.error("Pipeline ID is required");
+                      return;
+                    }
+
+                    if (!action.action_id) {
+                      console.error("Action ID is required");
+                      return;
+                    }
+
+                    try {
+                      const response = await fetch(
+                        `${import.meta.env.VITE_API_SERVER}/actions/${pipelineId}/v1/actions/delete/${action.action_id}`,
+                        {
+                          method: "DELETE",
+                          credentials: "include",
+                          headers: {
+                            "Content-Type": "application/json",
+                          },
+                        }
+                      );
+
+                      if (!response.ok) {
+                        const errorText = await response.text();
+                        throw new Error(
+                          `Failed to delete action: ${errorText || response.status}`
+                        );
+                      }
+
+                      const result = await response.json();
+                      console.log("action deleted successfully:", result);
+                      
+                      // Optionally refresh the actions list or show a success message
+                    } catch (error) {
+                      console.error("Error deleting action:", error);
+                    }
+                  };
+
+                  return (
+                    <Card
+                      key={`${action.action_id}-${index}`}
+                      sx={{
+                        mb: 2,
+                        bgcolor: "background.elevation1",
+                        borderRadius: 2,
+                        border: 1,
+                        borderColor: "background.elevation1",
+                        position: "relative",
+                      }}
+                    >
+                      <CardContent sx={{ position: "relative", pb: 4 }}>
+                        <Box sx={{ position: "absolute", top: 8, right: 8, display: "flex", gap: 0.5, zIndex: 10 }}>
+                          <IconButton
+                            onClick={handleCopy}
+                            size="small"
+                            sx={{
+                              width: 32,
+                              height: 32,
+                              bgcolor: "primary.lighter",
+                              "&:hover": {
+                                bgcolor: "primary.light",
+                              },
+                              "& svg": {
+                                fontSize: "1rem",
+                              },
+                            }}
+                          >
+                            <ContentCopyIcon />
+                          </IconButton>
+                          <IconButton
+                            onClick={handleDelete}
+                            size="small"
+                            sx={{
+                              width: 32,
+                              height: 32,
+                              bgcolor: "error.lighter",
+                              "&:hover": {
+                                bgcolor: "error.light",
+                              },
+                              "& svg": {
+                                fontSize: "1rem",
+                              },
+                            }}
+                          >
+                            <DeleteIcon />
+                          </IconButton>
+                        </Box>
+                        <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 0.125 }}>
+                          <Typography variant="h6">
+                            {action.action_id || "No Action ID"}
+                          </Typography>
+                        </Box>
+                        <Typography variant="body2" color="text.secondary" sx={{ mb: 2, fontWeight: 500, fontSize: "0.75rem" }}>
+                          service name: {action.service || "No Service"}
+                        </Typography>
+                        <Typography variant="body2" color="text.secondary">
+                          {action.definition || "No definition"}
+                        </Typography>
+                        {action.risk_level && (
+                          <Chip
+                            label={`${action.risk_level} risk`}
+                            sx={{
+                              position: "absolute",
+                              bottom: 8,
+                              right: 8,
+                              borderRadius: "12px",
+                              height: "20px",
+                              fontSize: "0.6875rem",
+                              fontWeight: 600,
+                              bgcolor: "#F5E8D7",
+                              color: "#8B572A",
+                              border: "1px solid #E0C7A8",
+                              "& .MuiChip-label": {
+                                px: 1,
+                                py: 0,
+                              },
+                            }}
+                          />
+                        )}
+                      </CardContent>
+                    </Card>
+                  );
+                });
+              })()
+            )}
           </Box>
 
           {/* Right Panel - Run Book Form */}
@@ -416,6 +716,34 @@ const RunBook = ({ open, onClose, formData = {}, onSave }) => {
                   position: "relative",
                 }}
               >
+                <Box sx={{ mb: 3 }}>
+                  <Typography variant="body2" fontWeight={600} sx={{ mb: 1 }}>
+                    Name
+                  </Typography>
+                  <TextField
+                    placeholder="Enter name"
+                    value={runBookName}
+                    onChange={(e) => setRunBookName(e.target.value)}
+                    variant="outlined"
+                    fullWidth
+                    sx={{
+                      "& .MuiOutlinedInput-root": {
+                        height: "3rem",
+                        bgcolor: "background.elevation1",
+                        "& fieldset": {
+                          border: "none",
+                        },
+                        "&:hover fieldset": {
+                          border: "none",
+                        },
+                        "&.Mui-focused fieldset": {
+                          border: "none",
+                        },
+                      },
+                    }}
+                  />
+                </Box>
+
                 <Box sx={{ mb: 3 }}>
                   <Typography variant="body2" fontWeight={600} sx={{ mb: 1 }}>
                     Error Description
@@ -487,10 +815,14 @@ const RunBook = ({ open, onClose, formData = {}, onSave }) => {
                         <MenuItem value="" disabled>
                           Select an action
                         </MenuItem>
-                        <MenuItem value="a">a</MenuItem>
-                        <MenuItem value="b">b</MenuItem>
-                        <MenuItem value="c">c</MenuItem>
-                        <MenuItem value="d">d</MenuItem>
+                        {allActionsForDropdown.map((actionItem, actionIndex) => {
+                          const menuItemText = `${actionItem.action_id || "No Action ID"} (${actionItem.service || "No Service"}): ${actionItem.definition || "No definition"}`;
+                          return (
+                            <MenuItem key={`${actionItem.action_id}-${actionIndex}`} value={actionItem.action_id || ""}>
+                              {menuItemText}
+                            </MenuItem>
+                          );
+                        })}
                       </Select>
                     </FormControl>
                     {index === actions.length - 1 && action && (
@@ -548,65 +880,6 @@ const RunBook = ({ open, onClose, formData = {}, onSave }) => {
               </Box>
 
               <Box sx={{ flex: 1, overflowY: "auto", px: 3 }}>
-                {/* Name */}
-                <Box sx={{ mb: 3 }}>
-                  <Typography variant="body2" fontWeight={600} sx={{ mb: 1 }}>
-                    Name
-                  </Typography>
-                  <TextField
-                    placeholder="Enter name"
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    variant="outlined"
-                    fullWidth
-                    sx={{
-                      "& .MuiOutlinedInput-root": {
-                        height: "3rem",
-                        bgcolor: "background.elevation1",
-                        "& fieldset": {
-                          border: "none",
-                        },
-                        "&:hover fieldset": {
-                          border: "none",
-                        },
-                        "&.Mui-focused fieldset": {
-                          border: "none",
-                        },
-                      },
-                    }}
-                  />
-                </Box>
-
-                {/* Description */}
-                <Box sx={{ mb: 3 }}>
-                  <Typography variant="body2" fontWeight={600} sx={{ mb: 1 }}>
-                    Description
-                  </Typography>
-                  <TextField
-                    multiline
-                    rows={4}
-                    placeholder="Description"
-                    value={errorDescription}
-                    onChange={(e) => setErrorDescription(e.target.value)}
-                    variant="outlined"
-                    fullWidth
-                    sx={{
-                      "& .MuiOutlinedInput-root": {
-                        bgcolor: "background.elevation1",
-                        "& fieldset": {
-                          border: "none",
-                        },
-                        "&:hover fieldset": {
-                          border: "none",
-                        },
-                        "&.Mui-focused fieldset": {
-                          border: "none",
-                        },
-                      },
-                    }}
-                  />
-                </Box>
-
                 {/* Action Discovery Mode */}
                 <Box sx={{ mb: 3 }}>
                   <Typography variant="body2" fontWeight={600} sx={{ mb: 1 }}>
@@ -658,17 +931,76 @@ const RunBook = ({ open, onClose, formData = {}, onSave }) => {
                   <Box>
                     {/* Top Section */}
                     <Box sx={{ mb: 3 }}>
+                      {/* Service */}
+                      <Box sx={{ mb: 2 }}>
+                        <Typography variant="body2" fontWeight={600} sx={{ mb: 1 }}>
+                          Service
+                  </Typography>
+                  <TextField
+                          placeholder="Enter service"
+                          value={serviceName}
+                          onChange={(e) => setServiceName(e.target.value)}
+                    variant="outlined"
+                    fullWidth
+                    sx={{
+                      "& .MuiOutlinedInput-root": {
+                              height: "3rem",
+                              bgcolor: "background.elevation1",
+                        "& fieldset": {
+                          border: "none",
+                        },
+                        "&:hover fieldset": {
+                          border: "none",
+                        },
+                        "&.Mui-focused fieldset": {
+                          border: "none",
+                        },
+                      },
+                    }}
+                  />
+                </Box>
+
+                      {/* Definition */}
+                      <Box sx={{ mb: 2 }}>
+                  <Typography variant="body2" fontWeight={600} sx={{ mb: 1 }}>
+                          Definition
+                  </Typography>
+                  <TextField
+                    multiline
+                    rows={4}
+                          placeholder="Definition"
+                    value={errorDescription}
+                    onChange={(e) => setErrorDescription(e.target.value)}
+                    variant="outlined"
+                    fullWidth
+                    sx={{
+                      "& .MuiOutlinedInput-root": {
+                              bgcolor: "background.elevation1",
+                        "& fieldset": {
+                          border: "none",
+                        },
+                        "&:hover fieldset": {
+                          border: "none",
+                        },
+                        "&.Mui-focused fieldset": {
+                          border: "none",
+                        },
+                      },
+                    }}
+                  />
+                </Box>
+
                       <Box sx={{ mb: 2 }}>
                         <Typography variant="body2" fontWeight={600} sx={{ mb: 1 }}>
                           Action ID
-                    </Typography>
+                        </Typography>
                         <TextField
                           value={actionId}
                           onChange={(e) => setActionId(e.target.value)}
                           variant="outlined"
                           fullWidth
                           placeholder="restart-nginx-service"
-                          sx={{
+                    sx={{
                             "& .MuiOutlinedInput-root": {
                               height: "3rem",
                               bgcolor: "background.elevation1",
@@ -722,40 +1054,13 @@ const RunBook = ({ open, onClose, formData = {}, onSave }) => {
                           >
                             <MenuItem value="">Select method</MenuItem>
                             <MenuItem value="rpc">rpc</MenuItem>
-                            <MenuItem value="http">http</MenuItem>
-                            <MenuItem value="ssh">ssh</MenuItem>
+                            <MenuItem value="script">script</MenuItem>
+                            <MenuItem value="api">api</MenuItem>
+                            <MenuItem value="k8s">k8s</MenuItem>
+                            <MenuItem value="command">command</MenuItem>
                           </Select>
                         </FormControl>
                   </Box>
-
-                      <Box sx={{ mb: 2 }}>
-                        <Typography variant="body2" fontWeight={600} sx={{ mb: 1 }}>
-                          Description
-                        </Typography>
-                  <TextField
-                    multiline
-                          rows={3}
-                          value={actionDescription}
-                          onChange={(e) => setActionDescription(e.target.value)}
-                    variant="outlined"
-                    fullWidth
-                          placeholder="Restart nginx web server"
-                    sx={{
-                      "& .MuiOutlinedInput-root": {
-                              bgcolor: "background.elevation1",
-                        "& fieldset": {
-                          border: "none",
-                        },
-                        "&:hover fieldset": {
-                          border: "none",
-                        },
-                        "&.Mui-focused fieldset": {
-                          border: "none",
-                        },
-                      },
-                    }}
-                  />
-                      </Box>
                 </Box>
 
                     {/* Bottom Section - Risk Level, Requires Approval, Secrets */}
@@ -906,64 +1211,6 @@ const RunBook = ({ open, onClose, formData = {}, onSave }) => {
 
                     {/* JSON Configuration Blocks - Last Three Fields */}
                     <Box sx={{ mt: 3 }}>
-                      {/* Command and Timeout Seconds */}
-                      <Box sx={{ mb: 2 }}>
-                        <Typography variant="body2" fontWeight={600} sx={{ mb: 1 }}>
-                          Command
-                        </Typography>
-                        <TextField
-                          value={command}
-                          onChange={(e) => setCommand(e.target.value)}
-                          variant="outlined"
-                          fullWidth
-                          placeholder="systemctl restart nginx"
-                          sx={{
-                            "& .MuiOutlinedInput-root": {
-                              height: "3rem",
-                              bgcolor: "background.elevation1",
-                              "& fieldset": {
-                                border: "none",
-                              },
-                              "&:hover fieldset": {
-                                border: "none",
-                              },
-                              "&.Mui-focused fieldset": {
-                                border: "none",
-                              },
-                            },
-                          }}
-                        />
-                      </Box>
-
-                      <Box sx={{ mb: 2 }}>
-                        <Typography variant="body2" fontWeight={600} sx={{ mb: 1 }}>
-                          Timeout Seconds
-                        </Typography>
-                        <TextField
-                          type="number"
-                          value={timeoutSeconds}
-                          onChange={(e) => setTimeoutSeconds(e.target.value)}
-                          variant="outlined"
-                          fullWidth
-                          placeholder="30"
-                          sx={{
-                            "& .MuiOutlinedInput-root": {
-                              height: "3rem",
-                              bgcolor: "background.elevation1",
-                              "& fieldset": {
-                                border: "none",
-                              },
-                              "&:hover fieldset": {
-                                border: "none",
-                              },
-                              "&.Mui-focused fieldset": {
-                                border: "none",
-                              },
-                            },
-                          }}
-                        />
-                      </Box>
-
                       {/* Parameters */}
                       <Box sx={{ mb: 2 }}>
                         <Typography variant="body2" fontWeight={600} sx={{ mb: 1 }}>
@@ -1042,28 +1289,27 @@ const RunBook = ({ open, onClose, formData = {}, onSave }) => {
                   </Box>
                         ))}
                       </Box>
+                    </Box>
+                  </Box>
+                )}
 
-                      {/* Tags */}
-                      <Box sx={{ mb: 2 }}>
-                        <Typography variant="body2" fontWeight={600} sx={{ mb: 1 }}>
-                          Tags
-                        </Typography>
-                        {tags.map((tag, index) => (
-                          <Box key={index} sx={{ display: "flex", gap: 1, mb: 1, alignItems: "center" }}>
+                {/* Swagger/OpenAPI Fields */}
+                {actionDiscoveryMode === "swagger" && (
+                <Box>
+                    <Box sx={{ mb: 2 }}>
+                      <Typography variant="body2" fontWeight={600} sx={{ mb: 1 }}>
+                        Service Name
+                      </Typography>
                   <TextField
-                              value={tag}
-                              onChange={(e) => {
-                                const newTags = [...tags];
-                                newTags[index] = e.target.value;
-                                setTags(newTags);
-                              }}
+                        value={swaggerServiceName}
+                        onChange={(e) => setSwaggerServiceName(e.target.value)}
                     variant="outlined"
                     fullWidth
-                              placeholder="Enter tag"
+                        placeholder="Enter service name"
                     sx={{
                       "& .MuiOutlinedInput-root": {
-                                  height: "3rem",
-                                  bgcolor: "background.elevation1",
+                            height: "3rem",
+                            bgcolor: "background.elevation1",
                         "& fieldset": {
                           border: "none",
                         },
@@ -1076,32 +1322,8 @@ const RunBook = ({ open, onClose, formData = {}, onSave }) => {
                       },
                     }}
                   />
-                            {index === tags.length - 1 && (
-                              <IconButton
-                                onClick={() => {
-                                  setTags([...tags, ""]);
-                                }}
-                                sx={{
-                                  bgcolor: "primary.lighter",
-                                  color: "primary.main",
-                                  "&:hover": {
-                                    bgcolor: "primary.light",
-                                  },
-                                }}
-                              >
-                                <AddIcon />
-                    </IconButton>
-                            )}
                 </Box>
-                        ))}
-                      </Box>
-                    </Box>
-                  </Box>
-                )}
 
-                {/* Swagger/OpenAPI Fields */}
-                {actionDiscoveryMode === "swagger" && (
-                <Box>
                     <Box sx={{ mb: 2 }}>
                       <Typography variant="body2" fontWeight={600} sx={{ mb: 1 }}>
                         Swagger/OpenAPI URL
@@ -1168,9 +1390,9 @@ const RunBook = ({ open, onClose, formData = {}, onSave }) => {
                             }}
                   >
                             {swaggerFileName || "Upload File"}
-                          </Button>
+                      </Button>
                         </label>
-                      </Box>
+                  </Box>
                       {swaggerFileName && (
                         <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, display: "block" }}>
                           {swaggerFileName}
@@ -1185,14 +1407,14 @@ const RunBook = ({ open, onClose, formData = {}, onSave }) => {
                 <Box>
                     <Box sx={{ mb: 2 }}>
                       <Typography variant="body2" fontWeight={600} sx={{ mb: 1 }}>
-                        Script Path
-                        </Typography>
+                        Service Name
+                      </Typography>
                         <TextField
-                        value={scriptPath}
-                        onChange={(e) => setScriptPath(e.target.value)}
+                        value={scriptServiceName}
+                        onChange={(e) => setScriptServiceName(e.target.value)}
                           variant="outlined"
                           fullWidth
-                        placeholder="/path/to/script.sh or /var/scripts/"
+                        placeholder="Enter service name"
                           sx={{
                             "& .MuiOutlinedInput-root": {
                             height: "3rem",
@@ -1209,28 +1431,34 @@ const RunBook = ({ open, onClose, formData = {}, onSave }) => {
                             },
                           }}
                         />
-                      </Box>
+                    </Box>
 
                     <Box sx={{ mb: 2 }}>
-                      <FormControlLabel
-                        control={
-                          <Checkbox
-                            checked={accessViaSSH}
-                            onChange={(e) => setAccessViaSSH(e.target.checked)}
-                            sx={{
-                              color: "primary.main",
-                              "&.Mui-checked": {
-                                color: "primary.main",
-                              },
-                            }}
-                          />
-                        }
-                        label={
-                    <Typography variant="body2" fontWeight={600}>
-                            Access via SSH
+                      <Typography variant="body2" fontWeight={600} sx={{ mb: 1 }}>
+                        Script Path
                         </Typography>
-                        }
-                      />
+                  <TextField
+                        value={scriptPath}
+                        onChange={(e) => setScriptPath(e.target.value)}
+                    variant="outlined"
+                    fullWidth
+                        placeholder="/path/to/script.sh or /var/scripts/"
+                    sx={{
+                      "& .MuiOutlinedInput-root": {
+                            height: "3rem",
+                            bgcolor: "background.elevation1",
+                        "& fieldset": {
+                          border: "none",
+                        },
+                        "&:hover fieldset": {
+                          border: "none",
+                        },
+                        "&.Mui-focused fieldset": {
+                          border: "none",
+                        },
+                      },
+                    }}
+                  />
                       </Box>
 
                     {/* SSH Configuration Fields */}
@@ -1345,6 +1573,35 @@ const RunBook = ({ open, onClose, formData = {}, onSave }) => {
                         }}
                       />
                 </Box>
+
+                    <Box sx={{ mb: 2 }}>
+                      <Typography variant="body2" fontWeight={600} sx={{ mb: 1 }}>
+                        Private Key Passphrase (optional)
+                      </Typography>
+                      <TextField
+                        type="password"
+                        value={privateKeyPassphrase}
+                        onChange={(e) => setPrivateKeyPassphrase(e.target.value)}
+                        variant="outlined"
+                        fullWidth
+                        placeholder="Enter private key passphrase"
+                        sx={{
+                          "& .MuiOutlinedInput-root": {
+                            height: "3rem",
+                            bgcolor: "background.elevation1",
+                            "& fieldset": {
+                              border: "none",
+                            },
+                            "&:hover fieldset": {
+                              border: "none",
+                            },
+                            "&.Mui-focused fieldset": {
+                              border: "none",
+                            },
+                          },
+                        }}
+                      />
+                    </Box>
                     </Box>
                 )}
 
@@ -1393,7 +1650,7 @@ const RunBook = ({ open, onClose, formData = {}, onSave }) => {
                             {documentationFileName}
                           </Typography>
                         )}
-                      </Box>
+                </Box>
                       <Typography variant="body2" color="text.secondary" sx={{ mb: 1, textAlign: "center" }}>
                         or
                       </Typography>

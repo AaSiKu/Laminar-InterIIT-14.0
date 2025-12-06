@@ -58,7 +58,7 @@ const savePipelineAPI = async (
   currentVersionId,
   setCurrentVersionId,
   setError,
-  setLoading,
+  setLoading
 ) => {
   if (!(currentPipelineId && currentVersionId && rfInstance)) {
     return;
@@ -107,21 +107,23 @@ const savePipelineAPI = async (
 
 const saveDraftsAPI = async (
   version_id,
-  pipeline_id,
   rfInstance,
   setCurrentVersionId,
-  pipelineId,
+  pipeline_id,
   setLoading,
   setError,
   description = ""
 ) => {
   if (!version_id || !pipeline_id || !rfInstance) {
-    setError("Can't save draft: missing version_id, pipeline_id, or rfInstance");
-    setLoading(false);
+    if (setError)
+      setError(
+        "Can't save draft: missing version_id, pipeline_id, or rfInstance"
+      );
+    if (setLoading) setLoading(false);
     return null;
   }
 
-  setLoading(true);
+  if (setLoading) setLoading(true);
   try {
     const flow = rfInstance.toObject();
     const response = await fetch(
@@ -134,7 +136,7 @@ const saveDraftsAPI = async (
         },
         body: JSON.stringify({
           version_id: version_id,
-          pipeline_id: pipelineId,
+          pipeline_id: pipeline_id,
           version_description: description || "",
           pipeline: flow,
         }),
@@ -146,13 +148,15 @@ const saveDraftsAPI = async (
 
     const data = await response.json();
 
-    if (data.version_id) {
+    if (data.version_id && setCurrentVersionId) {
       setCurrentVersionId(data.version_id);
     }
+    return data;
   } catch (err) {
-    setError(err.message);
+    if (setError) setError(err.message);
+    return null;
   } finally {
-    setLoading(false);
+    if (setLoading) setLoading(false);
   }
 };
 
@@ -328,13 +332,13 @@ async function deletePipeline(
   setLoading(true);
   try {
     if (!pipeline_id) {
-      setError("Can not delte pipeline temporarily");
+      setError("Cannot delete pipeline - ID is required");
       return null;
     }
     const res = await fetch(
       `${
         import.meta.env.VITE_API_SERVER
-      }/version/delete_pipeline?pipeline_id=${pipeline_id}`,
+      }/version/delete_pipeline?workflow_id=${pipeline_id}`,
       {
         method: "POST",
         credentials: "include",
@@ -385,7 +389,7 @@ async function deleteDrafts(
     const res = await fetch(
       `${
         import.meta.env.VITE_API_SERVER
-      }/version/delete_draft?pipeline_id=${pipeline_id}`,
+      }/version/delete_draft?workflow_id=${pipeline_id}`,
       {
         method: "POST",
         credentials: "include",
@@ -438,7 +442,7 @@ async function toggleStatus(id, currentStatus) {
     {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      credentials: 'include',
+      credentials: "include",
       body: JSON.stringify({ pipeline_id: id }),
     }
   );
@@ -454,7 +458,7 @@ async function spinupPipeline(id) {
     {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      credentials: 'include',
+      credentials: "include",
       body: JSON.stringify({ pipeline_id: id }),
     }
   );
@@ -470,7 +474,7 @@ async function spindownPipeline(id) {
     {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      credentials: 'include',
+      credentials: "include",
       body: JSON.stringify({ pipeline_id: id }),
     }
   );
@@ -505,20 +509,20 @@ async function add_to_node_types(nodes = []) {
 async function fetchPipelineDetails(pipelineId) {
   // Ensure pipelineId is a string - handle both string and object cases
   let idString;
-  if (typeof pipelineId === 'string') {
+  if (typeof pipelineId === "string") {
     idString = pipelineId;
-  } else if (pipelineId && typeof pipelineId === 'object') {
+  } else if (pipelineId && typeof pipelineId === "object") {
     // If it's an object, try to extract the ID
     idString = String(pipelineId.id || pipelineId._id || pipelineId);
   } else {
-    idString = String(pipelineId || '');
+    idString = String(pipelineId || "");
   }
-  
+
   // Validate that we have a valid ID string (not empty and not '[object Object]')
-  if (!idString || idString === '[object Object]' || idString.trim() === '') {
+  if (!idString || idString === "[object Object]" || idString.trim() === "") {
     throw new Error(`Invalid pipeline ID: ${pipelineId}`);
   }
-  
+
   const response = await fetch(
     `${import.meta.env.VITE_API_SERVER}/version/pipeline/${idString}/details`,
     {
@@ -570,7 +574,8 @@ export {
                   saveDraftsAPI(
                   currentVersionId,
                   rfInstance,
-                  setCurrentVersionId, 
+                  setCurrentVersionId,
+                  currentPipelineId,
                   setLoading,
                   setError,
                 )}
@@ -613,5 +618,5 @@ export {
               >
                 Delete Draft
               </Button>
-              
+
  */

@@ -469,34 +469,43 @@ const PipelineNavBar = ({
             </span>
           </Tooltip>
 
-          {/* Run Book Button */}
+          {/* Run Book Button - only enabled when container is active */}
           {onRunBook && (
-            <Button
-              variant="contained"
-              onClick={onRunBook}
-              sx={{
-                bgcolor: "background.elevation1",
-                color: "text.primary",
-                textTransform: "none",
-                fontWeight: 700,
-                fontSize: "0.75rem",
-                px: 2,
-                py: 0.75,
-                minHeight: "32px",
-                borderRadius: "6px",
-                boxShadow: "none",
-                "&:hover": {
-                  bgcolor: "action.hover",
-                  boxShadow: "none",
-                },
-                "&.Mui-disabled": {
-                  bgcolor: "action.disabledBackground",
-                  color: "text.disabled",
-                },
-              }}
+            <Tooltip
+              title={!containerId ? "Spin up the container first to access Run Book" : ""}
+              arrow
+              placement="bottom"
             >
-              Run Book
-            </Button>
+              <span>
+                <Button
+                  variant="contained"
+                  onClick={onRunBook}
+                  disabled={!containerId}
+                  sx={{
+                    bgcolor: "background.elevation1",
+                    color: "text.primary",
+                    textTransform: "none",
+                    fontWeight: 700,
+                    fontSize: "0.75rem",
+                    px: 2,
+                    py: 0.75,
+                    minHeight: "32px",
+                    borderRadius: "6px",
+                    boxShadow: "none",
+                    "&:hover": {
+                      bgcolor: "action.hover",
+                      boxShadow: "none",
+                    },
+                    "&.Mui-disabled": {
+                      bgcolor: "action.disabledBackground",
+                      color: "text.disabled",
+                    },
+                  }}
+                >
+                  Run Book
+                </Button>
+              </span>
+            </Tooltip>
           )}
 
           {/* Avatar with Dropdown */}

@@ -30,10 +30,12 @@ class JSONSelectNode(TableNode):
     property: str | int
     property_type: Literal["json", "str", "int", "float", "bool"]
     new_column_name: Optional[str]
+    n_inputs: Literal[1] = 1
 
 class FlattenNode(TableNode):
     node_id : Literal["flatten"]
     column: str
+    n_inputs: Literal[1] = 1
 
 ArithmeticOps = Literal["+", "-", "*", "/", "//", "%", "**"]
 class ArithmeticNode(TableNode):

@@ -191,8 +191,7 @@ async def stop_pipeline_endpoint(request_obj: Request, request: PipelineIdReques
                     }
                 }
             )
-            return {}
-            return response.json()
+            return response.json() # TODO: Check this
         except httpx.RequestError as exc:
             raise HTTPException(status_code=500, detail=f"Failed to stop pipeline: {exc}")
 
