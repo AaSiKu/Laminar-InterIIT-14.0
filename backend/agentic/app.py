@@ -35,6 +35,7 @@ try:
     from .runbook_src.services.secrets_manager import SecretsManager, get_secrets_manager
     from .runbook_src.services.ssh_client import SSHClientFactory
     from .runbook_src.agents.llm_discovery_agent import LLMDiscoveryAgent, RegistryIntegration
+
     RUNBOOK_AVAILABLE = True
 except ImportError as e:
     logger.warning(f"Runbook modules not available: {e}")
