@@ -1,34 +1,61 @@
 import { useState, useContext, useEffect } from "react";
-import { AppBar, Toolbar, Box, IconButton, Typography, Button, Menu, MenuItem, CircularProgress, Tooltip, Avatar, Badge, ListItemIcon, ListItemText, Divider, Switch, styled } from "@mui/material";
-import { ArrowBack as ArrowBackIcon, Share as ShareIcon, Fullscreen as FullscreenIcon, KeyboardArrowDown as KeyboardArrowDownIcon, DarkMode as DarkModeIcon, LightMode as LightModeIcon, Logout as LogoutIcon } from "@mui/icons-material";
+import {
+  AppBar,
+  Toolbar,
+  Box,
+  IconButton,
+  Typography,
+  Button,
+  Menu,
+  MenuItem,
+  CircularProgress,
+  Tooltip,
+  Avatar,
+  Badge,
+  ListItemIcon,
+  ListItemText,
+  Divider,
+  Switch,
+  styled,
+} from "@mui/material";
+import {
+  ArrowBack as ArrowBackIcon,
+  Share as ShareIcon,
+  Fullscreen as FullscreenIcon,
+  KeyboardArrowDown as KeyboardArrowDownIcon,
+  DarkMode as DarkModeIcon,
+  LightMode as LightModeIcon,
+  Logout as LogoutIcon,
+  Error as ErrorIcon,
+} from "@mui/icons-material";
 import { useTheme, useColorScheme } from "@mui/material/styles";
 import { AuthContext } from "../../context/AuthContext";
 import ShareDialog from "./ShareDialog";
 
 const StyledBadge = styled(Badge)(({ theme }) => ({
-  '& .MuiBadge-badge': {
-    backgroundColor: '#44b700',
-    color: '#44b700',
+  "& .MuiBadge-badge": {
+    backgroundColor: "#44b700",
+    color: "#44b700",
     boxShadow: `0 0 0 2px ${theme.palette.background.paper}`,
-    '&::after': {
-      position: 'absolute',
+    "&::after": {
+      position: "absolute",
       top: 0,
       left: 0,
-      width: '100%',
-      height: '100%',
-      borderRadius: '50%',
-      animation: 'ripple 1.2s infinite ease-in-out',
-      border: '1px solid currentColor',
+      width: "100%",
+      height: "100%",
+      borderRadius: "50%",
+      animation: "ripple 1.2s infinite ease-in-out",
+      border: "1px solid currentColor",
       content: '""',
     },
   },
-  '@keyframes ripple': {
-    '0%': {
-      transform: 'scale(.8)',
+  "@keyframes ripple": {
+    "0%": {
+      transform: "scale(.8)",
       opacity: 1,
     },
-    '100%': {
-      transform: 'scale(2.4)',
+    "100%": {
+      transform: "scale(2.4)",
       opacity: 0,
     },
   },
@@ -54,6 +81,7 @@ const PipelineNavBar = ({
   userAvatar,
   onExportJSON,
   pipelineId,
+  autoSaveStatus, // 'saving', 'saved', or null
 }) => {
   const theme = useTheme();
   const { mode, setMode } = useColorScheme();
@@ -67,8 +95,10 @@ const PipelineNavBar = ({
   // Generate avatar URL from the service
   const getAvatarUrl = () => {
     // Always use avatar service with a unique identifier (user ID or name)
-    const identifier = user?.id || user?.name || userAvatar || 'default';
-    return `https://avatar.iran.liara.run/public/boy?username=${encodeURIComponent(identifier)}&size=32`;
+    const identifier = user?.id || user?.name || userAvatar || "default";
+    return `https://avatar.iran.liara.run/public/boy?username=${encodeURIComponent(
+      identifier
+    )}&size=32`;
   };
 
   // Fetch current user details when menu opens
@@ -104,7 +134,7 @@ const PipelineNavBar = ({
   };
 
   const handleThemeToggle = () => {
-    setMode(mode === 'dark' ? 'light' : 'dark');
+    setMode(mode === "dark" ? "light" : "dark");
   };
 
   const handleLogout = () => {
@@ -121,9 +151,9 @@ const PipelineNavBar = ({
       elevation={0}
       sx={{
         borderBottom: "1px solid",
-        padding: { xs: '8px 0', md: '8px 0' },
-        borderColor: 'divider',
-        bgcolor: 'background.elevation1',
+        padding: { xs: "8px 0", md: "8px 0" },
+        borderColor: "divider",
+        bgcolor: "background.elevation1",
         zIndex: 10,
         position: "relative",
       }}
@@ -143,7 +173,7 @@ const PipelineNavBar = ({
             onClick={onBackClick}
             sx={{
               color: "text.primary",
-              "&:hover": { bgcolor: 'action.hover' },
+              "&:hover": { bgcolor: "action.hover" },
               padding: "6px",
             }}
           >
@@ -161,6 +191,21 @@ const PipelineNavBar = ({
           >
             {pipelineName}
           </Typography>
+
+          {/* Auto-save Status Indicator */}
+          {autoSaveStatus && (
+            <Typography
+              variant="caption"
+              sx={{
+                color: autoSaveStatus === 'saving' ? 'text.secondary' : 'success.main',
+                fontSize: '0.7rem',
+                ml: 1,
+                fontStyle: 'italic',
+              }}
+            >
+              {autoSaveStatus === 'saving' ? 'Saving...' : 'Saved'}
+            </Typography>
+          )}
         </Box>
 
         {/* Right Section - Action Buttons */}
@@ -179,9 +224,9 @@ const PipelineNavBar = ({
               <IconButton
                 onClick={onFullscreenClick}
                 sx={{
-                  bgcolor: 'background.elevation1',
+                  bgcolor: "background.elevation1",
                   color: "text.primary",
-                  "&:hover": { bgcolor: 'action.hover' },
+                  "&:hover": { bgcolor: "action.hover" },
                   width: 32,
                   height: 32,
                   borderRadius: "6px",
@@ -198,7 +243,7 @@ const PipelineNavBar = ({
             onClick={onShareClick}
             endIcon={<KeyboardArrowDownIcon sx={{ fontSize: 16 }} />}
             sx={{
-              bgcolor: 'background.elevation1',
+              bgcolor: "background.elevation1",
               color: "text.primary",
               textTransform: "none",
               fontWeight: 700,
@@ -209,7 +254,7 @@ const PipelineNavBar = ({
               borderRadius: "6px",
               boxShadow: "none",
               "&:hover": {
-                bgcolor: 'action.hover',
+                bgcolor: "action.hover",
                 boxShadow: "none",
               },
             }}
@@ -221,8 +266,8 @@ const PipelineNavBar = ({
             anchorEl={shareAnchorEl}
             open={Boolean(shareAnchorEl)}
             onClose={onShareClose}
-            transformOrigin={{ horizontal: 'right', vertical: 'top' }}
-            anchorOrigin={{ horizontal: 'right', vertical: 'bottom' }}
+            transformOrigin={{ horizontal: "right", vertical: "top" }}
+            anchorOrigin={{ horizontal: "right", vertical: "bottom" }}
             slotProps={{
               paper: {
                 elevation: 3,
@@ -230,7 +275,7 @@ const PipelineNavBar = ({
                   mt: 1,
                   minWidth: 180,
                   borderRadius: 2,
-                  '& .MuiMenuItem-root': {
+                  "& .MuiMenuItem-root": {
                     px: 2,
                     py: 1.5,
                     borderRadius: 1,
@@ -241,33 +286,43 @@ const PipelineNavBar = ({
               },
             }}
           >
-            <MenuItem onClick={() => {
-              setShareDialogOpen(true);
-              onShareClose();
-            }}>Share Link</MenuItem>
-            <MenuItem onClick={() => {
-              if (onExportJSON) {
-                onExportJSON();
-              }
-              onShareClose();
-            }}>Export as JSON</MenuItem>
+            <MenuItem
+              onClick={() => {
+                setShareDialogOpen(true);
+                onShareClose();
+              }}
+            >
+              Share Link
+            </MenuItem>
+            <MenuItem
+              onClick={() => {
+                if (onExportJSON) {
+                  onExportJSON();
+                }
+                onShareClose();
+              }}
+            >
+              Export as JSON
+            </MenuItem>
           </Menu>
 
           {/* Share Dialog */}
           <ShareDialog
             open={shareDialogOpen}
             onClose={() => setShareDialogOpen(false)}
-            pipelineLink={`${window.location.origin}/workflows/${pipelineId || currentPipelineId || 'a'}`}
+            pipelineLink={`${window.location.origin}/workflows/${
+              pipelineId || currentPipelineId || "a"
+            }`}
             pipelineName={pipelineName}
           />
 
-          {/* Save Button */}
+          {/* Commit Version Button */}
           <Button
             variant="contained"
             onClick={onSave}
             disabled={loading}
             sx={{
-              bgcolor: 'background.elevation1',
+              bgcolor: "background.elevation1",
               color: "text.primary",
               textTransform: "none",
               fontWeight: 700,
@@ -278,16 +333,16 @@ const PipelineNavBar = ({
               borderRadius: "6px",
               boxShadow: "none",
               "&:hover": {
-                bgcolor: 'action.hover',
+                bgcolor: "action.hover",
                 boxShadow: "none",
               },
               "&.Mui-disabled": {
-                bgcolor: 'action.disabledBackground',
-                color: 'text.disabled',
+                bgcolor: "action.disabledBackground",
+                color: "text.disabled",
               },
             }}
           >
-            Save
+            Commit Version
           </Button>
 
           {/* Activate Button */}
@@ -296,7 +351,7 @@ const PipelineNavBar = ({
             onClick={onSpinup}
             disabled={loading || !currentPipelineId || !!containerId}
             sx={{
-              bgcolor: 'background.elevation1',
+              bgcolor: "background.elevation1",
               color: "text.primary",
               textTransform: "none",
               fontWeight: 700,
@@ -307,12 +362,12 @@ const PipelineNavBar = ({
               borderRadius: "6px",
               boxShadow: "none",
               "&:hover": {
-                bgcolor: 'action.hover',
+                bgcolor: "action.hover",
                 boxShadow: "none",
               },
               "&.Mui-disabled": {
-                bgcolor: 'action.disabledBackground',
-                color: 'text.disabled',
+                bgcolor: "action.disabledBackground",
+                color: "text.disabled",
               },
             }}
           >
@@ -325,7 +380,7 @@ const PipelineNavBar = ({
             onClick={onSpindown}
             disabled={loading || !currentPipelineId || !containerId}
             sx={{
-              bgcolor: 'background.elevation1',
+              bgcolor: "background.elevation1",
               color: "text.primary",
               textTransform: "none",
               fontWeight: 700,
@@ -336,46 +391,83 @@ const PipelineNavBar = ({
               borderRadius: "6px",
               boxShadow: "none",
               "&:hover": {
-                bgcolor: 'action.hover',
+                bgcolor: "action.hover",
                 boxShadow: "none",
               },
               "&.Mui-disabled": {
-                bgcolor: 'action.disabledBackground',
-                color: 'text.disabled',
+                bgcolor: "action.disabledBackground",
+                color: "text.disabled",
               },
             }}
           >
             Deactivate
           </Button>
 
-          {/* Run Button */}
-          <Button
-            variant="contained"
-            onClick={onToggleStatus}
-            disabled={loading || !currentPipelineId || !containerId}
-            sx={{
-              bgcolor: 'background.elevation1',
-              color: "text.primary",
-              textTransform: "none",
-              fontWeight: 700,
-              fontSize: "0.75rem",
-              px: 2,
-              py: 0.75,
-              minHeight: "32px",
-              borderRadius: "6px",
-              boxShadow: "none",
-              "&:hover": {
-                bgcolor: 'action.hover',
-                boxShadow: "none",
-              },
-              "&.Mui-disabled": {
-                bgcolor: 'action.disabledBackground',
-                color: 'text.disabled',
-              },
-            }}
+          {/* Run/Stop Button */}
+          <Tooltip
+            title={
+              currentPipelineStatus === "Broken" ? "Pipeline is broken" : ""
+            }
           >
-            {currentPipelineStatus ? "Stop" : "Run"}
-          </Button>
+            <span>
+              <Button
+                variant="contained"
+                onClick={onToggleStatus}
+                disabled={
+                  loading ||
+                  !currentPipelineId ||
+                  !containerId ||
+                  currentPipelineStatus === "Broken"
+                }
+                startIcon={
+                  currentPipelineStatus === "Broken" ? (
+                    <ErrorIcon color="error" />
+                  ) : null
+                }
+                sx={{
+                  bgcolor:
+                    currentPipelineStatus === "Broken"
+                      ? "error.light"
+                      : "background.elevation1",
+                  color:
+                    currentPipelineStatus === "Broken"
+                      ? "error.contrastText"
+                      : "text.primary",
+                  textTransform: "none",
+                  fontWeight: 700,
+                  fontSize: "0.75rem",
+                  px: 2,
+                  py: 0.75,
+                  minHeight: "32px",
+                  borderRadius: "6px",
+                  boxShadow: "none",
+                  "&:hover": {
+                    bgcolor:
+                      currentPipelineStatus === "Broken"
+                        ? "error.main"
+                        : "action.hover",
+                    boxShadow: "none",
+                  },
+                  "&.Mui-disabled": {
+                    bgcolor:
+                      currentPipelineStatus === "Broken"
+                        ? "error.light"
+                        : "action.disabledBackground",
+                    color:
+                      currentPipelineStatus === "Broken"
+                        ? "error.contrastText"
+                        : "text.disabled",
+                  },
+                }}
+              >
+                {currentPipelineStatus === "Broken"
+                  ? "Broken"
+                  : currentPipelineStatus === "Running"
+                  ? "Stop"
+                  : "Run"}
+              </Button>
+            </span>
+          </Tooltip>
 
           {/* Run Book Button */}
           {onRunBook && (
@@ -383,7 +475,7 @@ const PipelineNavBar = ({
               variant="contained"
               onClick={onRunBook}
               sx={{
-                bgcolor: 'background.elevation1',
+                bgcolor: "background.elevation1",
                 color: "text.primary",
                 textTransform: "none",
                 fontWeight: 700,
@@ -394,12 +486,12 @@ const PipelineNavBar = ({
                 borderRadius: "6px",
                 boxShadow: "none",
                 "&:hover": {
-                  bgcolor: 'action.hover',
+                  bgcolor: "action.hover",
                   boxShadow: "none",
                 },
                 "&.Mui-disabled": {
-                  bgcolor: 'action.disabledBackground',
-                  color: 'text.disabled',
+                  bgcolor: "action.disabledBackground",
+                  color: "text.disabled",
                 },
               }}
             >
@@ -410,7 +502,7 @@ const PipelineNavBar = ({
           {/* Avatar with Dropdown */}
           <StyledBadge
             overlap="circular"
-            anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+            anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
             variant="dot"
           >
             <Avatar
@@ -420,20 +512,24 @@ const PipelineNavBar = ({
               sx={{
                 width: 28,
                 height: 28,
-                bgcolor: 'primary.main',
-                cursor: 'pointer',
-                fontSize: '0.75rem',
-                transition: 'transform 0.2s ease, box-shadow 0.2s ease',
+                bgcolor: "primary.main",
+                cursor: "pointer",
+                fontSize: "0.75rem",
+                transition: "transform 0.2s ease, box-shadow 0.2s ease",
                 "&:hover": {
-                  transform: 'scale(1.05)',
-                  boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
+                  transform: "scale(1.05)",
+                  boxShadow: "0 2px 8px rgba(0,0,0,0.15)",
                 },
               }}
-              aria-controls={avatarOpen ? 'avatar-menu' : undefined}
+              aria-controls={avatarOpen ? "avatar-menu" : undefined}
               aria-haspopup="true"
-              aria-expanded={avatarOpen ? 'true' : undefined}
+              aria-expanded={avatarOpen ? "true" : undefined}
             >
-              {(!userAvatar && !user?.avatar && !user?.id && !user?.name) && (user?.name?.[0]?.toUpperCase() || 'U')}
+              {!userAvatar &&
+                !user?.avatar &&
+                !user?.id &&
+                !user?.name &&
+                (user?.name?.[0]?.toUpperCase() || "U")}
             </Avatar>
           </StyledBadge>
 
@@ -442,8 +538,8 @@ const PipelineNavBar = ({
             anchorEl={avatarAnchorEl}
             open={avatarOpen}
             onClose={handleAvatarClose}
-            transformOrigin={{ horizontal: 'right', vertical: 'top' }}
-            anchorOrigin={{ horizontal: 'right', vertical: 'bottom' }}
+            transformOrigin={{ horizontal: "right", vertical: "top" }}
+            anchorOrigin={{ horizontal: "right", vertical: "bottom" }}
             slotProps={{
               paper: {
                 elevation: 3,
@@ -451,7 +547,7 @@ const PipelineNavBar = ({
                   mt: 1,
                   minWidth: 180,
                   borderRadius: 2,
-                  '& .MuiMenuItem-root': {
+                  "& .MuiMenuItem-root": {
                     px: 2,
                     py: 1.5,
                     borderRadius: 1,
@@ -470,11 +566,11 @@ const PipelineNavBar = ({
                 mx: 1,
                 my: 0.5,
                 borderRadius: 1,
-                bgcolor: 'action.hover',
+                bgcolor: "action.hover",
               }}
             >
               {loadingUser ? (
-                <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+                <Typography variant="body2" sx={{ color: "text.secondary" }}>
                   Loading...
                 </Typography>
               ) : currentUser ? (
@@ -483,20 +579,20 @@ const PipelineNavBar = ({
                     variant="body2"
                     sx={{
                       fontWeight: 600,
-                      color: 'text.primary',
+                      color: "text.primary",
                       mb: 0.5,
                     }}
                   >
-                    {currentUser.full_name || 'User'}
+                    {currentUser.full_name || "User"}
                   </Typography>
                   <Typography
                     variant="caption"
                     sx={{
-                      color: 'text.secondary',
-                      fontSize: '0.75rem',
+                      color: "text.secondary",
+                      fontSize: "0.75rem",
                     }}
                   >
-                    {currentUser.email || ''}
+                    {currentUser.email || ""}
                   </Typography>
                 </Box>
               ) : (
@@ -505,32 +601,32 @@ const PipelineNavBar = ({
                     variant="body2"
                     sx={{
                       fontWeight: 600,
-                      color: 'text.primary',
+                      color: "text.primary",
                       mb: 0.5,
                     }}
                   >
-                    {user?.name || user?.full_name || 'User'}
+                    {user?.name || user?.full_name || "User"}
                   </Typography>
                   <Typography
                     variant="caption"
                     sx={{
-                      color: 'text.secondary',
-                      fontSize: '0.75rem',
+                      color: "text.secondary",
+                      fontSize: "0.75rem",
                     }}
                   >
-                    {user?.email || ''}
+                    {user?.email || ""}
                   </Typography>
                 </Box>
               )}
             </Box>
             <Divider sx={{ my: 0.5 }} />
-            
+
             {/* Dark Mode Toggle */}
             <Box
               sx={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
                 px: 2,
                 py: 1.5,
                 mx: 1,
@@ -539,35 +635,41 @@ const PipelineNavBar = ({
                 minWidth: 200,
               }}
             >
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-                {mode === 'dark' ? (
-                  <DarkModeIcon fontSize="small" sx={{ color: 'text.secondary' }} />
+              <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
+                {mode === "dark" ? (
+                  <DarkModeIcon
+                    fontSize="small"
+                    sx={{ color: "text.secondary" }}
+                  />
                 ) : (
-                  <LightModeIcon fontSize="small" sx={{ color: 'text.secondary' }} />
+                  <LightModeIcon
+                    fontSize="small"
+                    sx={{ color: "text.secondary" }}
+                  />
                 )}
-                <Typography variant="body2" sx={{ color: 'text.primary' }}>
+                <Typography variant="body2" sx={{ color: "text.primary" }}>
                   Dark Mode
                 </Typography>
               </Box>
               <Switch
-                checked={mode === 'dark'}
+                checked={mode === "dark"}
                 onChange={handleThemeToggle}
                 size="small"
                 sx={{
                   ml: 3,
-                  '& .MuiSwitch-switchBase.Mui-checked': {
-                    color: 'primary.main',
+                  "& .MuiSwitch-switchBase.Mui-checked": {
+                    color: "primary.main",
                   },
-                  '& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track': {
-                    backgroundColor: 'primary.main',
+                  "& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track": {
+                    backgroundColor: "primary.main",
                   },
                 }}
               />
             </Box>
             <Divider sx={{ my: 0.5 }} />
-            <MenuItem onClick={handleLogout} sx={{ color: 'error.main' }}>
+            <MenuItem onClick={handleLogout} sx={{ color: "error.main" }}>
               <ListItemIcon>
-                <LogoutIcon fontSize="small" sx={{ color: 'error.main' }} />
+                <LogoutIcon fontSize="small" sx={{ color: "error.main" }} />
               </ListItemIcon>
               <ListItemText>Logout</ListItemText>
             </MenuItem>
@@ -579,4 +681,3 @@ const PipelineNavBar = ({
 };
 
 export default PipelineNavBar;
-

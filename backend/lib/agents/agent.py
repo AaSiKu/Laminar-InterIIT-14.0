@@ -34,7 +34,7 @@ class Agent(BaseModel):
     name: str
     description: str
     tools : Optional[List[Union[int,str]]] = []
-
+    rag_nodes : List[int]
     @field_validator("tools")
     def check_tools(cls, tools):
         for t in tools:

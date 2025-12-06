@@ -18,14 +18,6 @@ import PipelineNavBar from "../components/workflow/PipelineNavBar";
 import Playground from "../components/workflow/Playground";
 import RunBook from "../components/workflow/RunBook";
 
-/**
- * Toggle status logic helper
- * TODO: need to fix this logic for setting status to Broken/Running/Stopped
- */
-function toggleStatusLogic(variable) {
-  return variable;
-}
-
 // Drawer width constant
 export const DRAWER_WIDTH = 64;
 
@@ -69,6 +61,8 @@ export default function WorkflowPage() {
         rfInstance,
     versionId: currentVersionId,
     setVersionId: setCurrentVersionId,
+    workflowData: currentWorkflowData,
+    setWorkflowData: setCurrentWorkflowData,
   } = useGlobalWorkflow();
 
   // Track loaded pipeline to prevent re-loading
@@ -77,18 +71,6 @@ export default function WorkflowPage() {
   const viewportDataRef = useRef(null); // Store viewport data for applying when rfInstance is ready
 
   // Load pipeline data when pipelineId changes (from URL), TODO: check for debounce
-
-  /*
-    setCurrentEdges,
-    setCurrentNodes,
-      setRfInstance,
-    setCurrentPipelineStatus,
-      setCurrentPipelineId,
-    setLoading,
-    setError,
-      setViewport,
-      setCurrentVersionId
-   */
 
   useEffect(() => {
     // Skip if no pipelineId
@@ -145,6 +127,8 @@ export default function WorkflowPage() {
               const workflowId = String(w._id || w.id || '');
               return workflowId === normalizedPipelineId;
             });
+            setCurrentWorkflowData(foundWorkflow);
+            setCurrentPipelineStatus(foundWorkflow?.status);
             if (foundWorkflow && foundWorkflow.current_version_id) {
               versionId = foundWorkflow.current_version_id;
             }
@@ -262,57 +246,77 @@ export default function WorkflowPage() {
     });
   }, [currentNodes, currentEdges]);
 
-  // Auto-save drafts when pipeline changes (skip initial load)
+  // Debounced auto-save drafts when nodes/edges change
+  const autoSaveTimerRef = useRef(null);
   const isInitialLoadRef = useRef(true);
-  const lastSavedRef = useRef({ pipelineId: null, versionId: null });
+  const lastSavedDataRef = useRef(null);
+  const [autoSaveStatus, setAutoSaveStatus] = useState(null); // 'saving', 'saved', null
 
+  // Auto-save with debounce (2 seconds after last change)
   useEffect(() => {
     // Skip auto-save on initial load
     if (isInitialLoadRef.current) {
       isInitialLoadRef.current = false;
-      lastSavedRef.current = {
-        pipelineId: currentPipelineId,
-        versionId: currentVersionId,
-      };
       return;
     }
 
-    // Skip if already saved for this pipeline/version combination
-    if (
-      lastSavedRef.current.pipelineId === currentPipelineId &&
-      lastSavedRef.current.versionId === currentVersionId
-    ) {
+    // Skip if missing required data
+    if (!currentPipelineId || !currentVersionId || !rfInstance) {
       return;
     }
-    
-    // Skip if loading or missing required data
-    if (loading || !currentPipelineId || !currentVersionId || !rfInstance) {
+
+    // Get current flow data to compare
+    const currentFlowData = JSON.stringify({
+      nodes: currentNodes,
+      edges: currentEdges,
+    });
+
+    // Skip if data hasn't changed
+    if (lastSavedDataRef.current === currentFlowData) {
       return;
     }
-    
-    // Update last saved ref before saving
-    lastSavedRef.current = {
-      pipelineId: currentPipelineId,
-      versionId: currentVersionId,
+
+    // Clear previous timer
+    if (autoSaveTimerRef.current) {
+      clearTimeout(autoSaveTimerRef.current);
+    }
+
+    // Set new debounced save timer (2 seconds)
+    autoSaveTimerRef.current = setTimeout(async () => {
+      try {
+        setAutoSaveStatus("saving");
+        await saveDraftsAPI(
+          currentVersionId,
+          rfInstance,
+          setCurrentVersionId,
+          currentPipelineId,
+          () => {}, // Don't use global loading for auto-save
+          (err) => console.warn("Auto-save warning:", err)
+        );
+        lastSavedDataRef.current = currentFlowData;
+        setAutoSaveStatus("saved");
+
+        // Clear saved status after 2 seconds
+        setTimeout(() => setAutoSaveStatus(null), 2000);
+      } catch (err) {
+        console.error("Auto-save failed:", err);
+        setAutoSaveStatus(null);
+      }
+    }, 2000);
+
+    // Cleanup timer on unmount
+    return () => {
+      if (autoSaveTimerRef.current) {
+        clearTimeout(autoSaveTimerRef.current);
+      }
     };
-
-    saveDraftsAPI(
-      currentVersionId,
-      currentPipelineId,
-      rfInstance,
-      setCurrentVersionId,
-      setLoading,
-      setError
-    )
-      .catch((err) => setError(err.message))
-      .finally(() => setLoading(false));
   }, [
+    currentNodes,
+    currentEdges,
     currentPipelineId,
     currentVersionId,
     rfInstance,
     setCurrentVersionId,
-    setLoading,
-    setError,
   ]);
 
   useEffect(() => {
@@ -334,11 +338,11 @@ export default function WorkflowPage() {
     setLoading(true);
     setError(null);
     try {
-      const newStatus = await togglePipelineStatus(
-        currentPipelineId,
-        currentPipelineStatus
-      );
-      setCurrentPipelineStatus(toggleStatusLogic(newStatus["status"]));
+      await togglePipelineStatus(currentPipelineId, currentPipelineStatus);
+      // Toggle the status: Running -> Stopped, Stopped -> Running
+      const newStatus =
+        currentPipelineStatus === "Running" ? "Stopped" : "Running";
+      setCurrentPipelineStatus(newStatus);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -358,7 +362,7 @@ export default function WorkflowPage() {
     setError(null);
     try {
       const data = await spinupPipeline(currentPipelineId);
-      setContainerId(data.id);
+      setContainerId(data.pipeline_container_id);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -458,10 +462,11 @@ export default function WorkflowPage() {
     setError,
   ]);
 
-  // Navigation handler
+  // Navigation handler - refresh state and navigate to workflows page
   const handleBackClick = useCallback(() => {
-    navigate("/workflows");
-  }, [navigate]);
+    // Clear any local state before navigating
+    window.location.href = "/workflows";
+  }, []);
 
   // Fullscreen handlers
   const handleEnterFullscreen = useCallback(() => {
@@ -555,10 +560,13 @@ export default function WorkflowPage() {
         }}
       >
           {/* Pipeline Navigation Bar */}
-        <PipelineNavBar
-          onBackClick={handleBackClick}
-            pipelineName={`Pipeline ${
-              pipelineId ? pipelineId.toLowerCase() : "undefined"
+          {/* TODO: Name rendering */}
+          <PipelineNavBar
+            onBackClick={handleBackClick}
+            pipelineName={`${
+              currentWorkflowData?.name || pipelineId
+                ? pipelineId.toLowerCase()
+                : "Unnamed Workflow"
             }`}
           loading={loading}
           shareAnchorEl={shareAnchorEl}
@@ -576,9 +584,9 @@ export default function WorkflowPage() {
             onExportJSON={handleExportJSON}
             pipelineId={pipelineId}
             userAvatar="https://i.pravatar.cc/40"
+            autoSaveStatus={autoSaveStatus}
           />
 
-          {/* Playground - Visual Node Editor */}
           <Playground
             ref={playgroundRef}
             nodes={currentNodes}

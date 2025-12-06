@@ -56,14 +56,26 @@ export const fetchPreviousNotifcations = async () => {
   }
 };
 
-// Fetches logs from the API (commented out for now as they are not implemented)
-// export const fetchLogs = async () => {
-//   const response = await fetch(
-//     `${import.meta.env.VITE_API_SERVER}/overview/logs`,
-//     { credentials: "include" }
-//   );
-//   const data = await response.json();
-//   const logs = data.data;
-//   return logs;
-// };
+// Fetches logs from the API
+export const fetchLogs = async () => {
+  try {
+    const response = await fetch(
+      `${import.meta.env.VITE_API_SERVER}/overview/logs`,
+      { credentials: "include" }
+    );
+    const data = await response.json();
+    if (data && data.status === "success" && data.data) {
+      console.log(`✅ API returned ${data.data.length} logs`);
+      return data.data;
+    } else if (Array.isArray(data)) {
+      return data;
+    } else {
+      console.warn("⚠️ Unexpected logs response format:", data);
+      return [];
+    }
+  } catch (error) {
+    console.error("❌ Error fetching logs:", error);
+    return [];
+  }
+};
 

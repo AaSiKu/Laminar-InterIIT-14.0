@@ -95,9 +95,9 @@ export const WebSocketProvider = ({ children }) => {
       
       // Logs
       if (messageType === "log") {
-        setLogs(prev => {
-          return [data, ...prev].slice(0, 100);
-        });
+        console.log("Received log message:", data);
+        setLogs(prev => [data, ...prev]);
+        console.log("Updated logs state:", logs);
       }
     } catch (error) {
       console.error("Error parsing WebSocket message:", error, event.data);

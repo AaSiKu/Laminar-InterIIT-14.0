@@ -69,8 +69,10 @@ const BottomToolbar = ({
             variant="caption" 
             sx={{ 
               fontSize: "0.6rem",
-              color: "#000000",
-              textShadow: "1px 1px 2px rgba(255, 255, 255, 0.9), -1px -1px 2px rgba(255, 255, 255, 0.9), 0 0 3px rgba(255, 255, 255, 0.8)",
+              color: "text.primary",
+              textShadow: theme.palette.mode === 'dark' 
+                ? "1px 1px 2px rgba(0, 0, 0, 0.9), -1px -1px 2px rgba(0, 0, 0, 0.9), 0 0 3px rgba(0, 0, 0, 0.8)"
+                : "1px 1px 2px rgba(255, 255, 255, 0.9), -1px -1px 2px rgba(255, 255, 255, 0.9), 0 0 3px rgba(255, 255, 255, 0.8)",
               display: "flex",
               alignItems: "center",
               gap: 0.2,
@@ -92,13 +94,16 @@ const BottomToolbar = ({
         display: "flex",
         alignItems: "center",
         gap: 0,
-        bgcolor: '#DBE6EB',
-        border: "1px solid #C3D3DB",
+        bgcolor: 'background.elevation1',
+        border: "1px solid",
+        borderColor: 'divider',
         borderRadius: "12px",
         padding: "0",
         width: "170px",
         height: "48px",
-        boxShadow: '0px -2px 6px 0px rgba(0, 0, 0, 0.03), 2px 10px 10px 0px rgba(0, 0, 0, 0.01), 1px 20px 19px 0px rgba(0, 0, 0, 0.03), 6px 33px 46px 0px rgba(0, 0, 0, 0.07)',
+        boxShadow: theme.palette.mode === 'dark'
+          ? '0px -2px 6px 0px rgba(0, 0, 0, 0.3), 2px 10px 10px 0px rgba(0, 0, 0, 0.2), 1px 20px 19px 0px rgba(0, 0, 0, 0.2), 6px 33px 46px 0px rgba(0, 0, 0, 0.3)'
+          : '0px -2px 6px 0px rgba(0, 0, 0, 0.03), 2px 10px 10px 0px rgba(0, 0, 0, 0.01), 1px 20px 19px 0px rgba(0, 0, 0, 0.03), 6px 33px 46px 0px rgba(0, 0, 0, 0.07)',
         zIndex: 1000,
       }}
     >
@@ -126,7 +131,7 @@ const BottomToolbar = ({
           onMouseLeave={handleMouseLeave}
         sx={{
           color: "text.primary",
-          "&:hover": { bgcolor: 'rgba(0, 0, 0, 0.04)' },
+          "&:hover": { bgcolor: 'action.hover' },
           width: 40,
           height: 40,
           cursor: "pointer",
@@ -145,7 +150,7 @@ const BottomToolbar = ({
           onMouseLeave={handleMouseLeave}
         sx={{
           color: undoDisabled ? 'text.disabled' : "text.primary",
-          "&:hover": { bgcolor: undoDisabled ? "transparent" : 'rgba(0, 0, 0, 0.04)' },
+          "&:hover": { bgcolor: undoDisabled ? "transparent" : 'action.hover' },
           width: 40,
           height: 40,
           cursor: undoDisabled ? "not-allowed" : "pointer",
@@ -161,7 +166,7 @@ const BottomToolbar = ({
           onMouseLeave={handleMouseLeave}
         sx={{
           color: redoDisabled ? 'text.disabled' : "text.primary",
-          "&:hover": { bgcolor: redoDisabled ? "transparent" : 'rgba(0, 0, 0, 0.04)' },
+          "&:hover": { bgcolor: redoDisabled ? "transparent" : 'action.hover' },
           width: 40,
           height: 40,
           cursor: redoDisabled ? "not-allowed" : "pointer",

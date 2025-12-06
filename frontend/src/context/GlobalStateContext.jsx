@@ -1,7 +1,7 @@
 import { createContext, useContext, useState, useEffect, useCallback } from "react";
 import { useWebSocket } from "./WebSocketContext";
 import { AuthContext } from "./AuthContext";
-import { fetchWorkflows, fetchPreviousNotifcations } from "../utils/utils";
+import { fetchWorkflows, fetchPreviousNotifcations, fetchLogs } from "../utils/utils";
 
 const GlobalStateContext = createContext();
 export function useGlobalState() {
@@ -58,11 +58,11 @@ export const GlobalStateProvider = ({ children }) => {
           setAlerts(allAlerts);
         }
 
-        // Logs - commented out for now as they are not implemented
-        // const logsData = await fetchLogs();
-        // if (Array.isArray(logsData)) {
-        //   setLogs(logsData);
-        // }
+        // Fetch logs
+        const logsData = await fetchLogs();
+        if (Array.isArray(logsData)) {
+          setLogs(logsData);
+        }
 
         setInitialized(true);
       } catch (error) {
@@ -124,15 +124,11 @@ export const GlobalStateProvider = ({ children }) => {
       }
     }
 
-    // Handle logs (commented out for now)
-    // if (messageType === "log") {
-    //   setLogs(prev => {
-    //     if (!itemExists(prev, data)) {
-    //       return [data, ...prev];
-    //     }
-    //     return prev;
-    //   });
-    // }
+    // Handle logs
+    if (messageType === "log") {
+      console.log("Processing log message:", data);
+      setLogs(prev => [data, ...prev]);
+    }
   }, [setWorkflows, setNotifications, setAlerts, itemExists]);
 
   // Process queued messages when connection is restored

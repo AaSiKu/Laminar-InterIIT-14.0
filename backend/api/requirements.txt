@@ -161,3 +161,5 @@ lz4
 cramjam
 twilio
 greenlet
+slack_sdk>=3.21.0
+anthropic==0.75.0

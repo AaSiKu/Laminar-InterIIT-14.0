@@ -5,8 +5,7 @@
 
 // Use mock server by default for testing (set VITE_USE_MOCK_SERVER=false to use real server)
 const USE_MOCK_SERVER = import.meta.env.VITE_USE_MOCK_SERVER !== "false";
-const CONTRACT_PARSER_WS_PORT = import.meta.env.VITE_CONTRACT_PARSER_PORT || "8001";
-const CONTRACT_PARSER_WS_URL = `ws://localhost:${CONTRACT_PARSER_WS_PORT}/ws`;
+const CONTRACT_PARSER_WS_URL = import.meta.env.VITE_CONTRACT_PARSER;
 
 export class ContractParserWebSocket {
   constructor(callbacks = {}) {

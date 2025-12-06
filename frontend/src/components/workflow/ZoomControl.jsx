@@ -48,12 +48,15 @@ const ZoomControl = ({ zoom = 100, onZoomIn, onZoomOut, onZoomChange, propertyBa
         display: "flex",
         alignItems: "center",
         gap: 0,
-        bgcolor: '#DBE6EB',
-        border: "1px solid #C3D3DB",
+        bgcolor: 'background.elevation1',
+        border: "1px solid",
+        borderColor: 'divider',
         borderRadius: "100px",
         padding: "0",
         height: "48px",
-        boxShadow: '0px -2px 6px 0px rgba(0, 0, 0, 0.03), 2px 10px 10px 0px rgba(0, 0, 0, 0.01), 1px 20px 19px 0px rgba(0, 0, 0, 0.03), 6px 33px 46px 0px rgba(0, 0, 0, 0.07)',
+        boxShadow: theme.palette.mode === 'dark'
+          ? '0px -2px 6px 0px rgba(0, 0, 0, 0.3), 2px 10px 10px 0px rgba(0, 0, 0, 0.2), 1px 20px 19px 0px rgba(0, 0, 0, 0.2), 6px 33px 46px 0px rgba(0, 0, 0, 0.3)'
+          : '0px -2px 6px 0px rgba(0, 0, 0, 0.03), 2px 10px 10px 0px rgba(0, 0, 0, 0.01), 1px 20px 19px 0px rgba(0, 0, 0, 0.03), 6px 33px 46px 0px rgba(0, 0, 0, 0.07)',
         zIndex: 1000,
         transition: 'right 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
       }}
@@ -62,7 +65,7 @@ const ZoomControl = ({ zoom = 100, onZoomIn, onZoomOut, onZoomChange, propertyBa
         onClick={onZoomOut}
         sx={{
           color: "text.primary",
-          "&:hover": { bgcolor: 'rgba(0, 0, 0, 0.04)' },
+          "&:hover": { bgcolor: 'action.hover' },
           width: 40,
           height: 40,
         }}
@@ -93,14 +96,18 @@ const ZoomControl = ({ zoom = 100, onZoomIn, onZoomOut, onZoomChange, propertyBa
               fontSize: "0.875rem",
               fontWeight: 500,
               textAlign: "center",
-              bgcolor: 'rgba(255, 255, 255, 0.3)',
+              bgcolor: theme.palette.mode === 'dark' 
+                ? 'rgba(255, 255, 255, 0.1)' 
+                : 'rgba(255, 255, 255, 0.3)',
               borderRadius: '4px',
               px: 0.5,
               py: 0.25,
+              color: 'text.primary',
               '& input': {
                 textAlign: 'center',
                 padding: '2px 4px',
                 cursor: 'pointer',
+                color: 'text.primary',
               }
             }
           }}
@@ -117,7 +124,7 @@ const ZoomControl = ({ zoom = 100, onZoomIn, onZoomOut, onZoomChange, propertyBa
         onClick={onZoomIn}
         sx={{
           color: "text.primary",
-          "&:hover": { bgcolor: 'rgba(0, 0, 0, 0.04)' },
+          "&:hover": { bgcolor: 'action.hover' },
           width: 40,
           height: 40,
         }}

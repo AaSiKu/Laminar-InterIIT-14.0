@@ -1,7 +1,7 @@
 import { addNodeType, fetchNodeSchema } from "./dashboard.utils";
 
 //Create a pipeline first to avoid the error of using a random id
-//TODO: a user should only first create a piepline thn use these fucntion, useing currentPipelineId or version id uses random and undefined values
+// TODO: a user should only first create a piepline thn use these fucntion, useing currentPipelineId or version id uses random and undefined values
 //----------------------- Create Pipeline--------------------------------//
 
 const create_pipeline = async (
@@ -14,7 +14,9 @@ const create_pipeline = async (
   setLoading(true);
   try {
     const response = await fetch(
-      `${import.meta.env.VITE_API_SERVER}/version/create_pipeline?name=${encodeURIComponent(name)}`,
+      `${
+        import.meta.env.VITE_API_SERVER
+      }/version/create_pipeline?name=${encodeURIComponent(name)}`,
       {
         method: "POST",
         credentials: "include",
@@ -57,16 +59,13 @@ const savePipelineAPI = async (
   setCurrentVersionId,
   setError,
   setLoading,
-  versionDescription = ""
 ) => {
   if (!(currentPipelineId && currentVersionId && rfInstance)) {
     return;
   }
-  setLoading(true);
-
   try {
+    setLoading(true);
     const flow = rfInstance.toObject();
-
     const response = await fetch(
       `${import.meta.env.VITE_API_SERVER}/version/save`,
       {
@@ -76,10 +75,10 @@ const savePipelineAPI = async (
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          workflow_id: currentPipelineId,
-          current_version_id: currentVersionId,
-          version_description: versionDescription || "",
           version_updated_at: new Date().toISOString(),
+          version_description: "",
+          current_version_id: currentVersionId,
+          workflow_id: currentPipelineId,
           pipeline: flow,
         }),
       }
@@ -89,9 +88,7 @@ const savePipelineAPI = async (
       const errText = await response.text();
       throw new Error(`Failed to save pipeline: ${errText || response.status}`);
     }
-
     const data = await response.json();
-
     if (data.pipeline_id) {
       setCurrentPipelineId(data.pipeline_id);
     }
@@ -100,8 +97,9 @@ const savePipelineAPI = async (
     }
   } catch (err) {
     console.error("Save failed:", err);
-
-    setError(err.message);
+    if (setError) {
+      setError(err.message);
+    }
   } finally {
     setLoading(false);
   }
@@ -112,6 +110,7 @@ const saveDraftsAPI = async (
   pipeline_id,
   rfInstance,
   setCurrentVersionId,
+  pipelineId,
   setLoading,
   setError,
   description = ""
@@ -135,15 +134,14 @@ const saveDraftsAPI = async (
         },
         body: JSON.stringify({
           version_id: version_id,
-          pipeline_id: pipeline_id,
+          pipeline_id: pipelineId,
           version_description: description || "",
           pipeline: flow,
         }),
       }
     );
     if (!response.ok) {
-      const errText = await response.text();
-      throw new Error(`Failed to save draft: ${errText || response.status}`);
+      throw new Error(`Failed to save draft: ${response.status}`);
     }
 
     const data = await response.json();
@@ -152,7 +150,6 @@ const saveDraftsAPI = async (
       setCurrentVersionId(data.version_id);
     }
   } catch (err) {
-    console.error("Save failed:", err);
     setError(err.message);
   } finally {
     setLoading(false);
@@ -195,11 +192,10 @@ async function fetchAndSetPipeline(pipeline_id, version_id, setters) {
   );
 
   if (!res.ok) {
-    const errorText = await res.text().catch(() => "");
-    throw new Error(`Unable to fetch pipeline: ${res.status} ${errorText || ""}`);
+    throw new Error("Unable to fetch pipeline");
   }
   const result = await res.json();
-  const workflow = result["workflow"]; // Changed from "pipeline" to "workflow"
+  const workflow = result["workflow"];
   const version = result["version"];
 
   if (!workflow || !version) {
@@ -247,7 +243,7 @@ async function fetchAndSetPipeline(pipeline_id, version_id, setters) {
     // Process nodes first
     if (nodes.length > 0) {
       await add_to_node_types(nodes);
-      
+
       // Validate and ensure nodes have required properties
       const validatedNodes = nodes.map((node, index) => {
         // Ensure node has required properties
@@ -255,30 +251,34 @@ async function fetchAndSetPipeline(pipeline_id, version_id, setters) {
           console.warn("Node missing id:", node);
           node.id = node.id || `node-${index}`;
         }
-        
+
         // Ensure position exists
-        if (!node.position || typeof node.position.x !== 'number' || typeof node.position.y !== 'number') {
+        if (
+          !node.position ||
+          typeof node.position.x !== "number" ||
+          typeof node.position.y !== "number"
+        ) {
           console.warn("Node missing or invalid position:", node);
           node.position = node.position || { x: index * 250, y: index * 150 };
         }
-        
+
         // Ensure type exists - use node_id if type is missing
         if (!node.type && node.node_id) {
           console.log("Setting node type from node_id:", node.node_id);
           node.type = node.node_id;
         } else if (!node.type) {
           console.warn("Node missing both type and node_id:", node);
-          node.type = 'default';
+          node.type = "default";
         }
-        
+
         // Ensure data exists
         if (!node.data) {
           node.data = {};
         }
-        
+
         return node;
       });
-      
+
       console.log("Validated nodes:", validatedNodes);
       setCurrentNodes(validatedNodes);
     } else {
@@ -432,12 +432,13 @@ async function deleteDrafts(
 //--------------------------pipeline docker APIs----------------------------------------------//
 
 async function toggleStatus(id, currentStatus) {
-  const endpoint = currentStatus ? "stop" : "run";
+  const endpoint = currentStatus === "Running" ? "stop" : "run";
   const res = await fetch(
-    `${import.meta.env.VITE_API_SERVER}/pipeline/${endpoint}`,
+    `${import.meta.env.VITE_API_SERVER}/pipelines/${endpoint}`,
     {
       method: "POST",
       headers: { "Content-Type": "application/json" },
+      credentials: 'include',
       body: JSON.stringify({ pipeline_id: id }),
     }
   );
@@ -449,10 +450,11 @@ async function toggleStatus(id, currentStatus) {
 
 async function spinupPipeline(id) {
   const res = await fetch(
-    `${import.meta.env.VITE_API_SERVER}/pipeline/spinup`,
+    `${import.meta.env.VITE_API_SERVER}/pipelines/spinup`,
     {
       method: "POST",
       headers: { "Content-Type": "application/json" },
+      credentials: 'include',
       body: JSON.stringify({ pipeline_id: id }),
     }
   );
@@ -464,10 +466,11 @@ async function spinupPipeline(id) {
 
 async function spindownPipeline(id) {
   const res = await fetch(
-    `${import.meta.env.VITE_API_SERVER}/pipeline/spindown`,
+    `${import.meta.env.VITE_API_SERVER}/pipelines/spindown`,
     {
       method: "POST",
       headers: { "Content-Type": "application/json" },
+      credentials: 'include',
       body: JSON.stringify({ pipeline_id: id }),
     }
   );

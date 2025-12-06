@@ -792,8 +792,8 @@ const RunBook = ({ open, onClose, formData = {}, onSave }) => {
                                   zIndex: 20002,
                                 },
                               },
-                            }}
-                          >
+                    }}
+                  >
                             <MenuItem value="">Select risk level</MenuItem>
                             <MenuItem value="low">low</MenuItem>
                             <MenuItem value="medium">medium</MenuItem>
@@ -895,7 +895,7 @@ const RunBook = ({ open, onClose, formData = {}, onSave }) => {
                                     bgcolor: "primary.light",
                                   },
                                 }}
-                              >
+                      >
                                 <AddIcon />
                               </IconButton>
                             )}
@@ -1166,7 +1166,7 @@ const RunBook = ({ open, onClose, formData = {}, onSave }) => {
                                 backgroundColor: "rgba(0, 0, 0, 0.04)",
                               },
                             }}
-                          >
+                  >
                             {swaggerFileName || "Upload File"}
                           </Button>
                         </label>

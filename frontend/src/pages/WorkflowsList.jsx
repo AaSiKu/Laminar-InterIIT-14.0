@@ -1,121 +1,75 @@
-import React, { useState, useEffect, useMemo, useCallback } from "react";
-import { Box, CircularProgress, Typography } from "@mui/material";
+import { useState, useEffect, useMemo, useCallback } from "react";
+import { useSearchParams } from "react-router-dom";
+import { Box, Typography } from "@mui/material";
 import { styles } from "../styles/WorkflowsList.styles";
-import { fetchWorkflows } from "../utils/utils";
 import { create_pipeline, fetchPipelineDetails } from "../utils/pipelineUtils";
 import Loading from "../components/common/Loading";
-
-// Mock action items data
-const mockActionItems = [
-  {
-    title: "Approve Expense Report",
-    assignee: "Assigned to you",
-    time: "5 min ago",
-    critical: true,
-  },
-  {
-    title: "Verify User Registration",
-    email: "abcd@user.com",
-    time: "23 min ago",
-    critical: false,
-  },
-  {
-    title: "Upcoming Scheduled Pipelines",
-    time: "1hr ago",
-    critical: false,
-  },
-  {
-    title: "Upcoming Scheduled Pipelines",
-    time: "1hr ago",
-    critical: false,
-  },
-];
-
-// Mock logs data
-const mockLogs = [
-  "Update your password regularly to enhance account security. Ensure your new password is strong and unique.",
-  "Update your password regularly to enhance account security. Ensure your new password is strong and unique.",
-  "Update your password regularly to enhance account security. Ensure your new password is strong and unique.",
-  "Update your password regularly to enhance account security. Ensure your new password is strong and unique.",
-];
 import WorkflowHeader from "../components/workflowslist/WorkflowHeader";
 import WorkflowCard from "../components/workflowslist/WorkflowCard";
 import WorkflowDetails from "../components/workflowslist/WorkflowDetails";
 import TopBar from "../components/common/TopBar";
-import NewProjectModal from "../components/createWorkflow/NewProjectModal"
-import CreateWorkflowDrawer from "../components/createWorkflow/CreateWorkflowDrawer"
-import { useGlobalContext } from "../context/GlobalContext";
+import NewProjectModal from "../components/createWorkflow/NewProjectModal";
+import CreateWorkflowDrawer from "../components/createWorkflow/CreateWorkflowDrawer";
 import { useGlobalState } from "../context/GlobalStateContext";
 import { useWebSocket } from "../context/WebSocketContext";
-
-// Helper function to format time ago
-const formatTimeAgo = (dateString) => {
-  if (!dateString) return "N/A";
-  
-  const date = new Date(dateString);
-  const now = new Date();
-  const diffMs = now - date;
-  const diffSeconds = Math.floor(diffMs / 1000);
-  const diffMinutes = Math.floor(diffSeconds / 60);
-  const diffHours = Math.floor(diffMinutes / 60);
-  const diffDays = Math.floor(diffHours / 24);
-  const diffMonths = Math.floor(diffDays / 30);
-  const diffYears = Math.floor(diffDays / 365);
-
-  if (diffSeconds < 60) return `${diffSeconds} second${diffSeconds !== 1 ? 's' : ''} ago`;
-  if (diffMinutes < 60) return `${diffMinutes} minute${diffMinutes !== 1 ? 's' : ''} ago`;
-  if (diffHours < 24) return `${diffHours} hour${diffHours !== 1 ? 's' : ''} ago`;
-  if (diffDays < 30) return `${diffDays} day${diffDays !== 1 ? 's' : ''} ago`;
-  if (diffMonths < 12) return `${diffMonths} month${diffMonths !== 1 ? 's' : ''} ago`;
-  return `${diffYears} year${diffYears !== 1 ? 's' : ''} ago`;
-};
+import { formatTimeAgo } from "../helpers/datetime";
+import noDataSvg from "../assets/noData.svg";
 
 // Transform backend workflow data to frontend format
 const transformWorkflow = (backendWorkflow, details = null) => {
   const pipeline = backendWorkflow.user_pipeline_version?.pipeline || {};
   const runtime = backendWorkflow.runtime || 0;
-  const description = backendWorkflow.user_pipeline_version?.version_description || `Pipeline: ${backendWorkflow.name}`;
-  
+  const description =
+    backendWorkflow.user_pipeline_version?.version_description ||
+    `Pipeline: ${backendWorkflow.name}`;
+
   // Combine owners and viewers into team
-  const owners = (backendWorkflow.owners || []).map(owner => ({
+  const owners = (backendWorkflow.owners || []).map((owner) => ({
     ...owner,
     name: owner.name || owner.display_name || `User ${owner.id}`, // Ensure name field exists
   }));
   const viewerIds = backendWorkflow.viewer_ids || [];
   // Create viewer objects from viewer_ids (assuming they're not already fetched)
   // If viewers are fetched separately, they would be in backendWorkflow.viewers
-  const viewers = backendWorkflow.viewers || viewerIds.map(id => {
-    const idStr = String(id);
-    return {
-      id: idStr,
-      display_name: `User ${idStr}`,
-      name: `User ${idStr}`, // Add name for WorkflowCard compatibility
-      initials: idStr.length >= 2 ? idStr.slice(0, 2).toUpperCase() : idStr.toUpperCase(),
-    };
-  });
-  
+  const viewers =
+    backendWorkflow.viewers ||
+    viewerIds.map((id) => {
+      const idStr = String(id);
+      return {
+        id: idStr,
+        display_name: `User ${idStr}`,
+        name: `User ${idStr}`, // Add name for WorkflowCard compatibility
+        initials:
+          idStr.length >= 2
+            ? idStr.slice(0, 2).toUpperCase()
+            : idStr.toUpperCase(),
+      };
+    });
+
   // Combine owners and viewers, removing duplicates by id
   const allTeamMembers = [...owners];
-  viewers.forEach(viewer => {
-    if (!allTeamMembers.find(m => String(m.id) === String(viewer.id))) {
+  viewers.forEach((viewer) => {
+    if (!allTeamMembers.find((m) => String(m.id) === String(viewer.id))) {
       allTeamMembers.push(viewer);
     }
   });
 
   // Use provided details or default values
-  const created_at = details?.created_at || backendWorkflow.user_pipeline_version?.version_created_at;
+  const created_at =
+    details?.created_at ||
+    backendWorkflow.user_pipeline_version?.version_created_at;
   const alertsCount = details?.alerts_count || details?.alerts?.length || 0;
-  
+
   return {
     id: backendWorkflow._id || backendWorkflow.id,
     name: backendWorkflow.name || "Unnamed Workflow",
     category: description, // Show description instead of "General"
     location: formatTimeAgo(backendWorkflow.last_updated), // Show time ago instead of "Default"
     team: allTeamMembers, // Include both owners and viewers
-    status: backendWorkflow.status || "Stopped", // Keep original status: Running, Stopped, or Broken
+    status: backendWorkflow.status || "Stopped", // Status: Running, Stopped, or Broken
     description: description,
     avgChange: "0%", // Can be calculated from historical data if available
-    alerts: String(alertsCount).padStart(2, '0'),
+    alerts: String(alertsCount).padStart(2, "0"),
     alertsChange: "0%", // Can be calculated from historical data if available
     nodes: pipeline.nodes || [],
     edges: pipeline.edges || [],
@@ -133,10 +87,15 @@ const transformWorkflow = (backendWorkflow, details = null) => {
 };
 
 export const WorkflowsList = () => {
+  const [searchParams, setSearchParams] = useSearchParams();
   const [selectedTab, setSelectedTab] = useState(0);
   const [selectedWorkflow, setSelectedWorkflow] = useState(null);
   const [actionFilter, setActionFilter] = useState("notifications"); // notifications, pending_actions, actions_taken
-  const [globalSearchQuery, setGlobalSearchQuery] = useState("");
+  
+  // Initialize search from URL params
+  const initialSearch = searchParams.get('search') || '';
+  const [globalSearchQuery, setGlobalSearchQuery] = useState(initialSearch);
+  
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [workflowDetailsCache, setWorkflowDetailsCache] = useState({});
@@ -144,11 +103,22 @@ export const WorkflowsList = () => {
   const { workflows, loading: globalLoading } = useGlobalState();
   const { alerts, getAlertsForPipeline, isConnected, ws } = useWebSocket();
 
-  // Fetch details for a specific workflow
-  const fetchWorkflowDetails = useCallback(async (workflowId) => {
-    if (workflowDetailsCache[workflowId]) {
-      return workflowDetailsCache[workflowId];
+  // Update URL when search changes
+  const handleSearchChange = useCallback((value) => {
+    setGlobalSearchQuery(value);
+    if (value.trim()) {
+      setSearchParams({ search: value });
+    } else {
+      setSearchParams({});
     }
+  }, [setSearchParams]);
+
+  // Fetch details for a specific workflow
+  const fetchWorkflowDetails = useCallback(
+    async (workflowId) => {
+      if (workflowDetailsCache[workflowId]) {
+        return workflowDetailsCache[workflowId];
+      }
 
     try {
       // Ensure workflowId is a string
@@ -157,7 +127,7 @@ export const WorkflowsList = () => {
         console.warn(`Invalid workflow ID for fetchPipelineDetails:`, workflowId);
         return null;
       }
-      const details = await fetchPipelineDetails(idString);
+      const details = await fetchPipelineDetails(workflowId);
       setWorkflowDetailsCache(prev => ({
         ...prev,
         [workflowId]: details
@@ -177,63 +147,54 @@ export const WorkflowsList = () => {
       return;
     }
 
-    // Immediately show workflows even without details (details will load in background)
-    const transformed = workflows.map(w => {
-      const workflowId = String(w.id || w._id || '');
-      const details = workflowId ? workflowDetailsCache[workflowId] || null : null;
-      return transformWorkflow(w, details);
-    });
-    
-    setTransformedWorkflows(transformed);
-    
-    // Update selected workflow if it exists
-    if (selectedWorkflow) {
-      const updated = transformed.find(w => w.id === selectedWorkflow.id);
-      if (updated) {
-        setSelectedWorkflow(updated);
-      }
-    } else if (transformed.length > 0) {
-      setSelectedWorkflow(transformed[0]);
-    }
-
-    // Load details in the background (non-blocking)
-    const loadDetailsInBackground = async () => {
+    const updateWorkflowsWithDetails = async () => {
       try {
+        setLoading(true);
         // Only fetch details for workflows that don't have them cached
-        const workflowsToUpdate = workflows.filter(w => {
-          const workflowId = String(w.id || w._id || '');
-          return workflowId && workflowId !== '[object Object]' && !workflowDetailsCache[workflowId];
+        const workflowsToUpdate = workflows.filter((w) => {
+          const workflowId = w.id || w._id;
+          return workflowId && !workflowDetailsCache[workflowId];
         });
-        
+
         // Fetch details for workflows that need them
         if (workflowsToUpdate.length > 0) {
-          // Don't block UI - fetch in background
-          Promise.all(
+          await Promise.all(
             workflowsToUpdate.map(async (w) => {
-              const workflowId = String(w.id || w._id || '');
-              if (workflowId && workflowId !== '[object Object]') {
-                await fetchWorkflowDetails(workflowId);
-              }
+              const workflowId = w.id || w._id;
+              await fetchWorkflowDetails(workflowId);
             })
-          ).then(() => {
-            // Update transformed workflows again with newly loaded details
-            const updatedTransformed = workflows.map(w => {
-              const workflowId = String(w.id || w._id || '');
-              const details = workflowId && workflowId !== '[object Object]' ? workflowDetailsCache[workflowId] || null : null;
-              return transformWorkflow(w, details);
-            });
-            setTransformedWorkflows(updatedTransformed);
-          }).catch((err) => {
-            console.error("Error loading workflow details in background:", err);
-          });
+          );
+        }
+
+        // Transform all workflows with cached details
+        const transformed = workflows.map((w) => {
+          const workflowId = w.id || w._id;
+          const details = workflowId
+            ? workflowDetailsCache[workflowId] || null
+            : null;
+          return transformWorkflow(w, details);
+        });
+
+        setTransformedWorkflows(transformed);
+
+        // Update selected workflow if it exists
+        if (selectedWorkflow) {
+          const updated = transformed.find((w) => w.id === selectedWorkflow.id);
+          if (updated) {
+            setSelectedWorkflow(updated);
+          }
+        } else if (transformed.length > 0) {
+          setSelectedWorkflow(transformed[0]);
         }
       } catch (err) {
         console.error("Error updating workflows with details:", err);
+      }finally {
+        setLoading(false);
       }
     };
 
     // Load details immediately (no delay)
-    loadDetailsInBackground();
+    updateWorkflowsWithDetails()
   }, [workflows, fetchWorkflowDetails, workflowDetailsCache]); // Update when workflows change
 
   // Handle WebSocket messages for workflow updates and alerts
@@ -242,34 +203,37 @@ export const WorkflowsList = () => {
 
     const handleMessage = (event) => {
       try {
-        const data = typeof event.data === 'string' ? JSON.parse(event.data) : event.data;
+        const data =
+          typeof event.data === "string" ? JSON.parse(event.data) : event.data;
         const messageType = data.message_type || data.type;
 
         // Handle workflow updates (status changes, runtime updates, etc.)
         // Note: Workflows are managed by GlobalStateContext, so we just need to update transformed workflows
         if (messageType === "workflow" && data._id) {
           const workflowId = String(data._id);
-          
+
           // Invalidate cache for this workflow to refetch details
-          setWorkflowDetailsCache(prev => {
+          setWorkflowDetailsCache((prev) => {
             const newCache = { ...prev };
             delete newCache[workflowId];
             return newCache;
           });
 
           // Update selected workflow if it's the one being updated
-          setSelectedWorkflow(prev => {
+          setSelectedWorkflow((prev) => {
             if (prev && (prev.id === workflowId || prev._id === workflowId)) {
-              const hasChanges = (data.status && prev.status !== data.status) ||
-                               (data.runtime !== undefined && prev.runtime !== data.runtime) ||
-                               (data.last_updated && prev.last_updated !== data.last_updated);
-              
+              const hasChanges =
+                (data.status && prev.status !== data.status) ||
+                (data.runtime !== undefined && prev.runtime !== data.runtime) ||
+                (data.last_updated && prev.last_updated !== data.last_updated);
+
               if (!hasChanges) return prev;
-              
+
               return {
                 ...prev,
                 status: data.status || prev.status,
-                runtime: data.runtime !== undefined ? data.runtime : prev.runtime,
+                runtime:
+                  data.runtime !== undefined ? data.runtime : prev.runtime,
                 last_updated: data.last_updated || prev.last_updated,
                 location: formatTimeAgo(data.last_updated || prev.last_updated),
               };
@@ -278,13 +242,16 @@ export const WorkflowsList = () => {
           });
         }
       } catch (error) {
-        console.error("Error handling WebSocket message in WorkflowsList:", error);
+        console.error(
+          "Error handling WebSocket message in WorkflowsList:",
+          error
+        );
       }
     };
 
-    ws.addEventListener('message', handleMessage);
+    ws.addEventListener("message", handleMessage);
     return () => {
-      ws.removeEventListener('message', handleMessage);
+      ws.removeEventListener("message", handleMessage);
     };
   }, [ws, isConnected]);
 
@@ -292,13 +259,13 @@ export const WorkflowsList = () => {
   useEffect(() => {
     if (!isConnected) return;
 
-    setTransformedWorkflows(prevWorkflows => {
+    setTransformedWorkflows((prevWorkflows) => {
       let hasChanges = false;
-      const updated = prevWorkflows.map(workflow => {
+      const updated = prevWorkflows.map((workflow) => {
         const workflowAlerts = getAlertsForPipeline(workflow.id);
         const alertsCount = workflowAlerts.length;
-        const newAlerts = String(alertsCount).padStart(2, '0');
-        
+        const newAlerts = String(alertsCount).padStart(2, "0");
+
         if (workflow.alerts !== newAlerts) {
           hasChanges = true;
           return {
@@ -308,7 +275,7 @@ export const WorkflowsList = () => {
         }
         return workflow;
       });
-      
+
       return hasChanges ? updated : prevWorkflows;
     });
   }, [alerts.length, isConnected, getAlertsForPipeline]);
@@ -316,12 +283,12 @@ export const WorkflowsList = () => {
   // Update selected workflow alerts when alerts change
   useEffect(() => {
     if (!selectedWorkflow || !isConnected) return;
-    
+
     const workflowAlerts = getAlertsForPipeline(selectedWorkflow.id);
-    const newAlerts = String(workflowAlerts.length).padStart(2, '0');
-    
+    const newAlerts = String(workflowAlerts.length).padStart(2, "0");
+
     if (selectedWorkflow.alerts !== newAlerts) {
-      setSelectedWorkflow(prev => ({
+      setSelectedWorkflow((prev) => ({
         ...prev,
         alerts: newAlerts,
       }));
@@ -354,128 +321,29 @@ export const WorkflowsList = () => {
   };
 
   const handleCreateWorkflowComplete = async (workflowData) => {
+    // The CreateWorkflowDrawer now handles the pipeline creation and saving
+    // This callback receives the completed workflow data for any additional handling
     try {
       setLoading(true);
       
-      // Check if pipeline was already created (from WebSocket flow or Create button)
-      if (workflowData.pipelineId && workflowData.versionId) {
-        console.log("Pipeline created:", {
-          pipelineId: workflowData.pipelineId,
-          versionId: workflowData.versionId,
-        });
-        
-        // Refresh workflows list to show the new pipeline - try multiple times if needed
-        const refreshWorkflows = async (retryCount = 0) => {
-          try {
-            // Wait a bit for backend to process (longer wait on first attempt)
-            await new Promise(resolve => setTimeout(resolve, retryCount === 0 ? 1000 : 500));
-            
-            const workflowsResponse = await fetchWorkflows(0, 100);
-            if (workflowsResponse.status === "success" && workflowsResponse.data) {
-              // Update workflows in GlobalStateContext
-              if (setWorkflows) {
-                setWorkflows(workflowsResponse.data);
-              }
-              
-              // Find and select the newly created workflow
-              const newWorkflow = workflowsResponse.data.find(
-                w => (w.id || w._id) === workflowData.pipelineId || 
-                     String(w.id || w._id) === String(workflowData.pipelineId)
-              );
-              if (newWorkflow) {
-                setSelectedWorkflow(transformWorkflow(newWorkflow, null));
-                setLoading(false);
-                return true; // Success
-              } else if (retryCount < 3) {
-                // Retry up to 3 times
-                console.log(`Workflow not found, retrying... (attempt ${retryCount + 1}/3)`);
-                return await refreshWorkflows(retryCount + 1);
-              } else {
-                console.warn("Workflow not found after multiple retries");
-                setLoading(false);
-                return false;
-              }
-            }
-          } catch (error) {
-            console.error(`Error refreshing workflows (attempt ${retryCount + 1}):`, error);
-            if (retryCount < 3) {
-              return await refreshWorkflows(retryCount + 1);
-            }
-            setLoading(false);
-            return false;
-          }
-        };
-        
-        await refreshWorkflows();
-        return;
-      }
+      const newWorkflowId = workflowData.pipelineId;
       
-      // Fallback: Create workflow using pipelineUtils (old flow)
-      let newWorkflowId = null;
-      let newVersionId = null;
-      
-      await create_pipeline(
-        workflowData.name || "New Workflow",
-        (id) => { newWorkflowId = id; },
-        (id) => { newVersionId = id; },
-        setError,
-        setLoading
-      );
-
-      // Save the pipeline data if provided
-      if (newWorkflowId && newVersionId && (workflowData.nodes || workflowData.edges)) {
-        const response = await fetch(
-          `${import.meta.env.VITE_API_SERVER}/version/save`,
-          {
-            method: "POST",
-            credentials: "include",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-              workflow_id: newWorkflowId,
-              current_version_id: newVersionId,
-              version_description: workflowData.description || "",
-              version_updated_at: new Date().toISOString(),
-              pipeline: {
-                nodes: workflowData.nodes || [],
-                edges: workflowData.edges || [],
-                viewport: workflowData.viewport || { x: 0, y: 0, zoom: 1 },
-              },
-            }),
+      // Workflows will be updated automatically via GlobalStateContext WebSocket
+      // Just select the newly created workflow if we can find it
+      if (newWorkflowId) {
+        // Wait a bit for WebSocket to update, then find the workflow
+        setTimeout(() => {
+          const newWorkflow = transformedWorkflows.find(
+            (w) => w.id === newWorkflowId || w._id === newWorkflowId
+          );
+          if (newWorkflow) {
+            setSelectedWorkflow(newWorkflow);
           }
-        );
-
-        if (!response.ok) {
-          throw new Error("Failed to save pipeline data");
-        }
-      }
-
-      // Refresh workflows list after creation
-      try {
-        const workflowsResponse = await fetchWorkflows(0, 100);
-        if (workflowsResponse.status === "success" && workflowsResponse.data) {
-          // Update workflows in GlobalStateContext
-          if (setWorkflows) {
-            setWorkflows(workflowsResponse.data);
-          }
-          
-          // Find and select the newly created workflow
-          if (newWorkflowId) {
-            const newWorkflow = workflowsResponse.data.find(
-              w => (w.id || w._id) === newWorkflowId
-            );
-            if (newWorkflow) {
-              setSelectedWorkflow(transformWorkflow(newWorkflow, null));
-            }
-          }
-        }
-      } catch (refreshError) {
-        console.error("Error refreshing workflows:", refreshError);
-      }
+      }, 1000);
+    }
     } catch (err) {
-      console.error("Error creating workflow:", err);
-      setError(err.message || "Failed to create workflow");
+      console.error("Error handling workflow creation:", err);
+      setError(err.message || "Failed to handle workflow creation");
     } finally {
       setLoading(false);
     }
@@ -486,14 +354,20 @@ export const WorkflowsList = () => {
     const filtered = transformedWorkflows.filter((workflow) => {
       const matchesSearch =
         workflow.name.toLowerCase().includes(globalSearchQuery.toLowerCase()) ||
-        workflow.category.toLowerCase().includes(globalSearchQuery.toLowerCase());
-      
+        workflow.category
+          .toLowerCase()
+          .includes(globalSearchQuery.toLowerCase());
+
       // Filter by status based on selected tab
+      // 0: All, 1: Running, 2: Stopped, 3: Broken
       if (selectedTab === 0) return matchesSearch; // All workflows
-      if (selectedTab === 1) return matchesSearch && workflow.status === "Running"; // Running only
-      if (selectedTab === 2) return matchesSearch && workflow.status === "Stopped"; // Stopped only
-      if (selectedTab === 3) return matchesSearch && workflow.status === "Broken"; // Broken only
-      
+      if (selectedTab === 1)
+        return matchesSearch && workflow.status === "Running"; // Running only
+      if (selectedTab === 2)
+        return matchesSearch && workflow.status === "Stopped"; // Stopped only
+      if (selectedTab === 3)
+        return matchesSearch && workflow.status === "Broken"; // Broken only
+
       return matchesSearch;
     });
 
@@ -523,7 +397,7 @@ export const WorkflowsList = () => {
         userAvatar="https://i.pravatar.cc/150?img=1"
         searchPlaceholder="Search workflows, projects, or users..."
         searchValue={globalSearchQuery}
-        onSearchChange={setGlobalSearchQuery}
+        onSearchChange={handleSearchChange}
         onLogout={handleLogout}
       />
 
@@ -579,20 +453,61 @@ export const WorkflowsList = () => {
                 pb: 3,
               }}
             >
-              {globalLoading && workflows.length === 0 ? (
+              {globalLoading || loading ? (
                 <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", py: 4 }}>
                   <Loading />
                 </Box>
               ) : error ? (
-                <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", py: 4 }}>
+                <Box
+                  sx={{
+                    display: "flex",
+                    justifyContent: "center",
+                    alignItems: "center",
+                    py: 4,
+                  }}
+                >
                   <Typography color="error">{error}</Typography>
                 </Box>
               ) : filteredWorkflows.length === 0 ? (
-                <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", py: 4 }}>
-                  <Typography color="text.secondary">No workflows found</Typography>
+                <Box
+                  sx={{
+                    display: "flex",
+                    justifyContent: "center",
+                    alignItems: "center",
+                    py: 4,
+                  }}
+                >
+                  <Box
+                    sx={{
+                      display: "flex",
+                      flexDirection: "column",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      py: 4,
+                    }}
+                  >
+                    <Box
+                      component="img"
+                      src={noDataSvg}
+                      alt="No data"
+                      sx={{ width: "8rem", height: "auto", opacity: 0.6 }}
+                    />
+                    <Typography
+                      variant="body2"
+                      sx={{
+                        color: "text.secondary",
+                        fontSize: "0.875rem",
+                        mt: 2,
+                      }}
+                    >
+                      No workflows found
+                    </Typography>
+                  </Box>
                 </Box>
               ) : (
-                <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>
+                <Box
+                  sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}
+                >
                   {filteredWorkflows.map((workflow) => (
                     <WorkflowCard
                       key={workflow.id}
@@ -606,15 +521,12 @@ export const WorkflowsList = () => {
             </Box>
           </Box>
 
-          {/* TODO: Check, after merge Right Content - Workflow Details */}
-          {console.log(selectedWorkflow)}
           {selectedWorkflow && (
             <WorkflowDetails
               workflow={selectedWorkflow}
               actionFilter={actionFilter}
               onActionFilterChange={setActionFilter}
-              actionItems={mockActionItems}
-              logs={mockLogs}
+              logs={[]}
             />
           )}
         </Box>

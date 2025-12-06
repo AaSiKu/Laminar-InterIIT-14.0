@@ -16,6 +16,7 @@ POSTGRES_IMAGE = os.getenv("POSTGRES_IMAGE", "backend-postgres:latest")
 AGENTIC_IMAGE = os.getenv("AGENTIC_IMAGE", "backend-agentic:latest")
 POSTGRES_PASSWORD = os.getenv("POSTGRES_PASSWORD", "admin123")
 PIPELINE_CONTAINER_PORT = os.getenv("PIPELINE_CONTAINER_PORT", "8000/tcp")
+PIPELINE_ERROR_INDEXING_PORT = os.getenv("PIPELINE_ERROR_INDEXING_PORT", "8001/tcp")
 AGENTIC_CONTAINER_PORT = os.getenv("AGENTIC_CONTAINER_PORT", "5333/tcp")
 
 dev = os.getenv("ENVIRONMENT", "prod") == "dev"
@@ -33,11 +34,26 @@ def run_pipeline_container(client: docker.DockerClient, pipeline_id: str):
     # Ensure images exist
     try:
         client.images.get(PIPELINE_IMAGE)
-        client.images.get(POSTGRES_IMAGE)
-        client.images.get(AGENTIC_IMAGE)
-        logger.info("Required images found.")
+        logger.info(f"Found image: {PIPELINE_IMAGE}")
     except docker.errors.ImageNotFound:
-        raise docker.errors.ImageNotFound("Images not built. Run `docker compose build` first.")
+        logger.error(f"Image not found: {PIPELINE_IMAGE}")
+        raise docker.errors.ImageNotFound(f"Image '{PIPELINE_IMAGE}' not found. Run `docker compose build` first.")
+    
+    try:
+        client.images.get(POSTGRES_IMAGE)
+        logger.info(f"Found image: {POSTGRES_IMAGE}")
+    except docker.errors.ImageNotFound:
+        logger.error(f"Image not found: {POSTGRES_IMAGE}")
+        raise docker.errors.ImageNotFound(f"Image '{POSTGRES_IMAGE}' not found. Run `docker compose build` first.")
+    
+    try:
+        client.images.get(AGENTIC_IMAGE)
+        logger.info(f"Found image: {AGENTIC_IMAGE}")
+    except docker.errors.ImageNotFound:
+        logger.error(f"Image not found: {AGENTIC_IMAGE}")
+        raise docker.errors.ImageNotFound(f"Image '{AGENTIC_IMAGE}' not found. Run `docker compose build` first.")
+    
+    logger.info("All required images found.")
 
     # Ensure container does not already exist
     try:
@@ -88,10 +104,16 @@ def run_pipeline_container(client: docker.DockerClient, pipeline_id: str):
         name=agentic_container_name,
         detach=True,
         environment={
+            "PIPELINE_ID": pipeline_id,
             "POSTGRES_HOST": db_container_name,
             "POSTGRES_DB": "db",
             "POSTGRES_USER": read_user,
             "POSTGRES_PASSWORD": read_pass,
+            "PATHWAY_API_URL": f"http://{pipeline_id}:{PIPELINE_ERROR_INDEXING_PORT.split('/')[0]}",
+            "MONGO_URI": os.getenv("MONGO_URI", ""),
+            "MONGO_DB": os.getenv("MONGO_DB", "easyworkflow"),
+            "LOGS_COLLECTION": os.getenv("LOGS_COLLECTION", "logs"),
+            # TODO: add LLM API keys
         },
         network=network_name,
         ports={AGENTIC_CONTAINER_PORT: AGENTIC_CONTAINER_PORT if not dynamic_ports else None},   # dynamic host port
@@ -129,9 +151,24 @@ def run_pipeline_container(client: docker.DockerClient, pipeline_id: str):
             "POSTGRES_DB": "db",
             "POSTGRES_USER": write_user,
             "POSTGRES_PASSWORD": write_pass,
+            "ERROR_INDEXING_HOST": "0.0.0.0",
+            "ERROR_INDEXING_PORT": PIPELINE_ERROR_INDEXING_PORT.split('/')[0],
+            "ERRORS_JSON_PATH": "pipeline/errors_table/Errors.json",
+            "EMBEDDING_MODEL": "models/text-embedding-004",
+            "GEMINI_API_KEY": os.getenv("GEMINI_API_KEY", ""),
+            "PATHWAY_LICENSE_KEY": os.getenv("PATHWAY_LICENSE_KEY", ""),
+            "MONGO_URI": os.getenv("MONGO_URI", ""),
+            "MONGO_DB": os.getenv("MONGO_DB", "easyworkflow"),
+            "WORKFLOW_COLLECTION": os.getenv("WORKFLOW_COLLECTION", "workflows"),
+            "VERSION_COLLECTION": os.getenv("VERSION_COLLECTION", "versions"),
+            "LOGS_COLLECTION": os.getenv("LOGS_COLLECTION", "logs"),
+            "FLOWCHART_FILE": "flowchart.json",
         },
         network=network_name,
-        ports={PIPELINE_CONTAINER_PORT: PIPELINE_CONTAINER_PORT if not dynamic_ports else None},   # dynamic host port
+        ports={
+            PIPELINE_CONTAINER_PORT: PIPELINE_CONTAINER_PORT if not dynamic_ports else None,
+            PIPELINE_ERROR_INDEXING_PORT: PIPELINE_ERROR_INDEXING_PORT if not dynamic_ports else None,
+        },
         volumes=({  
             os.path.join(project_root, "pipeline"): {
                 "bind": "/app/pipeline",
@@ -157,6 +194,7 @@ def run_pipeline_container(client: docker.DockerClient, pipeline_id: str):
         agentic_container.reload()
         db_container.reload()
         assigned_pipeline_port = pipeline_container.ports[PIPELINE_CONTAINER_PORT][0]['HostPort']
+        assigned_pipeline_error_port = pipeline_container.ports[PIPELINE_ERROR_INDEXING_PORT][0]['HostPort']
         assigned_agentic_port = agentic_container.ports[AGENTIC_CONTAINER_PORT][0]['HostPort']
         assigned_database_port = db_container.ports["5432/tcp"][0]['HostPort']
     except Exception as e:
@@ -171,6 +209,7 @@ def run_pipeline_container(client: docker.DockerClient, pipeline_id: str):
         raise RuntimeError("Failed to determine assigned host port.")
 
     logger.info(f"Pipeline container running on host port {assigned_pipeline_port}")
+    logger.info(f"Pipeline error indexing on host port {assigned_pipeline_error_port}")
     logger.info(f"Agentic container running on host port {assigned_agentic_port}")
 
     return {
@@ -179,6 +218,7 @@ def run_pipeline_container(client: docker.DockerClient, pipeline_id: str):
         "agentic_container_id": agentic_container.id,
         "network": network_name,
         "pipeline_host_port": assigned_pipeline_port,
+        "pipeline_error_indexing_port": assigned_pipeline_error_port,
         "agentic_host_port": assigned_agentic_port,
         "db_host_port": assigned_database_port,
     }

@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from bson.objectid import ObjectId
-from backend.api.routers.auth.routes import get_current_user
-from backend.api.routers.auth.models import User
+from ..auth.routes import get_current_user
+from ..auth.models import User
 from datetime import datetime
 from typing import List
 import logging
@@ -9,7 +9,7 @@ from .schema import save_workflow_payload, retrieve_payload, save_draft_payload,
 from .crud import create_workflow as _create_workflow
 from sqlalchemy.future import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from backend.api.routers.auth.database import get_db
+from ..auth.database import get_db
 
 
 logger = logging.getLogger(__name__)
@@ -286,8 +286,7 @@ async def save_draft(
         user_identifier = str(current_user.id)
         try:
             (ObjectId(current_version_id) is None)
-            # TODO: Check after merge
-            ObjectId(workflow_id)
+            (ObjectId(workflow_id) is None)
         except:
             raise HTTPException(status_code=404, detail="Workflow or Version not found")
 
@@ -389,7 +388,7 @@ async def retrieve_all(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
     skip: int = 0,
-    limit: int = 10
+    limit: int = None
 ):
 
     workflow_collection = request.app.state.workflow_collection
@@ -399,14 +398,13 @@ async def retrieve_all(
     if current_user.role != "admin":
         query = {"owner_ids": str(current_user.id)}
 
-    workflows = await (
-        workflow_collection
-        .find(query)
-        .sort("last_updated", -1)
-        .skip(skip)
-        .limit(limit)
-        .to_list(length=limit)
-    )
+    cursor = workflow_collection.find(query).sort("last_updated", -1).skip(skip)
+
+    if limit is not None:
+        cursor = cursor.limit(limit)
+        workflows = await cursor.to_list(length=limit)
+    else:
+        workflows = await cursor.to_list(length=None)
 
     current_user_id = str(current_user.id)
 

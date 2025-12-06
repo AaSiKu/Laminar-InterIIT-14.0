@@ -1,18 +1,18 @@
 from ..node import Node
-from ..common_types import RdKafkaSettings
+from ..types import RdKafkaSettings
 from typing import Literal
 
 
 class OpenTelInputNode(Node):
-    category: Literal["io"]
-    n_inputs: Literal[1] = 1
+    category: Literal["open_tel"] = "open_tel"
+    n_inputs: Literal[0] = 0
     rdkafka_settings: RdKafkaSettings
 
 class OpenTelSpansNode(OpenTelInputNode):
     """Input node for span data from Kafka."""
     node_id: Literal["open_tel_spans_input"]
     topic: str = "otlp_spans"
-    
+
 
 
 class OpenTelMetricsNode(OpenTelInputNode):

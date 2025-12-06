@@ -15,6 +15,8 @@ import shutil
 from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
 
+from contractparseragent.layout_utils import apply_layout
+
 app = FastAPI()
 
 app.add_middleware(
@@ -802,6 +804,8 @@ class MockWSAgenticSession:
             "agents": []
         }
         print(f"[MOCK] → Total: {len(merged['nodes'])} nodes, {len(merged['edges'])} edges")
+
+        apply_layout(merged)
 
         # Wrap the output to match the format of tests/pipeline/sample_flowchart1.json
         try:

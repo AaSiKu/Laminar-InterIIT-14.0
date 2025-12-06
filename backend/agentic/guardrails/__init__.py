@@ -1,4 +1,5 @@
 from .base import (
+    BaseDetector, 
     Extra, 
     ExtrasImport,
     BaseDetector,
@@ -19,6 +20,7 @@ from .gateway import (
 )
 
 __all__ = [
+    'BaseDetectorase', 
     'Extra', 
     'ExtrasImport', 
     'PromptInjectionAnalyzer', 
