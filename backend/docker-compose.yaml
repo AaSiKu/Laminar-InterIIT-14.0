@@ -3,7 +3,6 @@ services:
     build: ./pipeline
     ports:
       - "8000:8000"
-      - "8001:8001"  # Error document store port
     depends_on:
       - postgres
     environment:
@@ -16,8 +15,11 @@ services:
       FLOWCHART_FILE: "flowchart.json"
       AGENTIC_URL: http://agentic:5333
       ERROR_INDEXING_HOST: "0.0.0.0"
-      ERROR_INDEXING_PORT: "8001"
-      ERRORS_JSON_PATH: "pipeline/errors_table/Errors.json"
+      ERROR_INDEXING_PORT: "11111"
+      ERRORS_JSON_PATH: "/app/pipeline/Error_registry/Errors.json"
+      MONGO_URI: ${MONGO_URI}
+      MONGODB_URI: ${MONGO_URI}
+      MONGODB_DATABASE: "runbook"
       EMBEDDING_MODEL: "models/text-embedding-004"
       GEMINI_API_KEY: ${GEMINI_API_KEY}
       PATHWAY_LICENSE_KEY: ${PATHWAY_LICENSE_KEY}
@@ -39,7 +41,7 @@ services:
       POSTGRES_USER: ${_POSTGRES_READ_USER}
       RUNBOOK_DATABASE_URL: postgresql+asyncpg://${_POSTGRES_WRITE_USER}:${_POSTGRES_WRITE_PASSWORD}@postgres:5432/db
       DATABASE_URL: postgresql+asyncpg://${_POSTGRES_WRITE_USER}:${_POSTGRES_WRITE_PASSWORD}@postgres:5432/db
-      PATHWAY_API_URL: http://pipeline:8001
+      PATHWAY_API_URL: http://pipeline:11111
     ports:
       - "5333:5333"
     volumes:

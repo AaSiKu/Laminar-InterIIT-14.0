@@ -259,3 +259,83 @@ class ErrorActionRegistry:
             return []
 
 
+# =============================================================================
+# Example Usage
+# =============================================================================
+
+async def example_usage():
+    """Demonstrate error-action registry usage"""
+    
+    # Initialize registry
+    registry = ErrorActionRegistry(
+        mongodb_uri="mongodb://localhost:27017",
+        database_name="runbook",
+        local_file_path="Errors.json"
+    )
+    
+    await registry.connect()
+    
+    try:
+        # Add single error mapping
+        await registry.add_error_mapping(
+            error="DatabaseConnectionTimeout",
+            actions=["check-db-health", "restart-db-connection-pool", "restart-db-service"],
+            description="Database connection pool exhausted or database is unresponsive"
+        )
+        
+        await registry.add_error_mapping(
+            error="HighMemoryUsage",
+            actions=["clear-cache", "restart-service", "scale-up-instances"],
+            description="Service memory usage exceeded 90% threshold"
+        )
+        
+        await registry.add_error_mapping(
+            error="APIRateLimitExceeded",
+            actions=["enable-circuit-breaker", "scale-up-instances"],
+            description="External API rate limit exceeded, requests being throttled"
+        )
+        
+        # Bulk add multiple mappings
+        bulk_mappings = [
+            {
+                "error": "DiskSpaceFull",
+                "actions": ["clear-temp-files", "archive-old-logs", "expand-disk-volume"],
+                "description": "Disk usage at 95%, no space left on device"
+            },
+            {
+                "error": "SSLCertificateExpired",
+                "actions": ["renew-ssl-certificate", "reload-nginx-config"],
+                "description": "SSL certificate has expired or will expire within 7 days"
+            }
+        ]
+        
+        await registry.bulk_add_mappings(bulk_mappings)
+        
+        # Retrieve specific error mapping
+        print("\nRetrieving mapping for 'DatabaseConnectionTimeout':")
+        mapping = await registry.get_error_mapping("DatabaseConnectionTimeout")
+        print(f"  Error: {mapping['error']}")
+        print(f"  Actions: {mapping['actions']}")
+        print(f"  Description: {mapping['description']}")
+        
+        # List all mappings
+        print("\nAll error mappings:")
+        all_mappings = await registry.list_all_mappings()
+        for m in all_mappings:
+            print(f"  • {m['error']}: {len(m['actions'])} actions")
+        
+        # Force sync to local file
+        await registry.force_sync()
+        
+        # Load from local file (offline access)
+        print("\nLoading from local Errors.json:")
+        local_mappings = registry.load_from_local_file()
+        print(f"  Loaded {len(local_mappings)} mappings from local file")
+        
+    finally:
+        await registry.close()
+
+
+if __name__ == "__main__":
+    # Run example
+    asyncio.run(example_usage())

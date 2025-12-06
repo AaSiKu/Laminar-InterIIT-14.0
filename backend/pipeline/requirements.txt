@@ -12,3 +12,4 @@ numpy
 river
 psutil
 torch
+pathway
