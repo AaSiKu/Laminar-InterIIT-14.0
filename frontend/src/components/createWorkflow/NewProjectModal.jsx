@@ -16,73 +16,36 @@ import CloseIcon from "@mui/icons-material/Close";
 import SearchIcon from "@mui/icons-material/Search";
 import FilterListIcon from "@mui/icons-material/FilterList";
 import CheckIcon from "@mui/icons-material/Check";
+import aiIcon from "../../assets/ai_icon.svg";
 
 // Template data
 const templates = {
   blank: [
     {
       id: "blank",
-      name: "Blank",
-      image: null,
+      name: "Create New AI Workflow",
+      image: aiIcon,
       bgColor: "#e8f4f8",
     },
   ],
   sla: [
     {
-      id: "mdtr-throughput",
-      name: "MDTR & Throughput",
-      image:
-        "https://images.unsplash.com/photo-1557672172-298e090bd0f1?w=400&h=300&fit=crop",
-      bgColor: "#1a1a1a",
-    },
-    {
-      id: "latency-check",
-      name: "Latency Check",
+      id: "downtime",
+      name: "Downtime",
       image: null,
-      bgColor: "#b8d4d4",
+      bgColor: "#e8f4f8",
     },
     {
-      id: "crash-reports",
-      name: "Crash Reports",
-      image:
-        "https://images.unsplash.com/photo-1558591710-4b4a1ae0f04d?w=400&h=300&fit=crop",
-      bgColor: "#f0f0f0",
-    },
-    {
-      id: "mdtr-throughput",
-      name: "MDTR & Throughput",
-      image:
-        "https://images.unsplash.com/photo-1557672172-298e090bd0f1?w=400&h=300&fit=crop",
-      bgColor: "#1a1a1a",
-    },
-    {
-      id: "mdtr-throughput",
-      name: "MDTR & Throughput",
-      image:
-        "https://images.unsplash.com/photo-1557672172-298e090bd0f1?w=400&h=300&fit=crop",
-      bgColor: "#1a1a1a",
-    },
-  ],
-  qbc: [
-    {
-      id: "mdtr-throughput",
-      name: "MDTR & Throughput",
-      image:
-        "https://images.unsplash.com/photo-1557672172-298e090bd0f1?w=400&h=300&fit=crop",
-      bgColor: "#1a1a1a",
-    },
-    {
-      id: "latency-check",
-      name: "Latency Check",
+      id: "error-rate",
+      name: "Error Rate",
       image: null,
-      bgColor: "#b8d4d4",
+      bgColor: "#e8f4f8",
     },
     {
-      id: "crash-reports",
-      name: "Crash Reports",
-      image:
-        "https://images.unsplash.com/photo-1558591710-4b4a1ae0f04d?w=400&h=300&fit=crop",
-      bgColor: "#f0f0f0",
+      id: "latency",
+      name: "Latency",
+      image: null,
+      bgColor: "#e8f4f8",
     },
   ],
 };
@@ -337,7 +300,13 @@ const NewProjectModal = ({ open, onClose, onSelectTemplate }) => {
               )}
 
               {/* Template Cards */}
-              <Box sx={{ display: "flex", gap: 3, flexWrap: "wrap" }}>
+              <Box 
+                sx={{ 
+                  display: "flex", 
+                  gap: sectionKey === "sla" || sectionKey === "blank" ? 2 : 3, 
+                  flexWrap: "wrap",
+                }}
+              >
                 {filterTemplates(sectionTemplates).map((template, idx) => (
                   <Box
                     key={`${template.id}-${idx}`}
@@ -345,7 +314,8 @@ const NewProjectModal = ({ open, onClose, onSelectTemplate }) => {
                     sx={{
                       cursor: "pointer",
                       transition: "transform 0.2s ease",
-                      width: 355,
+                      width: sectionKey === "sla" || sectionKey === "blank" ? "calc((100% - 32px) / 3)" : 355,
+                      minWidth: sectionKey === "sla" || sectionKey === "blank" ? 240 : 355,
                       flexShrink: 0,
                       display: "flex",
                       flexDirection: "column",
@@ -357,12 +327,15 @@ const NewProjectModal = ({ open, onClose, onSelectTemplate }) => {
                     <Box
                       sx={{
                         width: "100%",
-                        height: 200,
+                        height: sectionKey === "sla" || sectionKey === "blank" ? 140 : 200,
                         borderRadius: 4,
                         overflow: "hidden",
                         position: "relative",
                         flexShrink: 0,
                         backgroundColor: template.bgColor,
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
                       }}
                     >
                       {template.image && (
@@ -371,9 +344,11 @@ const NewProjectModal = ({ open, onClose, onSelectTemplate }) => {
                           src={template.image}
                           alt={template.name}
                           sx={{
-                            width: "100%",
-                            height: "100%",
-                            objectFit: "cover",
+                            maxWidth: sectionKey === "blank" ? "60%" : "100%",
+                            maxHeight: sectionKey === "blank" ? "60%" : "100%",
+                            width: sectionKey === "blank" ? "auto" : "100%",
+                            height: sectionKey === "blank" ? "auto" : "100%",
+                            objectFit: sectionKey === "blank" ? "contain" : "cover",
                             display: "block",
                           }}
                         />
