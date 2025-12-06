@@ -354,51 +354,99 @@ const BasicInformationForm = ({ formData, onInputChange, onFileChange, onMembers
           }}
           loading={loadingUsers}
           noOptionsText={loadingUsers ? "Loading users..." : "No users found"}
-          renderInput={(params) => (
-            <TextField
-              {...params}
-              variant="filled"
-              placeholder="Add Viewers"
-              InputProps={{
-                ...params.InputProps,
-                disableUnderline: true,
-              }}
-              sx={{
-                "& .MuiFilledInput-root": {
-                  bgcolor: "background.elevation2",
-                  borderRadius: 2,
-                  minHeight: "56px",
-                  "&:hover": { bgcolor: "background.elevation1" },
-                  "&.Mui-focused": {
-                    bgcolor: "background.elevation1",
-                    boxShadow: (theme) =>
-                      `0 0 0 2px ${theme.palette.primary.light}`,
+          renderInput={(params) => {
+            const hasSelectedMembers = (formData.selectedMembers || []).length > 0;
+            return (
+              <TextField
+                {...params}
+                variant="filled"
+                placeholder={hasSelectedMembers ? "" : "Add Viewers"}
+                InputProps={{
+                  ...params.InputProps,
+                  disableUnderline: true,
+                }}
+                sx={{
+                  "& .MuiFilledInput-root": {
+                    bgcolor: "background.elevation2",
+                    borderRadius: 2,
+                    minHeight: "56px",
+                    display: "flex",
+                    alignItems: "center",
+                    padding: "4px 8px",
+                    "&:hover": { bgcolor: "background.elevation1" },
+                    "&.Mui-focused": {
+                      bgcolor: "background.elevation1",
+                      boxShadow: (theme) =>
+                        `0 0 0 2px ${theme.palette.primary.light}`,
+                    },
                   },
-                },
-                "& .MuiFilledInput-input": {
-                  py: 1.5,
-                  px: 2,
-                  fontSize: "0.875rem",
-                },
-              }}
-            />
-          )}
+                  "& .MuiFilledInput-input": {
+                    py: 1.5,
+                    px: 2,
+                    fontSize: "0.875rem",
+                    height: "auto",
+                    display: "flex",
+                    alignItems: "center",
+                  },
+                  "& .MuiInputBase-input": {
+                    display: "flex",
+                    alignItems: "center",
+                    height: "auto",
+                  },
+                  "& .MuiAutocomplete-inputRoot": {
+                    display: "flex",
+                    alignItems: "center",
+                    flexWrap: "wrap",
+                    gap: "4px",
+                  },
+                  "& .MuiAutocomplete-tag": {
+                    margin: 0,
+                    height: "28px",
+                    display: "inline-flex",
+                    alignItems: "center",
+                  },
+                  "& .MuiAutocomplete-endAdornment": {
+                    display: "flex",
+                    alignItems: "center",
+                    top: "50%",
+                    transform: "translateY(-50%)",
+                    right: "8px",
+                  },
+                }}
+              />
+            );
+          }}
           renderTags={(value, getTagProps) =>
             value.map((option, index) => {
               const { key, ...tagProps } = getTagProps({ index });
               const name =
                 option.full_name || option.name || `User ${option.id}`;
-              const email = option.email || "";
               return (
                 <Chip
                   key={key}
-                  label={email ? `${name} <${email}>` : name}
+                  label={name}
                   {...tagProps}
                   sx={{
-                    bgcolor: "primary.light",
-                    color: "primary.contrastText",
+                    bgcolor: "action.hover",
+                    color: "text.primary",
+                    height: "28px",
+                    border: "1px solid",
+                    borderColor: "text.primary",
+                    "& .MuiChip-label": {
+                      px: 1.5,
+                      fontSize: "0.875rem",
+                      fontWeight: 400,
+                      display: "flex",
+                      alignItems: "center",
+                    },
                     "& .MuiChip-deleteIcon": {
-                      color: "primary.contrastText",
+                      color: "text.primary",
+                      fontSize: "18px",
+                      marginRight: "4px",
+                      "&:hover": {
+                        color: "text.primary",
+                        opacity: 0.7,
+                      },
                     },
                   }}
                 />

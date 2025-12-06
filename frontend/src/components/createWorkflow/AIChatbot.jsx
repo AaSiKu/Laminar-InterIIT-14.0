@@ -53,7 +53,8 @@ const AIChatbot = ({
   }, [externalMessages]);
 
   const handleChatSubmit = async (analyzeMode = false) => {
-    if ((!chatInput.trim() && !analyzeMode) || isGenerating) return;
+    // Allow submission if awaiting input (even if isGenerating is true) or if not generating
+    if ((!chatInput.trim() && !analyzeMode) || (isGenerating && !awaitingInput)) return;
 
     // If WebSocket is connected, use it
     if (onSendMessage) {
@@ -280,6 +281,18 @@ const AIChatbot = ({
                       "& em": {
                         fontStyle: "italic",
                       },
+                      "& h1, & h2, & h3, & h4, & h5, & h6": {
+                        fontWeight: 600,
+                        mt: 1.5,
+                        mb: 1,
+                        "&:first-child": {
+                          mt: 0,
+                        },
+                      },
+                      "& h3": {
+                        fontSize: "1rem",
+                        fontWeight: 600,
+                      },
                     }}
                   >
                     <Markdown>{msg.content}</Markdown>
@@ -341,12 +354,12 @@ const AIChatbot = ({
                 handleChatSubmit();
               }
             }}
-            disabled={isGenerating}
+            disabled={isGenerating && !awaitingInput}
             InputProps={{
               endAdornment: (
                 <IconButton
                   onClick={handleChatSubmit}
-                  disabled={isGenerating || !chatInput.trim()}
+                  disabled={(isGenerating && !awaitingInput) || !chatInput.trim()}
                   size="small"
                   sx={{ mr: -1 }}
                   title={awaitingInput ? "Send response" : "Send message"}

@@ -68,6 +68,7 @@ const CreateWorkflowDrawer = ({ open, onClose, onComplete }) => {
   const [isRenderingNode, setIsRenderingNode] = useState(false);
   const finalFlowchartRef = useRef(null);
   const rfInstanceRef = useRef(null);
+  const hasSentDescriptionFromChat = useRef(false);
 
   useEffect(() => {
     if (open) {
@@ -91,6 +92,7 @@ const CreateWorkflowDrawer = ({ open, onClose, onComplete }) => {
       setAwaitingInput(false);
       setWsConnected(false);
       finalFlowchartRef.current = null;
+      hasSentDescriptionFromChat.current = false;
     } else {
       // Disconnect WebSocket when drawer closes, TODO: Sure ?
       if (wsRef.current) {
@@ -100,6 +102,7 @@ const CreateWorkflowDrawer = ({ open, onClose, onComplete }) => {
       // Reset users list when drawer closes to fetch fresh data next time
       setAllUsers([]);
       setLoadingUsers(false);
+      hasSentDescriptionFromChat.current = false;
     }
   }, [open]);
 
@@ -118,9 +121,42 @@ const CreateWorkflowDrawer = ({ open, onClose, onComplete }) => {
     }
   };
 
-  // Connect to WebSocket when moving to step 2 with description
+  // Connect to WebSocket when moving to step 2 (only if description or PDF provided)
   useEffect(() => {
-    if (currentStep === 2 && formData.description && !wsRef.current && open) {
+    if (currentStep === 2 && !wsRef.current && open) {
+      const hasNoInput = !formData.document && (!formData.description || !formData.description.trim());
+      
+      console.log("Step 2 - Checking input:", {
+        hasDocument: !!formData.document,
+        hasDescription: !!formData.description,
+        descriptionValue: formData.description,
+        hasNoInput: hasNoInput
+      });
+      
+      // If no input provided, show welcome message and don't connect to server
+      if (hasNoInput) {
+        const welcomeMessage = `### 👋 Welcome to the SLA Definition Assistant
+
+I help you create clear, measurable, and actionable **Service Level Agreements (SLAs)** for your systems.
+
+To get started, please **describe the metrics** you want to track.  
+
+For example: uptime, API latency, error rate, data freshness, support response time, or any custom metric you want to define.
+
+**What metrics would you like to create SLAs for?**`;
+
+        setChatMessages([
+          {
+            role: "assistant",
+            content: welcomeMessage,
+          },
+        ]);
+        setIsGenerating(false);
+        setAwaitingInput(true);
+        return; // Don't connect to server
+      }
+
+      // Connect to WebSocket only if we have input (description or PDF)
       const connectWebSocket = async () => {
         try {
           setIsGenerating(true);
@@ -178,6 +214,12 @@ const CreateWorkflowDrawer = ({ open, onClose, onComplete }) => {
           // Determine what to send: PDF (with optional description) or description only
           let initialData = null;
 
+          console.log("Preparing initial data:", {
+            hasDocument: !!formData.document,
+            hasDescription: !!formData.description,
+            descriptionValue: formData.description
+          });
+
           if (
             formData.document &&
             formData.document.type === "application/pdf"
@@ -188,11 +230,22 @@ const CreateWorkflowDrawer = ({ open, onClose, onComplete }) => {
               const formDataUpload = new FormData();
               formDataUpload.append("file", formData.document);
 
+              // Get base URL for HTTP requests (not WebSocket URL)
+              const baseUrl = import.meta.env.VITE_CONTRACT_PARSER || "http://localhost:8001";
+              // Remove /ws if present, and ensure we have the base HTTP URL
+              // Convert ws:// to http:// and remove trailing /ws
+              let httpBaseUrl = baseUrl.replace(/\/ws$/, "").replace(/^ws:\/\//, "http://");
+              // If it's still a WebSocket URL format, convert it
+              if (httpBaseUrl.startsWith("ws://")) {
+                httpBaseUrl = httpBaseUrl.replace(/^ws:\/\//, "http://");
+              }
+              
+              console.log("[PDF Upload] Base URL:", baseUrl);
+              console.log("[PDF Upload] HTTP Base URL:", httpBaseUrl);
+              console.log("[PDF Upload] Uploading to:", `${httpBaseUrl}/upload-pdf`);
+              
               const uploadResponse = await fetch(
-                `${
-                  import.meta.env.VITE_CONTRACT_PARSER ||
-                  "http://localhost:8000/ws"
-                }/upload-pdf`,
+                `${httpBaseUrl}/upload-pdf`,
                 {
                   method: "POST",
                   body: formDataUpload,
@@ -230,24 +283,54 @@ const CreateWorkflowDrawer = ({ open, onClose, onComplete }) => {
               setIsGenerating(false);
               return;
             }
-          } else if (formData.description) {
+          } else if (formData.description && formData.description.trim()) {
             // Format description into metrics (option 2)
+            console.log("Formatting description as metrics:", formData.description);
+            const descriptionValue = formData.description.trim();
             const metrics = ContractParserWebSocket.formatDescriptionToMetrics(
-              formData.description
+              descriptionValue
             );
+            console.log("Formatted metrics:", metrics);
             initialData = { metrics };
+            console.log("Initial data with metrics:", initialData);
           } else {
-            // No PDF or description - use default
-            initialData = {
-              metrics: ContractParserWebSocket.formatDescriptionToMetrics(
-                "Workflow description"
-              ),
-            };
+            // This shouldn't happen if hasNoInput check worked, but add safety check
+            console.error("No initial data to send - this should not happen", {
+              hasDocument: !!formData.document,
+              hasDescription: !!formData.description,
+              descriptionValue: formData.description
+            });
+            setSnackbar({
+              open: true,
+              message: "Please provide a description or upload a PDF",
+              severity: "error",
+            });
+            setIsGenerating(false);
+            return;
           }
 
+          // Ensure initialData is set before connecting
+          if (!initialData) {
+            console.error("initialData is null - cannot connect", {
+              hasDocument: !!formData.document,
+              hasDescription: !!formData.description,
+              descriptionValue: formData.description,
+              documentType: formData.document?.type
+            });
+            setSnackbar({
+              open: true,
+              message: "No data to send to server. Please provide a description or upload a PDF.",
+              severity: "error",
+            });
+            setIsGenerating(false);
+            return;
+          }
+
+          console.log("Connecting to WebSocket with initial data:", initialData);
           // Connect and send initial data
           await ws.connect(initialData);
           wsRef.current = ws;
+          console.log("WebSocket connection established");
         } catch (error) {
           console.error("Error connecting WebSocket:", error);
           setSnackbar({
@@ -270,7 +353,7 @@ const CreateWorkflowDrawer = ({ open, onClose, onComplete }) => {
         setWsConnected(false);
       }
     };
-  }, [currentStep, formData.description, open]);
+  }, [currentStep, open]);
 
   // Handle WebSocket messages
   const handleWebSocketMessage = useCallback((data) => {
@@ -278,17 +361,35 @@ const CreateWorkflowDrawer = ({ open, onClose, onComplete }) => {
 
     switch (msgType) {
       case "session_start":
-        setChatMessages((prev) => [
-          ...prev,
-          { role: "system", content: data.message || "Session started" },
-        ]);
+        // If no input was provided and we haven't sent description from chat yet,
+        // don't show session_start message, keep welcome message
+        const hasNoInput = !formData.document && (!formData.description || !formData.description.trim());
+        if (!hasNoInput || hasSentDescriptionFromChat.current) {
+          setChatMessages((prev) => [
+            ...prev,
+            { role: "system", content: data.message || "Session started" },
+          ]);
+          // When description/PDF is provided, stop generating after session starts
+          setIsGenerating(false);
+        } else {
+          // Ensure generating is false and input is enabled when we have welcome message
+          setIsGenerating(false);
+          setAwaitingInput(true);
+        }
         break;
 
       case "phase":
-        setChatMessages((prev) => [
-          ...prev,
-          { role: "system", content: `\n${data.message}\n` },
-        ]);
+        // If no input was provided and we haven't sent description from chat yet,
+        // don't show phase messages, keep welcome message
+        const hasNoInputPhase = !formData.document && (!formData.description || !formData.description.trim());
+        if (!hasNoInputPhase || hasSentDescriptionFromChat.current) {
+          setChatMessages((prev) => [
+            ...prev,
+            { role: "system", content: `\n${data.message}\n` },
+          ]);
+          // When description/PDF is provided, ensure generating is false when phase messages arrive
+          setIsGenerating(false);
+        }
         break;
 
       case "agent_response":
@@ -297,17 +398,29 @@ const CreateWorkflowDrawer = ({ open, onClose, onComplete }) => {
           { role: "assistant", content: data.message },
         ]);
         // After agent response, we might be waiting for input
-        // Don't set isGenerating to false here, let await_input handle it
+        // Set isGenerating to false to allow user interaction
+        // await_input will also set it, but this ensures it's set even if await_input doesn't come
+        setIsGenerating(false);
         break;
 
       case "await_input":
-        // console.log("Server is waiting for user input");
+        // Server is waiting for user input - always enable input
+        console.log("[WebSocket] Server awaiting input - enabling chatbox");
         setAwaitingInput(true);
         setIsGenerating(false); // Stop showing "Generating..." and enable input
-        setChatMessages((prev) => [
-          ...prev,
-          { role: "system", content: "Waiting for your response..." },
-        ]);
+        
+        // Only add "Waiting for your response..." message if we already have messages
+        // (to avoid showing it when we have the welcome message at the very start)
+        const hasNoInputCheck = !formData.document && (!formData.description || !formData.description.trim());
+        if (hasNoInputCheck && !hasSentDescriptionFromChat.current) {
+          // Don't add this message, keep the welcome message
+          // But still ensure input is enabled (already done above)
+        } else {
+          setChatMessages((prev) => [
+            ...prev,
+            { role: "system", content: "Waiting for your response..." },
+          ]);
+        }
         break;
 
       case "phase1_complete":
@@ -443,7 +556,7 @@ const CreateWorkflowDrawer = ({ open, onClose, onComplete }) => {
         ]);
         break;
     }
-  }, []);
+  }, [formData.document, formData.description]);
 
   // Handle node proposed - render immediately with proper processing
   const handleNodeProposed = useCallback(async (data) => {
@@ -864,8 +977,96 @@ const CreateWorkflowDrawer = ({ open, onClose, onComplete }) => {
 
   // Send user input to WebSocket
   const sendUserInput = useCallback(
-    (message) => {
-      if (wsRef.current && wsConnected) {
+    async (message) => {
+      // Check if we have no initial input (no description, no PDF, and WebSocket not connected)
+      const hasNoInitialInput = !formData.document && (!formData.description || !formData.description.trim());
+      const isNotConnected = !wsRef.current || !wsConnected;
+      
+      // If no input was provided initially and WebSocket is not connected, connect now with user's message
+      if (hasNoInitialInput && isNotConnected && !hasSentDescriptionFromChat.current) {
+        console.log("No initial input provided. Connecting to server with first chat message as description.");
+        
+        // Add user message to chat first
+        setChatMessages((prev) => [
+          ...prev,
+          { role: "user", content: message },
+        ]);
+        
+        // Update formData with the description
+        setFormData((prev) => ({
+          ...prev,
+          description: message.trim(),
+        }));
+        
+        // Format the message as description (metrics)
+        const metrics = ContractParserWebSocket.formatDescriptionToMetrics(message.trim());
+        
+        // Connect to WebSocket with description as initial data
+        try {
+          setIsGenerating(true);
+          setAwaitingInput(false);
+          
+          const ws = new ContractParserWebSocket({
+            onOpen: () => {
+              setWsConnected(true);
+              console.log("WebSocket connected with description from chat");
+            },
+            onMessage: (data) => {
+              handleWebSocketMessage(data);
+            },
+            onError: (error) => {
+              console.error("WebSocket error:", error);
+              setSnackbar({
+                open: true,
+                message: "Failed to connect to AI agent",
+                severity: "error",
+              });
+              setIsGenerating(false);
+            },
+            onClose: () => {
+              setWsConnected(false);
+              setIsGenerating(false);
+            },
+            onNodeProposed: (data) => {
+              handleNodeProposed(data);
+            },
+            onFlowchartUpdate: (data) => {
+              if (data.flowchart) {
+                updateNodesFromFlowchart(data.flowchart);
+              }
+            },
+            onFinal: async (data) => {
+              console.log("Final flowchart received:", data);
+              if (data.flowchart) {
+                finalFlowchartRef.current = data.flowchart;
+                await updateNodesFromFlowchart(data.flowchart);
+                setChatMessages((prev) => [
+                  ...prev,
+                  {
+                    role: "system",
+                    content:
+                      "Workflow generation complete! Click 'Next' to review and then 'Create' to save.",
+                  },
+                ]);
+              }
+            },
+          });
+
+          const initialData = { metrics };
+          await ws.connect(initialData);
+          wsRef.current = ws;
+          hasSentDescriptionFromChat.current = true;
+        } catch (error) {
+          console.error("Error connecting WebSocket:", error);
+          setSnackbar({
+            open: true,
+            message: "Failed to connect to AI agent",
+            severity: "error",
+          });
+          setIsGenerating(false);
+        }
+      } else if (wsRef.current && wsConnected) {
+        // Normal message sending (WebSocket already connected)
         console.log("Sending user input to server:", message);
         wsRef.current.sendUserInput(message);
         setChatMessages((prev) => [
@@ -878,7 +1079,7 @@ const CreateWorkflowDrawer = ({ open, onClose, onComplete }) => {
         console.warn("Cannot send message: WebSocket not connected");
       }
     },
-    [wsConnected]
+    [wsConnected, formData.description, formData.document, handleWebSocketMessage, handleNodeProposed, updateNodesFromFlowchart, setSnackbar]
   );
 
   const handleNext = async () => {

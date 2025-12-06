@@ -5,7 +5,10 @@
 
 // Use mock server by default for testing (set VITE_USE_MOCK_SERVER=false to use real server)
 const USE_MOCK_SERVER = import.meta.env.VITE_USE_MOCK_SERVER !== "false";
-const CONTRACT_PARSER_WS_URL = import.meta.env.VITE_CONTRACT_PARSER;
+// Get the base URL and construct WebSocket URL
+const BASE_URL = import.meta.env.VITE_CONTRACT_PARSER || "http://localhost:8001";
+// Convert http:// to ws:// and ensure /ws endpoint
+const CONTRACT_PARSER_WS_URL = BASE_URL.replace(/^http/, "ws") + (BASE_URL.includes("/ws") ? "" : "/ws");
 
 export class ContractParserWebSocket {
   constructor(callbacks = {}) {
@@ -31,12 +34,13 @@ export class ContractParserWebSocket {
   connect(initialData = null) {
     return new Promise((resolve, reject) => {
       try {
+        console.log(`[WebSocket] Attempting to connect to: ${CONTRACT_PARSER_WS_URL}`);
         this.ws = new WebSocket(CONTRACT_PARSER_WS_URL);
 
         this.ws.onopen = () => {
           this.isConnected = true;
-          console.log(`WebSocket connected to contract parser agent at ${CONTRACT_PARSER_WS_URL}`);
-          console.log(`Using ${USE_MOCK_SERVER ? 'MOCK' : 'REAL'} server mode`);
+          console.log(`[WebSocket] ✓ Connected to contract parser agent at ${CONTRACT_PARSER_WS_URL}`);
+          console.log(`[WebSocket] Using ${USE_MOCK_SERVER ? 'MOCK' : 'REAL'} server mode`);
           
           // Send initial data immediately if provided
           if (initialData) {
@@ -52,7 +56,7 @@ export class ContractParserWebSocket {
                 payload = { pdf_path: initialData.pdf_path };
                 if (initialData.description && initialData.description.trim()) {
                   payload.description = initialData.description;
-                  console.log("Including description with PDF for combined metric extraction");
+                  console.log("[WebSocket] Including description with PDF for combined metric extraction");
                 }
                 if (initialData.anthropic_api_key) {
                   payload.anthropic_api_key = initialData.anthropic_api_key;
@@ -60,20 +64,29 @@ export class ContractParserWebSocket {
               } else if (initialData.metrics && initialData.metrics.length > 0) {
                 // Metrics object
                 payload = { metrics: initialData.metrics };
+                console.log(`[WebSocket] Sending metrics payload with ${initialData.metrics.length} metric(s)`);
               } else if (initialData.description) {
                 // Description only - convert to metrics
                 payload = { 
                   metrics: ContractParserWebSocket.formatDescriptionToMetrics(initialData.description)
                 };
+                console.log("[WebSocket] Converted description to metrics payload");
               }
               
               if (payload) {
-                this.ws.send(JSON.stringify(payload));
-                console.log("Sent initial data:", payload);
+                const payloadStr = JSON.stringify(payload);
+                this.ws.send(payloadStr);
+                console.log("[WebSocket] ✓ Sent initial data to server:", payload);
+                console.log("[WebSocket] Payload string length:", payloadStr.length);
+              } else {
+                console.warn("[WebSocket] No payload to send - initialData format not recognized:", initialData);
               }
             } catch (error) {
-              console.error("Error sending initial data:", error);
+              console.error("[WebSocket] ❌ Error sending initial data:", error);
+              reject(error);
             }
+          } else {
+            console.warn("[WebSocket] No initial data provided - connection established but no data sent");
           }
           
           this.callbacks.onOpen();
@@ -90,7 +103,8 @@ export class ContractParserWebSocket {
         };
 
         this.ws.onerror = (error) => {
-          console.error("WebSocket error:", error);
+          console.error("[WebSocket] ❌ Connection error:", error);
+          console.error("[WebSocket] URL attempted:", CONTRACT_PARSER_WS_URL);
           this.callbacks.onError(error);
           reject(error);
         };
