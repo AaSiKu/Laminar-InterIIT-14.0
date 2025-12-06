@@ -169,7 +169,7 @@ def get_api_key(provider: LLMProvider) -> Optional[str]:
         LLMProvider.GROQ: "GROQ_API_KEY",
         LLMProvider.OPENAI: "OPENAI_API_KEY",
         LLMProvider.ANTHROPIC: "ANTHROPIC_API_KEY",
-        LLMProvider.GEMINI: "GEMINI_API_KEY"
+        LLMProvider.GEMINI: "GOOGLE_API_KEY"
     }
     
     env_var = key_mapping.get(provider)
