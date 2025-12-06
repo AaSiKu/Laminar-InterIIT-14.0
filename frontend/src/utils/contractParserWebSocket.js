@@ -153,6 +153,16 @@ export class ContractParserWebSocket {
         this.callbacks.onNodeProposed(data);
         break;
 
+      case "flowchart_update":
+        // Flowchart update - merge with existing nodes
+        if (this.callbacks.onFlowchartUpdate) {
+          this.callbacks.onFlowchartUpdate(data);
+        } else {
+          // Fallback to onMessage if callback not provided
+          this.callbacks.onMessage(data);
+        }
+        break;
+
       case "final":
         // Final flowchart is ready - save it before it's deleted
         this.callbacks.onFinal(data);

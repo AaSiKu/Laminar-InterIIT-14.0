@@ -68,6 +68,7 @@ const CreateWorkflowDrawer = ({ open, onClose, onComplete }) => {
   const [isRenderingNode, setIsRenderingNode] = useState(false);
   const finalFlowchartRef = useRef(null);
   const rfInstanceRef = useRef(null);
+  const renderingTimeoutRef = useRef(null); // Timeout to clear rendering state if flowchart_update doesn't arrive
   const hasSentDescriptionFromChat = useRef(false);
 
   useEffect(() => {
@@ -187,9 +188,29 @@ For example: uptime, API latency, error rate, data freshness, support response t
             },
             onFlowchartUpdate: (data) => {
               // Handle flowchart updates (when flowchart.json is updated)
-              if (data.flowchart) {
-                updateNodesFromFlowchart(data.flowchart);
+              // Merge with existing nodes to keep all previously approved nodes
+              console.log("[WebSocket] flowchart_update received via callback - CLEARING RENDERING STATE NOW");
+              console.log("[WebSocket] flowchart_update details:", {
+                nodeCount: data.flowchart?.nodes?.length || 0,
+                edgeCount: data.flowchart?.edges?.length || 0,
+                nodeIds: data.flowchart?.nodes?.map(n => n.id) || [],
+              });
+              // Clear timeout since flowchart_update arrived
+              if (renderingTimeoutRef.current) {
+                clearTimeout(renderingTimeoutRef.current);
+                renderingTimeoutRef.current = null;
+                console.log("[WebSocket] Cleared rendering timeout in callback");
               }
+              // IMPORTANT: Clear rendering state IMMEDIATELY before merge
+              setIsRenderingNode(false);
+              setIsGenerating(false);
+              if (data.flowchart) {
+                updateNodesFromFlowchart(data.flowchart, true); // true = merge with existing
+              }
+              // Clear proposed node state after merge
+              setProposedNode(null);
+              setProposedNodePosition(null);
+              console.log("[WebSocket] flowchart_update callback complete - isRenderingNode cleared");
             },
             onFinal: async (data) => {
               // Store final flowchart - don't save yet, wait for Create button
@@ -243,7 +264,7 @@ For example: uptime, API latency, error rate, data freshness, support response t
               console.log("[PDF Upload] Base URL:", baseUrl);
               console.log("[PDF Upload] HTTP Base URL:", httpBaseUrl);
               console.log("[PDF Upload] Uploading to:", `${httpBaseUrl}/upload-pdf`);
-              
+
               const uploadResponse = await fetch(
                 `${httpBaseUrl}/upload-pdf`,
                 {
@@ -352,6 +373,11 @@ For example: uptime, API latency, error rate, data freshness, support response t
         wsRef.current = null;
         setWsConnected(false);
       }
+      // Clear rendering timeout on cleanup
+      if (renderingTimeoutRef.current) {
+        clearTimeout(renderingTimeoutRef.current);
+        renderingTimeoutRef.current = null;
+      }
     };
   }, [currentStep, open]);
 
@@ -365,10 +391,10 @@ For example: uptime, API latency, error rate, data freshness, support response t
         // don't show session_start message, keep welcome message
         const hasNoInput = !formData.document && (!formData.description || !formData.description.trim());
         if (!hasNoInput || hasSentDescriptionFromChat.current) {
-          setChatMessages((prev) => [
-            ...prev,
-            { role: "system", content: data.message || "Session started" },
-          ]);
+        setChatMessages((prev) => [
+          ...prev,
+          { role: "system", content: data.message || "Session started" },
+        ]);
           // When description/PDF is provided, stop generating after session starts
           setIsGenerating(false);
         } else {
@@ -383,24 +409,28 @@ For example: uptime, API latency, error rate, data freshness, support response t
         // don't show phase messages, keep welcome message
         const hasNoInputPhase = !formData.document && (!formData.description || !formData.description.trim());
         if (!hasNoInputPhase || hasSentDescriptionFromChat.current) {
-          setChatMessages((prev) => [
-            ...prev,
-            { role: "system", content: `\n${data.message}\n` },
-          ]);
+        setChatMessages((prev) => [
+          ...prev,
+          { role: "system", content: `\n${data.message}\n` },
+        ]);
           // When description/PDF is provided, ensure generating is false when phase messages arrive
           setIsGenerating(false);
         }
         break;
 
       case "agent_response":
+        // Remove "Agent:" prefix if present at the start of the message
+        let agentMessage = data.message || "";
+        if (agentMessage.startsWith("Agent:")) {
+          agentMessage = agentMessage.substring(6).trim();
+        }
         setChatMessages((prev) => [
           ...prev,
-          { role: "assistant", content: data.message },
+          { role: "assistant", content: agentMessage },
         ]);
-        // After agent response, we might be waiting for input
-        // Set isGenerating to false to allow user interaction
-        // await_input will also set it, but this ensures it's set even if await_input doesn't come
-        setIsGenerating(false);
+        // Keep isGenerating true to show "Generating workflow..." during the 1 second delay
+        // await_input will set it to false when it arrives
+        // This allows the frontend to show the loading state during the delay
         break;
 
       case "await_input":
@@ -416,17 +446,19 @@ For example: uptime, API latency, error rate, data freshness, support response t
           // Don't add this message, keep the welcome message
           // But still ensure input is enabled (already done above)
         } else {
-          setChatMessages((prev) => [
-            ...prev,
-            { role: "system", content: "Waiting for your response..." },
-          ]);
+        setChatMessages((prev) => [
+          ...prev,
+          { role: "system", content: "Waiting for your response..." },
+        ]);
         }
         break;
 
       case "phase1_complete":
-        // console.log("Phase 1 complete, flowchart received:", data.flowchart);
+        // Phase 1 complete - all nodes should already be there from individual approvals
+        // But merge anyway to ensure everything is correct (merge=true to keep any proposed nodes)
+        console.log("[WebSocket] Phase 1 complete - merging final flowchart");
         if (data.flowchart) {
-          updateNodesFromFlowchart(data.flowchart);
+          updateNodesFromFlowchart(data.flowchart, true); // true = merge with existing
         }
         setChatMessages((prev) => [
           ...prev,
@@ -436,91 +468,43 @@ For example: uptime, API latency, error rate, data freshness, support response t
         break;
 
       case "node_approved":
-        // Node was approved - just remove the "proposed-" prefix and clear dialog
-        // Node is already rendered, just need to make it permanent
-        // console.log("Node approved:", data);
-        setIsRenderingNode(false); // Unfreeze buttons - node rendering complete
-        if (proposedNode) {
-          // Remove "proposed-" prefix from node ID
-          const approvedNodeId = proposedNode.id.replace("proposed-", "");
-
-          setNodes((prev) => {
-            // Map through nodes and update the approved one, keep all others unchanged
-            return prev.map((n) => {
-              if (n.id === proposedNode.id) {
-                // This is the node being approved - remove proposed- prefix
-                // Ensure position is valid
-                let position = n.position;
-                if (
-                  !position ||
-                  typeof position.x !== "number" ||
-                  typeof position.y !== "number"
-                ) {
-                  position = { x: 0, y: 0 };
-                }
-
-                return {
-                  ...n,
-                  id: approvedNodeId,
-                  position: position, // Ensure position is always valid
-                  data: {
-                    ...n.data,
-                    isProposed: false,
-                  },
-                };
-              }
-              // Keep all other nodes exactly as they are (including previously approved ones)
-              // But ensure they also have valid positions
-              if (
-                !n.position ||
-                typeof n.position.x !== "number" ||
-                typeof n.position.y !== "number"
-              ) {
-                return {
-                  ...n,
-                  position: { x: 0, y: 0 },
-                };
-              }
-              return n;
-            });
-          });
-
-          // Update edges to remove "proposed-" prefix from the approved node
-          setEdges((prev) => {
-            return prev.map((edge) => {
-              // Update source if it's the approved node
-              let source = edge.source;
-              if (source === proposedNode.id) {
-                source = approvedNodeId;
-              } else if (
-                source?.startsWith("proposed-") &&
-                source.replace("proposed-", "") === approvedNodeId
-              ) {
-                source = approvedNodeId;
-              }
-
-              // Update target if it's the approved node
-              let target = edge.target;
-              if (target === proposedNode.id) {
-                target = approvedNodeId;
-              } else if (
-                target?.startsWith("proposed-") &&
-                target.replace("proposed-", "") === approvedNodeId
-              ) {
-                target = approvedNodeId;
-              }
-
-              return {
-                ...edge,
-                source: source,
-                target: target,
-              };
-            });
-          });
+        // Node was approved - flowchart_update should come immediately after this
+        // DO NOT update nodes/edges here - flowchart_update will merge everything correctly
+        // The flowchart_update will include ALL nodes (previous + newly approved)
+        console.log("[WebSocket] Node approved - flowchart_update should arrive next with all nodes");
+        // Keep isRenderingNode true until flowchart_update arrives and completes the merge
+        // Set a timeout fallback to clear it if flowchart_update doesn't arrive within 3 seconds
+        if (renderingTimeoutRef.current) {
+          clearTimeout(renderingTimeoutRef.current);
         }
+        renderingTimeoutRef.current = setTimeout(() => {
+          console.warn("[WebSocket] Timeout: flowchart_update didn't arrive, clearing rendering state");
+          setIsRenderingNode(false);
+          setIsGenerating(false);
+        }, 3000); // 3 second timeout
+        setIsGenerating(false);
+        break;
+
+      case "flowchart_update":
+        // Flowchart update - merge with existing nodes to keep all previously accepted nodes
+        console.log("[WebSocket] flowchart_update received in message handler - CLEARING RENDERING STATE NOW");
+        // Clear timeout since flowchart_update arrived
+        if (renderingTimeoutRef.current) {
+          clearTimeout(renderingTimeoutRef.current);
+          renderingTimeoutRef.current = null;
+          console.log("[WebSocket] Cleared rendering timeout in message handler");
+        }
+        // IMPORTANT: Clear rendering state IMMEDIATELY before merge
+        setIsRenderingNode(false);
+        setIsGenerating(false);
+        if (data.flowchart) {
+          console.log("[WebSocket] flowchart_update - calling updateNodesFromFlowchart with merge=true");
+          updateNodesFromFlowchart(data.flowchart, true); // true = merge with existing
+        }
+        // Clear proposed node state after merge
         setProposedNode(null);
         setProposedNodePosition(null);
-        setIsGenerating(false);
+        console.log("[WebSocket] flowchart_update message handler complete - isRenderingNode cleared");
         break;
 
       case "phase2_complete":
@@ -562,14 +546,22 @@ For example: uptime, API latency, error rate, data freshness, support response t
   const handleNodeProposed = useCallback(async (data) => {
     const node = data.node;
 
-    // Ensure position exists and is valid
+    // Use position from JSON - it's the correct final position
+    // The node should appear exactly where it will be in the final workflow
     let nodePosition = node.position;
     if (
       !nodePosition ||
       typeof nodePosition.x !== "number" ||
       typeof nodePosition.y !== "number"
     ) {
+      // Only default if position is truly missing - but it should always be in JSON
+      console.warn("[Node Proposed] Node missing position, using default:", node.id);
       nodePosition = { x: 0, y: 0 };
+    } else {
+      console.log("[Node Proposed] Using position from JSON:", {
+        nodeId: node.id,
+        position: nodePosition,
+      });
     }
 
     // Process the node immediately to ensure it renders properly
@@ -596,10 +588,11 @@ For example: uptime, API latency, error rate, data freshness, support response t
     }
 
     // Add proposed node to canvas - render it immediately with proper structure
+    // Use the position from the node (from JSON) - it's the correct final position
     const tempNode = {
       ...node,
       id: `proposed-${node.id}`,
-      position: nodePosition, // Ensure position is always set
+      position: nodePosition, // Use position from JSON - this is where it will finally be
       data: {
         ...node.data,
         isProposed: true,
@@ -608,18 +601,27 @@ For example: uptime, API latency, error rate, data freshness, support response t
 
     setProposedNode(tempNode);
     setProposedNodePosition(nodePosition);
+    
+    console.log("[Node Proposed] Node will be rendered at position from JSON:", {
+      nodeId: node.id,
+      position: nodePosition,
+      finalPosition: nodePosition, // Same position - no repositioning needed
+    });
 
     // Add to nodes immediately for visualization (already processed)
-    // Only remove the previous proposed node, keep all approved nodes
+    // CRITICAL: Keep ALL previously accepted nodes + add the new proposed node
+    // Only remove the previous proposed node (if any), but keep ALL approved nodes
     setNodes((prev) => {
+      console.log("[Node Proposed] Current nodes before adding proposed:", prev.length, "IDs:", prev.map(n => n.id));
+      
       // Get the ID of the previous proposed node (if any)
       const previousProposedId = proposedNode?.id;
 
-      // Remove only the previous proposed node (if any), keep all other nodes
+      // Filter: Keep ALL approved nodes + the new proposed node, remove only the old proposed node
       const filtered = prev.filter((n) => {
-        // Keep all nodes that don't start with "proposed-" (these are approved nodes)
+        // Keep all approved nodes (don't start with "proposed-")
         if (!n.id.startsWith("proposed-")) {
-          return true;
+          return true; // Keep all approved nodes
         }
         // Remove only the previous proposed node (if it exists and is different from new one)
         if (previousProposedId && n.id === previousProposedId) {
@@ -636,7 +638,7 @@ For example: uptime, API latency, error rate, data freshness, support response t
       // Check if the new proposed node is already in the list
       const nodeExists = filtered.some((n) => n.id === tempNode.id);
 
-      // Ensure all nodes in filtered have valid positions
+      // Ensure all nodes have valid positions
       const validatedFiltered = filtered.map((n) => {
         if (
           !n.position ||
@@ -652,7 +654,12 @@ For example: uptime, API latency, error rate, data freshness, support response t
       });
 
       // Add the new proposed node if it doesn't exist
-      return nodeExists ? validatedFiltered : [...validatedFiltered, tempNode];
+      const result = nodeExists ? validatedFiltered : [...validatedFiltered, tempNode];
+      
+      console.log("[Node Proposed] Nodes after adding proposed:", result.length, "IDs:", result.map(n => n.id));
+      console.log("[Node Proposed] Approved nodes count:", result.filter(n => !n.id.startsWith("proposed-")).length);
+      
+      return result;
     });
 
     // Also add edges immediately if provided
@@ -707,7 +714,9 @@ For example: uptime, API latency, error rate, data freshness, support response t
       });
     }
 
-    // Fit viewport to show the new node in the right half of the screen
+    // Don't reposition the node - use the position from JSON
+    // The node should appear at its final position from the start
+    // Only fit viewport to show all nodes if needed
     setTimeout(() => {
       if (rfInstanceRef.current) {
         try {
@@ -727,41 +736,35 @@ For example: uptime, API latency, error rate, data freshness, support response t
             containerRect?.width || window.innerWidth - 600;
           const containerHeight = containerRect?.height || window.innerHeight;
 
-          // Target position: right side of the visible canvas (75% from left)
-          const targetScreenX = containerWidth * 0.75;
-          const targetScreenY = containerHeight * 0.5;
-
-          // Use a reasonable zoom level
-          const currentZoom = rfInstance.getZoom();
-          const targetZoom = Math.min(currentZoom, 1.0);
-
-          // Calculate viewport position to center the node at target screen position
-          // Formula: screenX = (flowX * zoom) + viewportX
-          // Solving for viewportX: viewportX = screenX - (flowX * zoom)
-          // We want the node center at targetScreenX, so:
-          const nodeCenterX = nodePosition.x + nodeWidth / 2;
-          const nodeCenterY = nodePosition.y + nodeHeight / 2;
-
-          const viewportX = targetScreenX - nodeCenterX * targetZoom;
-          const viewportY = targetScreenY - nodeCenterY * targetZoom;
-
-          // Set the viewport to show the node in the right half
-          rfInstance.setViewport(
-            { x: viewportX, y: viewportY, zoom: targetZoom },
-            { duration: 500 }
-          );
-
-          console.log("Fitted viewport to proposed node:", {
-            nodePosition,
-            nodeCenter: { x: nodeCenterX, y: nodeCenterY },
-            nodeSize: { width: nodeWidth, height: nodeHeight },
-            viewport: { x: viewportX, y: viewportY, zoom: targetZoom },
-            targetScreen: { x: targetScreenX, y: targetScreenY },
-            container: { width: containerWidth, height: containerHeight },
+          // Use the node's position from JSON (already set in nodePosition)
+          // Just ensure it's visible in viewport
+          const nodeX = nodePosition.x;
+          const nodeY = nodePosition.y;
+          
+          // Check if node is visible, if not, adjust viewport slightly
+          const currentViewport = rfInstance.getViewport();
+          const zoom = currentViewport.zoom || 1;
+          
+          // Calculate if node is in viewport
+          const nodeScreenX = (nodeX - currentViewport.x) * zoom;
+          const nodeScreenY = (nodeY - currentViewport.y) * zoom;
+          
+          // If node is outside viewport, center viewport on all nodes
+          if (nodeScreenX < 0 || nodeScreenX > containerWidth || 
+              nodeScreenY < 0 || nodeScreenY > containerHeight) {
+            // Fit view to show all nodes
+            rfInstance.fitView({ padding: 0.2, includeHiddenNodes: false });
+          }
+          
+          // Don't reposition the node - it's already at the correct position from JSON
+          // The node should appear exactly where it will be in the final workflow
+          console.log("[Node Proposed] Node rendered at JSON position:", {
+            nodeId: node.id,
+            position: nodePosition,
           });
         } catch (error) {
-          console.error("Error fitting viewport to proposed node:", error);
-          // Fallback: use fitView to show all nodes
+          console.error("Error checking viewport for proposed node:", error);
+          // Fallback: use fitView to show all nodes if needed
           try {
             rfInstanceRef.current.fitView({ padding: 0.2, duration: 500 });
           } catch (fallbackError) {
@@ -773,14 +776,15 @@ For example: uptime, API latency, error rate, data freshness, support response t
   }, []);
 
   // Update nodes from flowchart
-  const updateNodesFromFlowchart = useCallback(async (flowchart) => {
+  const updateNodesFromFlowchart = useCallback(async (flowchart, mergeWithExisting = false) => {
     if (flowchart.nodes && flowchart.edges) {
       console.log("Updating nodes from flowchart:", {
         nodeCount: flowchart.nodes.length,
         edgeCount: flowchart.edges.length,
+        mergeWithExisting: mergeWithExisting,
       });
 
-      // Remove proposed nodes
+      // Remove proposed nodes from the new flowchart
       const cleanNodes = flowchart.nodes.filter(
         (n) => !n.id.startsWith("proposed-")
       );
@@ -800,7 +804,7 @@ For example: uptime, API latency, error rate, data freshness, support response t
             node.id = `node-${index}`;
           }
 
-          // Ensure position exists
+          // Ensure position exists - use the position from flowchart (it should be correct)
           if (
             !node.position ||
             typeof node.position.x !== "number" ||
@@ -826,13 +830,86 @@ For example: uptime, API latency, error rate, data freshness, support response t
           return node;
         });
 
-        console.log("Validated nodes:", validatedNodes);
+        if (mergeWithExisting) {
+          // Merge with existing nodes - keep all existing approved nodes, update/add new ones
+          // The flowchart_update contains ALL nodes (Phase 1 + all Phase 2 accepted so far)
+          // So we should use validatedNodes as the source of truth, but also keep any proposed nodes
+          // that haven't been replaced yet
+          setNodes((prevNodes) => {
+            console.log("[Merge] Starting merge:");
+            console.log("  - Previous nodes:", prevNodes.length, "IDs:", prevNodes.map(n => n.id));
+            console.log("  - Flowchart nodes:", validatedNodes.length, "IDs:", validatedNodes.map(n => n.id));
+            
+            // Simple merge: use flowchart nodes as source of truth, keep any proposed nodes
+            const flowchartNodeIds = new Set(validatedNodes.map(n => n.id));
+            const proposedNodes = prevNodes.filter(n => 
+              n.id.startsWith("proposed-") && 
+              !flowchartNodeIds.has(n.id.replace("proposed-", ""))
+            );
+            
+            const finalNodes = [
+              ...validatedNodes, // All accepted nodes from flowchart (with correct JSON positions)
+              ...proposedNodes,  // Any proposed nodes that haven't been accepted yet
+            ];
+
+            console.log("[Merge] Final result:", {
+              previousCount: prevNodes.length,
+              previousApprovedCount: prevNodes.filter(n => !n.id.startsWith("proposed-")).length,
+              flowchartNodesCount: validatedNodes.length,
+              proposedNodesCount: proposedNodes.length,
+              finalCount: finalNodes.length,
+              finalNodeIds: finalNodes.map(n => n.id),
+            });
+
+            // Verify: flowchart should include all previously accepted nodes
+            const previousApprovedIds = prevNodes
+              .filter(n => !n.id.startsWith("proposed-"))
+              .map(n => n.id);
+            const missingNodes = previousApprovedIds.filter(id => !flowchartNodeIds.has(id));
+            if (missingNodes.length > 0) {
+              console.error("[Merge] ERROR: Previously accepted nodes missing from flowchart:", missingNodes);
+              console.error("[Merge] Keeping them anyway as a safety measure");
+            }
+
+            return finalNodes;
+          });
+          
+          // Log after state update is queued
+          console.log("[Merge] State update queued - nodes should now include all accepted nodes");
+
+          // Merge edges - replace all edges with the ones from flowchart
+          // (flowchart should have all edges including connections to old nodes)
+          const flowchartEdges = flowchart.edges || [];
+          console.log("[Merge] Setting edges from flowchart:", flowchartEdges.length, "edges");
+          console.log("[Merge] Edge details:", flowchartEdges.map(e => `${e.source} -> ${e.target}`));
+          setEdges(flowchartEdges);
+          
+          console.log("[Merge] COMPLETE - All nodes and edges should now be visible");
+        } else {
+          // Replace all nodes (for final update or phase1_complete)
+          console.log("Replacing all nodes with validated nodes:", validatedNodes);
         setNodes(validatedNodes);
         setEdges(flowchart.edges || []);
+        }
       } catch (error) {
         console.error("Error processing nodes:", error);
         // Fallback: set nodes without processing
+        if (mergeWithExisting) {
+          setNodes((prevNodes) => {
+            const existingNodesMap = new Map();
+            prevNodes.forEach((n) => {
+              if (!n.id.startsWith("proposed-")) {
+                existingNodesMap.set(n.id, n);
+              }
+            });
+            cleanNodes.forEach((newNode) => {
+              existingNodesMap.set(newNode.id, newNode);
+            });
+            return Array.from(existingNodesMap.values());
+          });
+        } else {
         setNodes(cleanNodes);
+        }
         setEdges(flowchart.edges || []);
       }
     }
@@ -986,10 +1063,14 @@ For example: uptime, API latency, error rate, data freshness, support response t
       if (hasNoInitialInput && isNotConnected && !hasSentDescriptionFromChat.current) {
         console.log("No initial input provided. Connecting to server with first chat message as description.");
         
-        // Add user message to chat first
+        // Add user message to chat first - remove "You:" prefix if present
+        let userMessage = message || "";
+        if (userMessage.startsWith("You:")) {
+          userMessage = userMessage.substring(4).trim();
+        }
         setChatMessages((prev) => [
           ...prev,
-          { role: "user", content: message },
+          { role: "user", content: userMessage },
         ]);
         
         // Update formData with the description
@@ -1031,9 +1112,28 @@ For example: uptime, API latency, error rate, data freshness, support response t
               handleNodeProposed(data);
             },
             onFlowchartUpdate: (data) => {
-              if (data.flowchart) {
-                updateNodesFromFlowchart(data.flowchart);
+              // Merge with existing nodes to keep all previously approved nodes
+              console.log("[WebSocket] flowchart_update received via callback (chat input) - CLEARING RENDERING STATE NOW");
+              console.log("[WebSocket] flowchart_update details:", {
+                nodeCount: data.flowchart?.nodes?.length || 0,
+                nodeIds: data.flowchart?.nodes?.map(n => n.id) || [],
+              });
+              // Clear timeout since flowchart_update arrived
+              if (renderingTimeoutRef.current) {
+                clearTimeout(renderingTimeoutRef.current);
+                renderingTimeoutRef.current = null;
+                console.log("[WebSocket] Cleared rendering timeout in callback (chat input)");
               }
+              // IMPORTANT: Clear rendering state IMMEDIATELY before merge
+              setIsRenderingNode(false);
+              setIsGenerating(false);
+              if (data.flowchart) {
+                updateNodesFromFlowchart(data.flowchart, true); // true = merge with existing
+              }
+              // Clear proposed node state after merge
+              setProposedNode(null);
+              setProposedNodePosition(null);
+              console.log("[WebSocket] flowchart_update callback (chat input) complete - isRenderingNode cleared");
             },
             onFinal: async (data) => {
               console.log("Final flowchart received:", data);
@@ -1069,9 +1169,14 @@ For example: uptime, API latency, error rate, data freshness, support response t
         // Normal message sending (WebSocket already connected)
         console.log("Sending user input to server:", message);
         wsRef.current.sendUserInput(message);
+        // Remove "You:" prefix if present
+        let userMessage = message || "";
+        if (userMessage.startsWith("You:")) {
+          userMessage = userMessage.substring(4).trim();
+        }
         setChatMessages((prev) => [
           ...prev,
-          { role: "user", content: message },
+          { role: "user", content: userMessage },
         ]);
         setAwaitingInput(false);
         setIsGenerating(true); // Show generating while waiting for response
@@ -1305,6 +1410,7 @@ For example: uptime, API latency, error rate, data freshness, support response t
 
   // Handle nodes change from Playground (controlled mode)
   const handleNodesChange = useCallback((newNodes) => {
+    // Simply update nodes - positions are controlled by flowchart updates
     setNodes(newNodes);
   }, []);
 
@@ -1653,10 +1759,15 @@ For example: uptime, API latency, error rate, data freshness, support response t
                                 const screenX = nodeCenterX * zoom + viewport.x;
                                 const screenY = nodeCenterY * zoom + viewport.y;
 
-                                // Position dialog to the right of the node (in container coordinates)
-                                const dialogX =
-                                  screenX + (nodeWidth * zoom) / 2 + 20;
-                                const dialogY = screenY;
+                                // Position dialog ABOVE the node (not over it)
+                                // Calculate popup height (approximately 120px)
+                                const popupHeight = 120;
+                                const popupWidth = 280;
+                                
+                                // Center horizontally above the node
+                                const dialogX = screenX - popupWidth / 2;
+                                // Position above the node with some spacing
+                                const dialogY = screenY - (nodeHeight * zoom) / 2 - popupHeight - 10;
 
                                 // Ensure dialog is within container bounds
                                 const containerWidth = containerRect.width;
@@ -1665,21 +1776,24 @@ For example: uptime, API latency, error rate, data freshness, support response t
                                 let finalX = dialogX;
                                 let finalY = dialogY;
 
-                                // If dialog would go outside right edge, position it to the left of node
-                                if (finalX + 300 > containerWidth) {
-                                  finalX =
-                                    screenX - (nodeWidth * zoom) / 2 - 320; // 300px dialog width + 20px margin
+                                // If dialog would go outside left edge, shift it right
+                                if (finalX < 10) {
+                                  finalX = 10;
                                 }
-
-                                // Keep within bounds
-                                finalX = Math.max(
-                                  20,
-                                  Math.min(finalX, containerWidth - 320)
-                                );
-                                finalY = Math.max(
-                                  20,
-                                  Math.min(finalY, containerHeight - 200)
-                                );
+                                // If dialog would go outside right edge, shift it left
+                                if (finalX + popupWidth > containerWidth - 10) {
+                                  finalX = containerWidth - popupWidth - 10;
+                                }
+                                
+                                // If dialog would go above container, position it below the node instead
+                                if (finalY < 10) {
+                                  finalY = screenY + (nodeHeight * zoom) / 2 + 10;
+                                }
+                                
+                                // If dialog would go below container, position it above (even if partially off-screen)
+                                if (finalY + popupHeight > containerHeight - 10) {
+                                  finalY = screenY - (nodeHeight * zoom) / 2 - popupHeight - 10;
+                                }
 
                                 return { x: finalX, y: finalY };
                               } catch (error) {

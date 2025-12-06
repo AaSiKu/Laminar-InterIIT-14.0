@@ -1,21 +1,35 @@
 """
-Mock server for testing WebSocket flow without LLM calls.
-Returns predetermined responses to simulate the agentic pipeline builder.
+Server that simulates the agentic pipeline for local testing.
+
+This implementation mirrors the behavior and WebSocket protocol of
+`server.py`, but it does not call any external LLMs. Instead, it
+returns a fixed, known-good flowchart equivalent to
+`downtime_flowchart.json` as the final result of the session.
 """
 
 import json
 import os
 import sys
+import uuid
+import shutil
+import re
+import asyncio
 from pathlib import Path
 from typing import Optional, Dict, Any, List
 
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect
-import uuid
-import shutil
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, UploadFile, File, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
 
+BACKEND_DIR = Path(__file__).resolve().parent.parent.parent
+if str(BACKEND_DIR) not in sys.path:
+    sys.path.insert(0, str(BACKEND_DIR))
+
 from contractparseragent.layout_utils import apply_layout
+from contractparseragent.agent_builder import (
+    auto_assign_filters_to_metrics,
+    summarize_filter_context,
+)
 
 app = FastAPI()
 
@@ -26,850 +40,607 @@ app.add_middleware(
     allow_headers=["*"]
 )
 
-# Ensure the default generated_flowcharts directory exists on startup
+# Default output directory
 DEFAULT_OUTPUT_DIR = Path(__file__).parent / "generated_flowcharts"
 DEFAULT_OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
+# Temporary PDF directory
+TEMP_PDF_DIR = Path(__file__).parent / "temp_pdfs"
+TEMP_PDF_DIR.mkdir(parents=True, exist_ok=True)
 
-# Mock responses for testing
-MOCK_PHASE1_FLOWCHART = {
+# New workflow pipeline JSON (provided by user)
+NEW_WORKFLOW_PIPELINE = {
     "nodes": [
         {
             "id": "n1",
             "schema": {
+                "$defs": {
+                    "RdKafkaSettings": {
+                        "description": "TypedDict for rdkafka configuration settings.\n\nCommon settings:\n- bootstrap.servers: Kafka broker addresses\n- security.protocol: Security protocol (PLAINTEXT, SSL, SASL_SSL, etc.)\n- sasl.mechanism: SASL mechanism (PLAIN, SCRAM-SHA-256, etc.)\n- sasl.username: SASL username\n- sasl.password: SASL password\n- group.id: Consumer group ID\n- auto.offset.reset: Offset reset policy (earliest, latest)",
+                        "properties": {
+                            "bootstrap_servers": {"title": "Bootstrap Servers", "type": "string"},
+                            "security_protocol": {"anyOf": [{"type": "string"}, {"type": "null"}], "title": "Security Protocol"},
+                            "sasl_mechanism": {"anyOf": [{"type": "string"}, {"type": "null"}], "title": "Sasl Mechanism"},
+                            "sasl_username": {"anyOf": [{"type": "string"}, {"type": "null"}], "title": "Sasl Username"},
+                            "sasl_password": {"anyOf": [{"type": "string"}, {"type": "null"}], "title": "Sasl Password"},
+                            "group_id": {"anyOf": [{"type": "string"}, {"type": "null"}], "title": "Group Id"},
+                            "auto_offset_reset": {"anyOf": [{"type": "string"}, {"type": "null"}], "title": "Auto Offset Reset"}
+                        },
+                        "title": "RdKafkaSettings",
+                        "type": "object"
+                    }
+                },
+                "description": "Input node for span data from Kafka.",
                 "properties": {
-                    "category": {"const": "io", "title": "Category", "type": "string"},
+                    "category": {"const": "open_tel", "default": "open_tel", "title": "Category", "type": "string"},
                     "node_id": {"const": "open_tel_spans_input", "title": "Node Id", "type": "string"},
                     "tool_description": {"default": "", "title": "Tool Description", "type": "string"},
                     "trigger_description": {"default": "", "title": "Trigger Description", "type": "string"},
-                    "name": {"default": "", "title": "Name", "type": "string"},
                     "n_inputs": {"const": 0, "default": 0, "title": "N Inputs", "type": "integer"},
-                    "topic": {"title": "Topic", "type": "string"},
-                    "rdkafka_settings": {
-                        "title": "Rdkafka Settings",
-                        "type": "object",
-                        "properties": {
-                            "bootstrap_servers": {"type": "string"},
-                            "group_id": {"type": "string"},
-                            "auto_offset_reset": {"enum": ["earliest", "latest"], "type": "string"}
-                        }
-                    }
+                    "rdkafka_settings": {"$ref": "#/$defs/RdKafkaSettings"},
+                    "topic": {"default": "otlp_spans", "title": "Topic", "type": "string"}
                 },
-                "required": ["category", "node_id", "topic"],
-                "title": "OpenTelSpansInputNode",
+                "required": ["node_id", "rdkafka_settings"],
+                "title": "OpenTelSpansNode",
                 "type": "object"
             },
             "type": "open_tel_spans_input",
-            "position": {"x": -861, "y": 179},
+            "position": {"x": 2463.0672087821904, "y": 637.852314533222},
             "node_id": "open_tel_spans_input",
-            "category": "io",
+            "category": "open_tel",
             "data": {
-                "ui": {"label": "OpenTelSpansInputNode Node", "iconUrl": ""},
+                "ui": {"label": "OpenTelSpansNode Node", "iconUrl": ""},
                 "properties": {
-                    "category": "io",
-                    "node_id": "open_tel_spans_input",
-                    "tool_description": "",
+                    "tool_description": "Input node for span data from Kafka",
                     "trigger_description": "",
-                    "name": "",
-                    "n_inputs": 0,
-                    "topic": "otlp_spans",
-                    "rdkafka_settings": {
-                        "bootstrap_servers": "localhost:9092",
-                        "group_id": "pathway-consumer",
-                        "auto_offset_reset": "earliest"
-                    }
+                    "rdkafka_settings": {"bootstrap_servers": "host.docker.internal:9094"},
+                    "topic": "otlp_spans"
                 }
             },
-            "measured": {"width": 200, "height": 249},
-            "selected": False
-        },
-        {
-            "id": "n2",
-            "schema": {
-                "properties": {
-                    "category": {"const": "table", "title": "Category", "type": "string"},
-                    "node_id": {"const": "filter", "title": "Node Id", "type": "string"},
-                    "tool_description": {"default": "", "title": "Tool Description", "type": "string"},
-                    "trigger_description": {"default": "", "title": "Trigger Description", "type": "string"},
-                    "name": {"default": "", "title": "Name", "type": "string"},
-                    "n_inputs": {"const": 1, "default": 1, "title": "N Inputs", "type": "integer"},
-                    "filters": {
-                        "title": "Filters",
-                        "type": "array",
-                        "items": {
-                            "type": "object",
-                            "properties": {
-                                "col": {"type": "string"},
-                                "op": {"type": "string"},
-                                "value": {"type": ["string", "number", "boolean"]}
-                            }
-                        }
-                    }
-                },
-                "required": ["category", "node_id", "filters"],
-                "title": "FilterNode",
-                "type": "object"
-            },
-            "type": "filter",
-            "position": {"x": -480, "y": 182},
-            "node_id": "filter",
-            "category": "table",
-            "data": {
-                "ui": {"label": "FilterNode Node", "iconUrl": ""},
-                "properties": {
-                    "category": "table",
-                    "node_id": "filter",
-                    "tool_description": "",
-                    "trigger_description": "",
-                    "name": "server_spans_filter",
-                    "n_inputs": 1,
-                    "filters": [
-                        {"col": "span.kind", "op": "==", "value": "SERVER"}
-                    ]
-                }
-            },
-            "measured": {"width": 200, "height": 249},
-            "selected": False
+            "measured": {"width": 307, "height": 233},
+            "selected": False,
+            "dragging": False
         }
     ],
-    "edges": [
-        {
-            "source": "n1",
-            "sourceHandle": "out",
-            "target": "n2",
-            "targetHandle": "in_0",
-            "animated": True,
-            "id": "xy-edge__n1out-n2in_0"
-        }
-    ]
-}
-
-MOCK_MACRO_PLAN = {
-    "steps": [
-        "Filter n1 to create n4: failed server spans where status_code indicates error",
-        "Group n4 by service.name to count errors per service",
-        "Join error counts with total spans to calculate error rate",
-        "Apply time window to aggregate errors over 5-minute intervals",
-        "Flatten nested error data structure",
-        "Select error rate percentage from JSON metadata",
-        "Filter results to show only services with error rate > 1%"
-    ],
-    "metric_description": "Error rate for server spans"
-}
-
-MOCK_NODES = [
-    {
-        "id": "n3",
-        "schema": {
-            "properties": {
-                "category": {"const": "table", "title": "Category", "type": "string"},
-                "node_id": {"const": "filter", "title": "Node Id", "type": "string"},
-                "tool_description": {"default": "", "title": "Tool Description", "type": "string"},
-                "trigger_description": {"default": "", "title": "Trigger Description", "type": "string"},
-                "name": {"default": "", "title": "Name", "type": "string"},
-                "n_inputs": {"const": 1, "default": 1, "title": "N Inputs", "type": "integer"},
-                "filters": {
-                    "title": "Filters",
-                    "type": "array",
-                    "items": {
-                        "type": "object",
-                        "properties": {
-                            "col": {"type": "string"},
-                            "op": {"type": "string"},
-                            "value": {"type": ["string", "number", "boolean"]}
-                        }
-                    }
-                }
-            },
-            "required": ["category", "node_id", "filters"],
-            "title": "FilterNode",
-            "type": "object"
-        },
-        "type": "filter",
-        "position": {"x": -200, "y": 100},
-        "node_id": "filter",
-        "category": "table",
-        "data": {
-            "ui": {"label": "FilterNode Node", "iconUrl": ""},
-            "properties": {
-                "category": "table",
-                "node_id": "filter",
-                "tool_description": "",
-                "trigger_description": "",
-                "name": "failed_spans_filter",
-                "n_inputs": 1,
-                "filters": [
-                    {"col": "status.code", "op": "==", "value": 2}
-                ]
-            }
-        },
-        "measured": {"width": 200, "height": 249},
-        "selected": False
-    },
-    {
-        "id": "n4",
-        "schema": {
-            "properties": {
-                "category": {"const": "table", "title": "Category", "type": "string"},
-                "node_id": {"const": "group_by", "title": "Node Id", "type": "string"},
-                "tool_description": {"default": "", "title": "Tool Description", "type": "string"},
-                "trigger_description": {"default": "", "title": "Trigger Description", "type": "string"},
-                "name": {"default": "", "title": "Name", "type": "string"},
-                "n_inputs": {"const": 1, "default": 1, "title": "N Inputs", "type": "integer"},
-                "columns": {"title": "Columns", "type": "array", "items": {"type": "string"}},
-                "reducers": {
-                    "title": "Reducers",
-                    "type": "array",
-                    "items": {
-                        "type": "object",
-                        "properties": {
-                            "col": {"type": "string"},
-                            "reducer": {"type": "string"},
-                            "new_col": {"type": "string"}
-                        }
-                    }
-                }
-            },
-            "required": ["category", "node_id", "columns", "reducers"],
-            "title": "GroupByNode",
-            "type": "object"
-        },
-        "type": "group_by",
-        "position": {"x": 50, "y": 100},
-        "node_id": "group_by",
-        "category": "table",
-        "data": {
-            "ui": {"label": "GroupByNode Node", "iconUrl": ""},
-            "properties": {
-                "category": "table",
-                "node_id": "group_by",
-                "tool_description": "",
-                "trigger_description": "",
-                "name": "errors_by_service",
-                "n_inputs": 1,
-                "columns": ["service.name"],
-                "reducers": [
-                    {"col": "span_id", "reducer": "count", "new_col": "error_count"}
-                ]
-            }
-        },
-        "measured": {"width": 200, "height": 249},
-        "selected": False
-    },
-    {
-        "id": "n5",
-        "schema": {
-            "properties": {
-                "category": {"const": "table", "title": "Category", "type": "string"},
-                "node_id": {"const": "join", "title": "Node Id", "type": "string"},
-                "tool_description": {"default": "", "title": "Tool Description", "type": "string"},
-                "trigger_description": {"default": "", "title": "Trigger Description", "type": "string"},
-                "name": {"default": "", "title": "Name", "type": "string"},
-                "n_inputs": {"const": 2, "default": 2, "title": "N Inputs", "type": "integer"},
-                "on": {
-                    "title": "On",
-                    "type": "array",
-                    "items": {
-                        "type": "array",
-                        "items": {"type": "string"},
-                        "minItems": 2,
-                        "maxItems": 2
-                    }
-                },
-                "how": {
-                    "title": "How",
-                    "enum": ["left", "right", "inner", "outer"],
-                    "type": "string"
-                }
-            },
-            "required": ["category", "node_id", "on", "how"],
-            "title": "JoinNode",
-            "type": "object"
-        },
-        "type": "join",
-        "position": {"x": 300, "y": 100},
-        "node_id": "join",
-        "category": "table",
-        "data": {
-            "ui": {"label": "JoinNode Node", "iconUrl": ""},
-            "properties": {
-                "category": "table",
-                "node_id": "join",
-                "tool_description": "",
-                "trigger_description": "",
-                "name": "error_rate_join",
-                "n_inputs": 2,
-                "on": [["service.name", "service.name"]],
-                "how": "left"
-            }
-        },
-        "measured": {"width": 200, "height": 249},
-        "selected": False
-    },
-    {
-        "id": "n6",
-        "schema": {
-            "properties": {
-                "category": {"const": "temporal", "title": "Category", "type": "string"},
-                "node_id": {"const": "window_by", "title": "Node Id", "type": "string"},
-                "tool_description": {"default": "", "title": "Tool Description", "type": "string"},
-                "trigger_description": {"default": "", "title": "Trigger Description", "type": "string"},
-                "name": {"default": "", "title": "Name", "type": "string"},
-                "n_inputs": {"const": 1, "default": 1, "title": "N Inputs", "type": "integer"},
-                "time_col": {"title": "Time Col", "type": "string"},
-                "window": {
-                    "title": "Window",
-                    "type": "object",
-                    "properties": {
-                        "duration": {"type": "integer"},
-                        "window_type": {"enum": ["tumbling", "sliding", "session"], "type": "string"}
-                    }
-                },
-                "reducers": {
-                    "title": "Reducers",
-                    "type": "array",
-                    "items": {
-                        "type": "object",
-                        "properties": {
-                            "col": {"type": "string"},
-                            "reducer": {"type": "string"},
-                            "new_col": {"type": "string"}
-                        }
-                    }
-                }
-            },
-            "required": ["category", "node_id", "time_col", "window", "reducers"],
-            "title": "WindowByNode",
-            "type": "object"
-        },
-        "type": "window_by",
-        "position": {"x": 550, "y": 100},
-        "node_id": "window_by",
-        "category": "temporal",
-        "data": {
-            "ui": {"label": "WindowByNode Node", "iconUrl": ""},
-            "properties": {
-                "category": "temporal",
-                "node_id": "window_by",
-                "tool_description": "",
-                "trigger_description": "",
-                "name": "error_rate_window",
-                "n_inputs": 1,
-                "time_col": "_open_tel_start_time",
-                "window": {
-                    "duration": 300000000000,
-                    "window_type": "tumbling"
-                },
-                "reducers": [
-                    {"col": "error_count", "reducer": "sum", "new_col": "total_errors"}
-                ]
-            }
-        },
-        "measured": {"width": 200, "height": 249},
-        "selected": False
-    },
-    {
-        "id": "n7",
-        "schema": {
-            "properties": {
-                "category": {"const": "table", "title": "Category", "type": "string"},
-                "node_id": {"const": "flatten", "title": "Node Id", "type": "string"},
-                "tool_description": {"default": "", "title": "Tool Description", "type": "string"},
-                "trigger_description": {"default": "", "title": "Trigger Description", "type": "string"},
-                "name": {"default": "", "title": "Name", "type": "string"},
-                "n_inputs": {"const": 1, "default": 1, "title": "N Inputs", "type": "integer"},
-                "column": {"title": "Column", "type": "string"}
-            },
-            "required": ["category", "node_id", "column"],
-            "title": "FlattenNode",
-            "type": "object"
-        },
-        "type": "flatten",
-        "position": {"x": 800, "y": 100},
-        "node_id": "flatten",
-        "category": "table",
-        "data": {
-            "ui": {"label": "FlattenNode Node", "iconUrl": ""},
-            "properties": {
-                "category": "table",
-                "node_id": "flatten",
-                "tool_description": "",
-                "trigger_description": "",
-                "name": "flatten_error_data",
-                "n_inputs": 1,
-                "column": "error_metadata"
-            }
-        },
-        "measured": {"width": 200, "height": 249},
-        "selected": False
-    },
-    {
-        "id": "n8",
-        "schema": {
-            "properties": {
-                "category": {"const": "table", "title": "Category", "type": "string"},
-                "node_id": {"const": "json_select", "title": "Node Id", "type": "string"},
-                "tool_description": {"default": "", "title": "Tool Description", "type": "string"},
-                "trigger_description": {"default": "", "title": "Trigger Description", "type": "string"},
-                "name": {"default": "", "title": "Name", "type": "string"},
-                "n_inputs": {"const": 1, "default": 1, "title": "N Inputs", "type": "integer"},
-                "json_column": {"title": "Json Column", "type": "string"},
-                "property": {"title": "Property", "type": ["string", "integer"]},
-                "property_type": {"enum": ["json", "str", "int", "float", "bool"], "title": "Property Type", "type": "string"},
-                "new_column_name": {"title": "New Column Name", "type": "string"}
-            },
-            "required": ["category", "node_id", "json_column", "property", "property_type"],
-            "title": "JSONSelectNode",
-            "type": "object"
-        },
-        "type": "json_select",
-        "position": {"x": 1050, "y": 100},
-        "node_id": "json_select",
-        "category": "table",
-        "data": {
-            "ui": {"label": "JSONSelectNode Node", "iconUrl": ""},
-            "properties": {
-                "category": "table",
-                "node_id": "json_select",
-                "tool_description": "",
-                "trigger_description": "",
-                "name": "extract_error_rate",
-                "n_inputs": 1,
-                "json_column": "metadata",
-                "property": "error_rate",
-                "property_type": "float",
-                "new_column_name": "error_rate_percentage"
-            }
-        },
-        "measured": {"width": 200, "height": 249},
-        "selected": False
-    },
-    {
-        "id": "n9",
-        "schema": {
-            "properties": {
-                "category": {"const": "table", "title": "Category", "type": "string"},
-                "node_id": {"const": "filter", "title": "Node Id", "type": "string"},
-                "tool_description": {"default": "", "title": "Tool Description", "type": "string"},
-                "trigger_description": {"default": "", "title": "Trigger Description", "type": "string"},
-                "name": {"default": "", "title": "Name", "type": "string"},
-                "n_inputs": {"const": 1, "default": 1, "title": "N Inputs", "type": "integer"},
-                "filters": {
-                    "title": "Filters",
-                    "type": "array",
-                    "items": {
-                        "type": "object",
-                        "properties": {
-                            "col": {"type": "string"},
-                            "op": {"type": "string"},
-                            "value": {"type": ["string", "number", "boolean"]}
-                        }
-                    }
-                }
-            },
-            "required": ["category", "node_id", "filters"],
-            "title": "FilterNode",
-            "type": "object"
-        },
-        "type": "filter",
-        "position": {"x": 1300, "y": 100},
-        "node_id": "filter",
-        "category": "table",
-        "data": {
-            "ui": {"label": "FilterNode Node", "iconUrl": ""},
-            "properties": {
-                "category": "table",
-                "node_id": "filter",
-                "tool_description": "",
-                "trigger_description": "",
-                "name": "high_error_rate_filter",
-                "n_inputs": 1,
-                "filters": [
-                    {"col": "error_rate_percentage", "op": ">", "value": 1.0}
-                ]
-            }
-        },
-        "measured": {"width": 200, "height": 249},
-        "selected": False
+    "edges": [],
+    "viewport": {"x": -1159.3000351200717, "y": 31.876160688560844, "zoom": 0.5037816702442691},
+    "metadata": {
+        "pipelineName": "Pipeline 69345280b071ea88a0db03a7",
+        "pipelineId": "69345280b071ea88a0db03a7",
+        "versionId": "69345fad5d160a95eb0f23d3",
+        "exportedAt": "2025-12-06T17:20:19.114Z",
+        "exportedBy": "1"
     }
-]
+}
+
+# Load the new workflow JSON
+with open(Path(__file__).resolve().parent.parent / "new_workflow.json",
+          "r", encoding="utf-8") as _f:
+    DOWNTIME_FLOWCHART: Dict[str, Any] = json.load(_f)
+
+
+@app.post("/upload-pdf")
+async def upload_pdf(file: UploadFile = File(...)):
+    """Upload a PDF file and return the path for use in WebSocket connection."""
+    if not file.filename:
+        raise HTTPException(status_code=400, detail="No file provided")
+    
+    # Validate file extension
+    if not file.filename.lower().endswith('.pdf'):
+        raise HTTPException(status_code=400, detail="File must be a PDF")
+    
+    try:
+        # Create a unique filename to avoid conflicts
+        file_id = str(uuid.uuid4())
+        file_path = TEMP_PDF_DIR / f"{file_id}_{file.filename}"
+        
+        # Save the uploaded file
+        with open(file_path, "wb") as f:
+            content = await file.read()
+            f.write(content)
+        
+        print(f"[SERVER] PDF uploaded: {file_path} ({len(content)} bytes)")
+        
+        return {
+            "pdf_path": str(file_path),
+            "filename": file.filename,
+            "size": len(content),
+        }
+    except Exception as e:
+        print(f"[SERVER] Error uploading PDF: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error uploading PDF: {str(e)}")
 
 
 class MockWSAgenticSession:
-    """Mock WebSocket session that returns predetermined responses."""
+    """WebSocket-based session that mocks the behavior of WSAgenticSession."""
 
-    def __init__(
-        self,
-        metrics_list: List[Dict[str, Any]],
-        output_dir: str = "./generated_flowcharts",
-    ):
+    def __init__(self, metrics_list: List[Dict[str, Any]], output_dir: str):
         self.metrics_list = metrics_list
         self.output_dir = Path(output_dir)
-        self.output_dir.mkdir(exist_ok=True, parents=True)
+        self.output_dir.mkdir(parents=True, exist_ok=True)
+
+        # Split nodes into Phase 1 (Input/Filter) and Phase 2 (Calculation)
+        self.all_nodes = DOWNTIME_FLOWCHART.get("nodes", [])
+        self.all_edges = [e for e in DOWNTIME_FLOWCHART.get("edges", [])]
         
-        self.phase1_flowchart = None
+        self.phase1_nodes = []
+        self.phase2_nodes = []
+        
+        # For the new workflow:
+        # Phase 1: n1 (input), n2, n2_dup_1765039643792 (filters)
+        # Phase 2: n4, n4_dup_1765039669808, n6, n7, n8, n9, n10 (in dependency order)
+        
+        phase1_ids = ["n1", "n2", "n2_dup_1765039643792"]
+        
+        for node in self.all_nodes:
+            nid = node.get("id", "")
+            if nid in phase1_ids:
+                self.phase1_nodes.append(node)
+            else:
+                # Phase 2 nodes - exclude alert node from step-by-step (it's added at the end)
+                if nid != "n10":
+                    self.phase2_nodes.append(node)
+        
+        # Sort Phase 2 nodes by dependency order based on edges
+        # Order: n4, n4_dup_1765039669808, n6, n7, n8, n9
+        phase2_order = ["n4", "n4_dup_1765039669808", "n6", "n7", "n8", "n9"]
+        self.phase2_nodes.sort(key=lambda x: phase2_order.index(x["id"]) if x["id"] in phase2_order else 999)
+        
+        # Add n10 (alert) at the end
+        for node in self.all_nodes:
+            if node.get("id") == "n10":
+                self.phase2_nodes.append(node)
+                break
+
+        self.phase1_flowchart = {"nodes": [], "edges": []}
         self.phase2_graph = {"nodes": [], "edges": []}
-        self.current_step = 0
-        self.current_node_idx = 0
+        
+        self.metric_filter_map: Dict[str, List[str]] = {}
+        self.filter_index: Dict[str, Dict[str, Any]] = {}
+        self.input_node_id: Optional[str] = None
 
     async def run(self, ws: WebSocket):
-        """Main session flow with mock responses."""
+        """Run full session."""
         print("\n" + "="*60)
-        print("[MOCK] STEP 1: Starting session")
-        print(f"[MOCK] → Processing {len(self.metrics_list)} metric(s)")
-        for i, metric in enumerate(self.metrics_list):
-            print(f"[MOCK]   - Metric {i+1}: {metric.get('metric_name', 'Unknown')}")
+        print("[SERVER] STEP 1: Starting session (MOCK)")
+        print(f"[SERVER] → Processing {len(self.metrics_list)} metric(s)")
         print("="*60)
-        
+
         await ws.send_json({
             "type": "session_start",
             "metrics": self.metrics_list,
-            "message": f"[MOCK] Starting session for {len(self.metrics_list)} SLA metrics"
+            "message": "Session started"
         })
 
-        # Phase 1: Return mock flowchart after one interaction
-        print("\n[MOCK] STEP 2: Starting Phase 1 (Input & Filter Builder)")
-        print("[MOCK] → This phase will create input nodes and filter nodes")
-        print("[MOCK] → Waiting for user input to proceed...")
-        phase1_success = await self._run_mock_phase1(ws)
-        if not phase1_success:
-            print("\n[MOCK] ❌ Phase 1 failed or user quit")
-            await ws.send_json({"type": "done", "reason": "phase1_failed"})
+        if not await self.run_phase1_interactive(ws):
             return
 
-        # Save phase 1 flowchart
-        print("\n[MOCK] STEP 3: Saving Phase 1 flowchart")
-        print("[MOCK] → Saving initial flowchart with input and filter nodes")
-        self._save_flowchart()
-        print(f"[MOCK] ✓ Saved to: {self.output_dir / 'flowchart.json'}")
-
-        # Phase 2: Iterate through mock nodes
-        print("\n[MOCK] STEP 4: Starting Phase 2 (Metric Calculation Builder)")
-        print("[MOCK] → This phase will propose calculation nodes one by one")
-        print("[MOCK] → Each node requires user approval (y/n/q)")
-        phase2_success = await self._run_mock_phase2(ws)
-        if not phase2_success:
-            print("\n[MOCK] ❌ Phase 2 failed or user quit")
-            await ws.send_json({"type": "done", "reason": "phase2_failed"})
+        if not await self.run_phase2_iterative(ws):
             return
 
-        # Save final
-        print("\n[MOCK] STEP 5: Saving final flowchart")
-        print("[MOCK] → Merging Phase 1 and Phase 2 nodes into final flowchart")
-        await self._save_final(ws)
-        print("[MOCK] ✓ Final flowchart saved and sent to client")
-        
-        print("\n[MOCK] STEP 6: Session complete")
-        print("[MOCK] → Sending 'done' message to client")
-        await ws.send_json({"type": "done", "reason": "complete"})
-        print("[MOCK] ✓ Session completed successfully")
-        print("="*60 + "\n")
+        await self.save_final_flowchart(ws)
 
-    async def _run_mock_phase1(self, ws: WebSocket) -> bool:
-        """Mock Phase 1: return flowchart after user says 'ok' or similar."""
-        print("\n[MOCK] Phase 1.1: Sending phase announcement")
-        print("[MOCK] → Informing client that Phase 1 is starting")
+    async def run_phase1_interactive(self, ws: WebSocket) -> bool:
+        """Run Phase 1 interactively via WebSocket (Mocked)."""
+        print("\n[SERVER] Phase 1.1: Sending phase announcement")
         await ws.send_json({
             "type": "phase",
             "phase": 1,
-            "message": "[MOCK] Starting Phase 1: Input & Filter Builder"
+            "message": "Starting Phase 1: Input & Filter Builder (multi-metric)"
         })
 
-        print("\n[MOCK] Phase 1.2: Sending metrics summary")
-        print(f"[MOCK] → Sending summary of {len(self.metrics_list)} metric(s) to client")
+        print("\n[SERVER] Phase 1.2: Sending metrics summary")
         await ws.send_json({
             "type": "metrics_summary",
             "metrics": self.metrics_list,
-            "message": f"[MOCK] Loaded {len(self.metrics_list)} metrics"
+            "message": f"Loaded {len(self.metrics_list)} metrics for negotiation"
         })
 
-        # Send initial agent response
-        print("\n[MOCK] Phase 1.3: Sending initial agent response")
-        print("[MOCK] → AI agent is asking user for filter configuration")
-        print("[MOCK] → User can type 'ok' to accept defaults or describe requirements")
-        await ws.send_json({
-            "type": "agent_response",
-            "phase": 1,
-            "message": "[MOCK] I understand you want to track these metrics. Type 'ok' to accept the default filter configuration, or describe your filter requirements."
-        })
+        # --- Scripted Conversation Start ---
 
-        # Wait for user input
-        print("\n[MOCK] Phase 1.4: Waiting for user input...")
-        print("[MOCK] → Server is now waiting for client to send a message")
-        await ws.send_json({"type": "await_input", "phase": 1})
+        # Message 1: Initial agent introduction and question
+        msg_1 = """Okay, I understand. I am the SLA Input Builder agent. My goal is to determine how to select the relevant OpenTelemetry spans for your "Maximum Downtime" metric using filter nodes and then output the necessary JSON flowchart and metric mapping.
+
+Let's start with your metric: "Maximum Downtime."
+This metric refers to both "Account Aggregator (AA)" and "Financial Information Provider (FIP)" services.
+
+How do you identify the OpenTelemetry spans that belong to the "Account Aggregator (AA)" service? Is there a specific `_open_tel_service_name` or `resource_attributes` key/value that identifies them?
+Similarly, how do you identify the OpenTelemetry spans that belong to the "Financial Information Provider (FIP)" service?"""
+        if not await self._send_and_wait(ws, msg_1): return False
+
+        # Message 2: Response to user's filter suggestion
+        msg_2 = """Okay, I understand. For the "Maximum Downtime" metric, you want to identify spans with the name `payment healthcheck`.
+
+So, for both the "Account Aggregator (AA)" and "Financial Information Provider (FIP)" aspects of the "Maximum Downtime" metric, we will filter for spans where the `name` column is exactly `payment healthcheck`.
+
+Does this single filter (`name == "payment healthcheck"`) correctly identify the relevant health check spans for *both* the Account Aggregator and Financial Information Provider services, or do we need additional conditions to differentiate or further specify the health checks for each service?"""
+        if not await self._send_and_wait(ws, msg_2): return False
+
+        # Message 3: Confirmation and plan summary
+        msg_3 = """Excellent. You've confirmed that a single filter `name == "payment healthcheck"` is sufficient for the "Maximum Downtime" metric.
+
+Here is the confirmation of the plan:
+*   **Input:** One `open_tel_spans_input` node reading from Kafka topic `otlp_spans`.
+*   **Filter:** One `filter` node, let's call it "Filter for Maximum Downtime", with the condition `name == "payment healthcheck"`. This node will select the relevant health check spans for your "Maximum Downtime" metric.
+*   **Edges:** An edge from the input node to this filter node.
+
+I have sufficient information to generate the flowchart and metric mapping."""
+        if not await self._send_and_wait(ws, msg_3): return False
+
+        # --- Scripted Conversation End ---
 
         try:
-            print("[MOCK] ⏳ Blocking on ws.receive_text() - waiting for user message...")
-            msg = await ws.receive_text()
-            print(f"[MOCK] ✓ Received message from client: {msg[:100]}...")
+            # Send Phase 1 nodes one at a time (like Phase 2)
+            # Order: n1 (input), n2, n2_dup_1765039643792 (filters)
+            print("\n[SERVER] Phase 1.5: Sending Phase 1 nodes one at a time")
             
-            user_data = json.loads(msg)
-            user_input = user_data.get("message", "").strip().lower()
-            print(f"[MOCK] → Parsed user input: '{user_input}'")
+            for node_index, next_node in enumerate(self.phase1_nodes):
+                node_id = next_node.get("id", "")
+                print(f"\n[SERVER] Phase 1 - Proposing node {node_index + 1}/{len(self.phase1_nodes)}: {node_id}")
+                
+                # Calculate edges for this node (edges where target is next_node['id'])
+                relevant_edges = [
+                    e for e in self.all_edges 
+                    if e["target"] == next_node["id"]
+                ]
+                
+                # We need to make sure the source nodes exist in current graph (Phase 1 so far)
+                current_node_ids = {n["id"] for n in self.phase1_flowchart.get("nodes", [])}
+                
+                # Filter edges to only include those whose source nodes exist
+                valid_edges = [
+                    e for e in relevant_edges 
+                    if e["source"] in current_node_ids
+                ]
+                
+                await ws.send_json({
+                    "type": "node_proposed",
+                    "metric_index": 0,
+                    "step_index": node_index,
+                    "node": next_node,
+                    "edges": valid_edges,
+                })
 
-            if user_input in ('quit', 'exit'):
-                print("[MOCK] ❌ User requested to quit")
-                await ws.send_json({"type": "done", "reason": "quit"})
-                return False
+                # Add 1 second delay to show "Rendering node..." in frontend
+                print("[SERVER] Waiting 1 second after node proposal...")
+                await asyncio.sleep(1)
 
-            # Accept any input and return mock flowchart
-            print("\n[MOCK] Phase 1.5: Generating Phase 1 flowchart")
-            print("[MOCK] → Creating mock flowchart with:")
-            print(f"[MOCK]   - {len(MOCK_PHASE1_FLOWCHART['nodes'])} nodes (input + filter)")
-            print(f"[MOCK]   - {len(MOCK_PHASE1_FLOWCHART['edges'])} edges")
-            self.phase1_flowchart = MOCK_PHASE1_FLOWCHART
-            
-            print("\n[MOCK] Phase 1.6: Sending Phase 1 completion message")
-            print("[MOCK] → Sending flowchart to client with phase1_complete message")
+                await ws.send_json({
+                    "type": "await_approval",
+                    "metric_index": 0,
+                    "step_index": node_index,
+                })
+
+                # Wait for approval
+                msg = await ws.receive_text()
+                approval_data = json.loads(msg)
+                action = approval_data.get("action")
+
+                if action == "quit":
+                    await ws.send_json({"type": "done", "reason": "quit"})
+                    return False
+                
+                if action == "approve":
+                    # Add node to phase1_flowchart
+                    self.phase1_flowchart["nodes"].append(next_node)
+                    self.phase1_flowchart["edges"].extend(valid_edges)
+                    
+                    # Send flowchart update with all Phase 1 nodes accepted so far
+                    await ws.send_json({
+                        "type": "node_approved",
+                        "metric_index": 0,
+                        "step_index": node_index,
+                        "message": f"Phase 1 node {node_index + 1} approved",
+                    })
+                    
+                    # Add 1 second delay to show "Rendering node..." in frontend
+                    print("[SERVER] Waiting 1 second after node approval...")
+                    await asyncio.sleep(1)
+                    
+                    await ws.send_json({
+                        "type": "flowchart_update",
+                        "flowchart": {
+                            "nodes": self.phase1_flowchart.get("nodes", []),
+                            "edges": self.phase1_flowchart.get("edges", []),
+                        },
+                        "message": f"Phase 1 node {node_index + 1} approved and added to flowchart",
+                    })
+                else:
+                    # Reject or other - for mock, we just continue
+                    pass
+
+            # All Phase 1 nodes approved - prepare metadata and complete Phase 1
+            self._prepare_filter_metadata()
+            # Don't apply layout - preserve original positions from JSON
+            # apply_layout(self.phase1_flowchart)
+
+            print("\n[SERVER] Phase 1.6: All Phase 1 nodes approved - Sending Phase 1 completion message")
             await ws.send_json({
                 "type": "phase1_complete",
                 "flowchart": self.phase1_flowchart,
-                "message": "[MOCK] Phase 1 completed with mock flowchart"
+                "message": "Phase 1 completed successfully"
             })
-            print("[MOCK] ✓ Phase 1 completed successfully")
             return True
 
         except Exception as e:
-            print(f"\n[MOCK] ❌ Error in Phase 1: {str(e)}")
+            print(f"Error in Phase 1: {e}")
             import traceback
             traceback.print_exc()
-            await ws.send_json({
-                "type": "error",
-                "message": f"[MOCK] Error: {str(e)}"
-            })
             return False
 
-    async def _run_mock_phase2(self, ws: WebSocket) -> bool:
-        """Mock Phase 2: iterate through mock nodes with user approval."""
-        print("\n[MOCK] Phase 2.1: Sending Phase 2 announcement")
-        print("[MOCK] → Informing client that Phase 2 (Metric Calculation Builder) is starting")
+    async def _send_and_wait(self, ws: WebSocket, message: str) -> bool:
+        """Helper to send an agent message and wait for user input."""
+        print(f"\n[SERVER] Sending agent message: {message[:50]}...")
+        await ws.send_json({
+            "type": "agent_response",
+            "phase": 1,
+            "message": message
+        })
+
+        # Add 1 second delay to show "Generating workflow..." in frontend
+        print("[SERVER] Waiting 1 second before enabling input...")
+        await asyncio.sleep(1)
+
+        print("[SERVER] Waiting for user input...")
+        await ws.send_json({
+            "type": "await_input",
+            "phase": 1
+        })
+
+        try:
+            msg = await ws.receive_text()
+            user_data = json.loads(msg)
+            user_input = user_data.get("message", "").strip()
+            print(f"[SERVER] User said: {user_input}")
+            
+            if user_input.lower() in ('quit', 'exit'):
+                await ws.send_json({"type": "done", "reason": "quit"})
+                return False
+            return True
+        except Exception as e:
+            print(f"[SERVER] Error receiving input: {e}")
+            return False
+
+    async def run_phase2_iterative(self, ws: WebSocket) -> bool:
+        """Run Phase 2 iteratively via WebSocket (Mocked)."""
+        print("\n[SERVER] Phase 2.1: Sending Phase 2 announcement")
         await ws.send_json({
             "type": "phase",
             "phase": 2,
-            "message": "[MOCK] Starting Phase 2: Metric Calculation Builder"
+            "message": "Starting Phase 2: Metric Calculation Builder"
         })
 
-        for metric_index, metric in enumerate(self.metrics_list):
-            metric_name = metric.get("metric_name", f"metric_{metric_index}")
-            print(f"\n[MOCK] Phase 2.2.{metric_index + 1}: Processing metric '{metric_name}'")
-            print(f"[MOCK] → Starting calculation builder for metric {metric_index + 1}/{len(self.metrics_list)}")
+        print("\n[SERVER] Phase 2.2: Sending filter assignments")
+        await ws.send_json({
+            "type": "filter_assignments",
+            "assignments": self.metric_filter_map,
+        })
 
-            print(f"\n[MOCK] Phase 2.3.{metric_index + 1}: Sending metric start message")
-            print(f"[MOCK] → Informing client which metric we're building nodes for")
+        # We assume one metric flow for the demo
+        for metric_index, metric in enumerate(self.metrics_list):
+            metric_name = metric.get("metric_name") or f"metric_{metric_index}"
+            filter_ids = self.metric_filter_map.get(metric_name, [])
+            filter_context = summarize_filter_context(filter_ids, self.filter_index, self.input_node_id)
+
             await ws.send_json({
                 "type": "metric_start",
                 "metric_index": metric_index,
                 "metric_name": metric_name,
-                "filters": ["n2"],
-                "filter_context": "[MOCK] Using server_spans_filter",
+                "filters": filter_ids,
+                "filter_context": filter_context,
             })
 
-            print(f"\n[MOCK] Phase 2.4.{metric_index + 1}: Sending macro plan")
-            print(f"[MOCK] → Sending {len(MOCK_MACRO_PLAN['steps'])} step plan to client:")
-            for i, step in enumerate(MOCK_MACRO_PLAN["steps"], 1):
-                print(f"[MOCK]   Step {i}: {step}")
+            # Mock Macro Plan - matches the new workflow structure
+            macro_plan = [
+                "Window failed healthchecks (30s)",      # n4
+                "Window total healthchecks (30s)",       # n4_dup_1765039669808
+                "Join streams",                           # n6
+                "Calculate downtime percentage",          # n7
+                "Filter downtime < 1%",                   # n8
+                "Trigger RCA",                            # n9
+                "Alert"                                   # n10
+            ]
+            
+            # The phase2_nodes list should map to these steps
+            # n4, n4_dup_1765039669808, n6, n7, n8, n9, n10 -> 7 nodes
+
             await ws.send_json({
                 "type": "macro_plan",
                 "metric_index": metric_index,
-                "steps": MOCK_MACRO_PLAN["steps"],
-                "metric_description": MOCK_MACRO_PLAN["metric_description"],
-                "total_steps": len(MOCK_MACRO_PLAN["steps"]),
+                "steps": macro_plan,
+                "metric_description": metric.get("description", ""),
+                "total_steps": len(macro_plan),
             })
 
-            # Iterate through mock nodes
-            last_node_id = "n2"  # Start from the filter node
-            print(f"\n[MOCK] Phase 2.5.{metric_index + 1}: Starting node proposal loop")
-            print(f"[MOCK] → Will propose {len(MOCK_NODES)} nodes, one by one")
-            
-            for step_index, mock_node in enumerate(MOCK_NODES):
-                if step_index >= len(MOCK_MACRO_PLAN["steps"]):
-                    print(f"[MOCK] → Skipping node {step_index + 1} (beyond plan steps)")
-                    break
-
-                print(f"\n[MOCK] --- Node {step_index + 1}/{len(MOCK_NODES)} ---")
-                print(f"[MOCK] Phase 2.6.{metric_index + 1}.{step_index + 1}: Sending step start")
-                print(f"[MOCK] → Informing client about step: {MOCK_MACRO_PLAN['steps'][step_index]}")
+            step_index = 0
+            while step_index < len(macro_plan) and step_index < len(self.phase2_nodes):
+                step_desc = macro_plan[step_index]
+                next_node = self.phase2_nodes[step_index]
+                
                 await ws.send_json({
                     "type": "step_start",
                     "metric_index": metric_index,
                     "step_index": step_index,
-                    "total_steps": len(MOCK_MACRO_PLAN["steps"]),
-                    "step": MOCK_MACRO_PLAN["steps"][step_index],
+                    "total_steps": len(macro_plan),
+                    "step": step_desc,
                 })
 
-                print(f"\n[MOCK] Phase 2.7.{metric_index + 1}.{step_index + 1}: Preparing node proposal")
-                print(f"[MOCK] → Node ID: {mock_node['id']}, Type: {mock_node.get('type', 'unknown')}")
-                print(f"[MOCK] → Creating edge from {last_node_id} to {mock_node['id']}")
-                mock_edges = [{
-                    "source": last_node_id,
-                    "sourceHandle": "out",
-                    "target": mock_node["id"],
-                    "targetHandle": "in_0",
-                    "animated": True,
-                    "id": f"xy-edge__{last_node_id}out-{mock_node['id']}in_0"
-                }]
-
-                print(f"\n[MOCK] Phase 2.8.{metric_index + 1}.{step_index + 1}: Sending node proposal")
-                print(f"[MOCK] → Sending proposed node and edges to client for approval")
+                # Calculate edges for this node
+                # Edges where target is next_node['id']
+                relevant_edges = [
+                    e for e in self.all_edges 
+                    if e["target"] == next_node["id"]
+                ]
+                
+                # We need to make sure the source nodes exist in current graph (Phase 1 + Phase 2 so far)
+                # In the mock, they should, because we are following the order.
+                # Build current graph to check
+                current_node_ids = {n["id"] for n in self.phase1_flowchart.get("nodes", [])}
+                current_node_ids.update({n["id"] for n in self.phase2_graph.get("nodes", [])})
+                
+                # Filter edges to only include those whose source nodes exist
+                valid_edges = [
+                    e for e in relevant_edges 
+                    if e["source"] in current_node_ids
+                ]
+                
                 await ws.send_json({
                     "type": "node_proposed",
                     "metric_index": metric_index,
                     "step_index": step_index,
-                    "node": mock_node,
-                    "edges": mock_edges,
+                    "node": next_node,
+                    "edges": valid_edges,
                 })
 
-                print(f"\n[MOCK] Phase 2.9.{metric_index + 1}.{step_index + 1}: Requesting approval")
-                print(f"[MOCK] → Waiting for user to approve (y), reject (n), or quit (q)")
+                # Add 1 second delay to show "Rendering node..." in frontend
+                print("[SERVER] Waiting 1 second after node proposal...")
+                await asyncio.sleep(1)
+
                 await ws.send_json({
                     "type": "await_approval",
                     "metric_index": metric_index,
                     "step_index": step_index,
                 })
 
-                try:
-                    print(f"[MOCK] ⏳ Blocking on ws.receive_text() - waiting for approval...")
-                    msg = await ws.receive_text()
-                    print(f"[MOCK] ✓ Received approval response: {msg[:100]}...")
-                    
-                    approval_data = json.loads(msg)
-                    action = approval_data.get("action")
-                    print(f"[MOCK] → Parsed action: '{action}'")
+                # Wait for approval
+                msg = await ws.receive_text()
+                approval_data = json.loads(msg)
+                action = approval_data.get("action")
 
-                    if action == "quit":
-                        print(f"[MOCK] ❌ User requested to quit")
-                        await ws.send_json({"type": "done", "reason": "quit"})
-                        return False
-                    if action == "reject":
-                        feedback = approval_data.get("feedback", "")
-                        print(f"[MOCK] ⚠️  User rejected node (feedback: '{feedback}')")
-                        print(f"[MOCK] → In mock mode, continuing with same node anyway")
-                        await ws.send_json({
-                            "type": "status",
-                            "message": f"[MOCK] Would regenerate step {step_index + 1}, but using same mock node",
-                        })
-                        # In mock, we just continue with same node
+                if action == "quit":
+                    await ws.send_json({"type": "done", "reason": "quit"})
+                    return False
+                
+                if action == "approve":
+                    self._finalize_node(next_node, valid_edges, step_index)
                     
-                    # Add to phase2 graph
-                    print(f"\n[MOCK] Phase 2.10.{metric_index + 1}.{step_index + 1}: Adding node to graph")
-                    print(f"[MOCK] → Adding node {mock_node['id']} to Phase 2 graph")
-                    self.phase2_graph["nodes"].append(mock_node)
-                    self.phase2_graph["edges"].extend(mock_edges)
-                    print(f"[MOCK] → Phase 2 graph now has {len(self.phase2_graph['nodes'])} nodes, {len(self.phase2_graph['edges'])} edges")
-
-                    print(f"\n[MOCK] Phase 2.11.{metric_index + 1}.{step_index + 1}: Sending approval confirmation")
+                    # Send flowchart update with all nodes (Phase 1 + Phase 2 so far)
+                    # Don't apply layout here - preserve original positions from JSON
+                    # Layout will be applied only at the final step
+                    merged_flowchart = {
+                        "nodes": self.phase1_flowchart.get("nodes", []) + self.phase2_graph.get("nodes", []),
+                        "edges": self.phase1_flowchart.get("edges", []) + self.phase2_graph.get("edges", []),
+                    }
+                    # Preserve positions from original nodes - don't apply layout yet
+                    # This ensures nodes appear at the correct positions from the start
+                    
+                    phase1_nodes = self.phase1_flowchart.get("nodes", [])
+                    phase2_nodes = self.phase2_graph.get("nodes", [])
+                    
+                    print(f"[SERVER] Sending flowchart_update after step {step_index + 1}:")
+                    print(f"  - Phase 1 nodes: {len(phase1_nodes)} (IDs: {[n.get('id', '?') for n in phase1_nodes]})")
+                    print(f"  - Phase 2 nodes so far: {len(phase2_nodes)} (IDs: {[n.get('id', '?') for n in phase2_nodes]})")
+                    print(f"  - Total nodes: {len(merged_flowchart['nodes'])}")
+                    print(f"  - All Node IDs: {[n.get('id', '?') for n in merged_flowchart['nodes']]}")
+                    print(f"  - Newly approved node: {next_node.get('id', '?')} at position: {next_node.get('position', {})}")
+                    
+                    # Send node_approved first, then flowchart_update
+                    # This ensures the frontend knows the node is approved before merging
                     await ws.send_json({
                         "type": "node_approved",
                         "metric_index": metric_index,
                         "step_index": step_index,
-                        "message": f"[MOCK] Step {step_index + 1} approved",
+                        "message": f"Step {step_index + 1} approved",
                     })
-
-                    # Update last_node_id for chaining
-                    last_node_id = mock_node["id"]
-                    print(f"[MOCK] → Updated last_node_id to {last_node_id} for next node connection")
-
-                    # Save incremental flowchart
-                    print(f"\n[MOCK] Phase 2.12.{metric_index + 1}.{step_index + 1}: Saving incremental flowchart")
-                    print(f"[MOCK] → Saving flowchart state after step {step_index + 1}")
-                    self._save_flowchart(step_index + 1)
-                    print(f"[MOCK] ✓ Saved incremental flowchart")
-
-                except Exception as e:
-                    print(f"\n[MOCK] ❌ Error processing node approval: {str(e)}")
-                    import traceback
-                    traceback.print_exc()
+                    
+                    # Add 1 second delay to show "Rendering node..." in frontend
+                    print("[SERVER] Waiting 1 second after node approval...")
+                    await asyncio.sleep(1)
+                    
+                    # Then send flowchart_update with all nodes (this will merge and keep all previous nodes)
                     await ws.send_json({
-                        "type": "error",
-                        "message": f"[MOCK] Error: {str(e)}",
+                        "type": "flowchart_update",
+                        "flowchart": merged_flowchart,
+                        "message": f"Step {step_index + 1} approved and added to flowchart",
                     })
-                    return False
+                    step_index += 1
+                else:
+                    # Reject or other - for mock, we just loop or error
+                    # But let's assume happy path for demo
+                    pass
 
-        print(f"\n[MOCK] Phase 2.13: All metrics processed")
-        print(f"[MOCK] → Sending Phase 2 completion message")
         await ws.send_json({
             "type": "phase2_complete",
-            "message": "[MOCK] Phase 2 completed successfully",
+            "message": "Phase 2 completed successfully for all metrics",
         })
-        print(f"[MOCK] ✓ Phase 2 completed successfully")
         return True
 
+    def _prepare_filter_metadata(self) -> None:
+        filter_nodes: List[Dict[str, Any]] = []
+        self.input_node_id = None
+
+        for node in self.phase1_flowchart.get("nodes", []):
+            node_type = node.get("node_id") or node.get("type")
+            if node_type == "open_tel_spans_input":
+                self.input_node_id = node.get("id")
+            elif node_type == "filter":
+                filter_nodes.append(node)
+
+        self.filter_index = {node.get("id"): node for node in filter_nodes}
+
+        # Auto assign (mocked or real logic)
+        # Since we have one metric and some filters, we can just assign all filters to the metric
+        # or use the real logic if imported.
+        
+        # For the mock, let's just assign all filters to the first metric
+        if self.metrics_list:
+            metric_name = self.metrics_list[0].get("metric_name")
+            self.metric_filter_map = {
+                metric_name: [n["id"] for n in filter_nodes]
+            }
+            # If there are no filters, assign input node
+            if not self.metric_filter_map[metric_name]:
+                self.metric_filter_map[metric_name] = [self.input_node_id] if self.input_node_id else []
+
+    def _finalize_node(self, node: Dict[str, Any], edges: List[Dict[str, Any]], step_index: int):
+        self.phase2_graph["nodes"].append(node)
+        self.phase2_graph["edges"].extend(edges)
+        self._save_flowchart(step_index)
+
     def _save_flowchart(self, step_index: Optional[int] = None):
-        """Save current flowchart state."""
-        print(f"\n[MOCK] Saving flowchart (step_index={step_index})")
-        print(f"[MOCK] → Merging Phase 1 ({len(self.phase1_flowchart.get('nodes', []))} nodes) + Phase 2 ({len(self.phase2_graph['nodes'])} nodes)")
+        # Merge Phase 1 and Phase 2 nodes/edges, keeping all previous nodes
         merged = {
-            "nodes": self.phase1_flowchart.get("nodes", []) + self.phase2_graph["nodes"],
-            "edges": self.phase1_flowchart.get("edges", []) + self.phase2_graph["edges"],
+            "nodes": self.phase1_flowchart.get("nodes", []) + self.phase2_graph.get("nodes", []),
+            "edges": self.phase1_flowchart.get("edges", []) + self.phase2_graph.get("edges", []),
             "agents": []
         }
-        print(f"[MOCK] → Total: {len(merged['nodes'])} nodes, {len(merged['edges'])} edges")
-
         apply_layout(merged)
-
-        # Wrap the output to match the format of tests/pipeline/sample_flowchart1.json
-        try:
-            from bson import ObjectId
-            oid = str(ObjectId())
-            user_id = str(ObjectId()) 
-            path_id = str(ObjectId())
-        except ImportError:
-            import uuid
-            oid = uuid.uuid4().hex[:24]
-            user_id = uuid.uuid4().hex[:24]
-            path_id = uuid.uuid4().hex[:24]
-
-        full_doc = {
-            "_id": { "$oid": oid },
-            "user": user_id,
-            "path": path_id,
-            "pipeline": merged,
-            "container_id": "",
-            "host_port": "",
-            "host_ip": "",
-            "status": False
-        }
         
-        wrapped_output = [full_doc]
-
-        # Always save to flowchart.json
+        # Save to session directory
         out_file = self.output_dir / "flowchart.json"
-        print(f"[MOCK] → Writing to {out_file}")
         with out_file.open("w", encoding="utf-8") as f:
-            json.dump(wrapped_output, f, indent=2)
-        print(f"[MOCK] ✓ Saved flowchart.json")
-
-        # Also save step file if step_index provided
+            json.dump(merged, f, indent=2)
+            
+        # Also save to default directory so frontend can pick it up immediately
+        default_out_file = DEFAULT_OUTPUT_DIR / "flowchart.json"
+        with default_out_file.open("w", encoding="utf-8") as f:
+            json.dump(merged, f, indent=2)
+            
         if step_index is not None:
             step_file = self.output_dir / f"flowchart_node_{step_index:02d}.json"
-            print(f"[MOCK] → Also saving step file: {step_file}")
             with step_file.open("w", encoding="utf-8") as f:
                 json.dump(merged, f, indent=2)
-            print(f"[MOCK] ✓ Saved step file")
+            
+            # Also save step file to default directory
+            default_step_file = DEFAULT_OUTPUT_DIR / f"flowchart_node_{step_index:02d}.json"
+            with default_step_file.open("w", encoding="utf-8") as f:
+                json.dump(merged, f, indent=2)
 
-    async def _save_final(self, ws: WebSocket):
-        """Save final flowchart."""
-        print("\n[MOCK] Saving final flowchart")
-        print("[MOCK] → This is the complete flowchart with all approved nodes")
+    async def save_final_flowchart(self, ws: WebSocket):
         self._save_flowchart()
         merged = {
-            "nodes": self.phase1_flowchart.get("nodes", []) + self.phase2_graph["nodes"],
-            "edges": self.phase1_flowchart.get("edges", []) + self.phase2_graph["edges"],
+            "nodes": self.phase1_flowchart.get("nodes", []) + self.phase2_graph.get("nodes", []),
+            "edges": self.phase1_flowchart.get("edges", []) + self.phase2_graph.get("edges", []),
             "agents": []
         }
-
-        print(f"\n[MOCK] Sending final flowchart to client")
-        print(f"[MOCK] → Final flowchart contains:")
-        print(f"[MOCK]   - {len(merged['nodes'])} total nodes")
-        print(f"[MOCK]   - {len(merged['edges'])} total edges")
-        print(f"[MOCK]   - Saved at: {self.output_dir / 'flowchart.json'}")
+        apply_layout(merged)
+        
         await ws.send_json({
             "type": "final",
             "flowchart": merged,
             "path": str(self.output_dir / "flowchart.json"),
-            "message": "[MOCK] Final flowchart saved"
+            "message": "Final flowchart saved successfully"
         })
-        print(f"[MOCK] ✓ Final flowchart sent to client")
 
 
 @app.websocket("/ws")
@@ -880,64 +651,73 @@ async def websocket_endpoint(ws: WebSocket):
     try:
         init_msg = await ws.receive_text()
         init_data = json.loads(init_msg)
-        output_dir = init_data.get("metrics_output_dir", "./generated_flowcharts")
 
-        # Create unique session folder
+        output_dir = str(DEFAULT_OUTPUT_DIR)
         session_id = str(uuid.uuid4())
         session_output_dir = str(Path(output_dir) / session_id)
 
-        # Get metrics from init data
         metrics_list = init_data.get("metrics")
+        
+        # Handle PDF upload case
+        if init_data.get("pdf_path"):
+            pdf_path = init_data["pdf_path"]
+            additional_description = init_data.get("description", "").strip() if init_data.get("description") else None
+            print(f"\n[SERVER] Processing PDF: {pdf_path}")
+            if additional_description:
+                print(f"[SERVER] → Combining PDF with description for metric extraction")
+                print(f"[SERVER] → Description provided: {additional_description[:100]}...")
+            else:
+                print(f"[SERVER] → Extracting metrics from PDF only")
+            
+            # For mock server, just create a default metric from PDF
+            # In real server, this would use LLM to extract metrics
+            if not metrics_list:
+                metrics_list = [{
+                    "metric_name": "Downtime",
+                    "description": additional_description or "Downtime percentage of payment service over 30 seconds must be < 1%",
+                    "category": "availability",
+                }]
+                print(f"[SERVER] ✓ Created default metric from PDF")
+                await ws.send_json({
+                    "type": "metrics_loaded",
+                    "message": f"Extracted metrics from PDF. Using default downtime metric.",
+                })
+        
         if not metrics_list:
-            metric = init_data.get("metric", "Error Rate")
-            description = init_data.get("description", "Server error rate percentage")
             metrics_list = [{
-                "metric_name": metric,
-                "description": description,
-                "category": "reliability"
+                "metric_name": init_data.get("metric", "Payment Latency"),
+                "description": init_data.get("description", "Latency between charge and webhook"),
+                "category": init_data.get("category", "unspecified"),
             }]
 
-        print(f"\n=== [MOCK] Creating Session ===")
-        print(f"[MOCK] Session ID: {session_id}")
-        print(f"[MOCK] Output dir: {session_output_dir}")
-        print(f"[MOCK] Metrics received: {len(metrics_list)}")
-        for i, metric in enumerate(metrics_list):
-            print(f"[MOCK]   Metric {i+1}: {metric.get('metric_name', 'Unknown')} - {metric.get('description', 'No description')[:50]}...")
-        print(f"[MOCK] → Session created, starting workflow generation process...")
-
+        print(f"[SERVER] New mock session: {session_id}")
         await ws.send_json({"type": "session_id", "session_id": session_id})
 
         session = MockWSAgenticSession(metrics_list, output_dir=session_output_dir)
         try:
             await session.run(ws)
         finally:
-            # Clean up session folder
             if session_output_dir and Path(session_output_dir).exists():
-                shutil.rmtree(session_output_dir)
-                print(f"[MOCK] Removed session dir: {session_output_dir}")
+                # shutil.rmtree(session_output_dir) # Keep for debugging if needed
+                pass
 
     except WebSocketDisconnect:
-        print("[MOCK] Client disconnected")
-        if session_output_dir and Path(session_output_dir).exists():
-            shutil.rmtree(session_output_dir)
-            print(f"[MOCK] Removed session dir after disconnect: {session_output_dir}")
+        print("[SERVER] Client disconnected")
     except Exception as e:
-        print(f"[MOCK] WebSocket error: {e}")
+        print(f"[SERVER] WebSocket error: {e}")
         import traceback
         traceback.print_exc()
         try:
-            await ws.send_json({"type": "error", "message": f"[MOCK] Server error: {str(e)}"})
+            await ws.send_json({"type": "error", "message": str(e)})
         except:
             pass
 
-
 if __name__ == "__main__":
     print("=" * 60)
-    print("MOCK SERVER - No LLM calls, predetermined responses")
+    print(" AGENTIC SERVER (Mock, deterministic flowchart) ")
     print("=" * 60)
-    import os
-    # Use a different port to avoid conflict with main API server
     port = int(os.getenv("CONTRACT_PARSER_PORT", "8001"))
+
     uvicorn.run(
         "mock_server:app",
         host="0.0.0.0",
