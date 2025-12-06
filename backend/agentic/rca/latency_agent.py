@@ -11,11 +11,12 @@ from .output import RCAAnalysisOutput
 from datetime import datetime, timedelta
 import asyncio
 from ..llm_factory import create_analyser_model
+from ..llm_config import LLMProvider
 
 load_dotenv()
 
 # Create the analyzer model instance
-analyser_model = create_analyser_model()
+analyser_model = create_analyser_model(provider=LLMProvider.GROQ)
 
 
 # We will run one subgraph per each trace id for the top 5 slowest traces which will take this state

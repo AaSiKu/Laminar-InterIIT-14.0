@@ -9,9 +9,10 @@ from .output import RCAAnalysisOutput
 from langgraph.graph import StateGraph, END
 import operator
 from ..llm_factory import create_analyser_model
+from ..llm_config import LLMProvider
 
 # Create the analyzer model instance
-analyser_model = create_analyser_model()
+analyser_model = create_analyser_model(provider=LLMProvider.GROQ)
 
 # Downtime incident model
 class DowntimeIncident(BaseModel):

@@ -281,4 +281,4 @@ def create_planner_executor(_agents: List[AgentPayload]):
     )
     
     planner_executor = create_agent(model, system_prompt=planner_prompt, response_format=ToolStrategy(Union[Plan, CANNOT_EXECUTE_Plan]))
-    return planner_executor
+    return planner_executor, planner_prompt, langchain_agents
