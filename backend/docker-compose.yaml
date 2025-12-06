@@ -39,8 +39,8 @@ services:
       POSTGRES_HOST: postgres
       POSTGRES_PORT: 5432
       POSTGRES_DB: db
-      POSTGRES_PASSWORD: ${_POSTGRES_READ_PASSWORD}
-      POSTGRES_USER: ${_POSTGRES_READ_USER}
+      POSTGRES_PASSWORD: ${_POSTGRES_WRITE_PASSWORD}
+      POSTGRES_USER: ${_POSTGRES_WRITE_USER}
       DATABASE_URL: postgresql+asyncpg://${_POSTGRES_WRITE_USER}:${_POSTGRES_WRITE_PASSWORD}@postgres:5432/db
       PATHWAY_API_URL: http://pipeline:11111
       MONGO_URI: ${MONGO_URI}
@@ -68,4 +68,16 @@ services:
       POSTGRES_WRITE_PASSWORD: ${_POSTGRES_WRITE_PASSWORD}
     ports:
       - "5432:5432"
+  
+  mongo:
+    image: mongo:7
+    ports:
+      - "27017:27017"
+    environment:
+      MONGO_INITDB_DATABASE: pipeline_db
+    volumes:
+      - mongo_data:/data/db
+
+volumes:
+  mongo_data:
     

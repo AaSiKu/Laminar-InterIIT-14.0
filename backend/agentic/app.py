@@ -104,7 +104,8 @@ async def lifespan(app: FastAPI):
 
             # Try to initialize DB components (optional)
             try:
-                db_url = postgre_url
+                from postgres_util import postgre_async_url
+                db_url = postgre_async_url
                 
                 registry = RunbookRegistry(database_url=db_url)
                 await registry.initialize()
@@ -414,7 +415,7 @@ if RUNBOOK_AVAILABLE:
         Send approval request notification to MongoDB
         This will trigger WebSocket broadcast via change stream watcher
         """
-        if not notification_collection:
+        if notification_collection is None:
             logger.warning("Notification collection not initialized, skipping notification")
             return False
         
@@ -472,7 +473,7 @@ if RUNBOOK_AVAILABLE:
         """
         Update notification status when approval is processed
         """
-        if not notification_collection:
+        if notification_collection is None:
             logger.warning("Notification collection not initialized, skipping update")
             return False
         
