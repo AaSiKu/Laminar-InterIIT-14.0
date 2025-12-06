@@ -17,6 +17,9 @@ import SearchIcon from "@mui/icons-material/Search";
 import FilterListIcon from "@mui/icons-material/FilterList";
 import CheckIcon from "@mui/icons-material/Check";
 import aiIcon from "../../assets/ai_icon.svg";
+import downtimeIcon from "../../assets/downtime.svg";
+import errorRateIcon from "../../assets/error_rate.svg";
+import latencyIcon from "../../assets/latency.svg";
 
 // Template data
 const templates = {
@@ -25,27 +28,27 @@ const templates = {
       id: "blank",
       name: "Create New AI Workflow",
       image: aiIcon,
-      bgColor: "#e8f4f8",
+      bgColor: "#424242",
     },
   ],
   sla: [
     {
       id: "downtime",
       name: "Downtime",
-      image: null,
-      bgColor: "#e8f4f8",
+      image: downtimeIcon,
+      bgColor: "#424242",
     },
     {
       id: "error-rate",
       name: "Error Rate",
-      image: null,
-      bgColor: "#e8f4f8",
+      image: errorRateIcon,
+      bgColor: "#424242",
     },
     {
       id: "latency",
       name: "Latency",
-      image: null,
-      bgColor: "#e8f4f8",
+      image: latencyIcon,
+      bgColor: "#424242",
     },
   ],
 };
@@ -344,12 +347,13 @@ const NewProjectModal = ({ open, onClose, onSelectTemplate }) => {
                           src={template.image}
                           alt={template.name}
                           sx={{
-                            maxWidth: sectionKey === "blank" ? "60%" : "100%",
-                            maxHeight: sectionKey === "blank" ? "60%" : "100%",
-                            width: sectionKey === "blank" ? "auto" : "100%",
-                            height: sectionKey === "blank" ? "auto" : "100%",
-                            objectFit: sectionKey === "blank" ? "contain" : "cover",
+                            maxWidth: sectionKey === "blank" || sectionKey === "sla" ? "60%" : "100%",
+                            maxHeight: sectionKey === "blank" || sectionKey === "sla" ? "60%" : "100%",
+                            width: sectionKey === "blank" || sectionKey === "sla" ? "auto" : "100%",
+                            height: sectionKey === "blank" || sectionKey === "sla" ? "auto" : "100%",
+                            objectFit: sectionKey === "blank" || sectionKey === "sla" ? "contain" : "cover",
                             display: "block",
+                            filter: sectionKey === "sla" ? "brightness(0) invert(1)" : "none",
                           }}
                         />
                       )}

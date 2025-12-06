@@ -3,7 +3,7 @@ import random
 from fastapi import APIRouter, Request
 from .version_manager.routes import serialize_mongo
 from .version_manager.schema import Notification, Log
-from lib.notifications import add_notification as add_notification_util
+from ...lib.notifications import add_notification as add_notification_util
 
 
 router = APIRouter()
