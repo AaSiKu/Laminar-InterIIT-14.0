@@ -1,5 +1,5 @@
 import pathway as pw
-from .helpers import MappingValues
+from .helpers import MappingValues, get_this_col
 
 output_connector_mappings: dict[str, MappingValues] = {
     "kafka_write": {
@@ -29,7 +29,9 @@ output_connector_mappings: dict[str, MappingValues] = {
             inputs[0],
             table_name=node.table_name,
             postgres_settings=node.postgres_settings,
-            primary_keys=node.primary_keys,
+            primary_key=[get_this_col(col_name) for col_name in node.primary_keys] if node.primary_keys else None,
+            output_table_type=node.output_table_type,
+            init_mode="replace"
         ),
     },
     "mysql_write": {

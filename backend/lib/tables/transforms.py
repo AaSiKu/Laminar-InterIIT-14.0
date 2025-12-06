@@ -1,4 +1,5 @@
-from typing import Literal, List, Tuple, TypedDict
+from typing import Literal, List, Tuple, Optional
+from typing_extensions import TypedDict
 from .base import TableNode, ReducerDict
 
 ops = Literal["==", "<", "<=", ">=", ">", "!=", "startswith", "endswith", "find"]
@@ -22,18 +23,43 @@ class GroupByNode(TableNode):
     reducers: List[ReducerDict]
     n_inputs: Literal[1] = 1
 
-class SelectNode(TableNode):
-    node_id: Literal["select"]
-    columns: List[str]
+
+class JSONSelectNode(TableNode):
+    node_id: Literal["json_select"]
+    json_column: str
+    property: str | int
+    property_type: Literal["json", "str", "int", "float", "bool"]
+    new_column_name: Optional[str]
     n_inputs: Literal[1] = 1
 
-class RenameNode(TableNode):
-    node_id: Literal["rename"]
-    # old_name, new_name
-    mapping: List[Tuple[str, str]]
+class FlattenNode(TableNode):
+    node_id : Literal["flatten"]
+    column: str
     n_inputs: Literal[1] = 1
 
-class WithoutNode(TableNode):
-    node_id: Literal["without"]
-    columns: List[str]
+ArithmeticOps = Literal["+", "-", "*", "/", "//", "%", "**"]
+class ArithmeticNode(TableNode):
+    node_id: Literal["arithmetic"]
+    col_a: str
+    col_b: str
+    operator: ArithmeticOps
+    new_col: str
+    n_inputs: Literal[1] = 1
+
+ComparisonOps = Literal["==", "!=", ">", "<", ">=", "<="]
+class ComparisonNode(TableNode):
+    node_id: Literal["comparison"]
+    col_a: str
+    col_b: str
+    operator: ComparisonOps
+    new_col: str
+    n_inputs: Literal[1] = 1
+
+BooleanOps = Literal["&", "|", "^", "~"]
+class BooleanNode(TableNode):
+    node_id: Literal["boolean"]
+    col_a: str
+    col_b: Optional[str] = None
+    operator: BooleanOps
+    new_col: str
     n_inputs: Literal[1] = 1

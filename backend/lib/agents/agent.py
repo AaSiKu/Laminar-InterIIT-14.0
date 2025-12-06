@@ -31,11 +31,10 @@ tool_map = get_tool_class_map()
 
 
 class Agent(BaseModel):
-    master_prompt: str
     name: str
     description: str
     tools : Optional[List[Union[int,str]]] = []
-
+    rag_nodes : List[int]
     @field_validator("tools")
     def check_tools(cls, tools):
         for t in tools:

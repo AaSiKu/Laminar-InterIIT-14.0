@@ -1,4 +1,5 @@
 #!/bin/bash
+# TODO: Change to production
 
 # --- Configuration ---
 # Set the name of the virtual environment directory
@@ -10,9 +11,9 @@ PID_DIR="deploy/pids"
 LOG_DIR="deploy/logs"
 
 
-PIPELINE_IMAGE_NAME="backend-pipeline"
-POSTGRES_IMAGE_NAME="backend-postgres"
-AGENTIC_IMAGE_NAME="backend-agentic"
+PIPELINE_IMAGE_NAME="backend-pipeline:latest"
+POSTGRES_IMAGE_NAME="backend-postgres:latest"
+AGENTIC_IMAGE_NAME="backend-agentic:latest"
 
 
 # Server ports
@@ -119,6 +120,19 @@ fi
     # Print the Process ID (PID) of the background job
     echo "Frontend started with PID: $FRONTEND_PID"
     echo "You can monitor the logs with: tail -f $LOG_DIR/frontend.log"
+
+    echo "---"
+
+## 8. Start Contract Parser Agent Server
+    echo "Starting Contract Parser Agent server..."
+    cd backend/contractparseragent/server
+    nohup python server.py > ../../../$LOG_DIR/contractparseragent.log 2>&1 &
+    CONTRACTPARSERAGENT_PID=$!
+    echo $CONTRACTPARSERAGENT_PID > "../../../$PID_DIR/contractparseragent.pid"
+    cd ../../..
+
+    echo "Contract Parser Agent server started with PID: $CONTRACTPARSERAGENT_PID"
+    echo "You can monitor the logs with: tail -f $LOG_DIR/contractparseragent.log"
 
     echo "---"
 

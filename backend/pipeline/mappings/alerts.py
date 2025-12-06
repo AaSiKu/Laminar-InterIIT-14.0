@@ -2,7 +2,11 @@ from typing import List
 import pathway as pw
 import httpx
 import os
+from datetime import datetime
 from lib.agents import AlertNode
+from lib.notifications import add_notification
+from motor.motor_asyncio import AsyncIOMotorClient
+import certifi
 
 agentic_url = os.getenv("AGENTIC_URL")
 
@@ -17,7 +21,8 @@ class GenerateAlert(pw.AsyncTransformer, output_schema=AlertResponseSchema):
         self.alert_node = alert_node
         super().__init__(*args, **kwargs)
     
-    async def invoke(self, **kwargs) -> str:
+    async def invoke(self, **kwargs) -> dict:
+        # Get alert from agentic service
         async with httpx.AsyncClient(timeout=30) as client:
             resp = await client.post(
                 f"{agentic_url.rstrip('/')}/generate-alert",
@@ -29,37 +34,34 @@ class GenerateAlert(pw.AsyncTransformer, output_schema=AlertResponseSchema):
             )
             resp.raise_for_status()
             data = resp.json()
-            return data["alert"]
-
-SASL_USERNAME = os.getenv("KAFKA_SASL_USERNAME", None)
-SASL_PASSWORD = os.getenv("KAFKA_SASL_PASSWORD", None)
-SASL_MECHANISM = os.getenv("KAFKA_SASL_MECHANISM", None)
-SECURITY_PROTOCOL = os.getenv("KAFKA_SECURITY_PROTOCOL", None)
+            alert = data["alert"]
+        
+        # Send notification to MongoDB
+        mongo_uri = os.getenv("MONGO_URI")
+        if mongo_uri:
+            try:
+                mongo_client = AsyncIOMotorClient(mongo_uri, tlsCAFile=certifi.where())
+                db = mongo_client[os.getenv("MONGO_DB", "db")]
+                notification_collection = db[os.getenv("NOTIFICATION_COLLECTION", "notifications")]
+                
+                pipeline_id = os.getenv("PIPELINE_ID")
+                notification_data = {
+                    "pipeline_id": pipeline_id,
+                    "title": f"Alert: {alert.get('type', 'info').upper()}",
+                    "desc": alert.get("message", "Alert triggered"),
+                    "type": "alert",
+                    "timestamp": datetime.now(),
+                    "alert": alert,
+                }
+                
+                await add_notification(notification_data, notification_collection)
+            except Exception as e:
+                # Log error but don't fail the pipeline
+                print(f"Error sending notification: {e}")
+        
+        return alert
 
 def alert_node_fn(inputs: List[pw.Table], alert_node: AlertNode):
     trigger_table = inputs[0]
     alerts = GenerateAlert(alert_node, input_table=trigger_table).successful
-
-    pipeline_id = os.getenv("PIPELINE_ID")
-    config = {
-        "bootstrap.servers": os.getenv("KAFKA_BOOTSTRAP_SERVER", "host.docker.internal:9092"),
-        "client.id": os.getenv("KAFKA_CLIENT_ID", pipeline_id),
-        "linger.ms": "5",
-        "batch.num.messages": "10000",
-        "compression.type": "lz4",
-    }
-    if SASL_USERNAME:
-        config = {
-            **config,
-            "security.protocol": SECURITY_PROTOCOL,
-            "sasl.mechanisms": SASL_MECHANISM,
-            "sasl.username": SASL_USERNAME,
-            "sasl.password": SASL_PASSWORD,
-        }
-    pw.io.kafka.write(
-        alerts.select(*pw.this, pipeline_id=pipeline_id),
-        rdkafka_settings=config,
-        topic_name=f"alert_{pipeline_id}",
-        format="json"
-    )
     return alerts

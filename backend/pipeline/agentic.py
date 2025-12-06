@@ -32,27 +32,40 @@ def build_agentic_graph(
     for i,agent in enumerate(agents):
         # Build table-backed tool context (when agent.tools contains int indexes into `nodes`)
         tool_tables = []
-
+        other_tools = []
         if getattr(agent, "tools", None):
             for t in agent.tools:
                 if isinstance(t, int):
                     if t < 0 or t >= len(nodes):
                         raise IndexError(f"Tool index {t} out of range for nodes.")
                     node = nodes[t]
-                    out_tbl = node_outputs[t]
                     if not hasattr(node, "tool_description") or not node.tool_description:
                         raise ValueError(f"Node at index {t} must have tool_description.")
+                    if node.node_id == "rag_node":
+                        port = node_outputs[t]
+                        other_tools.append({
+                            "tool_id": "rag",
+                            "tool_description": node.tool_description,
+                            "port": port
+                        })
+                        continue
+                    out_tbl = node_outputs[t]
                     tool_tables.append({
-                        "table_name": construct_table_name(node, t),
-                        "schema": out_tbl.schema.columns_to_json_serializable_dict(),
+                        "table_name": construct_table_name(node.node_id, t),
+                        "table_schema": out_tbl.schema.columns_to_json_serializable_dict(),
                         "description": node.tool_description,
                     })
+                else:
+                    # Handle alert tool
+                    if t == "alert":
+                        other_tools.append({
+                            "tool_id": "alert",
+                        })
 
         payload.append({
             "name": agent.name,
-            "master_prompt": agent.master_prompt,
             "description": agent.description,
-            "tools": tool_tables
+            "tools": [*tool_tables, *other_tools],
         })
 
        
@@ -68,7 +81,7 @@ def build_agentic_graph(
         async def infer(self, role: str, content: str) -> str:
             async with httpx.AsyncClient(timeout=30) as client:
                 resp = await client.post(
-                    f"{agentic_url.rstrip("/")}/infer",
+                    f"{agentic_url.rstrip('/')}/infer",
                     json={"role": role, "content": content},
                 )
                 resp.raise_for_status()
@@ -103,7 +116,6 @@ def build_agentic_graph(
                 f"Description: {self.trigger_description}\n"
                 f"New row: {json.dumps(kwargs, indent=4)}\n"
                 "This row is a new addition to the table. "
-                "Decide if any agent-tools should be called, then produce the final answer."
             )
             answer = await self.infer("trigger", prompt)
             return {

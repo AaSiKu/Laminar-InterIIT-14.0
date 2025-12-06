@@ -1,10 +1,12 @@
 import json
-from typing import Dict, List
+from typing import Dict, List, Set, Tuple, Any
 from collections import defaultdict
 from .validate import validate_nodes, validate_graph_topology
 from lib.agents import Agent
 from .types import Graph, Flowchart
-
+from lib.utils import get_node_class_map
+from lib.node import Node
+from .metric_node import identify_metric_nodes_with_descriptions
 
 def id2index(nodes: List[dict]) -> Dict[str, int]:
     """
@@ -41,20 +43,40 @@ def read_flowchart_file(filepath: str) -> Flowchart:
         return json.load(f)
 
 
-def parse_agents(data: Flowchart) -> List[Agent]:
+def parse_agents(data: Flowchart, id2index_map: Dict[str, int] = None) -> List[Agent]:
     """
-    Parse agents from flowchart data.
+    Parse agents from flowchart data, converting tool node IDs to indices.
     
     Args:
         data: Flowchart data
+        id2index_map: Mapping of node id to node index (for tool mapping)
     
     Returns:
-        List of Agent instances
+        List of Agent instances with tools mapped to indices
     """
-    if not hasattr(data, "agents") or data.get("agents") is None:
+    if data.get("agents", None) is None:
         return []
+
+    agents = []
+    for agent_data in data.get("agents", []):
+        # Map tool node IDs to indices if id2index_map is provided
+        if id2index_map and "tools" in agent_data and agent_data["tools"]:
+            mapped_tools = []
+            for tool in agent_data["tools"]:
+                if isinstance(tool, str) and tool in id2index_map:
+                    # Convert node ID string (e.g., "n5") to index
+                    mapped_tools.append(id2index_map[tool])
+                elif isinstance(tool, int):
+                    # Already an index, keep as-is
+                    mapped_tools.append(tool)
+                else:
+                    # Keep other tool identifiers (e.g., tool_map keys)
+                    mapped_tools.append(tool)
+            agent_data = {**agent_data, "tools": mapped_tools}
+        
+        agents.append(Agent(**agent_data))
     
-    return [Agent(**agent) for agent in data["agents"]]
+    return agents
 
 
 def read_and_validate_graph(filepath: str) -> Graph:
@@ -73,21 +95,27 @@ def read_and_validate_graph(filepath: str) -> Graph:
     # Validate and parse nodes
     nodes = validate_nodes(data["nodes"])
     
-    # Parse agents
-    agents = parse_agents(data)
-    
     # Build id-to-index mapping
     id2index_map = id2index(data["nodes"])
+    
+    # Parse agents with tool ID to index mapping
+    agents = parse_agents(data, id2index_map)
     
     # Validate graph topology and get parsing order and dependencies
     parsing_order, dependencies = validate_graph_topology(
         nodes, data["edges"], id2index_map
     )
-    
-    return {
+    graph = {
         **data,
         "parsing_order": parsing_order,
         "nodes": nodes,
         "dependencies": dependencies,
         "agents": agents,
+        "id2index_map": id2index_map
     }
+    # Identify metric nodes and generate descriptions
+    metric_node_descriptions = identify_metric_nodes_with_descriptions(graph)
+    
+    graph["metric_node_descriptions"] = metric_node_descriptions
+    return graph
+

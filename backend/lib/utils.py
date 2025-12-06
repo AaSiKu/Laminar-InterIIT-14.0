@@ -1,9 +1,13 @@
 import inspect
-from typing import Dict, Literal, get_args, get_origin
+from typing import Dict, Literal, Optional, get_args, get_origin
+from typing_extensions import TypedDict
 from pydantic import BaseModel
 from . import io_nodes
 from . import tables
 from . import agents
+from . import trigger_rca
+from .open_tel import input_nodes
+from .types import RdKafkaSettings
 
 def get_node_class_map():
     """
@@ -15,7 +19,9 @@ def get_node_class_map():
     modules = [
         io_nodes,
         tables,
-        agents
+        agents,
+        trigger_rca,
+        input_nodes
     ]
 
     for module in modules:
