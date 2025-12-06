@@ -53,7 +53,40 @@ def get_rca_output_critical():
             }
         ],
         
-        "root_cause": "Database connection pool exhaustion caused by long-running queries (8.5s average) not properly releasing connections. Missing query timeout configuration combined with increased traffic load (2x normal) led to connection starvation and cascading failures across payment service and API gateway."
+        "root_cause": "Database connection pool exhaustion caused by long-running queries (8.5s average) not properly releasing connections. Missing query timeout configuration combined with increased traffic load (2x normal) led to connection starvation and cascading failures across payment service and API gateway.",
+        
+        "financial_impact": {
+            "estimated_loss_usd": 87500.0,
+            "affected_transactions": 2847,
+            "duration_minutes": 35
+        },
+        
+        "span_data": {
+            "nodes": [
+                {"node_id": 1, "name": "api_gateway"},
+                {"node_id": 2, "name": "auth_service"},
+                {"node_id": 3, "name": "user_service"},
+                {"node_id": 4, "name": "database_query"},
+                {"node_id": 5, "name": "cache_lookup"},
+                {"node_id": 6, "name": "payment-service"},
+                {"node_id": 7, "name": "payment_processor"},
+                {"node_id": 8, "name": "notification_service"},
+                {"node_id": 9, "name": "email_sender"},
+                {"node_id": 10, "name": "database-service"}
+            ],
+            "edges": [
+                {"source": 1, "target": 2},
+                {"source": 1, "target": 3},
+                {"source": 3, "target": 4},
+                {"source": 3, "target": 5},
+                {"source": 1, "target": 6},
+                {"source": 6, "target": 7},
+                {"source": 6, "target": 10},
+                {"source": 6, "target": 8},
+                {"source": 8, "target": 9}
+            ],
+            "affected_nodes": [1, 6, 10]
+        }
     }
 
 
