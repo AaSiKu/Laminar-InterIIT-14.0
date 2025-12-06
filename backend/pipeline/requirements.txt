@@ -11,4 +11,4 @@ tdigest
 numpy
 river
 psutil
-torch
+pymongo==4.15.3

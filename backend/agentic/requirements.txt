@@ -49,3 +49,4 @@ presidio-analyzer==2.2.360
 spacy==3.8.11
 transformers==4.57.3
 # torch==2.9.1
+pymongo==4.15.3

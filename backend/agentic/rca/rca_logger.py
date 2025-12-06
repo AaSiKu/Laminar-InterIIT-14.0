@@ -8,5 +8,5 @@ rca_logger = setup_logging(
     mongo_level=logging.INFO,
     fallback_file="rca_logs.log",
     mongo_collection="rca_events",
-    fallback_file="fallback_rca_events.logs"
+
 )
