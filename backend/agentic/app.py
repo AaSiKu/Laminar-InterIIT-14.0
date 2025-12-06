@@ -35,6 +35,8 @@ try:
     from .runbook_src.services.secrets_manager import SecretsManager, get_secrets_manager
     from .runbook_src.services.ssh_client import SSHClientFactory
     from .runbook_src.agents.llm_discovery_agent import LLMDiscoveryAgent, RegistryIntegration
+    from .runbook_src.core.Error_registery import ErrorActionRegistry
+
     RUNBOOK_AVAILABLE = True
 except ImportError as e:
     logger.warning(f"Runbook modules not available: {e}")
@@ -49,6 +51,7 @@ orchestrator: Optional[Any] = None
 discovery_agent: Optional[LLMDiscoveryAgent] = None
 registry: Optional[Any] = None
 secrets_manager: Optional[SecretsManager] = None
+Error_registry: Optional[ErrorActionRegistry] = None
 
 # MongoDB for notifications
 mongo_client: Optional[AsyncIOMotorClient] = None
@@ -59,7 +62,7 @@ notification_collection: Optional[Any] = None
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    global orchestrator, discovery_agent, registry, mongo_client, notification_collection, secrets_manager
+    global orchestrator, discovery_agent, registry, mongo_client, notification_collection, secrets_manager,Error_registry
     
     # Initialize MongoDB for notifications
     try:
@@ -100,6 +103,25 @@ async def lifespan(app: FastAPI):
             # Initialize secrets manager (uses SQLite, always available)
             secrets_manager = SecretsManager()
             logger.info("Secrets manager initialized successfully")
+            
+            # Initialize Error Registry
+            try:
+                error_registry_mongodb_uri = os.getenv("MONGODB_URI", mongo_uri)
+                error_registry_db = os.getenv("MONGODB_DATABASE", "runbook")
+                #! Have to set this
+                errors_json_path = os.getenv("ERRORS_JSON_PATH", "backend/Runbook/Errors_table/Errors.json")
+                
+                Error_registry = ErrorActionRegistry(
+                    mongodb_uri=error_registry_mongodb_uri,
+                    database_name=error_registry_db,
+                    local_file_path=errors_json_path
+                )
+                await Error_registry.connect()
+                await Error_registry.force_sync()
+                logger.info("Error registry initialized and synced successfully")
+            except Exception as error_reg_error:
+                logger.warning(f"Could not initialize Error registry: {error_reg_error}")
+                Error_registry = None
 
             # Try to initialize DB components (optional)
             try:
@@ -140,6 +162,10 @@ async def lifespan(app: FastAPI):
     # Cleanup
     if mongo_client:
         mongo_client.close()
+    
+    if Error_registry:
+        await Error_registry.close()
+        logger.info("Error registry closed")
     
     logger.info("Shutting down...")
 
@@ -598,6 +624,31 @@ if RUNBOOK_AVAILABLE:
         secrets_saved: int
         secrets_skipped: int
         errors: Optional[List[str]] = None
+
+    # Error Registry Models
+    class ErrorMapping(BaseModel):
+        error: str = Field(..., description="Error identifier/pattern")
+        actions: List[str] = Field(..., description="Ordered list of action IDs to execute")
+        description: str = Field(..., description="Human-readable description of the error")
+
+    class ErrorMappingResponse(ErrorMapping):
+        pass
+
+    class BulkMappingsRequest(BaseModel):
+        mappings: List[ErrorMapping] = Field(..., description="List of error mappings to add")
+
+    class BulkMappingsResponse(BaseModel):
+        count: int = Field(..., description="Number of mappings added/updated")
+        message: str = Field(..., description="Operation result message")
+
+    class DeleteResponse(BaseModel):
+        success: bool = Field(..., description="Whether deletion was successful")
+        message: str = Field(..., description="Operation result message")
+
+    class SyncResponse(BaseModel):
+        success: bool = Field(..., description="Whether sync was successful")
+        count: int = Field(..., description="Number of mappings synced")
+        message: str = Field(..., description="Operation result message")
 
     class DiscoveryResponse(BaseModel):
         status: str
@@ -1199,6 +1250,178 @@ if RUNBOOK_AVAILABLE:
             )
         except Exception as e:
             logger.error(f"Documentation discovery failed: {e}")
+            raise HTTPException(status_code=500, detail=str(e))
+
+    # ============ Error Registry Endpoints ============
+    
+    @app.post(
+        "/runbook/error-registry/mappings",
+        response_model=ErrorMappingResponse,
+        status_code=201,
+        tags=["error-registry"]
+    )
+    async def add_error_mapping(mapping: ErrorMapping):
+        """
+        Add or update an error-to-actions mapping.
+        Automatically syncs to local Errors.json file.
+        """
+        if not Error_registry:
+            raise HTTPException(status_code=503, detail="Error registry not initialized")
+        
+        try:
+            result = await Error_registry.add_error_mapping(
+                error=mapping.error,
+                actions=mapping.actions,
+                description=mapping.description
+            )
+            return result
+        except Exception as e:
+            logger.error(f"Failed to add error mapping: {e}")
+            raise HTTPException(status_code=500, detail=str(e))
+
+    @app.get(
+        "/runbook/error-registry/mappings/{error}",
+        response_model=ErrorMappingResponse,
+        tags=["error-registry"]
+    )
+    async def get_error_mapping(error: str):
+        """
+        Get actions for a specific error identifier.
+        """
+        if not Error_registry:
+            raise HTTPException(status_code=503, detail="Error registry not initialized")
+        
+        try:
+            mapping = await Error_registry.get_error_mapping(error)
+            if not mapping:
+                raise HTTPException(
+                    status_code=404,
+                    detail=f"No mapping found for error: {error}"
+                )
+            return mapping
+        except HTTPException:
+            raise
+        except Exception as e:
+            logger.error(f"Failed to get error mapping: {e}")
+            raise HTTPException(status_code=500, detail=str(e))
+
+    @app.get(
+        "/runbook/error-registry/mappings",
+        response_model=List[ErrorMappingResponse],
+        tags=["error-registry"]
+    )
+    async def list_all_error_mappings():
+        """
+        List all error-action mappings.
+        Returns all mappings sorted by error identifier.
+        """
+        if not Error_registry:
+            raise HTTPException(status_code=503, detail="Error registry not initialized")
+        
+        try:
+            mappings = await Error_registry.list_all_mappings()
+            return mappings
+        except Exception as e:
+            logger.error(f"Failed to list error mappings: {e}")
+            raise HTTPException(status_code=500, detail=str(e))
+
+    @app.delete(
+        "/runbook/error-registry/mappings/{error}",
+        response_model=DeleteResponse,
+        tags=["error-registry"]
+    )
+    async def delete_error_mapping(error: str):
+        """
+        Delete an error mapping.
+        Automatically syncs to local Errors.json file.
+        """
+        if not Error_registry:
+            raise HTTPException(status_code=503, detail="Error registry not initialized")
+        
+        try:
+            deleted = await Error_registry.delete_error_mapping(error)
+            if not deleted:
+                raise HTTPException(
+                    status_code=404,
+                    detail=f"No mapping found for error: {error}"
+                )
+            return {
+                "success": True,
+                "message": f"Successfully deleted mapping for error: {error}"
+            }
+        except HTTPException:
+            raise
+        except Exception as e:
+            logger.error(f"Failed to delete error mapping: {e}")
+            raise HTTPException(status_code=500, detail=str(e))
+
+    @app.post(
+        "/runbook/error-registry/mappings/bulk",
+        response_model=BulkMappingsResponse,
+        tags=["error-registry"]
+    )
+    async def bulk_add_error_mappings(request: BulkMappingsRequest):
+        """
+        Bulk add or update multiple error mappings.
+        Automatically syncs to local Errors.json file after all operations.
+        """
+        if not Error_registry:
+            raise HTTPException(status_code=503, detail="Error registry not initialized")
+        
+        try:
+            mappings_dicts = [mapping.model_dump() for mapping in request.mappings]
+            count = await Error_registry.bulk_add_mappings(mappings_dicts)
+            return {
+                "count": count,
+                "message": f"Successfully added/updated {count} mappings"
+            }
+        except Exception as e:
+            logger.error(f"Failed to bulk add error mappings: {e}")
+            raise HTTPException(status_code=500, detail=str(e))
+
+    @app.post(
+        "/runbook/error-registry/sync",
+        response_model=SyncResponse,
+        tags=["error-registry"]
+    )
+    async def force_error_registry_sync():
+        """
+        Force synchronization from MongoDB to local Errors.json file.
+        Use this to manually refresh the local file.
+        """
+        if not Error_registry:
+            raise HTTPException(status_code=503, detail="Error registry not initialized")
+        
+        try:
+            await Error_registry.force_sync()
+            mappings = await Error_registry.list_all_mappings()
+            return {
+                "success": True,
+                "count": len(mappings),
+                "message": f"Successfully synced {len(mappings)} mappings to Errors.json"
+            }
+        except Exception as e:
+            logger.error(f"Failed to sync error registry: {e}")
+            raise HTTPException(status_code=500, detail=str(e))
+
+    @app.get(
+        "/runbook/error-registry/local",
+        response_model=List[ErrorMappingResponse],
+        tags=["error-registry"]
+    )
+    async def load_error_mappings_from_local():
+        """
+        Load error mappings from local Errors.json file.
+        Useful for checking local file contents without querying MongoDB.
+        """
+        if not Error_registry:
+            raise HTTPException(status_code=503, detail="Error registry not initialized")
+        
+        try:
+            mappings = Error_registry.load_from_local_file()
+            return mappings
+        except Exception as e:
+            logger.error(f"Failed to load from local file: {e}")
             raise HTTPException(status_code=500, detail=str(e))
 
     @app.post("/runbook/secrets/provision", response_model=SecretsProvisionResponse, tags=["runbook"])
