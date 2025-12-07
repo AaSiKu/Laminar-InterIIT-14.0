@@ -53,17 +53,20 @@ const WorkflowAIAssistant = ({ open, onClose }) => {
     setIsLoading(true);
 
     try {
-      // TODO: Replace with actual endpoint when ready
-      const response = await fetch("/api/prompt", {
+      // Get pipeline server URL from environment or use default
+      const pipelineServerUrl = import.meta.env.VITE_PIPELINE_SERVER || "http://localhost:8000";
+      
+      const response = await fetch(`${pipelineServerUrl}/prompt`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ message: userMessage }),
+        body: JSON.stringify({ prompt: userMessage }), // Backend expects "prompt" field
       });
 
       if (!response.ok) {
-        throw new Error("Failed to get response");
+        const errorText = await response.text();
+        throw new Error(`Failed to get response: ${errorText || response.statusText}`);
       }
 
       const data = await response.json();
@@ -71,16 +74,16 @@ const WorkflowAIAssistant = ({ open, onClose }) => {
       // Add assistant response to chat
       setChatMessages((prev) => [
         ...prev,
-        { role: "assistant", content: data.message || "I'm here to help!" },
+        { role: "assistant", content: data.message || "I've received your message!" },
       ]);
     } catch (error) {
       console.error("Error sending message:", error);
-      // For now, add a dummy response
+      // Show error message to user
       setChatMessages((prev) => [
         ...prev,
         {
           role: "assistant",
-          content: "I'm a dummy AI assistant. The `/prompt` endpoint will be implemented soon!",
+          content: `Sorry, I encountered an error: ${error.message}. Please try again later.`,
         },
       ]);
     } finally {
