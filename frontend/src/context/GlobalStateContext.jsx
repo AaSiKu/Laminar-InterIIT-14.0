@@ -14,6 +14,7 @@ export const GlobalStateProvider = ({ children }) => {
   const [notifications, setNotifications] = useState([]);
   const [logs, setLogs] = useState([]);
   const [alerts, setAlerts] = useState([]);
+  const [rcaEvents, setRcaEvents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [initialized, setInitialized] = useState(false);
   const [messageQueue, setMessageQueue] = useState([]); // Queue for messages received while disconnected
@@ -129,7 +130,31 @@ export const GlobalStateProvider = ({ children }) => {
       console.log("Processing log message:", data);
       setLogs(prev => [data, ...prev]);
     }
-  }, [setWorkflows, setNotifications, setAlerts, itemExists]);
+
+    // Handle RCA events
+    if (messageType === "rca") {
+      console.log("Processing RCA event:", data);
+      setRcaEvents(prev => {
+        // Update or add RCA event
+        const existingIndex = prev.findIndex(r => {
+          if (r._id && data._id) return String(r._id) === String(data._id);
+          return false;
+        });
+        if (existingIndex >= 0) {
+          // Update existing RCA
+          const updated = [...prev];
+          updated[existingIndex] = { ...updated[existingIndex], ...data };
+          return updated;
+        } else {
+          // Add new RCA event
+          if (!itemExists(prev, data)) {
+            return [data, ...prev];
+          }
+          return prev;
+        }
+      });
+    }
+  }, [setWorkflows, setNotifications, setAlerts, setRcaEvents, itemExists]);
 
   // Process queued messages when connection is restored
   const processMessageQueue = useCallback(() => {
@@ -204,6 +229,8 @@ export const GlobalStateProvider = ({ children }) => {
     setLogs,
     alerts,
     setAlerts,
+    rcaEvents,
+    setRcaEvents,
     loading,
   };
 

@@ -50,7 +50,7 @@ const HighlightsPanel = () => {
   const [loadingAction, setLoadingAction] = useState(null);
   const [snackbar, setSnackbar] = useState({ open: false, message: "", severity: "success" });
   // Use GlobalStateContext which already has real-time WebSocket notifications
-  const { notifications, setNotifications } = useGlobalState();
+  const { notifications, setNotifications, rcaEvents } = useGlobalState();
 
   const getIconStyle = (type) => {
     switch (type) {
@@ -80,6 +80,13 @@ const HighlightsPanel = () => {
           color: "secondary.dark",  
           bgColor: "secondary.lighter",
           icon: "mdi:bell-alert-outline",
+          useIconify: true,
+        };
+      case "rca":
+        return {
+          color: "primary.dark",
+          bgColor: "primary.lighter",
+          icon: "mdi:magnify-scan",
           useIconify: true,
         };
       case "info":
@@ -239,9 +246,10 @@ try {
   const typePriority = {
     error: 0,
     warning: 1,
-    info: 2,
-    success: 3,
-    alert:4
+    rca: 2,
+    info: 3,
+    success: 4,
+    alert: 5
   };
 
   const handleSortClick = (event) => {
@@ -267,11 +275,22 @@ try {
 
   // Sort notifications based on selected option (always by time descending - most recent first)
   const enhancedNotifications = useMemo(() => {
-    if (!notifications || notifications.length === 0) {
+    // Combine notifications with RCA events (add type="rca" to RCA events)
+    const rcaWithType = (rcaEvents || []).map(rca => ({
+      ...rca,
+      type: "rca",
+      // Map RCA fields to notification fields for display
+      desc: rca.description || rca.desc,
+      timestamp: rca.triggered_at || rca.timestamp,
+    }));
+    
+    const allItems = [...(notifications || []), ...rcaWithType];
+    
+    if (allItems.length === 0) {
       return [];
     }
 
-    let sorted = [...notifications];
+    let sorted = [...allItems];
 
     // Always sort by timestamp first (most recent on top)
     sorted.sort((a, b) => {
@@ -306,7 +325,7 @@ try {
     }
 
     else {
-      sorted = notifications.filter(
+      sorted = allItems.filter(
         (notif) => notif.type === sortBy
       );
       // Also sort filtered results by time
@@ -314,7 +333,7 @@ try {
     }
 
     return sorted;
-  }, [notifications, sortBy]);
+  }, [notifications, rcaEvents, sortBy]);
 
   return (
     <Box
@@ -368,18 +387,15 @@ try {
               horizontal: "right",
             }}
           >
-            {
-              ["all", "type", "error", "warning", "info", "success", "alert"].map((item) => (
-                <MenuItem
-                  key={item}
-                  onClick={() => handleSortSelect(item)}
-                  selected={sortBy === item}
-                >
-                  {item.charAt(0).toUpperCase() + item.slice(1)}
-                </MenuItem>
-              ))
-
-            }
+            {["all", "type", "error", "warning", "rca", "info", "success", "alert"].map((item) => (
+              <MenuItem
+                key={item}
+                onClick={() => handleSortSelect(item)}
+                selected={sortBy === item}
+              >
+                {item === "rca" ? "RCA" : item.charAt(0).toUpperCase() + item.slice(1)}
+              </MenuItem>
+            ))}
           </Menu>
         </Box>
       </Box>

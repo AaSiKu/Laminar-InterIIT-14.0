@@ -136,7 +136,7 @@ export const PropertyBar = ({
       },
     },
     "& .MuiOutlinedInput-input": {
-      py: 1,
+      py: 1.5,
       px: 1.5,
       fontSize: "0.875rem",
     },
@@ -154,15 +154,37 @@ export const PropertyBar = ({
     "& .MuiInputLabel-root": {
       fontSize: "0.875rem",
       fontWeight: 500,
+      position: "relative",
+      transform: "none",
+      mb: 0.5,
+      color: "text.secondary",
+      "&.Mui-focused": {
+        color: "primary.main",
+      },
+      "&.MuiInputLabel-shrink": {
+        transform: "none",
+      },
+    },
+    // Stack label above input
+    "& .MuiFormControl-root": {
+      "& > .MuiInputLabel-root": {
+        position: "static",
+        transform: "none",
+        mb: 0.5,
+      },
     },
     "& .MuiFormHelperText-root": {
       fontSize: "0.75rem",
       mt: 0.5,
-      mx: 1.5,
+      mx: 0,
     },
     // Fieldset styling
     "& fieldset.MuiOutlinedInput-notchedOutline": {
       borderColor: "divider",
+      top: 0,
+      "& legend": {
+        display: "none",
+      },
     },
     "& > fieldset": {
       border: "none",
@@ -178,7 +200,7 @@ export const PropertyBar = ({
     },
     // Select styling
     "& .MuiSelect-select": {
-      py: 1,
+      py: 1.5,
       px: 1.5,
       fontSize: "0.875rem",
     },

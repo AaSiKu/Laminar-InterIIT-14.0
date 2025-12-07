@@ -32,6 +32,9 @@ const NotificationToast = () => {
 
   // Track seen notification/log IDs to avoid showing duplicates
   const [seenIds, setSeenIds] = useState(new Set());
+  
+  // Track if initial data has been loaded (to avoid showing toasts for pre-existing items)
+  const [initialLoadComplete, setInitialLoadComplete] = useState(false);
 
   // Check if we're on the overview page
   const isOverviewPage = location.pathname === "/overview";
@@ -87,9 +90,16 @@ const NotificationToast = () => {
     }
   };
 
-  // Handle new logs - always show popup
+  // Handle new logs - always show popup (but not for initially loaded logs)
   useEffect(() => {
     if (logs.length > 0) {
+      // On first load, mark all existing logs as seen without showing toasts
+      if (!initialLoadComplete) {
+        const allLogIds = logs.map(log => log._id || `log-${log.timestamp || Date.now()}`);
+        setSeenIds(prev => new Set([...prev, ...allLogIds]));
+        return;
+      }
+      
       const latestLog = logs[0];
       const logId = latestLog._id || `log-${latestLog.timestamp || Date.now()}`;
 
@@ -106,30 +116,41 @@ const NotificationToast = () => {
         ]);
       }
     }
-  }, [logs, seenIds]);
+  }, [logs, seenIds, initialLoadComplete]);
 
-  // Handle new notifications/alerts - show popup only if NOT on overview page
+  // Handle new notifications/alerts - show popup only if NOT on overview page (and not for initially loaded notifications)
   useEffect(() => {
-    if (!isOverviewPage && notifications.length > 0) {
-      const latestNotification = notifications[0];
-      const notifId =
-        latestNotification._id ||
-        `notif-${latestNotification.timestamp || Date.now()}`;
+    if (notifications.length > 0) {
+      // On first load, mark all existing notifications as seen without showing toasts
+      if (!initialLoadComplete) {
+        const allNotifIds = notifications.map(n => n._id || `notif-${n.timestamp || Date.now()}`);
+        setSeenIds(prev => new Set([...prev, ...allNotifIds]));
+        // Mark initial load complete after a short delay to ensure all data is processed
+        setTimeout(() => setInitialLoadComplete(true), 500);
+        return;
+      }
+      
+      if (!isOverviewPage) {
+        const latestNotification = notifications[0];
+        const notifId =
+          latestNotification._id ||
+          `notif-${latestNotification.timestamp || Date.now()}`;
 
-      if (!seenIds.has(notifId)) {
-        setSeenIds((prev) => new Set([...prev, notifId]));
-        setToastQueue((prev) => [
-          ...prev,
-          {
-            id: notifId,
-            type: latestNotification.type || "info",
-            data: latestNotification,
-            isLog: false,
-          },
-        ]);
+        if (!seenIds.has(notifId)) {
+          setSeenIds((prev) => new Set([...prev, notifId]));
+          setToastQueue((prev) => [
+            ...prev,
+            {
+              id: notifId,
+              type: latestNotification.type || "info",
+              data: latestNotification,
+              isLog: false,
+            },
+          ]);
+        }
       }
     }
-  }, [notifications, isOverviewPage, seenIds]);
+  }, [notifications, isOverviewPage, seenIds, initialLoadComplete]);
 
   // Process toast queue - show next toast when current one closes
   useEffect(() => {

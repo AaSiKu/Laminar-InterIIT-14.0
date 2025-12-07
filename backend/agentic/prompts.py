@@ -82,6 +82,17 @@ def create_alert_tool():
                 "timestamp": datetime.now(),
             }
             
+            # Add alert structure for actionable alerts
+            if alert_type == "alert":
+                notification_data["alert"] = {
+                    "actions": ["Acknowledge", "Dismiss"],
+                    "action_taken": None,
+                    "taken_at": None,
+                    "action_executed_by": None,
+                    "action_executed_by_user": None,
+                    "status": "pending"
+                }
+            
             result = await add_notification(notification_data, notification_collection)
             return f"Alert sent successfully: {title}"
         except Exception as e:

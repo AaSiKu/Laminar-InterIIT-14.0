@@ -20,11 +20,11 @@ export const NotificationProvider = ({ children }) => {
   const handleNotification = (data) => {
     
     const notification = {
-      id: data.id || Date.now() + Math.random(),
+      id: data.id || data._id || Date.now() + Math.random(),
       title: data.title || 'Notification',
-      message: data.message || data.body || '',
+      message: data.desc || data.description || data.message || data.body || '',
       type: data.type || 'info',
-      timestamp: new Date(),
+      timestamp: data.timestamp || new Date(),
       read: false,
       ...data,
     };
@@ -82,6 +82,22 @@ export const NotificationProvider = ({ children }) => {
             <Typography variant="body2">{notification.message}</Typography>
           </Box>,
           toastOptions
+        );
+        break;
+      case 'rca':
+        toast.info(
+          <Box>
+            <Typography variant="subtitle2" fontWeight="bold">
+              {notification.title}
+            </Typography>
+            <Typography variant="body2">{notification.message}</Typography>
+            {notification.metadata?.severity && (
+              <Typography variant="caption" sx={{ color: notification.metadata.severity === 'critical' ? '#ef4444' : notification.metadata.severity === 'high' ? '#f59e0b' : '#3b82f6' }}>
+                Severity: {notification.metadata.severity}
+              </Typography>
+            )}
+          </Box>,
+          { ...toastOptions, autoClose: 8000 }
         );
         break;
       default:
@@ -200,8 +216,17 @@ export const NotificationProvider = ({ children }) => {
           if (data.type === 'connection') {
             // Connection confirmation message, don't show as notification
             console.log('✅ Connection confirmed:', data.message);
+          } else if (data.message_type === 'rca' || data.type === 'rca') {
+            // Handle RCA events - show toast notification with RCA type
+            console.log('   Handling RCA event');
+            handleNotification({
+              ...data,
+              title: data.title || 'RCA Analysis',
+              message: data.description || data.desc || 'Root cause analysis triggered',
+              type: 'rca',
+            });
           } else {
-            // Regular notification
+            // Regular notification (not RCA)
             console.log('   Handling as notification');
             handleNotification(data);
           }
@@ -442,6 +467,8 @@ export const NotificationIcon = () => {
                       ? '#ef4444'  // red - matches LogsSection error
                       : notification.type === 'warning'
                       ? '#f59e0b'  // amber - matches LogsSection warning
+                      : notification.type === 'rca'
+                      ? '#8b5cf6'  // purple - RCA events
                       : notification.type === 'debug'
                       ? '#6b7280'  // gray - matches LogsSection debug
                       : '#3b82f6'  // blue - matches LogsSection info
@@ -463,6 +490,8 @@ export const NotificationIcon = () => {
                           ? '#ef4444'  // red
                           : notification.type === 'warning'
                           ? '#f59e0b'  // amber
+                          : notification.type === 'rca'
+                          ? '#8b5cf6'  // purple - RCA events
                           : notification.type === 'debug'
                           ? '#6b7280'  // gray
                           : '#3b82f6',  // blue

@@ -1,10 +1,6 @@
 # Laminar
 
-In complex data ecosystems, teams need more than functional pipelines. They need guaranteed performance. This is where Service Level Agreements (SLAs) come into play. SLAs provide clear guarantees for data timeliness, accuracy, and availability. Within this platform, SLAs are essential, not an afterthought. Each part: ingestion, transformation, AI inference, or delivery includes SLA definitions. This ensures that each stage meets the targets for latency, throughput, and reliability. The system monitors these metrics, identifies issues in real time, and initiates recovery using smart agents.
-
-This close link between SLA governance and data operations changes Pathway Tasks. They become more than just a workflow builder; they turn into a reliable orchestration layer. It helps users design, deploy, and check real-time data flows confidently. They can trust that SLA compliance is automatically maintained.
-
-From this SLA-driven base, the platform’s technical architecture flows into Pathway’s real-time engine. This engine supports low-latency computation, fault-tolerant streaming, and stateful transformations. The visual builder converts user-defined workflows into efficient, responsive execution graphs. It has built-in monitoring and AI feedback loops. This keeps performance strong under various loads, ensuring each pipeline is robust and adaptable.
+Real-time data pipeline platform with SLA-driven orchestration, visual workflow design, AI-powered agents, and automated monitoring built on Pathway's streaming engine.
 
 ## Key Features
 
@@ -42,39 +38,32 @@ From this SLA-driven base, the platform’s technical architecture flows into Pa
 - **npm**: v9.0.0 or higher
 - **Docker**: Latest version with Docker Compose
 - **PostgreSQL**: 15 or higher (for user authentication)
-- **MongoDB**: Running instance (local or cloud)
+- **MongoDB Atlas**: Cloud MongoDB instance (Required - local MongoDB won't support the notification system with change streams). Get free tier at https://cloud.mongodb.com/
 - **Kafka**: Optional, for streaming capabilities
+- **lsof**: Required for stopping services (install via `sudo apt install lsof` on Ubuntu/Debian or `brew install lsof` on macOS)
 
 ##  Quick Start
 
-### 1. Clone the Repository
+> **Important Setup Notes:**
+> - Only ONE `.env` file needed (in `backend/api/`)
+> - MongoDB Atlas required (local MongoDB won't work)
+> - Run `unset DOCKER_HOST` before Docker commands
+> - Install `lsof` for stop script
+
+### 1. Environment Configuration
+
+Copy and edit the `.env` file:
 
 ```bash
-git clone <repository-url>
-cd <local-repo-location>
-```
-
-### 2. Environment Configuration
-
-The project requires environment variables for different services. Create `.env` files in the following directories using the provided templates:
-
-```bash
-# Backend API
 cp backend/api/.env.template backend/api/.env
-
-# Pipeline Service
-cp backend/pipeline/.env.template backend/pipeline/.env
-
-# Agentic Service
-cp backend/agentic/.env.template backend/agentic/.env
-
-# Frontend
-cp frontend/.env.template frontend/.env
 ```
 
-Set the required Environment Variables
+Required settings in `backend/api/.env`:
+- `MONGO_URI`: MongoDB Atlas connection string (get from https://cloud.mongodb.com/)
+- `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB`: PostgreSQL credentials
+- `GROQ_API_KEY`, `LANGSMITH_API_KEY`: Optional, for AI features
 
-### 3. Start Kafka (Optional)
+### 2. Start Kafka (Optional for testing)
 
 If you're using Kafka-based nodes:
 
@@ -82,7 +71,7 @@ If you're using Kafka-based nodes:
 docker compose -f backend/kafka-docker-compose.yaml up -d
 ```
 
-### 4. Build Docker Images
+### 3. Build Docker Images
 
 ```bash
 cd backend
@@ -117,7 +106,7 @@ GRANT ALL PRIVILEGES ON DATABASE db TO admin;
 GRANT ALL ON SCHEMA public TO admin;
 \q
 ```
-
+**Note:** You must update your role in the user table to view all workflows as admin and other higher level options.
 **Note:** User authentication tables are automatically created when the API server starts.
 
 ### 6. Run Setup Script
@@ -128,7 +117,6 @@ Make the scripts executable:
 chmod +x scripts/local_setup.sh
 chmod +x scripts/stop.sh
 chmod +x scripts/clean_up.sh
-chmod +x scripts/production_setup.sh
 ```
 
 Start all services (Development mode):
@@ -147,12 +135,7 @@ This script will:
 - Start the Contract Parser Agent server
 - Save process IDs for easy management
 
-For production deployment:
-```bash
-./scripts/production_setup.sh
-```
-
-### 7. Access the Application
+### 8. Access the Application
 
 Open your browser and navigate to:
 ```
@@ -170,14 +153,8 @@ The application provides:
 
 ### Stop All Services
 
-**Development mode:**
 ```bash
 ./scripts/stop.sh
-```
-
-**Production mode:**
-```bash
-./scripts/production_stop.sh
 ```
 
 ### Clean Up a Pipeline
@@ -211,9 +188,20 @@ The system uses three main Docker images for pipeline execution:
 Build all images:
 ```bash
 cd backend
+unset DOCKER_HOST
 docker compose build
 cd ..
 ```
+
+##  Important Notes
+
+### MongoDB Atlas Requirement
+
+**Critical:** Requires MongoDB Atlas (not local) for Change Streams support. Get free tier at: https://cloud.mongodb.com/
+
+### Single .env Configuration
+
+One `.env` file in `backend/api/` contains all configuration: MongoDB, PostgreSQL, Docker images, and API keys.
 
 ##  Complete Workflow
 
@@ -352,17 +340,17 @@ cd ..
     └────────────────┘   └───────────────────────┘
             │
         ┌───┴──────────────────────────────────────┐
-        │                                           │
+        │                                          │
 ┌───────▼──────────┐                    ┌──────────▼────────┐
 │  Docker Engine   │                    │  Contract Parser  │
 │  (Pipeline Exec) │                    │  Agent (WebSocket)│
 └───────┬──────────┘                    └───────────────────┘
         │                                   - SLA → Pipeline
-    ┌───┴───────────────────────┐           - Chat Interface
-    │   Pipeline Container      │           - 2-Phase Workflow
+    ┌───┴──────────────────────┐           - Chat Interface
+    │   Pipeline Container     │           - 2-Phase Workflow
     │   ┌──────────────────┐   │
     │   │ Pipeline Service │   │
-    │   │ - Pathway Runtime│   │  <──────┐
+    │   │ - Pathway Runtime│   │   <──────┐
     │   └──────────────────┘   │          │
     │   ┌──────────────────┐   │          │
     │   │ Agentic Service  │   │          │
@@ -374,7 +362,7 @@ cd ..
     │   │ PostgreSQL       │   │
     │   │ - Agent Data     │   │
     │   └──────────────────┘   │
-    └───────────────────────────┘
+    └──────────────────────────┘
 ```
 
 ### Contract Parser Agent
@@ -384,17 +372,17 @@ The Contract Parser Agent is a specialized LLM-powered service that converts SLA
 **Architecture:**
 ```
 ┌──────────────────────────────────────────────────┐
-│          WebSocket Client (User)                │
-│  - Upload SLA metrics (JSON/PDF)                │
-│  - Interactive negotiation                      │
+│          WebSocket Client (User)                 │
+│  - Upload SLA metrics (JSON/PDF)                 │
+│  - Interactive negotiation                       │
 └─────────────────┬────────────────────────────────┘
                   │ WebSocket
 ┌─────────────────▼────────────────────────────────┐
-│       Contract Parser Agent Server              │
-│  - server.py: WebSocket handler                 │
-│  - agent_builder.py: 2-phase builder            │
-│  - graph_builder.py: Node generation            │
-│  - ingestion.py: PDF/JSON extraction            │
+│       Contract Parser Agent Server               │
+│  - server.py: WebSocket handler                  │
+│  - agent_builder.py: 2-phase builder             │
+│  - graph_builder.py: Node generation             │
+│  - ingestion.py: PDF/JSON extraction             │
 └─────────────────┬────────────────────────────────┘
                   │
         ┌─────────┴──────────┐
@@ -408,9 +396,9 @@ The Contract Parser Agent is a specialized LLM-powered service that converts SLA
         │ Generates
         ▼
 ┌────────────────────────────────────┐
-│       flowchart.json              │
-│  - Compatible with main system    │
-│  - Import into visual designer    │
+│       flowchart.json               │
+│  - Compatible with main system     │
+│  - Import into visual designer     │
 └────────────────────────────────────┘
 ```
 
@@ -496,14 +484,6 @@ pathway-tasks/
 │   ├── agentic/             # AI agent service
 │   │   └── app.py          # Agent management and execution
 │   │
-│   ├── Runbook/             # Runbook remediation system
-│   │   ├── src/            # Core remediation logic
-│   │   │   ├── core/       # Orchestrator, registry, LLM service
-│   │   │   ├── execution/  # Action executor, safety validator
-│   │   │   ├── services/   # SSH, secrets management
-│   │   │   └── agents/     # Discovery agent
-│   │   └── Errors_table/   # Error definitions
-│   │
 │   ├── lib/                 # Core libraries
 │   │   ├── io_nodes.py     # Input/output node definitions
 │   │   ├── tables.py       # Table operation nodes
@@ -517,7 +497,7 @@ pathway-tasks/
 │
 └── scripts/                 # Deployment scripts
     ├── local_setup.sh
-    ├── local_stop.sh
+    ├── stop.sh
     └── clean_up.sh
 ```
 
@@ -530,25 +510,71 @@ pathway-tasks/
 - Isolated Docker execution environments
 - Role-based access control (User/Admin)
 
+##  Verification & Testing
+
+After running `./scripts/local_setup.sh`, verify everything is working:
+
+### 1. Check Service Logs
+
+```bash
+# API Server (should show MongoDB Atlas connection)
+tail -f deploy/logs/api.log
+# Look for:
+# - "Connected to MongoDB, DB: easyworkflow"
+# - "Notification change stream listener started"
+# - "Log change stream listener started"
+# - "Workflow change stream listener started"
+# - "RCA change stream listener started"
+
+# Frontend
+tail -f deploy/logs/frontend.log
+# Look for: "VITE v7.2.6 ready"
+```
+
+### 2. Test HTTP Endpoints
+
+```bash
+# Frontend (should return 200)
+curl -s -o /dev/null -w "Status: %{http_code}\n" http://localhost:8083
+
+# API Documentation (should return 200)
+curl -s -o /dev/null -w "Status: %{http_code}\n" http://localhost:8081/docs
+```
+
+### 3. Verify Change Streams
+
+Check API logs for "change stream listener started" messages (4 total). SSL errors mean you're using local MongoDB instead of Atlas.
+
+### 4. Access the Application
+
+Open http://localhost:8083 - login/signup pages should load without errors.
+
 ##  Troubleshooting
 
 ### Port Already in Use
 
-If ports 8081 (API) or 8083 (frontend in scripts) are already in use, modify the port numbers in:
-- `scripts/local_setup.sh` for API_SERVER_PORT and FRONTEND_PORT
-- Frontend Vite dev server uses port 5173 by default (configurable)
+If ports 8081 (API) or 8083 (frontend) are already in use:
 
-### Docker Connection Issues
+1. **Stop services properly:**
+   ```bash
+   ./scripts/stop.sh
+   ```
 
-Ensure Docker daemon is running:
-```bash
-docker ps
-```
+2. **If stop.sh fails, manually kill processes:**
+   ```bash
+   pkill -9 -f "uvicorn backend.api.main"
+   pkill -9 -f "vite"
+   ```
+
+3. **Modify port numbers** (if needed):
+   - Edit `scripts/local_setup.sh` for API_SERVER_PORT and FRONTEND_PORT
+
 
 ### MongoDB Connection Errors
 
-Verify MongoDB is accessible and the connection string in `.env` is correct
+SSL errors mean you're using local MongoDB. Use Atlas instead: https://cloud.mongodb.com/
+Update `MONGO_URI` in `.env` with format: `mongodb+srv://<user>:<pass>@<cluster>.mongodb.net/`
 
-### Pathway License Error
+### Services Won't Start After Stopping
 
-Ensure `PATHWAY_LICENSE_KEY` is set in `backend/pipeline/.env`
+Run `./scripts/stop.sh`, then `rm -f deploy/pids/*.pid`, wait 3 seconds, restart.

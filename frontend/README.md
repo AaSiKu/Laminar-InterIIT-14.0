@@ -1,6 +1,6 @@
-# Frontend
+# Laminar Frontend
 
-A modern React-based visual workflow builder for creating and managing data processing pipelines. Built with React Flow, Material-UI, Tailwind CSS, and Vite.
+Modern React-based visual workflow builder for creating and managing real-time data pipelines. Built with React Flow, Material-UI, Tailwind CSS, and Vite.
 
 ## Features
 
@@ -40,52 +40,37 @@ A modern React-based visual workflow builder for creating and managing data proc
 - **Markdown Support**: Rich text rendering
 
 
-##  Getting Started
+##  Quick Start
 
 ### Prerequisites
 
 - **Node.js**: v18.0.0 or higher
 - **npm**: v9.0.0 or higher
-- **Backend Services**: 
-  - API Server on port 8081
-  - Postgres Server on port 8001
-  - Contract Parser on port 8000
+- **Backend API**: Running on port 8081
 
-### Installation
+### Setup & Run
 
-1. Navigate to frontend directory:
+**Recommended:** Use the automated setup script from project root:
+
+```bash
+# From project root
+./scripts/local_setup.sh
+```
+
+This script handles:
+- Installing npm dependencies
+- Starting dev server on port **8083**
+- Process management and logging
+
+**Manual Setup:**
 
 ```bash
 cd frontend
 npm install
+npm run dev -- --port 8083
 ```
 
-2. Configure environment:
-
-Create `.env` file from template:
-
-```bash
-cp .env.template .env
-```
-
-Edit `.env`:
-```env
-VITE_API_SERVER=http://localhost:8081
-VITE_WS_SERVER=ws://localhost:8081
-VITE_POSTGRES_SERVER=http://localhost:8001
-VITE_ASSET_BASE_URL=""
-VITE_CONTRACT_PARSER=http://localhost:8000/ws
-```
-
-### Development
-
-Start the development server:
-
-```bash
-npm run dev
-```
-
-The application will be available at `http://localhost:5173` (default Vite port)
+The application will be available at `http://localhost:8083`
 
 Features in development mode:
 - Hot module replacement (HMR)
@@ -93,31 +78,28 @@ Features in development mode:
 - Source maps for debugging
 - Detailed error messages
 
-### Production Build
+### Configuration
 
-Build for production:
+No `.env` file needed for frontend. Backend API URL is configured in `config.json`:
+
+```json
+{
+  "API_URL": "http://localhost:8081"
+}
+```
+
+### Development Features
+
+- Hot module replacement (HMR)
+- Fast refresh for React components
+- Source maps for debugging
+- Detailed error messages
+
+### Production Build
 
 ```bash
 npm run build
-```
-
-Preview production build:
-
-```bash
 npm run preview
-```
-
-The production build includes:
-- Minified JavaScript and CSS
-- Code splitting for optimal loading
-- Asset optimization
-- Gzip-compatible output
-
-Serve production build:
-
-```bash
-npm install -g serve
-serve -s dist -l 5173
 ```
 
 ## Project Structure

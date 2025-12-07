@@ -65,16 +65,7 @@ Shared libraries and node definitions used across services.
 - `validate.py` - Schema validation and node registry
 - `node.py` - Base node class and interfaces
 
-### 5. Runbook System (`Runbook/`)
-Automated remediation system with error matching and action execution.
-
-**Key Files:**
-- `app.py` - Pathway document store server for error semantic search
-- `errors.json` - Error knowledge base with remediation actions
-- Vector indexing for similarity-based error matching
-- Integration with remediation orchestrator
-
-### 6. Contract Parser Agent (`contractparseragent/`)
+### 5. Contract Parser Agent (`contractparseragent/`)
 LLM-powered pipeline builder that converts SLA metrics into Pathway flowcharts.
 
 **Responsibilities:**
@@ -323,9 +314,6 @@ python --version
 # Docker
 docker --version
 
-# MongoDB (running)
-mongosh --version
-
 # PostgreSQL
 psql --version
 
@@ -333,7 +321,9 @@ psql --version
 kafka-server-start --version
 ```
 
-### Installation 
+**note** Please ensure 
+
+### Installation
 >Follow this only when testing backend standalone - otherwise use scripts/local_setup.sh
 
 1. **Configure environment variables:**

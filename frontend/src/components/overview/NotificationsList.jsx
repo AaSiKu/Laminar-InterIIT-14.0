@@ -20,19 +20,31 @@ const NotificationsList = ({ notifications }) => {
   return (
     <List sx={{ width: '100%', bgcolor: 'transparent' }}>
       {notifications.map((notification, index) => (
-        <React.Fragment key={notification.id}>
+        <React.Fragment key={notification.id || notification._id || index}>
           <ListItem alignItems="flex-start">
             <ListItemText
-              primary={notification.message}
+              primary={notification.title || notification.message || "Notification"}
               secondary={
-                <Typography
-                  sx={{ display: 'inline' }}
-                  component="span"
-                  variant="body2"
-                  color="text.primary"
-                >
-                  {notification.timestamp}
-                </Typography>
+                <>
+                  {notification.desc && (
+                    <Typography
+                      sx={{ display: 'block' }}
+                      component="span"
+                      variant="body2"
+                      color="text.secondary"
+                    >
+                      {notification.desc}
+                    </Typography>
+                  )}
+                  <Typography
+                    sx={{ display: 'inline' }}
+                    component="span"
+                    variant="caption"
+                    color="text.disabled"
+                  >
+                    {notification.timestamp}
+                  </Typography>
+                </>
               }
             />
           </ListItem>

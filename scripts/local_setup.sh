@@ -91,7 +91,7 @@ fi
     # Use nohup to keep the server running after the script exits.
     # Redirect stdout (>) and stderr (2>&1) to a log file.
     # Run in the background (&).
-    export PIPELINE_IMAGE_NAME POSTGRES_IMAGE_NAME AGENTIC_IMAGE_NAME && nohup uvicorn backend.api.main:app --port $API_SERVER_PORT --reload > $LOG_DIR/api.log 2>&1 &
+    export PIPELINE_IMAGE_NAME POSTGRES_IMAGE_NAME AGENTIC_IMAGE_NAME && nohup uvicorn backend.api.main:app --port $API_SERVER_PORT > $LOG_DIR/api.log 2>&1 &
     API_PID=$!
     echo $API_PID > "$PID_DIR/api.pid"
 

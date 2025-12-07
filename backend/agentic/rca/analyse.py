@@ -1,6 +1,7 @@
 from typing import List, Dict, Union, Literal, Any, Optional
 from typing_extensions import TypedDict
 import hashlib
+import os
 from datetime import datetime, timedelta
 from .summarize import SummarizeOutput
 from .tools import get_error_logs_for_trace_ids, get_error_spans_for_trace_ids, get_downtime_timestamps, get_full_span_tree, TablePayload
@@ -227,9 +228,10 @@ async def rca(
                     
                     # Save to MongoDB if collection provided
                     if rca_collection:
+                        pipeline_id = os.getenv("PIPELINE_ID", column_name)
                         await save_rca_to_mongodb(
                             rca_collection,
-                            column_name,  # Use column_name as pipeline_id
+                            pipeline_id,
                             init_rca_request.metric_type,
                             init_rca_request.description,
                             trace_ids,
@@ -290,9 +292,10 @@ async def rca(
                     
                     # Save to MongoDB if collection provided
                     if rca_collection:
+                        pipeline_id = os.getenv("PIPELINE_ID", column_name)
                         await save_rca_to_mongodb(
                             rca_collection,
-                            column_name,  # Use column_name as pipeline_id
+                            pipeline_id,
                             init_rca_request.metric_type,
                             init_rca_request.description,
                             trace_ids,
@@ -349,9 +352,10 @@ async def rca(
                     
                     # Save to MongoDB if collection provided
                     if rca_collection:
+                        pipeline_id = os.getenv("PIPELINE_ID", column_name)
                         await save_rca_to_mongodb(
                             rca_collection,
-                            column_name,  # Use column_name as pipeline_id
+                            pipeline_id,
                             init_rca_request.metric_type,
                             init_rca_request.description,
                             trace_ids,

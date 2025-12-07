@@ -15,6 +15,7 @@ export const WebSocketProvider = ({ children }) => {
   const [notifications, setNotifications] = useState([]);
   const [logs, setLogs] = useState([]);
   const [workflows, setWorkflows] = useState([]); // Store workflow updates
+  const [rcaEvents, setRcaEvents] = useState([]); // Store RCA events
   const reconnectTimeoutRef = useRef(null);
   const [reconnectAttempts, setReconnectAttempts] = useState(0);
   const maxReconnectAttempts = 5;
@@ -98,6 +99,27 @@ export const WebSocketProvider = ({ children }) => {
         console.log("Received log message:", data);
         setLogs(prev => [data, ...prev]);
         console.log("Updated logs state:", logs);
+      }
+      
+      // RCA Events
+      if (messageType === "rca") {
+        console.log("Received RCA event:", data);
+        setRcaEvents(prev => {
+          // Update or add RCA event
+          const existingIndex = prev.findIndex(r => {
+            if (r._id && data._id) return String(r._id) === String(data._id);
+            return false;
+          });
+          if (existingIndex >= 0) {
+            // Update existing RCA event
+            const updated = [...prev];
+            updated[existingIndex] = data;
+            return updated;
+          } else {
+            // Add new RCA event
+            return [data, ...prev].slice(0, 100); // Keep last 100 RCA events
+          }
+        });
       }
     } catch (error) {
       console.error("Error parsing WebSocket message:", error, event.data);
@@ -363,6 +385,31 @@ export const WebSocketProvider = ({ children }) => {
     });
   }, [logs]);
 
+  // Get RCA events for a specific pipeline
+  const getRcaEventsForPipeline = useCallback((pipelineId) => {
+    if (!pipelineId) return [];
+    const pipelineIdStr = String(pipelineId);
+    return rcaEvents.filter(rca => {
+      const rcaPipelineId = rca.pipeline_id ? String(rca.pipeline_id) : null;
+      return rcaPipelineId === pipelineIdStr;
+    });
+  }, [rcaEvents]);
+
+  // Get all RCA events
+  const getAllRcaEvents = useCallback(() => {
+    return rcaEvents;
+  }, [rcaEvents]);
+
+  // Get RCA event by ID
+  const getRcaEventById = useCallback((rcaId) => {
+    if (!rcaId) return null;
+    const rcaIdStr = String(rcaId);
+    return rcaEvents.find(r => {
+      if (r._id) return String(r._id) === rcaIdStr;
+      return false;
+    });
+  }, [rcaEvents]);
+
   const value = {
     // Connection state
     ws,
@@ -374,6 +421,7 @@ export const WebSocketProvider = ({ children }) => {
     notifications,
     logs,
     workflows,
+    rcaEvents,
     // Helper functions
     getAlertsForPipeline,
     getAllAlerts,
@@ -382,6 +430,9 @@ export const WebSocketProvider = ({ children }) => {
     getLogsForPipeline,
     getWorkflowById,
     getAllWorkflows,
+    getRcaEventsForPipeline,
+    getAllRcaEvents,
+    getRcaEventById,
   };
 
   return (

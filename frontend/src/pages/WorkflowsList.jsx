@@ -15,7 +15,7 @@ import { useWebSocket } from "../context/WebSocketContext";
 import { formatTimeAgo } from "../helpers/datetime";
 import planeLight from "../assets/plane_light.svg";
 import planeDark from "../assets/plane_dark.svg";
-// import { useTheme } from "@emotion/react";
+import { useTheme } from "@mui/material/styles";
 
 // Transform backend workflow data to frontend format
 const transformWorkflow = (backendWorkflow, details = null) => {
@@ -89,6 +89,7 @@ const transformWorkflow = (backendWorkflow, details = null) => {
 };
 
 export const WorkflowsList = () => {
+  const theme = useTheme();
   const [searchParams, setSearchParams] = useSearchParams();
   const [selectedTab, setSelectedTab] = useState(0);
   const [selectedWorkflow, setSelectedWorkflow] = useState(null);
@@ -490,7 +491,7 @@ export const WorkflowsList = () => {
                   >
                     <Box
                       component="img"
-                      // src={theme.palette.mode === "dark" ? planeDark : planeLight}
+                      src={theme.palette.mode === "dark" ? planeDark : planeLight}
                       alt="No data"
                       sx={{ width: "8rem", height: "auto", opacity: 0.6 }}
                     />
