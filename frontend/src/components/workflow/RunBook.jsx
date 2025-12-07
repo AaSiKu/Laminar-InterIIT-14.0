@@ -23,6 +23,7 @@ import {
   ButtonGroup,
   Chip,
   CircularProgress,
+  Alert,
 } from "@mui/material";
 import CloseIcon from "@mui/icons-material/Close";
 import ExpandLessIcon from "@mui/icons-material/ExpandLess";
@@ -104,6 +105,11 @@ const RunBook = ({ open, onClose, formData = {}, onSave }) => {
   );
   const [actions, setActions] = useState(formData.actions || [""]);
 
+  // Save status states
+  const [saveLoading, setSaveLoading] = useState(false);
+  const [saveError, setSaveError] = useState(null);
+  const [saveSuccess, setSaveSuccess] = useState(false);
+
   // Track previous formData to prevent unnecessary updates
   const prevFormDataRef = useRef(null);
 
@@ -174,6 +180,7 @@ const RunBook = ({ open, onClose, formData = {}, onSave }) => {
   const fetchActions = useCallback(async () => {
     if (!currentPipelineId) {
       console.log("No pipeline ID, skipping actions fetch");
+      setActionsError("No pipeline selected. Please select a workflow first.");
       return;
     }
     
@@ -193,7 +200,14 @@ const RunBook = ({ open, onClose, formData = {}, onSave }) => {
       );
 
       if (!response.ok) {
-        throw new Error(`Failed to fetch actions: ${response.status}`);
+        const errorData = await response.json().catch(() => ({}));
+        const errorDetail = errorData.detail || `HTTP ${response.status}`;
+        if (response.status === 404) {
+          throw new Error("Workflow not found or container not running. Please spin up the workflow first.");
+        } else if (response.status === 503) {
+          throw new Error("Runbook registry not initialized. The container may still be starting up.");
+        }
+        throw new Error(`Failed to fetch actions: ${errorDetail}`);
       }
 
       const result = await response.json();
@@ -212,6 +226,7 @@ const RunBook = ({ open, onClose, formData = {}, onSave }) => {
   const fetchErrorCatalog = useCallback(async () => {
     if (!currentPipelineId) {
       console.log("No pipeline ID, skipping error catalog fetch");
+      setErrorCatalogError("No pipeline selected. Please select a workflow first.");
       return;
     }
     
@@ -231,7 +246,14 @@ const RunBook = ({ open, onClose, formData = {}, onSave }) => {
       );
 
       if (!response.ok) {
-        throw new Error(`Failed to fetch error catalog: ${response.status}`);
+        const errorData = await response.json().catch(() => ({}));
+        const errorDetail = errorData.detail || `HTTP ${response.status}`;
+        if (response.status === 404) {
+          throw new Error("Workflow not found or container not running. Please spin up the workflow first.");
+        } else if (response.status === 503) {
+          throw new Error("Error registry not initialized. The container may still be starting up.");
+        }
+        throw new Error(`Failed to fetch error catalog: ${errorDetail}`);
       }
 
       const result = await response.json();
@@ -269,14 +291,32 @@ const RunBook = ({ open, onClose, formData = {}, onSave }) => {
       
       if (!currentPipelineId) {
         console.error("Pipeline ID is required to save runbook");
+        setSaveError("No pipeline selected. Please select a workflow first.");
+        return;
+      }
+
+      // Validate required fields
+      if (!runBookErrorDescription.trim()) {
+        setSaveError("Error description is required.");
         return;
       }
       
-    try {
-      // Use the error-registry endpoint to add the error mapping
-      const response = await fetch(
-        `${import.meta.env.VITE_API_SERVER}/action/${currentPipelineId}/error-registry/mappings`,
-        {
+      const validActions = actions.filter(action => action.trim() !== "");
+      if (validActions.length === 0) {
+        setSaveError("At least one action is required.");
+        return;
+      }
+
+      setSaveLoading(true);
+      setSaveError(null);
+      setSaveSuccess(false);
+      
+      try {
+        // Use the error-registry endpoint to add the error mapping
+        const url = `${import.meta.env.VITE_API_SERVER}/action/${currentPipelineId}/error-registry/mappings`;
+        console.log("Saving Run Book to:", url);
+        
+        const response = await fetch(url, {
           method: "POST",
           credentials: "include",
           headers: {
@@ -284,24 +324,48 @@ const RunBook = ({ open, onClose, formData = {}, onSave }) => {
           },
           body: JSON.stringify({
             error: runBookErrorDescription,
-            actions: actions.filter(action => action.trim() !== ""),
+            actions: validActions,
             description: runBookName
           }),
-        }
-      );
+        });
 
         if (!response.ok) {
-          const errorText = await response.text();
-          throw new Error(
-            `Failed to save run book: ${errorText || response.status}`
-          );
+          let errorMessage = `Failed to save run book (Status: ${response.status})`;
+          try {
+            const errorData = await response.json();
+            if (errorData.detail) {
+              errorMessage = errorData.detail;
+            }
+          } catch (e) {
+            // Try text if JSON fails
+            try {
+              const errorText = await response.text();
+              if (errorText) {
+                errorMessage = errorText;
+              }
+            } catch (textErr) { /* ignore */ }
+          }
+          
+          // Map common error codes to user-friendly messages
+          if (response.status === 404) {
+            errorMessage = "Workflow not found or containers not running. Please spin up the workflow first.";
+          } else if (response.status === 503) {
+            errorMessage = "Error registry not initialized. The container may still be starting.";
+          } else if (response.status === 403) {
+            errorMessage = "You don't have permission to modify this workflow.";
+          }
+          throw new Error(errorMessage);
         }
 
         const result = await response.json();
-        console.log("run book saved successfully:", result);
+        console.log("Run book saved successfully:", result);
 
         // Refresh the error catalog after successful save
         await fetchErrorCatalog();
+
+        setSaveSuccess(true);
+        // Clear success message after 3 seconds
+        setTimeout(() => setSaveSuccess(false), 3000);
 
         if (onSave) {
           onSave(runBookData);
@@ -313,6 +377,9 @@ const RunBook = ({ open, onClose, formData = {}, onSave }) => {
         setActions([""]);
       } catch (error) {
         console.error("Error saving run book:", error);
+        setSaveError(error.message);
+      } finally {
+        setSaveLoading(false);
       }
       return;
     }
@@ -689,29 +756,45 @@ const RunBook = ({ open, onClose, formData = {}, onSave }) => {
                     const handleDeleteMapping = async () => {
                       if (!currentPipelineId) {
                         console.error("Pipeline ID is required");
+                        setSaveError("No pipeline selected. Please select a workflow first.");
                         return;
                       }
 
                       try {
-                        const response = await fetch(
-                          `${import.meta.env.VITE_API_SERVER}/action/${currentPipelineId}/error-registry/mappings/${encodeURIComponent(mapping.error)}`,
-                          {
-                            method: "DELETE",
-                            credentials: "include",
-                            headers: {
-                              "Content-Type": "application/json",
-                            },
-                          }
-                        );
+                        const url = `${import.meta.env.VITE_API_SERVER}/action/${currentPipelineId}/error-registry/mappings/${encodeURIComponent(mapping.error)}`;
+                        console.log("Deleting mapping from:", url);
+                        
+                        const response = await fetch(url, {
+                          method: "DELETE",
+                          credentials: "include",
+                          headers: {
+                            "Content-Type": "application/json",
+                          },
+                        });
 
                         if (!response.ok) {
-                          throw new Error(`Failed to delete mapping: ${response.status}`);
+                          let errorMessage = `Failed to delete mapping (Status: ${response.status})`;
+                          try {
+                            const errorData = await response.json();
+                            if (errorData.detail) {
+                              errorMessage = errorData.detail;
+                            }
+                          } catch (e) { /* ignore */ }
+                          
+                          if (response.status === 404) {
+                            errorMessage = "Mapping not found or containers not running.";
+                          } else if (response.status === 503) {
+                            errorMessage = "Error registry not available. Container may still be starting.";
+                          }
+                          throw new Error(errorMessage);
                         }
 
+                        console.log("Mapping deleted successfully");
                         // Refresh the error catalog
                         await fetchErrorCatalog();
                       } catch (error) {
                         console.error("Error deleting mapping:", error);
+                        setSaveError(error.message);
                       }
                     };
 
@@ -838,37 +921,58 @@ const RunBook = ({ open, onClose, formData = {}, onSave }) => {
                     
                     if (!pipelineId) {
                       console.error("Pipeline ID is required");
+                      setSaveError("No pipeline selected. Please select a workflow first.");
                       return;
                     }
 
                     if (!action.action_id) {
                       console.error("Action ID is required");
+                      setSaveError("Action ID is missing. Cannot delete action.");
                       return;
                     }
 
                     try {
-                      const response = await fetch(
-                        `${import.meta.env.VITE_API_SERVER}/agentic/${pipelineId}/runbook/actions/${action.action_id}`,
-                        {
-                          method: "DELETE",
-                          credentials: "include",
-                          headers: {
-                            "Content-Type": "application/json",
-                          },
-                        }
-                      );
+                      const url = `${import.meta.env.VITE_API_SERVER}/agentic/${pipelineId}/runbook/actions/${action.action_id}`;
+                      console.log("Deleting action from:", url);
+                      
+                      const response = await fetch(url, {
+                        method: "DELETE",
+                        credentials: "include",
+                        headers: {
+                          "Content-Type": "application/json",
+                        },
+                      });
 
                       if (!response.ok) {
-                        const errorText = await response.text();
-                        throw new Error(
-                          `Failed to delete action: ${errorText || response.status}`
-                        );
+                        let errorMessage = `Failed to delete action (Status: ${response.status})`;
+                        try {
+                          const errorData = await response.json();
+                          if (errorData.detail) {
+                            errorMessage = errorData.detail;
+                          }
+                        } catch (e) {
+                          try {
+                            const errorText = await response.text();
+                            if (errorText) {
+                              errorMessage = errorText;
+                            }
+                          } catch (textErr) { /* ignore */ }
+                        }
+                        
+                        if (response.status === 404) {
+                          errorMessage = "Action not found or containers not running.";
+                        } else if (response.status === 503) {
+                          errorMessage = "Action registry not available. Container may still be starting.";
+                        }
+                        throw new Error(errorMessage);
                       }
 
+                      console.log("Action deleted successfully");
                       // Refresh the actions list after deletion
                       await fetchActions();
                     } catch (error) {
                       console.error("Error deleting action:", error);
+                      setSaveError(error.message);
                     }
                   };
 
@@ -987,10 +1091,31 @@ const RunBook = ({ open, onClose, formData = {}, onSave }) => {
                 <Typography variant="h5" fontWeight={700}>
                   Run Book
                 </Typography>
-                <Button variant="contained" onClick={handleSave}>
-                  Save
+                <Button 
+                  variant="contained" 
+                  onClick={handleSave}
+                  disabled={saveLoading}
+                  startIcon={saveLoading ? <CircularProgress size={20} color="inherit" /> : null}
+                >
+                  {saveLoading ? "Saving..." : "Save"}
                 </Button>
               </Box>
+
+              {/* Save error/success messages */}
+              {saveError && (
+                <Box sx={{ px: 3, pb: 1 }}>
+                  <Alert severity="error" onClose={() => setSaveError(null)}>
+                    {saveError}
+                  </Alert>
+                </Box>
+              )}
+              {saveSuccess && (
+                <Box sx={{ px: 3, pb: 1 }}>
+                  <Alert severity="success" onClose={() => setSaveSuccess(false)}>
+                    Run book saved successfully!
+                  </Alert>
+                </Box>
+              )}
 
               <Box
                 sx={{

@@ -96,10 +96,44 @@ def run_pipeline_container(client: docker.DockerClient, pipeline_id: str):
 
     logger.info(f"Started DB container: {db_container_name}")
 
+    # Wait for PostgreSQL to be ready and initialization to complete
+    logger.info("Waiting for PostgreSQL to be ready...")
+    max_retries = 30
+    retry_interval = 2  # seconds
+    
+    for attempt in range(max_retries):
+        try:
+            # Check if container is still running
+            db_container.reload()
+            if db_container.status != "running":
+                raise Exception(f"DB container stopped unexpectedly: {db_container.status}")
+            
+            # Execute health check inside the container
+            # Check both pg_isready and that the write user exists (init script completed)
+            exit_code, output = db_container.exec_run(
+                f"pg_isready -U admin -d db && psql -U admin -d db -tAc \"SELECT 1 FROM pg_roles WHERE rolname = '{write_user}'\" | grep -q 1",
+                demux=True
+            )
+            
+            if exit_code == 0:
+                logger.info(f"PostgreSQL is ready after {attempt + 1} attempts")
+                break
+            else:
+                if attempt < max_retries - 1:
+                    logger.debug(f"PostgreSQL not ready yet (attempt {attempt + 1}/{max_retries})")
+                    time.sleep(retry_interval)
+                else:
+                    logger.warning(f"PostgreSQL may not be fully initialized after {max_retries} attempts, continuing anyway...")
+        except Exception as e:
+            if attempt < max_retries - 1:
+                logger.debug(f"Health check failed (attempt {attempt + 1}): {e}")
+                time.sleep(retry_interval)
+            else:
+                logger.warning(f"Could not verify PostgreSQL health after {max_retries} attempts: {e}")
 
 
     agentic_container_name = f"agentic_{pipeline_id}"
-    # Start pipeline container
+    # Start agentic container (needs write access for runbook registry tables)
     agentic_container = client.containers.run(
         image=AGENTIC_IMAGE,
         name=agentic_container_name,
@@ -108,8 +142,9 @@ def run_pipeline_container(client: docker.DockerClient, pipeline_id: str):
             "PIPELINE_ID": pipeline_id,
             "POSTGRES_HOST": db_container_name,
             "POSTGRES_DB": "db",
-            "POSTGRES_USER": read_user,
-            "POSTGRES_PASSWORD": read_pass,
+            "POSTGRES_USER": write_user,
+            "POSTGRES_PASSWORD": write_pass,
+            "DATABASE_URL": f"postgresql+asyncpg://{write_user}:{write_pass}@{db_container_name}:5432/db",
             "PATHWAY_API_URL": f"http://{pipeline_id}:{PIPELINE_ERROR_INDEXING_PORT.split('/')[0]}",
             "MONGO_URI": os.getenv("MONGO_URI", ""),
             "MONGO_DB": os.getenv("MONGO_DB", "easyworkflow"),

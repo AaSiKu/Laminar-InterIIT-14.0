@@ -4,6 +4,7 @@ from typing import List, Any, Optional, Dict
 from datetime import datetime, timezone
 import logging
 import os
+import asyncio
 from fastapi import FastAPI, HTTPException
 from contextlib import asynccontextmanager
 from pydantic import BaseModel, Field
@@ -103,37 +104,48 @@ async def lifespan(app: FastAPI):
             secrets_manager = SecretsManager()
             logger.info("Secrets manager initialized successfully")
 
-            # Try to initialize DB components (optional)
-            try:
-                from postgres_util import postgre_async_url
-                db_url = postgre_async_url
-                
-                registry = RunbookRegistry(database_url=db_url)
-                await registry.initialize()
-                
-                validator = SafetyValidator(otel_client=None, metrics_client=None)
-                executor = ActionExecutor(validator, secrets_manager, None)
-                
+            # Try to initialize DB components with retry logic
+            max_retries = 5
+            retry_delay = 3  # seconds
+            
+            for attempt in range(max_retries):
                 try:
-                    suggestion_service = LLMSuggestionService()
-                    logger.info("LLM suggestion service initialized")
-                except Exception as llm_error:
-                    logger.warning(f"Could not initialize LLM suggestion service: {llm_error}")
-                    suggestion_service = None
-                
-                pathway_url = os.getenv("PATHWAY_API_URL", "http://localhost:8001")
-                orchestrator = RemediationOrchestrator(
-                    pathway_api_url=pathway_url,
-                    runbook_registry=registry,
-                    action_executor=executor,
-                    confidence_thresholds={'high': 0.3, 'medium': 0.5},
-                    suggestion_service=suggestion_service
-                )
-                logger.info("Runbook orchestrator initialized successfully")
-                
-            except Exception as db_error:
-                logger.warning(f"Could not initialize orchestrator (DB may not be ready): {db_error}")
-                logger.info("Discovery endpoints will still work without orchestrator")
+                    from postgres_util import postgre_async_url
+                    db_url = postgre_async_url
+                    
+                    logger.info(f"Attempting to initialize database (attempt {attempt + 1}/{max_retries})...")
+                    registry = RunbookRegistry(database_url=db_url)
+                    await registry.initialize()
+                    
+                    validator = SafetyValidator(otel_client=None, metrics_client=None)
+                    executor = ActionExecutor(validator, secrets_manager, None)
+                    
+                    try:
+                        suggestion_service = LLMSuggestionService()
+                        logger.info("LLM suggestion service initialized")
+                    except Exception as llm_error:
+                        logger.warning(f"Could not initialize LLM suggestion service: {llm_error}")
+                        suggestion_service = None
+                    
+                    pathway_url = os.getenv("PATHWAY_API_URL", "http://localhost:8001")
+                    orchestrator = RemediationOrchestrator(
+                        pathway_api_url=pathway_url,
+                        runbook_registry=registry,
+                        action_executor=executor,
+                        confidence_thresholds={'high': 0.3, 'medium': 0.5},
+                        suggestion_service=suggestion_service
+                    )
+                    logger.info("Runbook orchestrator initialized successfully")
+                    break  # Success, exit retry loop
+                    
+                except Exception as db_error:
+                    if attempt < max_retries - 1:
+                        logger.warning(f"DB initialization attempt {attempt + 1} failed: {db_error}")
+                        logger.info(f"Retrying in {retry_delay} seconds...")
+                        await asyncio.sleep(retry_delay)
+                    else:
+                        logger.warning(f"Could not initialize orchestrator after {max_retries} attempts: {db_error}")
+                        logger.info("Discovery endpoints will still work without orchestrator")
         
         except Exception as e:
             logger.error(f"Failed to initialize runbook components: {e}")
