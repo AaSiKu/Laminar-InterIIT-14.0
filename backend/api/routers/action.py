@@ -405,6 +405,169 @@ async def add_runbook_action(
             raise HTTPException(status_code=exc.response.status_code, detail=f"Agentic container error: {exc.response.text}")
 
 
+@agentic_router.post("/{pipelineId}/runbook/discover/swagger")
+async def discover_from_swagger(
+    request_obj: Request, 
+    pipelineId: str, 
+    current_user: User = Depends(get_current_user),
+    data: Dict[str, Any] = Body(default={})
+):
+    """
+    Discover actions from Swagger/OpenAPI specification.
+    Proxies to the agentic container's swagger discovery endpoint.
+    """
+    ip, port = await get_agentic_container_url(request_obj, pipelineId, current_user)
+    url = f"http://{ip}:{port}/runbook/discover/swagger"
+    
+    print(f"Proxying POST to agentic: {url}")
+    print(f"Swagger discovery data: {data}")
+
+    async with httpx.AsyncClient(timeout=60.0) as client:  # Longer timeout for discovery
+        try:
+            response = await client.post(url, json=data)
+            response.raise_for_status()
+            return response.json()
+        except httpx.RequestError as exc:
+            raise HTTPException(status_code=500, detail=f"Failed to reach agentic container: {exc}")
+        except httpx.HTTPStatusError as exc:
+            raise HTTPException(status_code=exc.response.status_code, detail=f"Agentic container error: {exc.response.text}")
+
+
+@agentic_router.post("/{pipelineId}/runbook/discover/ssh")
+async def discover_from_ssh(
+    request_obj: Request, 
+    pipelineId: str, 
+    current_user: User = Depends(get_current_user),
+    data: Dict[str, Any] = Body(default={})
+):
+    """
+    Discover actions from SSH server scripts.
+    Proxies to the agentic container's SSH discovery endpoint.
+    """
+    ip, port = await get_agentic_container_url(request_obj, pipelineId, current_user)
+    url = f"http://{ip}:{port}/runbook/discover/ssh"
+    
+    print(f"Proxying POST to agentic: {url}")
+    print(f"SSH discovery data: {data}")
+
+    async with httpx.AsyncClient(timeout=60.0) as client:  # Longer timeout for discovery
+        try:
+            response = await client.post(url, json=data)
+            response.raise_for_status()
+            return response.json()
+        except httpx.RequestError as exc:
+            raise HTTPException(status_code=500, detail=f"Failed to reach agentic container: {exc}")
+        except httpx.HTTPStatusError as exc:
+            raise HTTPException(status_code=exc.response.status_code, detail=f"Agentic container error: {exc.response.text}")
+
+
+@agentic_router.post("/{pipelineId}/runbook/discover/documentation")
+async def discover_from_documentation(
+    request_obj: Request, 
+    pipelineId: str, 
+    current_user: User = Depends(get_current_user),
+    data: Dict[str, Any] = Body(default={})
+):
+    """
+    Discover actions from documentation text.
+    Proxies to the agentic container's documentation discovery endpoint.
+    """
+    ip, port = await get_agentic_container_url(request_obj, pipelineId, current_user)
+    url = f"http://{ip}:{port}/runbook/discover/documentation"
+    
+    print(f"Proxying POST to agentic: {url}")
+    print(f"Documentation discovery data: {data}")
+
+    async with httpx.AsyncClient(timeout=60.0) as client:  # Longer timeout for discovery
+        try:
+            response = await client.post(url, json=data)
+            response.raise_for_status()
+            return response.json()
+        except httpx.RequestError as exc:
+            raise HTTPException(status_code=500, detail=f"Failed to reach agentic container: {exc}")
+        except httpx.HTTPStatusError as exc:
+            raise HTTPException(status_code=exc.response.status_code, detail=f"Agentic container error: {exc.response.text}")
+
+
+@agentic_router.post("/{pipelineId}/runbook/remediate/approve")
+async def approve_remediation(
+    request_obj: Request, 
+    pipelineId: str, 
+    current_user: User = Depends(get_current_user),
+    data: Dict[str, Any] = Body(default={})
+):
+    """
+    Approve or reject a remediation action request.
+    Handles both request-level and action-level approvals.
+    """
+    ip, port = await get_agentic_container_url(request_obj, pipelineId, current_user)
+    url = f"http://{ip}:{port}/runbook/remediate/approve"
+    
+    print(f"Proxying POST to agentic: {url}")
+    print(f"Approval data: {data}")
+
+    async with httpx.AsyncClient(timeout=60.0) as client:
+        try:
+            response = await client.post(url, json=data)
+            response.raise_for_status()
+            return response.json()
+        except httpx.RequestError as exc:
+            raise HTTPException(status_code=500, detail=f"Failed to reach agentic container: {exc}")
+        except httpx.HTTPStatusError as exc:
+            raise HTTPException(status_code=exc.response.status_code, detail=f"Agentic container error: {exc.response.text}")
+
+
+@agentic_router.get("/{pipelineId}/runbook/approvals/pending")
+async def list_pending_approvals(
+    request_obj: Request, 
+    pipelineId: str, 
+    current_user: User = Depends(get_current_user)
+):
+    """
+    List all pending approval requests for this pipeline.
+    """
+    ip, port = await get_agentic_container_url(request_obj, pipelineId, current_user)
+    url = f"http://{ip}:{port}/runbook/approvals/pending"
+    
+    print(f"Proxying GET to agentic: {url}")
+
+    async with httpx.AsyncClient(timeout=30.0) as client:
+        try:
+            response = await client.get(url)
+            response.raise_for_status()
+            return response.json()
+        except httpx.RequestError as exc:
+            raise HTTPException(status_code=500, detail=f"Failed to reach agentic container: {exc}")
+        except httpx.HTTPStatusError as exc:
+            raise HTTPException(status_code=exc.response.status_code, detail=f"Agentic container error: {exc.response.text}")
+
+
+@agentic_router.get("/{pipelineId}/runbook/approvals/{request_id}")
+async def get_approval_status(
+    request_obj: Request, 
+    pipelineId: str, 
+    request_id: str,
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Get the status of a specific approval request.
+    """
+    ip, port = await get_agentic_container_url(request_obj, pipelineId, current_user)
+    url = f"http://{ip}:{port}/runbook/approvals/{request_id}"
+    
+    print(f"Proxying GET to agentic: {url}")
+
+    async with httpx.AsyncClient(timeout=30.0) as client:
+        try:
+            response = await client.get(url)
+            response.raise_for_status()
+            return response.json()
+        except httpx.RequestError as exc:
+            raise HTTPException(status_code=500, detail=f"Failed to reach agentic container: {exc}")
+        except httpx.HTTPStatusError as exc:
+            raise HTTPException(status_code=exc.response.status_code, detail=f"Agentic container error: {exc.response.text}")
+
+
 # ============ Pipeline Container Routes (Error Registry) ============
 
 @router.get("/{pipelineId}/error-registry/mappings")

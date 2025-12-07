@@ -352,10 +352,10 @@ const RunBook = ({ open, onClose, formData = {}, onSave }) => {
         return;
       }
       
-    try {
-      // Use the action proxy to route to the container's swagger discovery endpoint
+      try {
+      // Use the agentic proxy to route to the container's swagger discovery endpoint
       const response = await fetch(
-        `${import.meta.env.VITE_API_SERVER}/action/${currentPipelineId}/runbook/discover/swagger`,
+        `${import.meta.env.VITE_API_SERVER}/agentic/${currentPipelineId}/runbook/discover/swagger`,
         {
           method: "POST",
           credentials: "include",
@@ -364,9 +364,7 @@ const RunBook = ({ open, onClose, formData = {}, onSave }) => {
           },
           body: JSON.stringify(swaggerData),
         }
-      );
-
-      if (!response.ok) {
+      );      if (!response.ok) {
         const errorText = await response.text();
         throw new Error(
           `Failed to add action: ${errorText || response.status}`
@@ -409,9 +407,9 @@ const RunBook = ({ open, onClose, formData = {}, onSave }) => {
       }
       
       try {
-        // Use the action proxy to route to the container's SSH discovery endpoint
+        // Use the agentic proxy to route to the container's SSH discovery endpoint
         const response = await fetch(
-          `${import.meta.env.VITE_API_SERVER}/action/${currentPipelineId}/runbook/discover/ssh`,
+          `${import.meta.env.VITE_API_SERVER}/agentic/${currentPipelineId}/runbook/discover/ssh`,
           {
             method: "POST",
             credentials: "include",
@@ -441,19 +439,67 @@ const RunBook = ({ open, onClose, formData = {}, onSave }) => {
       return;
     }
 
-    // Handle manual mode
-    if (actionDiscoveryMode !== "manual") {
-      // Handle other discovery modes (documentation) if needed
-      console.log("Non-manual action discovery modes not yet implemented for backend");
+    // Handle Documentation Discovery mode
+    if (actionDiscoveryMode === "documentation") {
+      // Read file contents if file is selected
+      let documentationText = documentation;
+      
+      if (documentationFile) {
+        documentationText = await documentationFile.text();
+      }
+
+      if (!documentationText || !documentationText.trim()) {
+        console.error("Documentation text is required");
+        return;
+      }
+
+      // Build the documentation discovery data
+      const docData = {
+        documentation: documentationText,
+        service_name: serviceName, // Use the service name field from manual action form
+      };
+
+      console.log("documentationData", docData);
+      
+      if (!currentPipelineId) {
+        console.error("Pipeline ID is required for documentation discovery");
+        return;
+      }
+      
+      try {
+        // Use the agentic proxy to route to the container's documentation discovery endpoint
+        const response = await fetch(
+          `${import.meta.env.VITE_API_SERVER}/agentic/${currentPipelineId}/runbook/discover/documentation`,
+          {
+            method: "POST",
+            credentials: "include",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify(docData),
+          }
+        );
+
+        if (!response.ok) {
+          const errorText = await response.text();
+          throw new Error(
+            `Failed to discover actions from documentation: ${errorText || response.status}`
+          );
+        }
+
+        const result = await response.json();
+        console.log("documentation discovery completed successfully:", result);
+
+        if (onSave) {
+          onSave(docData);
+        }
+      } catch (error) {
+        console.error("Error discovering actions from documentation:", error);
+      }
       return;
     }
 
-    // Read file contents if files are selected
-    let documentationFileContent = null;
-    
-    if (documentationFile) {
-      documentationFileContent = await documentationFile.text();
-    }
+    // Handle manual mode
 
     // Transform parameters from key-value pairs to Dict[str, Any]
     const parametersDict = {};

@@ -1,9 +1,12 @@
 import { Box, Typography, Button, IconButton, useTheme } from "@mui/material";
+import { useState } from "react";
 import AutoAwesomeOutlinedIcon from "@mui/icons-material/AutoAwesomeOutlined";
 import dayjs from "dayjs";
 import relativeTime from "dayjs/plugin/relativeTime";
 import planeLight from "../../assets/plane_light.svg";
 import planeDark from "../../assets/plane_dark.svg";
+import ApprovalDialog from "../ApprovalDialog";
+import { useGlobalWorkflow } from "../../context/GlobalWorkflowContext";
 dayjs.extend(relativeTime);
 
 const ActionRequired = ({
@@ -12,6 +15,9 @@ const ActionRequired = ({
   notifications = [],
 }) => {
   const theme = useTheme();
+  const { id: currentPipelineId } = useGlobalWorkflow();
+  const [approvalDialogOpen, setApprovalDialogOpen] = useState(false);
+  const [selectedNotification, setSelectedNotification] = useState(null);
 
   // Format notification for display
   const formatNotification = (n) => {
@@ -32,10 +38,39 @@ const ActionRequired = ({
             n.action_executed_by_user.email
           }`
         : undefined,
+      // Include original notification for approval dialog
+      originalNotification: n,
+      // Check if this is an approval request
+      isApprovalRequest: n.data?.type === "approval_request" || n.type === "approval_request",
     };
   };
 
   const filteredNotifications = notifications.map(formatNotification);
+
+  const handleApproveClick = (notification) => {
+    setSelectedNotification(notification.originalNotification);
+    setApprovalDialogOpen(true);
+  };
+
+  const handleRejectClick = (notification) => {
+    setSelectedNotification(notification.originalNotification);
+    setApprovalDialogOpen(true);
+  };
+
+  const handleApprovalDialogClose = () => {
+    setApprovalDialogOpen(false);
+    setSelectedNotification(null);
+  };
+
+  const handleApprovalSuccess = (requestId, actionId, approvedBy) => {
+    console.log(`Approval successful for request ${requestId}`, { actionId, approvedBy });
+    // Optionally refresh notifications or update UI
+  };
+
+  const handleRejectionSuccess = (requestId, actionId, rejectedBy, reason) => {
+    console.log(`Rejection successful for request ${requestId}`, { actionId, rejectedBy, reason });
+    // Optionally refresh notifications or update UI
+  };
 
   return (
     <Box
@@ -222,6 +257,7 @@ const ActionRequired = ({
                       <Button
                         size="small"
                         variant="text"
+                        onClick={() => handleApproveClick(item)}
                         sx={{
                           minWidth: "auto",
                           px: 1.5,
@@ -240,6 +276,7 @@ const ActionRequired = ({
                       <Button
                         size="small"
                         variant="text"
+                        onClick={() => handleRejectClick(item)}
                         sx={{
                           minWidth: "auto",
                           px: 1.5,
@@ -265,6 +302,16 @@ const ActionRequired = ({
           )}
         </Box>
       </Box>
+
+      {/* Approval Dialog */}
+      <ApprovalDialog
+        open={approvalDialogOpen}
+        onClose={handleApprovalDialogClose}
+        notification={selectedNotification}
+        pipelineId={currentPipelineId}
+        onApprove={handleApprovalSuccess}
+        onReject={handleRejectionSuccess}
+      />
     </Box>
   );
 };
