@@ -1,7 +1,12 @@
 from typing import TypedDict, List, Literal, Annotated
-from pydantic import BaseModel
-from .prompts import Action
+from pydantic import BaseModel, Field
 from langgraph.graph.message import add_messages
+
+class Action(BaseModel):
+    id: int
+    agent: str = Field(description="Agent name to call")
+    request: str = Field(description="Natural language request to the agent")
+
 
 class ActionResult(BaseModel):
     """Result from executing a single action"""

@@ -6,7 +6,7 @@ from typing_extensions import TypedDict
 from pydantic import BaseModel, Field
 from langgraph.graph import StateGraph, END
 from langgraph.graph.message import add_messages
-from .tools import get_top_latency_traces, get_full_span_tree, get_logs_for_trace_ids, TablePayload
+from .tools import get_top_latency_traces, get_full_span_tree, get_logs_for_trace_ids, get_error_spans_for_trace_ids, TablePayload
 from .output import RCAAnalysisOutput
 from datetime import datetime, timedelta
 import asyncio
@@ -28,6 +28,7 @@ class SLAAlert(TypedDict):
     error_message: Optional[str]
     hypothesis: Optional[str]
     logs: Optional[List[Dict]]
+    error_spans: Optional[List[Dict]]
     topology: Optional[List[Dict]]
     validation_result: Optional[str]
     retries: int
@@ -92,6 +93,34 @@ def format_topology(topology: List[Dict]) -> str:
     return "\n".join(formatted)
 
 
+def format_error_spans(error_spans: List[Dict]) -> str:
+    """Format error spans with status messages for analysis."""
+    if not error_spans:
+        return "No error spans available."
+    
+    formatted = []
+    for span in error_spans:
+        timestamp = span.get('start_time_unix_nano', 0)
+        service = span.get('_open_tel_service_name', 'Unknown')
+        span_name = span.get('name', 'Unknown')
+        status_code = span.get('status_code', 'unknown')
+        status_message = span.get('status_message', '')
+        
+        # Convert timestamp to readable format
+        if timestamp > 0:
+            dt = datetime.fromtimestamp(timestamp / 1_000_000_000)
+            timestamp_str = dt.strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]
+        else:
+            timestamp_str = "unknown"
+        
+        formatted.append(
+            f"[{timestamp_str}] ({service}) Span: {span_name} | "
+            f"Status Code: {status_code} | Status Message: {status_message}"
+        )
+    
+    return "\n".join(formatted)
+
+
 async def enrichment_node(state: RCAState) -> Dict:
     """
     Takes a metric alert, finds the top N slowest traces associated with it,
@@ -142,6 +171,13 @@ async def enrichment_node(state: RCAState) -> Dict:
             severity_number=13  # ERROR level
         )
         
+        # Get error spans with status_code >= 2
+        error_spans = await get_error_spans_for_trace_ids(
+            trace_ids=[trace_id],
+            spans_table=spans_table,
+            min_status_code=2
+        )
+        
         alert: SLAAlert = {
             "parent_span": parent_span,
             "trace_id": trace_id,
@@ -150,6 +186,7 @@ async def enrichment_node(state: RCAState) -> Dict:
             "error_message": trace.get('error_message'),
             "topology": full_span_tree,
             "logs": error_logs,
+            "error_spans": error_spans,
             "hypothesis": None,
             "validation_result": None,
             "retries": 0,
@@ -165,6 +202,7 @@ async def analysis_agent_node(state: SLAAlert) -> Dict:
     """
     log_context = format_logs(state.get("logs", []))
     topology_context = format_topology(state.get("topology", []))
+    error_spans_context = format_error_spans(state.get("error_spans", []))
 
     error_context = ""
     if state.get("has_error"):
@@ -189,6 +227,9 @@ Your task is to identify the root cause of an SLA breach.
 **Topology (Span Tree):**
 {topology_context}
 
+**Error Span Status Messages:**
+{error_spans_context}
+
 **Error Logs:**
 {log_context}
 
@@ -197,15 +238,25 @@ Your task is to identify the root cause of an SLA breach.
 
 **Your Goal:**
 1. Analyze the topology to identify which span(s) contributed most to latency
-2. Review error logs and error information if present
-3. Form a `hypothesis` about the root cause. Consider:
+2. Review error span status messages for structured error information
+3. Review error logs and error information if present
+4. Form a `hypothesis` about the root cause. Consider:
    - System Latency (slow service/infrastructure)
    - Data Volume (large data processing causing slowness)
-   - Error Condition (specific errors causing failures)
+   - Error Condition (specific errors causing failures from span status messages)
    - External Dependencies (third-party services, databases)
    - Resource Contention (CPU, memory, network issues)
 
+Note: Error span status messages provide structured error information that is often more precise than logs.
+
 If your previous hypothesis was wrong, formulate a NEW hypothesis based on the evidence.
+
+**IMPORTANT - INSUFFICIENT EVIDENCE:**
+If you do NOT have sufficient evidence (e.g., empty topology, no logs, no clear latency patterns), output:
+{{
+    "hypothesis": "Can't analyse - insufficient data to determine root cause"
+}}
+DO NOT fabricate or speculate without clear evidence.
 
 **Response Format (MUST be a single JSON object):**
 {{
@@ -239,6 +290,7 @@ async def validate_hypothesis_with_llm(state: SLAAlert) -> Dict:
     """
     logs_text = format_logs(state.get("logs", []))
     topology_text = format_topology(state.get("topology", []))
+    error_spans_text = format_error_spans(state.get("error_spans", []))
 
     prompt = f"""
 You are a validation agent. Determine if the hypothesis is well-supported by the evidence.
@@ -255,14 +307,18 @@ You are a validation agent. Determine if the hypothesis is well-supported by the
 **Topology:**
 {topology_text}
 
+**Error Span Status Messages:**
+{error_spans_text}
+
 **Logs:**
 {logs_text}
 
 **Question:**
 Does the evidence clearly support and confirm the hypothesis? Consider:
 - Does the hypothesis match the observed latency patterns in the topology?
-- If there's an error, does the hypothesis explain it?
+- If there's an error, does the hypothesis explain it based on span status messages or logs?
 - Is the hypothesis specific enough to be actionable?
+- Does the hypothesis reference information that's actually present in the evidence?
 
 **Your Answer (MUST be a single JSON object):**
 {{
@@ -438,6 +494,17 @@ Correlate and synthesize these findings to produce a comprehensive root cause an
 3. Write a clear narrative explaining what happened (max 5 sentences)
 4. Select 2-5 specific error log entries as citations
 5. Provide a technical root cause that is specific and actionable
+
+**IMPORTANT - INSUFFICIENT EVIDENCE:**
+If the individual trace analyses indicate "Can't analyse" or there is insufficient evidence across traces, you MUST output:
+{{
+    "severity": "MEDIUM",
+    "affected_services": [],
+    "narrative": "Can't analyse - insufficient data across all traces to determine root cause",
+    "error_citations": [],
+    "root_cause": "Can't analyse"
+}}
+DO NOT fabricate or speculate when evidence is insufficient.
 
 **Response Format (MUST be valid JSON matching this structure exactly):**
 {{

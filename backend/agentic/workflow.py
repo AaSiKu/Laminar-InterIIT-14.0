@@ -134,6 +134,7 @@ def create_workflow(agents: List[AgentPayload]):
         
         plan: Plan = plan_output
         return {
+            **state,
             "current_plan": plan.actions,
             "plan_reasoning": plan.reasoning,
             "execution_strategy": plan.execution_strategy
@@ -183,6 +184,7 @@ def create_workflow(agents: List[AgentPayload]):
         new_plan: Plan = replan_output
         
         return {
+            **state,
             "current_plan": new_plan.actions,
             "plan_reasoning": new_plan.reasoning,
             "execution_strategy": new_plan.execution_strategy,
@@ -269,12 +271,14 @@ def create_workflow(agents: List[AgentPayload]):
         
         if isinstance(response, AggregatorFinish):
             return {
+                **state,
                 "aggregator_decision": "finish",
                 "aggregator_thought": response.thought,
                 "final_answer": response.final_answer
             }
         else:
             return {
+                **state,
                 "aggregator_decision": "replan",
                 "aggregator_thought": response.replan_reasoning
             }

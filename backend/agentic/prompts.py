@@ -14,11 +14,7 @@ from datetime import datetime
 from lib.notifications import add_notification
 from motor.motor_asyncio import AsyncIOMotorClient
 import certifi
-
-class Action(BaseModel):
-    id: int
-    agent: str = Field(description="Agent name to call")
-    request: str = Field(description="Natural language request to the agent")
+from .graph_state import Action
 
 
 class Plan(BaseModel):
