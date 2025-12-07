@@ -280,7 +280,7 @@ I have sufficient information to generate the flowchart and metric mapping."""
                 
                 # Calculate edges for this node (edges where target is next_node['id'])
                 relevant_edges = [
-                e for e in self.all_edges 
+                    e for e in self.all_edges 
                     if e["target"] == next_node["id"]
                 ]
                 
@@ -293,7 +293,7 @@ I have sufficient information to generate the flowchart and metric mapping."""
                     if e["source"] in current_node_ids
                 ]
 
-            await ws.send_json({
+                await ws.send_json({
                     "type": "node_proposed",
                     "metric_index": 0,
                     "step_index": node_index,
