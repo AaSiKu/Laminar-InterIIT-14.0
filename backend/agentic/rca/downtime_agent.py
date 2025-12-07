@@ -12,7 +12,7 @@ from ..llm_factory import create_analyser_model
 from ..llm_config import LLMProvider
 
 # Create the analyzer model instance
-analyser_model = create_analyser_model(provider=LLMProvider.GROQ)
+analyser_model = create_analyser_model()
 
 # Downtime incident model
 class DowntimeIncident(BaseModel):

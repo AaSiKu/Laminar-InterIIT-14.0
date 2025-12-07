@@ -16,7 +16,7 @@ from ..llm_config import LLMProvider
 load_dotenv()
 
 # Create the analyzer model instance
-analyser_model = create_analyser_model(provider=LLMProvider.GROQ)
+analyser_model = create_analyser_model()
 
 
 # We will run one subgraph per each trace id for the top 5 slowest traces which will take this state

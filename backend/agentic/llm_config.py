@@ -88,8 +88,8 @@ MODEL_NAMES = {
         ]
     },
     LLMProvider.GEMINI: {
-        "default": "gemini-2.0-flash",
-        "fallback": "gemini-2.0-flash",
+        "default": "gemini-2.5-flash",
+        "fallback": "gemini-2.5-flash",
         "alternatives": [
             "gemini-1.5-pro",
             "gemini-1.5-flash"

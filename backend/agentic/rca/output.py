@@ -33,9 +33,7 @@ class RCAAnalysisOutput(BaseModel):
         description="Clear, concise explanation of what happened and why (max 5 sentences)"
     )
     error_citations: List[ErrorCitation] = Field(
-        description="2-5 specific log entries that support the analysis",
-        min_length=2,
-        max_length=5
+        description="2-5 specific log entries that support the analysis"
     )
     root_cause: str = Field(
         description="Technical root cause of the failure (be specific and actionable)"

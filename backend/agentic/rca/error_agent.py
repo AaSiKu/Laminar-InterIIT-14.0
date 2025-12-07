@@ -7,7 +7,7 @@ from .rca_logger import rca_logger
 from ..llm_config import LLMProvider
 
 # Create the analyzer model instance
-analyser_model = create_analyser_model(provider=LLMProvider.GROQ)
+analyser_model = create_analyser_model()
 
 error_analysis_prompt = """
 You are an expert Site Reliability Engineer (SRE) and system diagnostics specialist. Your task is to analyze error logs from distributed systems to identify root causes of failures that triggered SLA threshold violations.
