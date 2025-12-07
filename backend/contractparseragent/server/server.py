@@ -177,6 +177,8 @@ class WSAgenticSession:
 
                 self.phase1_flowchart = flowchart_data
                 self._prepare_filter_metadata()
+                # Apply layout to position Phase 1 nodes linearly
+                # This ensures nodes are positioned properly from the start
                 apply_layout(self.phase1_flowchart)
 
                 print("\n[SERVER] Phase 1.6: Sending Phase 1 completion message")
@@ -410,12 +412,54 @@ class WSAgenticSession:
                     self._finalize_node(next_node, rewritten_edges, step_index)
                     print(f"[SERVER] → Phase 2 graph now has {len(self.phase2_graph['nodes'])} nodes, {len(self.phase2_graph['edges'])} edges")
 
+                    # Send flowchart update with all nodes (Phase 1 + Phase 2 so far)
+                    # Apply layout after each node to position nodes linearly with branches
+                    # Deep copy nodes and edges to preserve structure
+                    phase1_nodes = [json.loads(json.dumps(n)) for n in self.phase1_flowchart.get("nodes", [])]
+                    phase2_nodes = [json.loads(json.dumps(n)) for n in self.phase2_graph.get("nodes", [])]
+                    phase1_edges = [json.loads(json.dumps(e)) for e in self.phase1_flowchart.get("edges", [])]
+                    phase2_edges = [json.loads(json.dumps(e)) for e in self.phase2_graph.get("edges", [])]
+                    
+                    merged_flowchart = {
+                        "nodes": phase1_nodes + phase2_nodes,
+                        "edges": phase1_edges + phase2_edges,
+                    }
+                    
+                    # Apply layout to position nodes linearly (horizontally by level, vertically for branches)
+                    # This ensures nodes are not stacked and are positioned properly
+                    # apply_layout only modifies node positions, preserving all edges
+                    print(f"[SERVER] Applying layout to position {len(merged_flowchart['nodes'])} nodes...")
+                    apply_layout(merged_flowchart)
+                    print(f"[SERVER] Layout applied - nodes positioned linearly with branches")
+                    
+                    print(f"[SERVER] Sending flowchart_update after step {step_index + 1}:")
+                    print(f"  - Phase 1 nodes: {len(phase1_nodes)} (IDs: {[n.get('id', '?') for n in phase1_nodes]})")
+                    print(f"  - Phase 2 nodes so far: {len(phase2_nodes)} (IDs: {[n.get('id', '?') for n in phase2_nodes]})")
+                    print(f"  - Total nodes: {len(merged_flowchart['nodes'])}")
+                    print(f"  - Total edges: {len(merged_flowchart['edges'])}")
+                    print(f"  - All Node IDs: {[n.get('id', '?') for n in merged_flowchart['nodes']]}")
+                    print(f"  - All Edge sources: {[e.get('source', '?') for e in merged_flowchart['edges']]}")
+                    print(f"  - All Edge targets: {[e.get('target', '?') for e in merged_flowchart['edges']]}")
+                    # Log positions after layout
+                    for node in merged_flowchart['nodes']:
+                        pos = node.get('position', {})
+                        print(f"  - Node {node.get('id', '?')} at position: ({pos.get('x', 0)}, {pos.get('y', 0)})")
+
                     print(f"\n[SERVER] Phase 2.13.{metric_index + 1}.{step_index + 1}: Sending approval confirmation")
+                    # Send node_approved first, then flowchart_update
+                    # This ensures the frontend knows the node is approved before merging
                     await ws.send_json({
                         "type": "node_approved",
                         "metric_index": metric_index,
                         "step_index": step_index,
                         "message": f"Metric {metric_name}: Step {step_index + 1} approved",
+                    })
+                    
+                    # Then send flowchart_update with all nodes (this will merge and keep all previous nodes)
+                    await ws.send_json({
+                        "type": "flowchart_update",
+                        "flowchart": merged_flowchart,
+                        "message": f"Step {step_index + 1} approved and added to flowchart",
                     })
 
                     step_index += 1
@@ -521,14 +565,26 @@ class WSAgenticSession:
 
         committed_node = json.loads(json.dumps(node))  # deep copy via json for safety
         committed_node["id"] = new_id
+        
+        # Ensure the node has a valid position
+        if "position" not in committed_node or not isinstance(committed_node.get("position"), dict):
+            committed_node["position"] = {"x": 0, "y": 0}
+        elif not isinstance(committed_node["position"].get("x"), (int, float)) or not isinstance(committed_node["position"].get("y"), (int, float)):
+            committed_node["position"] = {"x": 0, "y": 0}
+        
         self.phase2_graph["nodes"].append(committed_node)
 
+        # Deep copy edges and update IDs
         for edge in edges:
-            new_edge = dict(edge)
+            new_edge = json.loads(json.dumps(edge))  # deep copy
             if new_edge.get("source") == old_id:
                 new_edge["source"] = new_id
             if new_edge.get("target") == old_id:
                 new_edge["target"] = new_id
+            # Ensure edge has required fields
+            if "source" not in new_edge or "target" not in new_edge:
+                print(f"[SERVER] Warning: Edge missing source or target: {new_edge}")
+                continue
             self.phase2_graph["edges"].append(new_edge)
 
         self.snapshot_counter += 1
@@ -541,19 +597,33 @@ class WSAgenticSession:
         print(f"\n[SERVER] Saving flowchart (step_index={step_index})")
         print(f"[SERVER] → Merging Phase 1 ({len(self.phase1_flowchart.get('nodes', []))} nodes) + Phase 2 ({len(self.phase2_graph['nodes'])} nodes)")
         
-        # Use builder's merge_and_save to get properly formatted output and save to file
-        merged = self.builder.merge_and_save(
-            self.phase1_flowchart,
-            self.phase2_graph,
-            output_dir=str(self.output_dir),
-        )
+        # Deep copy nodes and edges to preserve structure
+        phase1_nodes = [json.loads(json.dumps(n)) for n in self.phase1_flowchart.get("nodes", [])]
+        phase2_nodes = [json.loads(json.dumps(n)) for n in self.phase2_graph.get("nodes", [])]
+        phase1_edges = [json.loads(json.dumps(e)) for e in self.phase1_flowchart.get("edges", [])]
+        phase2_edges = [json.loads(json.dumps(e)) for e in self.phase2_graph.get("edges", [])]
         
-        # merged is a dict with nodes, edges, agents, viewport
+        # Merge nodes and edges
+        merged = {
+            "nodes": phase1_nodes + phase2_nodes,
+            "edges": phase1_edges + phase2_edges,
+            "agents": []
+        }
+        
+        # Apply layout to position nodes linearly (this preserves edges, only modifies positions)
+        apply_layout(merged)
+        
+        # Save to file
+        out_file = self.output_dir / "flowchart.json"
+        with out_file.open("w", encoding="utf-8") as f:
+            json.dump(merged, f, indent=2)
+        
+        # merged is a dict with nodes, edges, agents
         node_count = len(merged.get("nodes", []))
         edge_count = len(merged.get("edges", []))
         
         print(f"[SERVER] → Total: {node_count} nodes, {edge_count} edges")
-        print(f"[SERVER] ✓ Saved flowchart.json")
+        print(f"[SERVER] ✓ Saved flowchart.json (with layout applied)")
 
         # Also save step file if step_index provided
         if step_index is not None:
@@ -567,10 +637,48 @@ class WSAgenticSession:
         """Merge Phase 1 and Phase 2 and save final flowchart."""
         print("\n[SERVER] Saving final flowchart")
         print("[SERVER] → This is the complete flowchart with all approved nodes")
-        self._save_flowchart()
         
-        # merge_and_save already saved the file, just get the merged data
-        merged = self.builder.merge_and_save(self.phase1_flowchart, self.phase2_graph, str(self.output_dir))
+        # Deep copy nodes and edges to preserve structure
+        phase1_nodes = [json.loads(json.dumps(n)) for n in self.phase1_flowchart.get("nodes", [])]
+        phase2_nodes = [json.loads(json.dumps(n)) for n in self.phase2_graph.get("nodes", [])]
+        phase1_edges = [json.loads(json.dumps(e)) for e in self.phase1_flowchart.get("edges", [])]
+        phase2_edges = [json.loads(json.dumps(e)) for e in self.phase2_graph.get("edges", [])]
+        
+        # Ensure all nodes have valid positions before applying layout
+        for node in phase1_nodes + phase2_nodes:
+            if "position" not in node or not isinstance(node.get("position"), dict):
+                node["position"] = {"x": 0, "y": 0}
+            elif not isinstance(node["position"].get("x"), (int, float)) or not isinstance(node["position"].get("y"), (int, float)):
+                node["position"] = {"x": 0, "y": 0}
+        
+        # Merge nodes and edges
+        merged = {
+            "nodes": phase1_nodes + phase2_nodes,
+            "edges": phase1_edges + phase2_edges,
+            "agents": []
+        }
+        
+        # Log before applying layout
+        print(f"[SERVER] Before applying layout:")
+        print(f"[SERVER]   - {len(merged.get('nodes', []))} total nodes")
+        print(f"[SERVER]   - {len(merged.get('edges', []))} total edges")
+        print(f"[SERVER]   - Edge sources: {[e.get('source', '?') for e in merged['edges']]}")
+        print(f"[SERVER]   - Edge targets: {[e.get('target', '?') for e in merged['edges']]}")
+        
+        # Apply layout only at the final step (this updates positions but preserves edges)
+        apply_layout(merged)
+        
+        # Verify edges are still present after layout
+        print(f"[SERVER] After applying layout:")
+        print(f"[SERVER]   - {len(merged.get('nodes', []))} total nodes")
+        print(f"[SERVER]   - {len(merged.get('edges', []))} total edges")
+        print(f"[SERVER]   - Edge sources: {[e.get('source', '?') for e in merged['edges']]}")
+        print(f"[SERVER]   - Edge targets: {[e.get('target', '?') for e in merged['edges']]}")
+        
+        # Save to file
+        out_file = self.output_dir / "flowchart.json"
+        with out_file.open("w", encoding="utf-8") as f:
+            json.dump(merged, f, indent=2)
         
         # merged is a dict with nodes, edges, agents, viewport - send this to client
         print(f"\n[SERVER] Sending final flowchart to client")
@@ -615,13 +723,18 @@ class WSAgenticSession:
         print("\n[SERVER] STEP 3: Saving Phase 1 flowchart")
         print("[SERVER] → Saving initial flowchart with input and filter nodes")
         try:
-            # Use an empty Phase 2 graph so the merged result is exactly
-            # the Phase 1 flowchart (modulo id normalization in merge).
-            self.builder.merge_and_save(
-                self.phase1_flowchart,
-                {"nodes": [], "edges": []},
-                output_dir=str(self.output_dir),
-            )
+            # Save Phase 1 flowchart without applying layout to preserve positions
+            merged = {
+                "nodes": list(self.phase1_flowchart.get("nodes", [])),
+                "edges": list(self.phase1_flowchart.get("edges", [])),
+                "agents": []
+            }
+            # Don't apply layout here - preserve original positions
+            # apply_layout(merged)
+            
+            out_file = self.output_dir / "flowchart.json"
+            with out_file.open("w", encoding="utf-8") as f:
+                json.dump(merged, f, indent=2)
             print(f"[SERVER] ✓ Saved to: {self.output_dir / 'flowchart.json'}")
         except Exception as e:
             print(f"[SERVER] ❌ Error saving Phase 1 flowchart: {str(e)}")

@@ -210,7 +210,13 @@ def prompt(body: PromptIn):
             writer.writerow(["prompt"])  # header only if file does not exist
         writer.writerow([body.prompt])
 
-    return {"status": "ok", "saved": body.prompt}
+    # Return response with message for AI assistant
+    # TODO: Add actual AI response logic here
+    return {
+        "status": "ok", 
+        "saved": body.prompt,
+        "message": f"I've received your prompt: '{body.prompt}'. This has been saved to the prompts file. AI response functionality will be implemented soon."
+    }
 
 
 @app.post("/stop")

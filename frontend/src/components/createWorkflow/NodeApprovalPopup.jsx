@@ -66,7 +66,7 @@ const NodeApprovalPopup = ({
         borderColor: "divider",
         zIndex: 10000,
         pointerEvents: "auto", // Enable interactions
-        transform: "translate(0, -50%)", // Center vertically relative to node
+        // No transform needed - position is already calculated to be above the node
       }}
     >
       {isRendering ? (

@@ -17,6 +17,8 @@ import { fetchAllWorkflows } from "../utils/developerDashboard.api";
 import PipelineNavBar from "../components/workflow/PipelineNavBar";
 import Playground from "../components/workflow/Playground";
 import RunBook from "../components/workflow/RunBook";
+import AIAssistantButton from "../components/workflow/AIAssistantButton";
+import WorkflowAIAssistant from "../components/workflow/WorkflowAIAssistant";
 
 // Drawer width constant
 export const DRAWER_WIDTH = 64;
@@ -32,6 +34,7 @@ export default function WorkflowPage() {
   const [shareAnchorEl, setShareAnchorEl] = useState(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [isRunBookOpen, setRunBookOpen] = useState(false);
+  const [isAIAssistantOpen, setIsAIAssistantOpen] = useState(false);
   const playgroundRef = useRef(null);
   const navigate = useNavigate();
   const { pipelineId } = useParams();
@@ -611,6 +614,17 @@ export default function WorkflowPage() {
       )}
 
       <RunBook open={isRunBookOpen} onClose={() => setRunBookOpen(false)} />
+
+      {/* AI Assistant Button */}
+      {!isFullscreen && (
+        <AIAssistantButton onClick={() => setIsAIAssistantOpen(true)} />
+      )}
+
+      {/* AI Assistant Sidebar */}
+      <WorkflowAIAssistant
+        open={isAIAssistantOpen}
+        onClose={() => setIsAIAssistantOpen(false)}
+      />
 
       {/* Error Snackbar */}
       <Snackbar
