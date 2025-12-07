@@ -245,8 +245,9 @@ async def update_notification_action(
     if is_admin:
         can_take_action = True
     elif notification.get("pipeline_id"):
-        workflow = workflow_collection.find_one({"_id":notification.get("pipeline_id")})
-        can_take_action = user_role in workflow.get("owner_ids", [])
+        workflow = await workflow_collection.find_one({"_id": ObjectId(notification.get("pipeline_id"))})
+        if workflow:
+            can_take_action = str(current_user.id) in workflow.get("owner_ids", [])
     
     if not can_take_action:
         raise HTTPException(
@@ -256,11 +257,12 @@ async def update_notification_action(
 
 
     #if already taken action
-    if notification.get("alert").get("action_executed_by"):
+    if notification.get("alert") and notification.get("alert").get("action_executed_by"):
         action_user = await auth_crud.get_user_by_id(db, int(notification.get("alert").get("action_executed_by")))
+        user_email = action_user.email if action_user else "another user"
         raise HTTPException(
             status_code=403,
-            detail=f"Action already taken {f"{f"by{action_user.email}"} or {""}"}"
+            detail=f"Action already taken by {user_email}"
         )
     
     

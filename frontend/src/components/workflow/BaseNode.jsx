@@ -74,8 +74,31 @@ export const BaseNode = memo(
     onEditClick,
   }) => {
     const theme = useTheme();
-    const { setNodes, getNode, getNodes } = useReactFlow();
+    const { setNodes, getNode, getNodes, getEdges } = useReactFlow();
     const { status } = useGlobalWorkflow();
+    
+    // Check if this is an output node (write nodes that don't persist to postgres)
+    // Output nodes have outdegree=0 AND have node_id ending with '_write'
+    const isOutputNode = useCallback(() => {
+      const edges = getEdges();
+      // Count outgoing edges from this node
+      const outgoingEdges = edges.filter(edge => edge.source === id);
+      
+      // If node has outgoing edges, it's definitely not an output node
+      if (outgoingEdges.length > 0) {
+        return false;
+      }
+      
+      // Node has no outgoing edges - check if it's a write node
+      // Output nodes have node_id ending with '_write' (e.g., kafka_write, csv_write)
+      const isWriteNode = nodeType && nodeType.endsWith('_write');
+      
+      // Also check if it's explicitly an IO output node (category='io' and has n_inputs property)
+      const hasInputsOnly = data?.properties?.n_inputs === 1;
+      
+      // It's an output node if it's a write node OR if it's an IO node with only inputs
+      return isWriteNode || (category === 'io' && hasInputsOnly);
+    }, [id, nodeType, category, data?.properties?.n_inputs, getEdges]);
     
     // Compute table name for NodeDataTable: {node_id}__{index}
     const getTableName = useCallback(() => {
@@ -575,8 +598,8 @@ export const BaseNode = memo(
           })}
         </Paper>
 
-        {/* Node Data Table - shown on hover */}
-        {status == "Running" ? (
+        {/* Data table for non-output nodes only */}
+        {status == "Running" && !isOutputNode() ? (
           <NodeDataTable
             nodeId={id}
             tableName={getTableName()}

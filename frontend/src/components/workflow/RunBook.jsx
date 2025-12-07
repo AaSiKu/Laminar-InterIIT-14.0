@@ -612,9 +612,9 @@ const RunBook = ({ open, onClose, formData = {}, onSave }) => {
     }
     
     try {
-      // Use the action proxy to route to the container's add action endpoint
+      // Use the agentic proxy to route to the container's add action endpoint
       const response = await fetch(
-        `${import.meta.env.VITE_API_SERVER}/action/${pipelineId}/runbook/actions/add`,
+        `${import.meta.env.VITE_API_SERVER}/agentic/${pipelineId}/runbook/actions/add`,
         {
           method: "POST",
           credentials: "include",
@@ -1185,9 +1185,28 @@ const RunBook = ({ open, onClose, formData = {}, onSave }) => {
 
                 {actions.map((action, index) => (
                   <Box key={index} sx={{ mb: 3 }}>
-                    <Typography variant="body2" fontWeight={600} sx={{ mb: 1 }}>
-                      Action {index + 1}
-                    </Typography>
+                    <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 1 }}>
+                      <Typography variant="body2" fontWeight={600}>
+                        Action {index + 1}
+                      </Typography>
+                      {actions.length > 1 && (
+                        <IconButton
+                          size="small"
+                          onClick={() => {
+                            const newActions = actions.filter((_, i) => i !== index);
+                            setActions(newActions.length > 0 ? newActions : [""]);
+                          }}
+                          sx={{
+                            color: "error.main",
+                            "&:hover": {
+                              bgcolor: "error.lighter",
+                            },
+                          }}
+                        >
+                          <DeleteIcon fontSize="small" />
+                        </IconButton>
+                      )}
+                    </Box>
                     <FormControl fullWidth variant="outlined" sx={{ mb: 1 }}>
                       <Select
                         value={action}

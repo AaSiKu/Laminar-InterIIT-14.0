@@ -9,10 +9,57 @@ from .downtime_agent import analyze_downtime_incidents, DowntimeIncident
 from .latency_agent import build_graph, MetricAlert
 from .output import RCAAnalysisOutput, PipelineTopology
 from .rca_logger import rca_logger
+from motor.motor_asyncio import AsyncIOMotorClient, AsyncIOMotorCollection
 
 # RCA cache to prevent concurrent runs for the same metric
 rca_cache: Dict[str, Dict[str, Any]] = {}
 RCA_TIMEOUT_MINUTES = 10
+
+
+async def save_rca_to_mongodb(
+    rca_collection: AsyncIOMotorCollection,
+    pipeline_id: str,
+    metric_type: str,
+    metric_description: str,
+    trace_ids: Union[List[str], str],
+    analysis: RCAAnalysisOutput
+) -> Optional[str]:
+    """
+    Save RCA analysis results to MongoDB RCA collection.
+    Returns the inserted document ID.
+    """
+    try:
+        # Ensure trace_ids is a list
+        if isinstance(trace_ids, str):
+            trace_ids = [trace_ids]
+        
+        # Create RCA document
+        rca_doc = {
+            "pipeline_id": pipeline_id,
+            "metric_type": metric_type,
+            "title": f"{metric_type.upper()} - {metric_description[:100]}",
+            "description": metric_description,
+            "trace_ids": trace_ids,
+            "triggered_at": datetime.now(),
+            "metadata": {
+                "status": "completed",
+                "severity": analysis.severity,
+                "affected_services": analysis.affected_services,
+                "root_cause": analysis.root_cause,
+                "narrative": analysis.narrative
+            },
+            "analysis": analysis.model_dump(),
+            "created_at": datetime.now(),
+            "updated_at": datetime.now()
+        }
+        
+        # Insert into MongoDB
+        result = await rca_collection.insert_one(rca_doc)
+        rca_logger.info(f"RCA analysis saved to MongoDB with ID: {result.inserted_id}")
+        return str(result.inserted_id)
+    except Exception as e:
+        rca_logger.error(f"Failed to save RCA analysis to MongoDB: {e}")
+        return None
 
 async def build_pipeline_topology(trace_ids: Union[List[str], str], spans_table: TablePayload) -> PipelineTopology:
     """
@@ -94,7 +141,10 @@ class InitRCA(SummarizeOutput):
     breach_time_utc: Optional[str] = None
     breach_value: Optional[float] = None
 
-async def rca(init_rca_request: InitRCA):
+async def rca(
+    init_rca_request: InitRCA,
+    rca_collection: Optional[AsyncIOMotorCollection] = None
+):
     # Generate cache key from metric description hash
     metric_hash = hashlib.sha256(init_rca_request.description.encode()).hexdigest()
     
@@ -175,6 +225,17 @@ async def rca(init_rca_request: InitRCA):
                     
                     rca_logger.info(f"Root Cause Analysis completed for error metric: {init_rca_request.description}")
                     
+                    # Save to MongoDB if collection provided
+                    if rca_collection:
+                        await save_rca_to_mongodb(
+                            rca_collection,
+                            column_name,  # Use column_name as pipeline_id
+                            init_rca_request.metric_type,
+                            init_rca_request.description,
+                            trace_ids,
+                            analysis
+                        )
+                    
                     return {
                         "analysis": analysis.model_dump()
                     }
@@ -227,6 +288,17 @@ async def rca(init_rca_request: InitRCA):
                     
                     rca_logger.info(f"Root Cause Analysis completed for latency metric: {init_rca_request.description}")
                     
+                    # Save to MongoDB if collection provided
+                    if rca_collection:
+                        await save_rca_to_mongodb(
+                            rca_collection,
+                            column_name,  # Use column_name as pipeline_id
+                            init_rca_request.metric_type,
+                            init_rca_request.description,
+                            trace_ids,
+                            analysis
+                        )
+                    
                     return {
                         "analysis": analysis.model_dump()
                     }
@@ -274,6 +346,17 @@ async def rca(init_rca_request: InitRCA):
                     analysis.pipeline_topology = pipeline_topology
                     
                     rca_logger.info(f"Root Cause Analysis completed for uptime metric: {init_rca_request.description}")
+                    
+                    # Save to MongoDB if collection provided
+                    if rca_collection:
+                        await save_rca_to_mongodb(
+                            rca_collection,
+                            column_name,  # Use column_name as pipeline_id
+                            init_rca_request.metric_type,
+                            init_rca_request.description,
+                            trace_ids,
+                            analysis
+                        )
                     
                     return {
                         "analysis": analysis.model_dump()

@@ -56,25 +56,33 @@ secrets_manager: Optional[SecretsManager] = None
 # MongoDB for notifications
 mongo_client: Optional[AsyncIOMotorClient] = None
 notification_collection: Optional[Any] = None
+rca_collection: Optional[Any] = None
 
 # Use OpenAI's o1 reasoning model for complex analysis
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    global orchestrator, discovery_agent, registry, mongo_client, notification_collection, secrets_manager
+    global orchestrator, discovery_agent, registry, mongo_client, notification_collection, rca_collection, secrets_manager
     
-    # Initialize MongoDB for notifications
+    # Initialize MongoDB for notifications and RCA events
     try:
         mongo_uri = os.getenv("MONGO_URI", "mongodb://localhost:27017")
         mongo_db_name = os.getenv("MONGO_DB_NAME", "pathway")
         mongo_client = AsyncIOMotorClient(mongo_uri)
-        notification_collection = mongo_client[mongo_db_name]["notifications"]
-        logger.info("MongoDB notification collection initialized")
+        db = mongo_client[mongo_db_name]
+        notification_collection = db["notifications"]
+        rca_collection = db["rca_events"]
+        logger.info("MongoDB notification and RCA collections initialized")
+        
+        # Store in app state for access in routes
+        app.state.rca_collection = rca_collection
+        app.state.notification_collection = notification_collection
     except Exception as e:
-        logger.warning(f"Could not initialize MongoDB for notifications: {e}")
+        logger.warning(f"Could not initialize MongoDB for notifications/RCA: {e}")
         mongo_client = None
         notification_collection = None
+        rca_collection = None
     
     # Initialize existing agentic components
     await init_summarize_agent()
@@ -187,7 +195,9 @@ async def summarize_route(request: SummarizeRequest):
 
 @app.post("/rca")
 async def rca_route(request: InitRCA):
-    response= await rca(request)
+    # Get RCA collection from app state (set in lifespan)
+    rca_collection = getattr(app.state, 'rca_collection', None)
+    response = await rca(request, rca_collection=rca_collection)
     return response
 
 class Prompt(BaseModel):
