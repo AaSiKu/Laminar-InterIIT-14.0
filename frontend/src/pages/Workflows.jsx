@@ -350,8 +350,7 @@ export default function WorkflowPage() {
     try {
       await togglePipelineStatus(currentPipelineId, currentPipelineStatus);
       // Toggle the status: Running -> Stopped, Stopped -> Running
-      const newStatus =
-        currentPipelineStatus === "Running" ? "Stopped" : "Running";
+      const newStatus = currentPipelineStatus === "Running" ? "Stopped" : "Running";
       setCurrentPipelineStatus(newStatus);
     } catch (err) {
       setError(err.message);
