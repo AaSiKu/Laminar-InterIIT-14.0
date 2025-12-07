@@ -357,33 +357,33 @@ const BasicInformationForm = ({ formData, onInputChange, onFileChange, onMembers
           renderInput={(params) => {
             const hasSelectedMembers = (formData.selectedMembers || []).length > 0;
             return (
-              <TextField
-                {...params}
-                variant="filled"
+            <TextField
+              {...params}
+              variant="filled"
                 placeholder={hasSelectedMembers ? "" : "Add Viewers"}
-                InputProps={{
-                  ...params.InputProps,
-                  disableUnderline: true,
-                }}
-                sx={{
-                  "& .MuiFilledInput-root": {
-                    bgcolor: "background.elevation2",
-                    borderRadius: 2,
-                    minHeight: "56px",
+              InputProps={{
+                ...params.InputProps,
+                disableUnderline: true,
+              }}
+              sx={{
+                "& .MuiFilledInput-root": {
+                  bgcolor: "background.elevation2",
+                  borderRadius: 2,
+                  minHeight: "56px",
                     display: "flex",
                     alignItems: "center",
                     padding: "4px 8px",
-                    "&:hover": { bgcolor: "background.elevation1" },
-                    "&.Mui-focused": {
-                      bgcolor: "background.elevation1",
-                      boxShadow: (theme) =>
-                        `0 0 0 2px ${theme.palette.primary.light}`,
-                    },
+                  "&:hover": { bgcolor: "background.elevation1" },
+                  "&.Mui-focused": {
+                    bgcolor: "background.elevation1",
+                    boxShadow: (theme) =>
+                      `0 0 0 2px ${theme.palette.primary.light}`,
                   },
-                  "& .MuiFilledInput-input": {
-                    py: 1.5,
-                    px: 2,
-                    fontSize: "0.875rem",
+                },
+                "& .MuiFilledInput-input": {
+                  py: 1.5,
+                  px: 2,
+                  fontSize: "0.875rem",
                     height: "auto",
                     display: "flex",
                     alignItems: "center",
@@ -411,9 +411,9 @@ const BasicInformationForm = ({ formData, onInputChange, onFileChange, onMembers
                     top: "50%",
                     transform: "translateY(-50%)",
                     right: "8px",
-                  },
-                }}
-              />
+                },
+              }}
+            />
             );
           }}
           renderTags={(value, getTagProps) =>

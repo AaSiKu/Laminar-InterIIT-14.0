@@ -280,7 +280,7 @@ I have sufficient information to generate the flowchart and metric mapping."""
                 
                 # Calculate edges for this node (edges where target is next_node['id'])
                 relevant_edges = [
-                    e for e in self.all_edges 
+                e for e in self.all_edges 
                     if e["target"] == next_node["id"]
                 ]
                 
@@ -292,8 +292,8 @@ I have sufficient information to generate the flowchart and metric mapping."""
                     e for e in relevant_edges 
                     if e["source"] in current_node_ids
                 ]
-                
-                await ws.send_json({
+
+            await ws.send_json({
                     "type": "node_proposed",
                     "metric_index": 0,
                     "step_index": node_index,
@@ -324,7 +324,7 @@ I have sufficient information to generate the flowchart and metric mapping."""
                     # Add node to phase1_flowchart
                     self.phase1_flowchart["nodes"].append(next_node)
                     self.phase1_flowchart["edges"].extend(valid_edges)
-                    
+
                     # Send flowchart update with all Phase 1 nodes accepted so far
                     await ws.send_json({
                         "type": "node_approved",

@@ -136,41 +136,24 @@ export const PropertyBar = ({
       },
     },
     "& .MuiOutlinedInput-input": {
-      // py: 1.25,
-      // px: 2,
       py: 1,
       px: 1.5,
       fontSize: "0.875rem",
     },
     "& .MuiFilledInput-root": {
       borderRadius: 1.5,
-      pt: 2.5,  // Space for the static label above
       "&:before, &:after": {
         display: "none",
       },
     },
     "& .MuiFilledInput-input": {
-      py: 1,
+      py: 1.25,
       px: 1.5,
       fontSize: "0.875rem",
     },
     "& .MuiInputLabel-root": {
       fontSize: "0.875rem",
       fontWeight: 500,
-      // Force label to always stay in shrunk position (above the input)
-      transform: "translate(12px, 7px) scale(0.75)",
-      transformOrigin: "top left",
-      // Remove transition animation
-      transition: "none",
-      "&.Mui-focused": {
-        transform: "translate(12px, 7px) scale(0.75)",
-      },
-      "&.MuiInputLabel-shrink": {
-        transform: "translate(12px, 7px) scale(0.75)",
-      },
-      "&.MuiFormLabel-filled": {
-        transform: "translate(12px, 7px) scale(0.75)",
-      },
     },
     "& .MuiFormHelperText-root": {
       fontSize: "0.75rem",
@@ -193,10 +176,9 @@ export const PropertyBar = ({
       mb: 1,
       color: "text.primary",
     },
-    // Select styling (uses FilledInput, needs same label space)
+    // Select styling
     "& .MuiSelect-select": {
-      pt: 2.5,  // Match FilledInput top padding for label
-      pb: 1,
+      py: 1,
       px: 1.5,
       fontSize: "0.875rem",
     },
