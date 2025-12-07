@@ -654,7 +654,6 @@ const RunBook = ({ open, onClose, formData = {}, onSave }) => {
           maxWidth: "80rem",
           width: "100%",
           height: "90vh",
-          maxHeight: "90vh",
           display: "flex",
           flexDirection: "column",
         },
@@ -666,7 +665,7 @@ const RunBook = ({ open, onClose, formData = {}, onSave }) => {
           display: "flex",
           flexDirection: "column",
           flex: 1,
-          minHeight: 0,
+          minHaeight: 0,
           maxHeight: "700px",
         }}
       >

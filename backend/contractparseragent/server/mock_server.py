@@ -1,4 +1,4 @@
-"""
+a"""
 Server that simulates the agentic pipeline for local testing.
 
 This implementation mirrors the behavior and WebSocket protocol of

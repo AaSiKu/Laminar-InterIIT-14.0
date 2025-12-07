@@ -10,6 +10,7 @@ from pydantic import BaseModel, Field
 from typing import Optional, List
 import csv
 import logging
+import httpx
 load_dotenv()
 # if load_dotenv() below the setup_logging import, then we will need to ourself provide the env variables.
 from lib.logger import custom_logger
@@ -199,8 +200,11 @@ async def trigger_pipeline(request: Request):
 class PromptIn(BaseModel):
     prompt: str
 
+# Agentic container URL (set by dockerScript when spinning up containers)
+AGENTIC_URL = os.getenv("AGENTIC_URL", "http://localhost:9000")
+
 @app.post("/prompt")
-def prompt(body: PromptIn):
+async def prompt(body: PromptIn):
     file_path = PROMPTS_FILE
 
     # Append prompt to CSV (single column "prompts")
@@ -210,13 +214,59 @@ def prompt(body: PromptIn):
             writer.writerow(["prompt"])  # header only if file does not exist
         writer.writerow([body.prompt])
 
-    # Return response with message for AI assistant
-    # TODO: Add actual AI response logic here
-    return {
-        "status": "ok", 
-        "saved": body.prompt,
-        "message": f"I've received your prompt: '{body.prompt}'. This has been saved to the prompts file. AI response functionality will be implemented soon."
-    }
+    # Call the agentic container's /infer endpoint to get AI response
+    try:
+        async with httpx.AsyncClient(timeout=120.0) as client:
+            response = await client.post(
+                f"{AGENTIC_URL}/infer",
+                json={"role": "user", "content": body.prompt}
+            )
+            
+            if response.status_code == 502:
+                # Workflow not built yet
+                return {
+                    "status": "ok",
+                    "saved": body.prompt,
+                    "message": "Your prompt has been saved. The AI workflow hasn't been built yet. Please configure agents in the workflow settings first."
+                }
+            
+            response.raise_for_status()
+            result = response.json()
+            
+            # Extract answer from agentic response
+            answer = result.get("answer", {})
+            if isinstance(answer, dict):
+                final_answer = answer.get("answer", str(answer))
+            else:
+                final_answer = str(answer)
+            
+            return {
+                "status": "ok",
+                "saved": body.prompt,
+                "message": final_answer
+            }
+            
+    except httpx.ConnectError:
+        custom_logger.warning(f"Could not connect to agentic container at {AGENTIC_URL}")
+        return {
+            "status": "ok",
+            "saved": body.prompt,
+            "message": "Your prompt has been saved. The AI assistant is currently unavailable. Please ensure the workflow is running."
+        }
+    except httpx.HTTPStatusError as e:
+        custom_logger.error(f"Agentic container returned error: {e.response.status_code} - {e.response.text}")
+        return {
+            "status": "ok",
+            "saved": body.prompt,
+            "message": f"Your prompt has been saved but the AI couldn't process it: {e.response.text}"
+        }
+    except Exception as e:
+        custom_logger.error(f"Error calling agentic container: {e}")
+        return {
+            "status": "ok",
+            "saved": body.prompt,
+            "message": f"Your prompt has been saved but an error occurred: {str(e)}"
+        }
 
 
 @app.post("/stop")

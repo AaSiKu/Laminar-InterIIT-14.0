@@ -13,6 +13,7 @@ import {
 import CloseIcon from "@mui/icons-material/Close";
 import SendIcon from "@mui/icons-material/Send";
 import Markdown from "react-markdown";
+import { useGlobalWorkflow } from "../../context/GlobalWorkflowContext";
 
 // Animated gradient glow keyframes (matching AIChatbot)
 const gradientGlow = keyframes`
@@ -34,12 +35,24 @@ const DRAWER_WIDTH = "calc(30vw + 80px)";
 
 const WorkflowAIAssistant = ({ open, onClose }) => {
   const theme = useTheme();
+  const { id: currentPipelineId } = useGlobalWorkflow();
   const [chatMessages, setChatMessages] = useState([]);
   const [chatInput, setChatInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
 
   const handleSendMessage = async () => {
     if (!chatInput.trim() || isLoading) return;
+
+    // Check if pipeline is selected
+    if (!currentPipelineId) {
+      setChatMessages((prev) => [
+        ...prev,
+        { role: "user", content: chatInput.trim() },
+        { role: "assistant", content: "No workflow selected. Please select or spin up a workflow first." },
+      ]);
+      setChatInput("");
+      return;
+    }
 
     const userMessage = chatInput.trim();
     setChatInput("");
@@ -53,11 +66,12 @@ const WorkflowAIAssistant = ({ open, onClose }) => {
     setIsLoading(true);
 
     try {
-      // Get pipeline server URL from environment or use default
-      const pipelineServerUrl = import.meta.env.VITE_PIPELINE_SERVER || "http://localhost:8000";
+      // Use API gateway to proxy to pipeline container via /action/ router
+      const apiServer = import.meta.env.VITE_API_SERVER || "http://localhost:8080";
       
-      const response = await fetch(`${pipelineServerUrl}/prompt`, {
+      const response = await fetch(`${apiServer}/action/${currentPipelineId}/prompt`, {
         method: "POST",
+        credentials: "include",
         headers: {
           "Content-Type": "application/json",
         },
@@ -65,8 +79,14 @@ const WorkflowAIAssistant = ({ open, onClose }) => {
       });
 
       if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`Failed to get response: ${errorText || response.statusText}`);
+        const errorData = await response.json().catch(() => ({}));
+        const errorDetail = errorData.detail || `HTTP ${response.status}`;
+        if (response.status === 404) {
+          throw new Error("Workflow not found or container not running. Please spin up the workflow first.");
+        } else if (response.status === 500) {
+          throw new Error("Server error. The pipeline container may not be running.");
+        }
+        throw new Error(`Failed to get response: ${errorDetail}`);
       }
 
       const data = await response.json();
@@ -83,7 +103,7 @@ const WorkflowAIAssistant = ({ open, onClose }) => {
         ...prev,
         {
           role: "assistant",
-          content: `Sorry, I encountered an error: ${error.message}. Please try again later.`,
+          content: `Sorry, I encountered an error: ${error.message}`,
         },
       ]);
     } finally {
