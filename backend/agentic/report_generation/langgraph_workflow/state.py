@@ -21,6 +21,10 @@ class ReportState(TypedDict):
     # Rule matching output
     matched_rules: List[Dict[str, Any]]
     
+    # Chart generation
+    chart_data: List[Dict[str, Any]]
+    charts: List[Dict[str, str]]
+    
     # Final output
     final_report: str
     

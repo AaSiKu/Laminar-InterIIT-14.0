@@ -16,6 +16,11 @@ class PipelineTopology(BaseModel):
     affected_nodes: List[int] = Field(
         description="List of node_ids that are affected (status_code >= 2)"
     )
+class FinancialImpact(BaseModel):
+    """Financial impact estimation for the incident (hardcoded values for demo)"""
+    estimated_loss_usd: float = Field(description="Estimated financial loss in USD")
+    affected_transactions: int = Field(description="Number of transactions affected")
+    duration_minutes: int = Field(description="Duration of the incident in minutes")
 
 class RCAAnalysisOutput(BaseModel):
     severity: Literal["CRITICAL", "HIGH", "MEDIUM", "LOW"] = Field(
@@ -28,13 +33,14 @@ class RCAAnalysisOutput(BaseModel):
         description="Clear, concise explanation of what happened and why (max 5 sentences)"
     )
     error_citations: List[ErrorCitation] = Field(
-        description="2-5 specific log entries that support the analysis",
-        min_length=2,
-        max_length=5
+        description="2-5 specific log entries that support the analysis"
     )
     root_cause: str = Field(
         description="Technical root cause of the failure (be specific and actionable)"
     )
     pipeline_topology: PipelineTopology = Field(
         description="Pipeline topology representing the trace tree structure with affected nodes"
+    )
+    financial_impact: FinancialImpact = Field(
+        description="Estimated financial impact (hardcoded demo values)"
     )

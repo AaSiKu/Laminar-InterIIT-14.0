@@ -1,6 +1,6 @@
 """
-Chart Data Extractor: No longer used - reports are text/table based only
-NO LLM - Pure data transformation (DEPRECATED)
+Chart Data Extractor: Extracts span topology data for diagram generation
+NO LLM - Pure data transformation
 """
 
 from typing import Dict, Any, List
@@ -8,26 +8,35 @@ from typing import Dict, Any, List
 
 class ChartDataExtractor:
     """
-    DEPRECATED: Charts are no longer generated for telemetry-based reports.
-    All data is presented in tables and text format.
+    Extracts span topology data from RCA output for mermaid diagram generation.
+    Transforms span data into chart-ready format for ChartGenAgent.
     """
     
     def __init__(self):
         pass
     
-    def extract(self, diagnostic_data: Dict[str, Any], chart_requirements: List[str]) -> List[Dict[str, Any]]:
+    def extract(self, diagnostic_data: Dict[str, Any]) -> List[Dict[str, Any]]:
         """
-        Extract chart-ready data based on requirements.
-        
-        NOTE: This now returns an empty list as charts are no longer used.
-        All visualizations are done through tables and formatted text.
+        Extract span topology data from RCA output for chart generation.
         
         Args:
-            diagnostic_data: Complete diagnostic inputs
-            chart_requirements: List of chart descriptions from planner (ignored)
+            diagnostic_data: Complete diagnostic inputs including rca_output with span_data
             
         Returns:
-            Empty list (charts disabled for telemetry-based reports)
+            List with one chart data object containing span topology
         """
-        # Return empty list - no charts for telemetry-based reports
-        return []
+        rca_output = diagnostic_data.get("rca_output", {})
+        span_data = rca_output.get("span_data", {})
+        
+        # If no span data, return empty list
+        if not span_data or not span_data.get("nodes"):
+            return []
+        
+        # Return span data as chart data
+        return [
+            {
+                "chart_type": "span_topology",
+                "title": "Span Topology - Error Propagation",
+                "span_data": span_data
+            }
+        ]

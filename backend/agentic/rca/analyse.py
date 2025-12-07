@@ -3,7 +3,7 @@ from typing_extensions import TypedDict
 import hashlib
 from datetime import datetime, timedelta
 from .summarize import SummarizeOutput
-from .tools import get_error_logs_for_trace_ids, get_downtime_timestamps, get_full_span_tree, TablePayload
+from .tools import get_error_logs_for_trace_ids, get_error_spans_for_trace_ids, get_downtime_timestamps, get_full_span_tree, TablePayload
 from .error_agent import analyze_error_logs
 from .downtime_agent import analyze_downtime_incidents, DowntimeIncident
 from .latency_agent import build_graph, MetricAlert
@@ -20,9 +20,15 @@ async def build_pipeline_topology(trace_ids: Union[List[str], str], spans_table:
     Creates nodes and edges representing the trace tree structure.
     Identifies affected nodes (status_code >= 2).
     """
+    if not trace_ids:
+        return PipelineTopology(
+            nodes=[],
+            edges=[],
+            affected_nodes=[]
+        )
     if isinstance(trace_ids, str):
         trace_ids = [trace_ids]
-    
+    trace_ids = [trace_ids[0]]
     all_spans = []
     span_id_to_node_id = {}  # Map span_id to node_id (incremental)
     node_id_counter = 1
@@ -132,6 +138,13 @@ async def rca(init_rca_request: InitRCA):
                         13
                     )
                     
+                    # Get error spans with status_code >= 2 for additional context
+                    error_spans = await get_error_spans_for_trace_ids(
+                        trace_ids,
+                        init_rca_request.table_data["spans"],
+                        2
+                    )
+                    
                     # Group logs by trace_id
                     logs_by_trace: Dict[str, List[Dict]] = {}
                     for log in error_logs:
@@ -140,8 +153,16 @@ async def rca(init_rca_request: InitRCA):
                             logs_by_trace[trace_id] = []
                         logs_by_trace[trace_id].append(log)
                     
-                    # Analyze error logs to find root cause
-                    analysis: RCAAnalysisOutput = await analyze_error_logs(logs_by_trace)
+                    # Group error spans by trace_id
+                    spans_by_trace: Dict[str, List[Dict]] = {}
+                    for span in error_spans:
+                        trace_id = span.get('_open_tel_trace_id', 'unknown')
+                        if trace_id not in spans_by_trace:
+                            spans_by_trace[trace_id] = []
+                        spans_by_trace[trace_id].append(span)
+                    
+                    # Analyze error logs and span status messages to find root cause
+                    analysis: RCAAnalysisOutput = await analyze_error_logs(logs_by_trace, spans_by_trace)
                     
                     # Build pipeline topology
                     pipeline_topology = await build_pipeline_topology(
@@ -239,6 +260,7 @@ async def rca(init_rca_request: InitRCA):
                     analysis: RCAAnalysisOutput = await analyze_downtime_incidents(
                         incidents=incidents,
                         logs_table=init_rca_request.table_data["logs"],
+                        spans_table=init_rca_request.table_data["spans"],
                         window_seconds=30
                     )
                     
