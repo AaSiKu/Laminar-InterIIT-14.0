@@ -7,9 +7,16 @@ from utils.logging import get_logger, configure_root
 import string, secrets
 import time
 
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+PROJECT_ROOT = os.path.dirname(BASE_DIR)
+
+# Load environment from known locations so containers inherit required keys
+load_dotenv(os.path.join(BASE_DIR, ".env"))
+load_dotenv(os.path.join(PROJECT_ROOT, ".compose.env"))
+load_dotenv(os.path.join(PROJECT_ROOT, "agentic", ".env"))
+
 configure_root()
 logger = get_logger(__name__)
-load_dotenv()
 
 
 PIPELINE_IMAGE = os.getenv("PIPELINE_IMAGE", "backend-pipeline:latest")
@@ -149,14 +156,14 @@ def run_pipeline_container(client: docker.DockerClient, pipeline_id: str):
             "MONGO_URI": os.getenv("MONGO_URI", ""),
             "MONGO_DB": os.getenv("MONGO_DB", "easyworkflow"),
             "LOGS_COLLECTION": os.getenv("LOGS_COLLECTION", "logs"),
-            # LLM API keys
+            # LLM API keys - ensure both GOOGLE_API_KEY and GEMINI_API_KEY are set
             "GROQ_API_KEY": os.getenv("GROQ_API_KEY", ""),
             "OPENAI_API_KEY": os.getenv("OPENAI_API_KEY", ""),
-            "GOOGLE_API_KEY": os.getenv("GOOGLE_API_KEY", ""),
+            "GOOGLE_API_KEY": os.getenv("GOOGLE_API_KEY", os.getenv("GEMINI_API_KEY", "")),
+            "GEMINI_API_KEY": os.getenv("GEMINI_API_KEY", os.getenv("GOOGLE_API_KEY", "")),
             "LANGSMITH_API_KEY": os.getenv("LANGSMITH_API_KEY", ""),
             "LANGSMITH_TRACING": os.getenv("LANGSMITH_TRACING", "true"),
             "ANTHROPIC_API_KEY": os.getenv("ANTHROPIC_API_KEY", ""),
-            "GEMINI_API_KEY": os.getenv("GEMINI_API_KEY", ""),
             "CONTEXT7_API_KEY": os.getenv("CONTEXT7_API_KEY", ""),
         },
         network=network_name,
@@ -199,8 +206,8 @@ def run_pipeline_container(client: docker.DockerClient, pipeline_id: str):
             "ERROR_INDEXING_PORT": PIPELINE_ERROR_INDEXING_PORT.split('/')[0],
             "ERRORS_JSON_PATH": "/errors.json",
             "EMBEDDING_MODEL": "models/text-embedding-004",
-            "GEMINI_API_KEY": os.getenv("GEMINI_API_KEY", ""),
-            "GOOGLE_API_KEY": os.getenv("GOOGLE_API_KEY", ""),
+            "GEMINI_API_KEY": os.getenv("GEMINI_API_KEY", os.getenv("GOOGLE_API_KEY", "")),
+            "GOOGLE_API_KEY": os.getenv("GOOGLE_API_KEY", os.getenv("GEMINI_API_KEY", "")),
             "PATHWAY_LICENSE_KEY": os.getenv("PATHWAY_LICENSE_KEY", ""),
             "MONGO_URI": os.getenv("MONGO_URI", ""),
             "MONGO_DB": os.getenv("MONGO_DB", "easyworkflow"),

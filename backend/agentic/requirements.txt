@@ -9,6 +9,7 @@ pydantic==2.12.3
 
 # === Environment & Configuration ===
 python-dotenv==1.1.1
+setuptools<81
 
 # === Database ===
 psycopg2-binary==2.9.11

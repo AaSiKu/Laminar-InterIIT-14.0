@@ -203,12 +203,13 @@ def get_model(
     if not api_key:
         print(f"Warning: {selected_provider.value} API key not found, falling back to {FALLBACK_PROVIDER.value}")
         selected_provider = FALLBACK_PROVIDER
-        api_key = get_api_key(selected_provider)
+        api_key = os.getenv("GOOGLE_API_KEY") or os.getenv("GEMINI_API_KEY")
+        # print("===========",api_key,'======================')
         
         if not api_key:
             raise ValueError(
                 f"No API key found for {selected_provider.value}. "
-                f"Please set the appropriate environment variable."
+                f"Please set GOOGLE_API_KEY or GEMINI_API_KEY environment variable."
             )
     
     # Get preset configuration for the use case

@@ -5,6 +5,7 @@ Maintains a local errors.json file synchronized with MongoDB
 
 import asyncio
 import json
+import os
 from typing import List, Dict, Any, Optional
 from datetime import datetime
 from pathlib import Path
@@ -24,15 +25,17 @@ class ErrorActionRegistry:
     Stores in MongoDB and maintains synchronized errors.json file
     """
     
-    def __init__(self, mongodb_uri: str, database_name: str = "runbook", local_file_path: str = "errors.json"):
+    def __init__(self, mongodb_uri: str, database_name: str = None, local_file_path: str = "errors.json"):
         """
         Initialize the error-action registry
         
         Args:
             mongodb_uri: MongoDB connection string (e.g., 'mongodb://localhost:27017')
-            database_name: Database name to use
+            database_name: Database name to use (defaults to MONGO_DB env var or 'easyworkflow')
             local_file_path: Path to local errors.json file
         """
+        if database_name is None:
+            database_name = os.getenv("MONGO_DB", "easyworkflow")
         if not MONGODB_AVAILABLE:
             raise ImportError("Install MongoDB support: pip install motor pymongo")
         
@@ -266,10 +269,10 @@ class ErrorActionRegistry:
 async def example_usage():
     """Demonstrate error-action registry usage"""
     
-    # Initialize registry
+    # Initialize registry (database_name will use MONGO_DB env var)
     registry = ErrorActionRegistry(
-        mongodb_uri="mongodb://localhost:27017",
-        database_name="runbook",
+        mongodb_uri=os.getenv("MONGO_URI", "mongodb://localhost:27017"),
+        database_name=None,  # Uses MONGO_DB env var or 'easyworkflow'
         local_file_path="errors.json"
     )
     

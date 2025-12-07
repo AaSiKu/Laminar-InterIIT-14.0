@@ -180,6 +180,10 @@ def get_api_key(provider: LLMProvider) -> Optional[str]:
     
     api_key = os.getenv(env_var)
     
+    # For Gemini, also check GEMINI_API_KEY as fallback
+    if not api_key and provider == LLMProvider.GEMINI:
+        api_key = os.getenv("GEMINI_API_KEY")
+    
     # Check if key exists and is not a placeholder
     if not api_key:
         return None

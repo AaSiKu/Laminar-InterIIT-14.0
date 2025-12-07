@@ -51,7 +51,15 @@ class GenerateAlert(pw.AsyncTransformer, output_schema=AlertResponseSchema):
                     "desc": alert.get("message", "Alert triggered"),
                     "type": "alert",
                     "timestamp": datetime.now(),
-                    "alert": alert,
+                    "alert": {
+                        "actions": alert.get("actions", ["Acknowledge"]),
+                        "action_taken": None,
+                        "taken_at": None,
+                        "action_executed_by": None,
+                        "action_executed_by_user": None,
+                        "status": "pending",
+                        "alert_data": alert  # Original alert data from agentic service
+                    },
                 }
                 
                 await add_notification(notification_data, notification_collection)

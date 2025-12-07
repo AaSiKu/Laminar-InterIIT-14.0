@@ -68,7 +68,7 @@ async def lifespan(app: FastAPI):
     # Initialize MongoDB for notifications and RCA events
     try:
         mongo_uri = os.getenv("MONGO_URI", "mongodb://localhost:27017")
-        mongo_db_name = os.getenv("MONGO_DB_NAME", "pathway")
+        mongo_db_name = os.getenv("MONGO_DB", "easyworkflow")
         mongo_client = AsyncIOMotorClient(mongo_uri)
         db = mongo_client[mongo_db_name]
         notification_collection = db["notifications"]

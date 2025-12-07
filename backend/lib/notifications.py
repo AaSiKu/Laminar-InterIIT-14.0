@@ -40,7 +40,14 @@ async def add_notification(
             - desc (str): Notification description
             - type (str): Notification type (success, error, warning, info, alert)
             - timestamp (datetime, optional): Timestamp, defaults to now
-            - alert (dict, optional): Alert details if type is "alert"
+            - alert (dict, optional): Alert details if type is "alert", containing:
+                * actions (List[str]): Available actions
+                * action_taken (str | None): Action taken
+                * taken_at (datetime | None): When action was taken
+                * action_executed_by (str | None): User ID who executed
+                * action_executed_by_user (Any | None): User object
+                * status (str): "pending", "completed", "rejected", or "ignored"
+            - remediation_metadata (dict, optional): Only for runbook approvals
         notification_collection: MongoDB collection for notifications
     
     Returns:

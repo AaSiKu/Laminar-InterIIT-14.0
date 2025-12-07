@@ -8,18 +8,18 @@ class Alert(BaseModel):
     actions: List[str]
     action_taken: Optional[str] = None
     taken_at: Optional[datetime] = None
-    action_executed_by : Optional[str] = None
-    action_executed_by_user:Optional[Any]
-    status:Optional[str] #status of notification (pending, resolved, ignored)
+    action_executed_by: Optional[str] = None
+    action_executed_by_user: Optional[Any] = None
+    status: str = "pending"  # Status: pending, completed, rejected, ignored
 
 class Notification(BaseModel):
-    pipeline_id:str
+    pipeline_id: str
     title: str
     desc: str
-    alert: Optional[Alert] = None
-    type:str  #type of notification (success, error, warning, info, alert)
+    alert: Optional[Alert] = None  # Only present when type="alert"
+    type: str  # Type: success, error, warning, info, alert
     timestamp: Optional[datetime] = datetime.now()
-    #status only exist in alerts
+    remediation_metadata: Optional[dict] = None  # Only for runbook approval notifications
 
 class UpdateNotificationAction(BaseModel):
     action_taken: str

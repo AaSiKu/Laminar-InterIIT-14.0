@@ -223,12 +223,12 @@ async def test_alert(
         "type": "alert",
         "timestamp": datetime.now(),
         "alert": {
-            "actions": ["Proceed", "Ignore"],  # Binary actions only
+            "actions": ["Proceed", "Ignore"],  # Binary actions
             "action_taken": None,
             "taken_at": None,
             "action_executed_by": None,
             "action_executed_by_user": None,
-            "status": "pending"
+            "status": "pending"  # Status: pending, completed, rejected, ignored
         }
     }
     
@@ -379,8 +379,12 @@ async def test_all(
         "type": "alert",
         "timestamp": datetime.now(),
         "alert": {
-            "actions": ["Proceed", "Ignore"],  # Binary actions
-            "status": "pending"
+            "actions": ["Proceed", "Ignore"],
+            "action_taken": None,
+            "taken_at": None,
+            "action_executed_by": None,
+            "action_executed_by_user": None,
+            "status": "pending"  # Status: pending, completed, rejected, ignored
         }
     }
     alert_result = await notification_collection.insert_one(alert_data)

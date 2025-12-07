@@ -272,7 +272,8 @@ async def update_notification_action(
             "$set": {
                 "alert.action_taken": action_data.action_taken,
                 "alert.taken_at": datetime.now(),
-                "alert.action_executed_by": str(current_user.id)
+                "alert.action_executed_by": str(current_user.id),
+                "alert.status": "completed"  # Mark as completed when action is taken
             }
         }
     )
