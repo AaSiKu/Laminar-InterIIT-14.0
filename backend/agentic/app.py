@@ -609,21 +609,6 @@ if RUNBOOK_AVAILABLE:
         summary: Dict = {}
         secrets_required: Optional[List[SecretDefinition]] = Field(None, description="Secrets that need user-provided values")
         secrets_stored: Optional[List[str]] = Field(None, description="Secrets that were auto-stored during discovery")
-    
-    class SecretsProvisionRequest(BaseModel):
-        """Request to provision secret values"""
-        secrets: List[SecretDefinition] = Field(..., description="List of secrets with values")
-        service_name: str = Field(..., description="Service name for context")
-
-
-    class SecretsProvisionResponse(BaseModel):
-        """Response from secrets provisioning"""
-        status: str
-        secrets_saved: int
-        secrets_skipped: int
-        errors: Optional[List[str]] = None
-
-
 
     # Runbook Endpoints
     @app.get("/runbook/health", response_model=RunbookHealthResponse, tags=["runbook"])
