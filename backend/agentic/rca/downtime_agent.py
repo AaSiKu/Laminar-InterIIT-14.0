@@ -3,12 +3,13 @@ from typing import List, Dict, Literal, Optional, Annotated
 from typing_extensions import TypedDict
 from langchain.agents import create_agent
 from datetime import datetime
-from .tools import get_logs_in_time_window
+from .tools import get_logs_in_time_window, get_error_spans_in_time_window
 from ..sql_tool import TablePayload
 from .output import RCAAnalysisOutput
 from langgraph.graph import StateGraph, END
 import operator
 from ..llm_factory import create_analyser_model
+from ..llm_config import LLMProvider
 
 # Create the analyzer model instance
 analyser_model = create_analyser_model()
@@ -22,15 +23,20 @@ class DowntimeIncident(BaseModel):
 
 # Individual incident analysis prompt
 individual_incident_prompt = """
-You are an expert Site Reliability Engineer (SRE) analyzing a single downtime incident. Your task is to examine critical logs (severity >= 20) around one specific downtime event to identify what caused that particular service unavailability.
+You are an expert Site Reliability Engineer (SRE) analyzing a single downtime incident. Your task is to examine critical logs (severity >= 20) and error span status messages around one specific downtime event to identify what caused that particular service unavailability.
 
 You will be provided with:
 1. A single downtime incident with timestamp and trace_id
 2. Critical logs from a time window around the incident (before and after)
+3. Error span status messages with status_code >= 2 from the same time window
 
 Log Format:
 Each log entry follows:
 (timestamp) (service_name or scope_name) [SEVERITY_LEVEL] Log body
+
+Span Format:
+Each span entry follows:
+(timestamp) (service_name) Span: span_name | Status Code: status_code | Status Message: status_message
 
 SEVERITY LEVELS (>= 20):
 - 20: FATAL - System is unusable
@@ -61,11 +67,23 @@ Your Analysis Must Include:
 
 
 ANALYSIS GUIDELINES:
-- Focus on FATAL severity logs (severity >= 20)
+- Focus on FATAL severity logs (severity >= 20) AND error span status messages
+- Error span status messages often provide more structured error information than logs
 - Look for: "service unavailable", "connection refused", "timeout", "crash", "panic", "failed"
 - Distinguish between cause and effect in cascading failures
 - Be specific to THIS incident only
-- Cite actual log messages as evidence
+- Cite actual log messages and span status messages as evidence
+- Prioritize span status messages when available as they contain precise error conditions
+
+IMPORTANT - INSUFFICIENT EVIDENCE HANDLING:
+If you do NOT have sufficient evidence to analyze this incident (e.g., no critical logs, no error spans, no clear failure patterns), you MUST output an RCAAnalysisOutput with:
+- severity: "LOW"
+- affected_services: [] (empty list)
+- narrative: "Insufficient evidence to perform root cause analysis for this downtime incident. No critical logs or error patterns found."
+- error_citations: [] (empty list)
+- root_cause: "Can't analyse - insufficient data"
+
+DO NOT fabricate or speculate on the root cause when evidence is lacking. It is better to acknowledge insufficient data.
 """
 
 aggregation_prompt = """
@@ -108,6 +126,16 @@ ANALYSIS APPROACH:
 - Focus on systemic issues, not individual incidents
 - Distinguish between related cascading failures and independent issues
 - Provide actionable insights for prevention
+
+IMPORTANT - INSUFFICIENT EVIDENCE HANDLING:
+If the individual analyses do NOT provide sufficient evidence (e.g., most/all say "Can't analyse", no clear patterns, insufficient data), you MUST output an RCAAnalysisOutput with:
+- severity: "LOW"
+- affected_services: [] (empty list)
+- narrative: "Insufficient evidence across incidents to perform meaningful root cause analysis. Individual incident analyses lacked clear error patterns or actionable data."
+- error_citations: [] (empty list)
+- root_cause: "Can't analyse - insufficient data across incidents"
+
+DO NOT fabricate or speculate on systemic issues when the underlying data is insufficient. Acknowledge the limitation.
 """
 
 
@@ -115,6 +143,7 @@ ANALYSIS APPROACH:
 class DowntimeAnalysisState(TypedDict):
     incidents: List[DowntimeIncident]
     logs_table: TablePayload
+    spans_table: TablePayload
     window_seconds: int
     individual_analyses: Annotated[List[RCAAnalysisOutput], operator.add]
     final_output: Optional[RCAAnalysisOutput]
@@ -174,6 +203,31 @@ def format_incident_logs(incident: DowntimeIncident, logs: List[Dict]) -> str:
     
     return "".join(formatted_output)
 
+def format_error_spans(spans: List[Dict]) -> str:
+    """Format error spans with status messages for analysis"""
+    if not spans:
+        return "No error spans found in window"
+    
+    formatted_output = []
+    formatted_output.append("Error Span Status Messages (status_code >= 2):\n\n")
+    
+    # Sort spans by timestamp
+    sorted_spans = sorted(spans, key=lambda x: x.get('start_time_unix_nano', 0))
+    
+    for span in sorted_spans:
+        timestamp = format_timestamp(span.get('start_time_unix_nano', 0))
+        service = span.get('_open_tel_service_name', 'unknown')
+        span_name = span.get('name', 'unknown')
+        status_code = span.get('status_code', 0)
+        status_message = span.get('status_message', 'No message')
+        
+        formatted_output.append(
+            f"({timestamp}) ({service}) Span: {span_name} | "
+            f"Status Code: {status_code} | Status Message: {status_message}\n"
+        )
+    
+    return "".join(formatted_output)
+
 async def init_agents():
     """Initialize both agents"""
     global individual_agent, aggregation_agent
@@ -197,6 +251,7 @@ async def init_agents():
 async def analyze_single_incident(
     incident: DowntimeIncident,
     logs_table: TablePayload,
+    spans_table: TablePayload,
     window_seconds: int
 ) -> RCAAnalysisOutput:
     """Analyze a single downtime incident"""
@@ -215,12 +270,22 @@ async def analyze_single_incident(
         min_severity=20
     )
     
-    # Format logs for analysis
+    # Fetch error spans (status_code >= 2) in this window
+    error_spans = await get_error_spans_in_time_window(
+        start_time=start_time,
+        end_time=end_time,
+        spans_table=spans_table,
+        min_status_code=2
+    )
+    
+    # Format logs and spans for analysis
     formatted_logs = format_incident_logs(incident, logs)
+    formatted_spans = format_error_spans(error_spans)
 
     analysis_prompt = (
         f"Analyze this specific downtime incident:\n\n"
         f"{formatted_logs}\n\n"
+        f"{formatted_spans}\n\n"
     )
     
     result = await individual_agent.ainvoke(
@@ -242,12 +307,13 @@ async def analyze_incidents_node(state: DowntimeAnalysisState) -> Dict:
     """Node that analyzes all incidents in parallel"""
     incidents = state["incidents"][:5]  # Limit to 5 incidents
     logs_table = state["logs_table"]
+    spans_table = state["spans_table"]
     window_seconds = state["window_seconds"]
     
     # Analyze each incident (LangGraph will handle parallel execution)
     import asyncio
     analyses = await asyncio.gather(*[
-        analyze_single_incident(incident, logs_table, window_seconds)
+        analyze_single_incident(incident, logs_table, spans_table, window_seconds)
         for incident in incidents
     ])
     
@@ -328,6 +394,7 @@ downtime_graph = None
 async def analyze_downtime_incidents(
     incidents: List[DowntimeIncident],
     logs_table: TablePayload,
+    spans_table: TablePayload,
     window_seconds: int = 30
 ) -> RCAAnalysisOutput:
     """
@@ -336,6 +403,7 @@ async def analyze_downtime_incidents(
     Args:
         incidents: List of downtime incidents with trace_ids and timestamps
         logs_table: TablePayload for logs table
+        spans_table: TablePayload for spans table
         window_seconds: Time window in seconds to look before/after each incident (default 30s)
         
     Returns:
@@ -354,6 +422,7 @@ async def analyze_downtime_incidents(
     initial_state: DowntimeAnalysisState = {
         "incidents": incidents,
         "logs_table": logs_table,
+        "spans_table": spans_table,
         "window_seconds": window_seconds,
         "individual_analyses": [],
         "final_output": None

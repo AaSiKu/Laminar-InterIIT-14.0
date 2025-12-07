@@ -117,6 +117,56 @@ async def get_error_logs_for_trace_ids(trace_ids: Union[List[str], str], logs_ta
     return rows
 
 @retry_on_falsy()
+async def get_error_spans_for_trace_ids(trace_ids: Union[List[str], str], spans_table: TablePayload, min_status_code: int = 2) -> List[Dict[str, Any]]:
+    """
+    Query error spans for given trace IDs using SQLAlchemy.
+    Filters for status_code >= min_status_code (default 2 = ERROR status).
+    
+    Args:
+        trace_ids: Single trace_id string or list of trace_ids
+        spans_table: TablePayload containing spans table information
+        min_status_code: Minimum status code to filter (default 2, where 2=ERROR)
+        
+    Returns:
+        List of dictionaries containing error span records with status messages
+    """
+    # Normalize trace_ids to list
+    if isinstance(trace_ids, str):
+        trace_ids = [trace_ids]
+    if not trace_ids:
+        return []
+    
+    print(f"Getting error spans for trace ids with status_code >= {min_status_code}")
+    # Build SQL query with proper escaping
+    trace_ids_str = "', '".join(trace_ids)
+    sql_query = f"""
+    SELECT 
+        _open_tel_trace_id,
+        _open_tel_span_id,
+        _open_tel_parent_span_id,
+        _open_tel_service_name,
+        _open_tel_service_namespace,
+        name,
+        kind,
+        start_time_unix_nano,
+        end_time_unix_nano,
+        status_code,
+        status_message,
+        scope_name
+    FROM {spans_table["table_name"]}
+    WHERE _open_tel_trace_id IN ('{trace_ids_str}')
+        AND status_code >= {min_status_code}
+    ORDER BY start_time_unix_nano
+    """
+    
+    with postgre_engine.connect() as conn:
+        result = conn.execute(text(sql_query))
+        rows = [dict(row._mapping) for row in result]
+    
+    print(f"Retrieved error spans: {len(rows)} spans with errors")
+    return rows
+
+@retry_on_falsy()
 async def get_parent_chain(span_id: str, trace_id: str, spans_table: TablePayload) -> List[Dict[str, Any]]:
     """
     Build an ordered list of parent spans from the given span_id up to the root span.
@@ -352,6 +402,53 @@ async def get_logs_in_time_window(
         result = conn.execute(text(sql_query))
         rows = [dict(row._mapping) for row in result]
     
+    return rows
+
+@retry_on_falsy()
+async def get_error_spans_in_time_window(
+    start_time: int,
+    end_time: int,
+    spans_table: TablePayload,
+    min_status_code: int = 2
+) -> List[Dict[str, Any]]:
+    """
+    Query error spans within a time window with status code filtering.
+    
+    Args:
+        start_time: Start time in Unix nanoseconds
+        end_time: End time in Unix nanoseconds
+        spans_table: TablePayload containing spans table information
+        min_status_code: Minimum status code to include (default 2 = ERROR)
+        
+    Returns:
+        List of dictionaries containing error span records with status messages
+    """
+    sql_query = f"""
+    SELECT 
+        _open_tel_trace_id,
+        _open_tel_span_id,
+        _open_tel_parent_span_id,
+        _open_tel_service_name,
+        _open_tel_service_namespace,
+        name,
+        kind,
+        start_time_unix_nano,
+        end_time_unix_nano,
+        status_code,
+        status_message,
+        scope_name
+    FROM {spans_table["table_name"]}
+    WHERE start_time_unix_nano >= {start_time}
+        AND start_time_unix_nano <= {end_time}
+        AND status_code >= {min_status_code}
+    ORDER BY start_time_unix_nano
+    """
+    
+    with postgre_engine.connect() as conn:
+        result = conn.execute(text(sql_query))
+        rows = [dict(row._mapping) for row in result]
+    
+    print(f"Retrieved error spans in time window: {len(rows)} spans with errors")
     return rows
 
 @retry_on_falsy()

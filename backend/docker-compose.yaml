@@ -68,16 +68,5 @@ services:
       POSTGRES_WRITE_PASSWORD: ${_POSTGRES_WRITE_PASSWORD}
     ports:
       - "5432:5432"
-  
-  mongo:
-    image: mongo:7
-    ports:
-      - "27017:27017"
-    environment:
-      MONGO_INITDB_DATABASE: pipeline_db
-    volumes:
-      - mongo_data:/data/db
 
-volumes:
-  mongo_data:
     

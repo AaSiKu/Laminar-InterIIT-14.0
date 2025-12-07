@@ -14,11 +14,7 @@ from datetime import datetime
 from lib.notifications import add_notification
 from motor.motor_asyncio import AsyncIOMotorClient
 import certifi
-
-class Action(BaseModel):
-    id: int
-    agent: str = Field(description="Agent name to call")
-    request: str = Field(description="Natural language request to the agent")
+from .graph_state import Action
 
 
 class Plan(BaseModel):
@@ -281,4 +277,4 @@ def create_planner_executor(_agents: List[AgentPayload]):
     )
     
     planner_executor = create_agent(model, system_prompt=planner_prompt, response_format=ToolStrategy(Union[Plan, CANNOT_EXECUTE_Plan]))
-    return planner_executor
+    return planner_executor, planner_prompt, langchain_agents

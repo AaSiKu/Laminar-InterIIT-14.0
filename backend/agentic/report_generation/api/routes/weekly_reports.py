@@ -4,12 +4,18 @@ Handles requests to generate weekly summary reports.
 """
 
 import logging
+import sys
 from datetime import datetime, timezone
+from pathlib import Path
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import JSONResponse
 
-from ..schemas import WeeklyReportRequest, WeeklyReportResponse, ErrorResponse
-from ...core.weekly_generator import generate_weekly_report
+# Add parent directories to path for imports
+backend_path = Path(__file__).parent.parent.parent.parent
+sys.path.insert(0, str(backend_path))
+
+from report_generation.api.schemas import WeeklyReportRequest, WeeklyReportResponse, ErrorResponse
+from report_generation.core.weekly_generator import generate_weekly_report
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -86,14 +92,14 @@ async def create_weekly_report(request: WeeklyReportRequest):
             f"incidents in {processing_time:.2f}s{cleanup_msg}"
         )
         
-        # Return structured response
+        # Return structured response with properly serialized dates
         return WeeklyReportResponse(
             success=True,
             report_content=report_content,
-            start_date=metadata["start_date"],
-            end_date=metadata["end_date"],
+            start_date=metadata["start_date"].isoformat(),
+            end_date=metadata["end_date"].isoformat(),
             incident_count=metadata["incident_count"],
-            generated_at=metadata["generated_at"],
+            generated_at=metadata["generated_at"].isoformat(),
             processing_time_seconds=processing_time
         )
         

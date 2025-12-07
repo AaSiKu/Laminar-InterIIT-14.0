@@ -88,8 +88,8 @@ MODEL_NAMES = {
         ]
     },
     LLMProvider.GEMINI: {
-        "default": "gemini-2.0-flash",
-        "fallback": "gemini-2.0-flash",
+        "default": "gemini-2.5-flash",
+        "fallback": "gemini-2.5-flash",
         "alternatives": [
             "gemini-1.5-pro",
             "gemini-1.5-flash"
@@ -159,12 +159,13 @@ FALLBACK_PROVIDER = LLMProvider.GEMINI
 def get_api_key(provider: LLMProvider) -> Optional[str]:
     """
     Retrieve API key for a given provider from environment variables.
+    Validates that the key is not a placeholder value.
     
     Args:
         provider: The LLM provider
         
     Returns:
-        API key string or None if not found
+        API key string or None if not found or is a placeholder
     """
     key_mapping = {
         LLMProvider.GROQ: "GROQ_API_KEY",
@@ -176,8 +177,28 @@ def get_api_key(provider: LLMProvider) -> Optional[str]:
     env_var = key_mapping.get(provider)
     if not env_var:
         return None
+    
+    api_key = os.getenv(env_var)
+    
+    # Check if key exists and is not a placeholder
+    if not api_key:
+        return None
+    
+    # Common placeholder patterns
+    placeholder_patterns = [
+        "your_",
+        "sk-proj-",  # Invalid OpenAI format
+        "placeholder",
+        "example",
+        "xxx",
+        "..."
+    ]
+    
+    # Check if it's too short or looks like a placeholder
+    if len(api_key) < 10 or any(pattern in api_key.lower() for pattern in placeholder_patterns):
+        return None
         
-    return os.getenv(env_var)
+    return api_key
 
 
 def get_default_provider(use_case: LLMUseCase) -> LLMProvider:
