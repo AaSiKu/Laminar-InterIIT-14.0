@@ -266,7 +266,7 @@ async def watch_changes(notification_collection, log_collection, workflow_collec
         watch_logs(log_collection, workflow_collection)
     )
     # RCA watcher - sends Slack notifications with PDF attachments
-    if rca_collection:
+    if rca_collection is not None:
         asyncio.create_task(
             watch_rca(rca_collection, workflow_collection)
         )

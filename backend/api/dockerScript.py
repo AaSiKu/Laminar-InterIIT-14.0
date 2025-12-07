@@ -5,6 +5,7 @@ import logging
 from dotenv import load_dotenv
 from utils.logging import get_logger, configure_root
 import string, secrets
+import time
 
 configure_root()
 logger = get_logger(__name__)
@@ -198,23 +199,61 @@ def run_pipeline_container(client: docker.DockerClient, pipeline_id: str):
         } if dev else {})
     )
 
-    try:
-        pipeline_container.reload()
-        agentic_container.reload()
-        db_container.reload()
-        assigned_pipeline_port = pipeline_container.ports[PIPELINE_CONTAINER_PORT][0]['HostPort']
-        assigned_pipeline_error_port = pipeline_container.ports[PIPELINE_ERROR_INDEXING_PORT][0]['HostPort']
-        assigned_agentic_port = agentic_container.ports[AGENTIC_CONTAINER_PORT][0]['HostPort']
-        assigned_database_port = db_container.ports["5432/tcp"][0]['HostPort']
-    except Exception as e:
-        logger.error(e)
-        pipeline_container.stop()
-        pipeline_container.remove()
-        db_container.stop()
-        db_container.remove()
-        agentic_container.stop()
-        agentic_container.remove()
-        network.remove()
+    # Wait for port assignments with retry logic
+    max_retries = 10
+    retry_delay = 0.5  # seconds
+    
+    assigned_pipeline_port = None
+    assigned_pipeline_error_port = None
+    assigned_agentic_port = None
+    assigned_database_port = None
+    
+    for attempt in range(max_retries):
+        try:
+            pipeline_container.reload()
+            agentic_container.reload()
+            db_container.reload()
+            
+            # Check if ports are assigned
+            if (pipeline_container.ports and 
+                PIPELINE_CONTAINER_PORT in pipeline_container.ports and
+                pipeline_container.ports[PIPELINE_CONTAINER_PORT] and
+                PIPELINE_ERROR_INDEXING_PORT in pipeline_container.ports and
+                pipeline_container.ports[PIPELINE_ERROR_INDEXING_PORT] and
+                agentic_container.ports and
+                AGENTIC_CONTAINER_PORT in agentic_container.ports and
+                agentic_container.ports[AGENTIC_CONTAINER_PORT] and
+                db_container.ports and
+                "5432/tcp" in db_container.ports and
+                db_container.ports["5432/tcp"]):
+                
+                assigned_pipeline_port = pipeline_container.ports[PIPELINE_CONTAINER_PORT][0]['HostPort']
+                assigned_pipeline_error_port = pipeline_container.ports[PIPELINE_ERROR_INDEXING_PORT][0]['HostPort']
+                assigned_agentic_port = agentic_container.ports[AGENTIC_CONTAINER_PORT][0]['HostPort']
+                assigned_database_port = db_container.ports["5432/tcp"][0]['HostPort']
+                break
+            else:
+                logger.warning(f"Port assignments not ready, attempt {attempt + 1}/{max_retries}")
+                time.sleep(retry_delay)
+        except Exception as e:
+            logger.warning(f"Error checking port assignments (attempt {attempt + 1}/{max_retries}): {e}")
+            time.sleep(retry_delay)
+    
+    if not all([assigned_pipeline_port, assigned_pipeline_error_port, assigned_agentic_port, assigned_database_port]):
+        logger.error(f"Failed to determine assigned host ports after {max_retries} attempts")
+        logger.error(f"Pipeline ports: {pipeline_container.ports}")
+        logger.error(f"Agentic ports: {agentic_container.ports}")
+        logger.error(f"DB ports: {db_container.ports}")
+        try:
+            pipeline_container.stop()
+            pipeline_container.remove()
+            db_container.stop()
+            db_container.remove()
+            agentic_container.stop()
+            agentic_container.remove()
+            network.remove()
+        except Exception as cleanup_error:
+            logger.error(f"Error during cleanup: {cleanup_error}")
         raise RuntimeError("Failed to determine assigned host port.")
 
     logger.info(f"Pipeline container running on host port {assigned_pipeline_port}")

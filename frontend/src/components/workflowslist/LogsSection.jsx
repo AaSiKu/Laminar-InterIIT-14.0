@@ -121,7 +121,7 @@ const LogsSection = ({ workflow }) => {
   const [logsView, setLogsView] = useState("logs");
   const colorPalette = ["#f97316", "#10b981", "#3b82f6", "#8b5cf6", "#14b8a6"];
   const { logs } = useGlobalState();
-  console.log("logs in logsection:", logs);
+  // consolœ.log("logs in logsection:", logs);
   const [versionHistory, setVersionHistory] = useState(null);
   const [lenVersions, setLenVersions] = useState(0);
   const workflow_id = workflow.id || workflow._id; // Support both formats
