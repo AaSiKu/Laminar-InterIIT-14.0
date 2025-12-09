@@ -88,7 +88,7 @@ class LLMDiscoveryAgent:
         """
         # Use provided values or fall back to env vars
         api_key = api_key or os.getenv('GOOGLE_API_KEY')
-        model = model or os.getenv('LLM_MODEL', 'gemini-2.5-flash')
+        model = model or os.getenv('LLM_MODEL', 'gemini-2.5-pro')
         
         if not api_key:
             raise ValueError(

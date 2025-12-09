@@ -123,38 +123,17 @@ class ExecutionAdapter:
     
     @staticmethod
     def _transform_secrets(
-        secret_names: List[str],
+        secret_names: Dict[str, Any],
         metadata: Dict[str, Any]
     ) -> Dict[str, Any]:
         """
         Transform secret names to secrets config expected by execution engine
         
-        Registry format: ["api_key", "database_password"]
+        Registry format: "secret_references": [{"name": "api_key", "path": "secret/api_key", ...}]}
         
-        Execution engine format:
-        {
-            "secret_provider": "vault",
-            "secret_references": [
-                {"name": "api_key", "path": "secret/api_key"},
-                {"name": "database_password", "path": "secret/db_password"}
-            ]
-        }
+        
         """
-        # Get secret provider from metadata, default to vault
-        secret_provider = metadata.get('secret_provider', 'vault')
-        secret_base_path = metadata.get('secret_base_path', 'secret')
-        
-        secret_references = []
-        for secret_name in secret_names:
-            secret_references.append({
-                'name': secret_name,
-                'path': f"{secret_base_path}/{secret_name}"
-            })
-        
-        return {
-            'secret_provider': secret_provider,
-            'secret_references': secret_references
-        }
+        return secret_names
     
     @staticmethod
     def from_execution_result(

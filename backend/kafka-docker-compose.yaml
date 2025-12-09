@@ -27,3 +27,16 @@ services:
       KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
       KAFKA_DEFAULT_REPLICATION_FACTOR: 1
       KAFKA_MIN_INSYNC_REPLICAS: 1
+  kafka-ui:
+    image: provectuslabs/kafka-ui:latest
+    container_name: kafka-ui
+    networks:
+      - opentelemetry-demo
+    ports:
+      - "8081:8080" # Maps Host 8081 -> Container 8080
+    environment:
+      KAFKA_CLUSTERS_0_NAME: Cloud-VM-Kafka
+      # CONNECTIVITY FIX:
+      # Use the internal container name and the internal port (29092)
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: main_kafka:29092
+      DYNAMIC_CONFIG_ENABLED: 'true'

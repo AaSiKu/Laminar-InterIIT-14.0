@@ -81,7 +81,7 @@ if SQLALCHEMY_AVAILABLE:
         validated: Mapped[bool] = mapped_column(Boolean, default=False, index=True)
         execution: Mapped[dict] = mapped_column(JSON, nullable=False)
         parameters: Mapped[dict] = mapped_column(JSON, nullable=False)
-        secrets: Mapped[list] = mapped_column(JSON, nullable=False)
+        secrets: Mapped[Dict] = mapped_column(JSON, nullable=False)  # Can be list (legacy) or dict with secret_references
         action_metadata: Mapped[dict] = mapped_column(JSON, nullable=False)
         created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now)
         updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now, onupdate=datetime.now)

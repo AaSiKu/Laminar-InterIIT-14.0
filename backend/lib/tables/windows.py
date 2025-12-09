@@ -19,7 +19,7 @@ class Sliding(TypedDict):
 
 class Tumbling(TypedDict):
     duration: TimedeltaType
-    origin: DateTimeType
+    origin: Optional[DateTimeType]
     window_type: Literal["tumbling"]
 
 class WindowByNode(TemporalNode):
@@ -28,5 +28,5 @@ class WindowByNode(TemporalNode):
     time_col: str
     instance_col: Optional[str] = None
     window: Union[Session, Sliding, Tumbling]
-    behaviour: Optional[CommonBehaviour] = None
+    behaviour: Optional[CommonBehaviour]
     reducers: List[ReducerDict]
