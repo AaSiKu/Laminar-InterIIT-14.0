@@ -1,12 +1,18 @@
-import { createContext, useContext, useState, useEffect, useCallback } from "react";
+import { createContext, useContext, useState, useEffect, useCallback, useRef } from "react";
 import { useWebSocket } from "./WebSocketContext";
 import { AuthContext } from "./AuthContext";
-import { fetchWorkflows, fetchPreviousNotifcations, fetchLogs } from "../utils/utils";
+import { fetchWorkflows, fetchPreviousNotifcations, fetchLogs, fetchRcaEvents } from "../utils/utils";
 
 const GlobalStateContext = createContext();
 export function useGlobalState() {
   return useContext(GlobalStateContext);
 }
+
+// Helper function to check if item exists by _id (outside component to avoid recreation)
+const itemExistsById = (array, item) => {
+  if (!item || !item._id) return false;
+  return array.some(existing => existing._id && String(existing._id) === String(item._id));
+};
 
 export const GlobalStateProvider = ({ children }) => {
   // Initialize state
@@ -63,6 +69,12 @@ export const GlobalStateProvider = ({ children }) => {
         const logsData = await fetchLogs();
         if (Array.isArray(logsData)) {
           setLogs(logsData);
+        }
+
+        // Fetch RCA events
+        const rcaData = await fetchRcaEvents();
+        if (Array.isArray(rcaData)) {
+          setRcaEvents(rcaData);
         }
 
         setInitialized(true);

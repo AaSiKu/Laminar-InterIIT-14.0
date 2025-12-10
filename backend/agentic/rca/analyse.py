@@ -227,7 +227,7 @@ async def rca(
                     rca_logger.info(f"Root Cause Analysis completed for error metric: {init_rca_request.description}")
                     
                     # Save to MongoDB if collection provided
-                    if rca_collection:
+                    if rca_collection is not None:
                         pipeline_id = os.getenv("PIPELINE_ID", column_name)
                         await save_rca_to_mongodb(
                             rca_collection,
@@ -291,7 +291,7 @@ async def rca(
                     rca_logger.info(f"Root Cause Analysis completed for latency metric: {init_rca_request.description}")
                     
                     # Save to MongoDB if collection provided
-                    if rca_collection:
+                    if rca_collection is not None:
                         pipeline_id = os.getenv("PIPELINE_ID", column_name)
                         await save_rca_to_mongodb(
                             rca_collection,
@@ -351,7 +351,7 @@ async def rca(
                     rca_logger.info(f"Root Cause Analysis completed for uptime metric: {init_rca_request.description}")
                     
                     # Save to MongoDB if collection provided
-                    if rca_collection:
+                    if rca_collection is not None:
                         pipeline_id = os.getenv("PIPELINE_ID", column_name)
                         await save_rca_to_mongodb(
                             rca_collection,

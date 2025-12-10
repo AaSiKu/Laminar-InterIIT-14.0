@@ -28,5 +28,5 @@ class WindowByNode(TemporalNode):
     time_col: str
     instance_col: Optional[str] = None
     window: Union[Session, Sliding, Tumbling]
-    behaviour: Optional[CommonBehaviour]
+    behaviour: Optional[CommonBehaviour] = None
     reducers: List[ReducerDict]

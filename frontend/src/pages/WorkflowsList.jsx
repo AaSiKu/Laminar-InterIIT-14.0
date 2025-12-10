@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { useSearchParams } from "react-router-dom";
 import { Box, Typography } from "@mui/material";
 import { styles } from "../styles/WorkflowsList.styles";
@@ -101,7 +101,8 @@ export const WorkflowsList = () => {
   
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  const [workflowDetailsCache, setWorkflowDetailsCache] = useState({});
+  // Use ref for cache to avoid triggering re-renders when cache is updated inside useEffect
+  const workflowDetailsCacheRef = useRef({});
   const [transformedWorkflows, setTransformedWorkflows] = useState([]);
   const { workflows, loading: globalLoading } = useGlobalState();
   const { alerts, getAlertsForPipeline, isConnected, ws } = useWebSocket();
@@ -116,11 +117,11 @@ export const WorkflowsList = () => {
     }
   }, [setSearchParams]);
 
-  // Fetch details for a specific workflow
+  // Fetch details for a specific workflow (using ref to avoid infinite loops)
   const fetchWorkflowDetails = useCallback(
     async (workflowId) => {
-      if (workflowDetailsCache[workflowId]) {
-        return workflowDetailsCache[workflowId];
+      if (workflowDetailsCacheRef.current[workflowId]) {
+        return workflowDetailsCacheRef.current[workflowId];
       }
 
     try {
@@ -131,16 +132,13 @@ export const WorkflowsList = () => {
         return null;
       }
       const details = await fetchPipelineDetails(workflowId);
-      setWorkflowDetailsCache(prev => ({
-        ...prev,
-        [workflowId]: details
-      }));
+      workflowDetailsCacheRef.current[workflowId] = details;
       return details;
     } catch (err) {
       console.warn(`Failed to fetch details for pipeline ${workflowId}:`, err);
       return null;
     }
-  }, [workflowDetailsCache]);
+  }, []); // No dependencies needed since we use ref
 
   // Update transformed workflows with details when workflows change (immediate display, async details)
   useEffect(() => {
@@ -156,7 +154,7 @@ export const WorkflowsList = () => {
         // Only fetch details for workflows that don't have them cached
         const workflowsToUpdate = workflows.filter((w) => {
           const workflowId = w.id || w._id;
-          return workflowId && !workflowDetailsCache[workflowId];
+          return workflowId && !workflowDetailsCacheRef.current[workflowId];
         });
 
         // Fetch details for workflows that need them
@@ -173,7 +171,7 @@ export const WorkflowsList = () => {
         const transformed = workflows.map((w) => {
           const workflowId = w.id || w._id;
           const details = workflowId
-            ? workflowDetailsCache[workflowId] || null
+            ? workflowDetailsCacheRef.current[workflowId] || null
             : null;
           return transformWorkflow(w, details);
         });
@@ -198,7 +196,7 @@ export const WorkflowsList = () => {
 
     // Load details immediately (no delay)
     updateWorkflowsWithDetails()
-  }, [workflows, fetchWorkflowDetails, workflowDetailsCache]); // Update when workflows change
+  }, [workflows, fetchWorkflowDetails]); // Only depend on workflows and fetchWorkflowDetails
 
   // Handle WebSocket messages for workflow updates and alerts
   useEffect(() => {
@@ -215,12 +213,8 @@ export const WorkflowsList = () => {
         if (messageType === "workflow" && data._id) {
           const workflowId = String(data._id);
 
-          // Invalidate cache for this workflow to refetch details
-          setWorkflowDetailsCache((prev) => {
-            const newCache = { ...prev };
-            delete newCache[workflowId];
-            return newCache;
-          });
+          // Invalidate cache for this workflow to refetch details (using ref)
+          delete workflowDetailsCacheRef.current[workflowId];
 
           // Update selected workflow if it's the one being updated
           setSelectedWorkflow((prev) => {

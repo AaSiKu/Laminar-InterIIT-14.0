@@ -79,3 +79,26 @@ export const fetchLogs = async () => {
   }
 };
 
+// Fetches RCA events from the API
+export const fetchRcaEvents = async () => {
+  try {
+    const response = await fetch(
+      `${import.meta.env.VITE_API_SERVER}/rca/rca_events`,
+      { credentials: "include" }
+    );
+    const data = await response.json();
+    if (data && data.status === "success" && data.data) {
+      console.log(`✅ API returned ${data.data.length} RCA events`);
+      return data.data;
+    } else if (Array.isArray(data)) {
+      return data;
+    } else {
+      console.warn("⚠️ Unexpected RCA events response format:", data);
+      return [];
+    }
+  } catch (error) {
+    console.error("❌ Error fetching RCA events:", error);
+    return [];
+  }
+};
+

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useLocation } from "react-router-dom";
 import {
   Snackbar,
@@ -16,6 +16,7 @@ import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
 import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutline";
 import NotificationsActiveIcon from "@mui/icons-material/NotificationsActive";
 import TerminalIcon from "@mui/icons-material/Terminal";
+import TroubleshootIcon from "@mui/icons-material/Troubleshoot";
 import { useGlobalState } from "../../context/GlobalStateContext";
 
 // Slide transition for snackbar
@@ -23,24 +24,57 @@ function SlideTransition(props) {
   return <Slide {...props} direction="left" />;
 }
 
+// Helper to extract ID from MongoDB extended JSON or regular format
+const extractId = (item, prefix) => {
+  if (!item) return `${prefix}-${Date.now()}`;
+  
+  // Handle MongoDB extended JSON format: {$oid: "..."}
+  if (item._id && typeof item._id === 'object' && item._id.$oid) {
+    return item._id.$oid;
+  }
+  // Handle regular string _id
+  if (item._id && typeof item._id === 'string') {
+    return item._id;
+  }
+  // Fallback to timestamp
+  const timestamp = item.timestamp?.$date || item.timestamp || Date.now();
+  return `${prefix}-${timestamp}`;
+};
+
 const NotificationToast = () => {
   const location = useLocation();
-  const { notifications, logs, alerts } = useGlobalState();
+  const { notifications, logs, alerts, rcaEvents } = useGlobalState();
   const [toastQueue, setToastQueue] = useState([]);
   const [currentToast, setCurrentToast] = useState(null);
   const [open, setOpen] = useState(false);
 
-  // Track seen notification/log IDs to avoid showing duplicates
-  const [seenIds, setSeenIds] = useState(new Set());
+  // Track seen notification/log IDs to avoid showing duplicates (using ref to avoid infinite loops)
+  const seenIdsRef = useRef(new Set());
   
   // Track if initial data has been loaded (to avoid showing toasts for pre-existing items)
-  const [initialLoadComplete, setInitialLoadComplete] = useState(false);
+  const initialLoadCompleteRef = useRef(false);
+
+  // Mark initial load complete after a short delay (to skip showing toasts for pre-existing data)
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      initialLoadCompleteRef.current = true;
+    }, 1000); // Wait 1 second for initial data to load
+    return () => clearTimeout(timer);
+  }, []);
 
   // Check if we're on the overview page
   const isOverviewPage = location.pathname === "/overview";
 
   // Get icon and color based on notification type
-  const getToastStyle = (type, isLog = false) => {
+  const getToastStyle = (type, isLog = false, isRca = false) => {
+    if (isRca) {
+      return {
+        icon: <TroubleshootIcon />,
+        severity: "warning",
+        title: "RCA Event",
+        color: "warning",
+      };
+    }
     if (isLog) {
       return {
         icon: <TerminalIcon />,
@@ -94,17 +128,19 @@ const NotificationToast = () => {
   useEffect(() => {
     if (logs.length > 0) {
       // On first load, mark all existing logs as seen without showing toasts
-      if (!initialLoadComplete) {
-        const allLogIds = logs.map(log => log._id || `log-${log.timestamp || Date.now()}`);
-        setSeenIds(prev => new Set([...prev, ...allLogIds]));
+      if (!initialLoadCompleteRef.current) {
+        logs.forEach(log => {
+          const logId = extractId(log, 'log');
+          seenIdsRef.current.add(logId);
+        });
         return;
       }
       
       const latestLog = logs[0];
-      const logId = latestLog._id || `log-${latestLog.timestamp || Date.now()}`;
+      const logId = extractId(latestLog, 'log');
 
-      if (!seenIds.has(logId)) {
-        setSeenIds((prev) => new Set([...prev, logId]));
+      if (!seenIdsRef.current.has(logId)) {
+        seenIdsRef.current.add(logId);
         setToastQueue((prev) => [
           ...prev,
           {
@@ -116,28 +152,26 @@ const NotificationToast = () => {
         ]);
       }
     }
-  }, [logs, seenIds, initialLoadComplete]);
+  }, [logs]); // Only depend on logs
 
   // Handle new notifications/alerts - show popup only if NOT on overview page (and not for initially loaded notifications)
   useEffect(() => {
     if (notifications.length > 0) {
       // On first load, mark all existing notifications as seen without showing toasts
-      if (!initialLoadComplete) {
-        const allNotifIds = notifications.map(n => n._id || `notif-${n.timestamp || Date.now()}`);
-        setSeenIds(prev => new Set([...prev, ...allNotifIds]));
-        // Mark initial load complete after a short delay to ensure all data is processed
-        setTimeout(() => setInitialLoadComplete(true), 500);
+      if (!initialLoadCompleteRef.current) {
+        notifications.forEach(n => {
+          const notifId = extractId(n, 'notif');
+          seenIdsRef.current.add(notifId);
+        });
         return;
       }
       
       if (!isOverviewPage) {
         const latestNotification = notifications[0];
-        const notifId =
-          latestNotification._id ||
-          `notif-${latestNotification.timestamp || Date.now()}`;
+        const notifId = extractId(latestNotification, 'notif');
 
-        if (!seenIds.has(notifId)) {
-          setSeenIds((prev) => new Set([...prev, notifId]));
+        if (!seenIdsRef.current.has(notifId)) {
+          seenIdsRef.current.add(notifId);
           setToastQueue((prev) => [
             ...prev,
             {
@@ -150,7 +184,38 @@ const NotificationToast = () => {
         }
       }
     }
-  }, [notifications, isOverviewPage, seenIds, initialLoadComplete]);
+  }, [notifications, isOverviewPage]); // Only depend on notifications and isOverviewPage
+
+  // Handle new RCA events - always show popup (but not for initially loaded RCA events)
+  useEffect(() => {
+    if (rcaEvents && rcaEvents.length > 0) {
+      // On first load, mark all existing RCA events as seen without showing toasts
+      if (!initialLoadCompleteRef.current) {
+        rcaEvents.forEach(rca => {
+          const rcaId = extractId(rca, 'rca');
+          seenIdsRef.current.add(rcaId);
+        });
+        return;
+      }
+      
+      const latestRca = rcaEvents[0];
+      const rcaId = extractId(latestRca, 'rca');
+
+      if (!seenIdsRef.current.has(rcaId)) {
+        seenIdsRef.current.add(rcaId);
+        setToastQueue((prev) => [
+          ...prev,
+          {
+            id: rcaId,
+            type: "rca",
+            data: latestRca,
+            isLog: false,
+            isRca: true,
+          },
+        ]);
+      }
+    }
+  }, [rcaEvents]); // Only depend on rcaEvents
 
   // Process toast queue - show next toast when current one closes
   useEffect(() => {
@@ -179,14 +244,20 @@ const NotificationToast = () => {
     return null;
   }
 
-  const { data, type, isLog } = currentToast;
-  const style = getToastStyle(type, isLog);
+  const { data, type, isLog, isRca } = currentToast;
+  const style = getToastStyle(type, isLog, isRca);
 
   // Build message content
   let title = style.title;
   let message = "";
 
-  if (isLog) {
+  if (isRca) {
+    title = `RCA: ${data.level?.toUpperCase() || "INFO"}`;
+    message = data.message || "Root Cause Analysis event";
+    if (data.source || data.module) {
+      message = `[${data.source || data.module}] ${message}`;
+    }
+  } else if (isLog) {
     title = `Log: ${data.level?.toUpperCase() || "INFO"}`;
     message = data.message || "New log entry received";
     if (data.source) {
@@ -200,7 +271,7 @@ const NotificationToast = () => {
   return (
     <Snackbar
       open={open}
-      autoHideDuration={isLog ? 4000 : 6000}
+      autoHideDuration={isLog ? 4000 : isRca ? 5000 : 6000}
       onClose={handleClose}
       TransitionComponent={SlideTransition}
       TransitionProps={{ onExited: handleExited }}
