@@ -1,4 +1,4 @@
-a"""
+"""
 Server that simulates the agentic pipeline for local testing.
 
 This implementation mirrors the behavior and WebSocket protocol of
@@ -14,6 +14,7 @@ import uuid
 import shutil
 import re
 import asyncio
+import random
 from pathlib import Path
 from typing import Optional, Dict, Any, List
 
@@ -33,6 +34,16 @@ from contractparseragent.agent_builder import (
 
 app = FastAPI()
 
+# Random latency range (in seconds) for simulating agent thinking
+MIN_LATENCY = 0.5
+MAX_LATENCY = 2.0
+
+async def random_delay():
+    """Add a random delay to simulate agent processing time."""
+    delay = random.uniform(MIN_LATENCY, MAX_LATENCY)
+    await asyncio.sleep(delay)
+    return delay
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -48,15 +59,85 @@ DEFAULT_OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 TEMP_PDF_DIR = Path(__file__).parent / "temp_pdfs"
 TEMP_PDF_DIR.mkdir(parents=True, exist_ok=True)
 
-# New workflow pipeline JSON (provided by user)
-NEW_WORKFLOW_PIPELINE = {
+# Hardcoded agent outputs for each node (keyed by node id)
+NODE_AGENT_OUTPUTS: Dict[str, str] = {
+    "n1": """**OpenTelSpansNode (n1)** - Span Data Input
+
+I'm configuring the OpenTelemetry Spans input node to collect span data from Kafka.
+
+**Configuration:**
+- Bootstrap servers: `34.93.25.61:9092`
+- Consumer group: `test_group_spans`
+- Topic: `otlp_spans`
+
+This node will ingest all OpenTelemetry span data for processing in the pipeline.""",
+
+    "n2": """**FilterNode (n2)** - Checkout Request Filter
+
+Now I'm adding a filter node to isolate checkout-related spans.
+
+**Filter Configuration:**
+- Column: `name`
+- Operator: `==`
+- Value: `POST /api/checkout`
+
+This filter will select only the spans related to the checkout API endpoint for further analysis.""",
+
+    "n3": """**WindowByNode (n3)** - Tumbling Window Aggregation
+
+Adding a temporal windowing node to aggregate checkout failures.
+
+**Window Configuration:**
+- Type: Tumbling window
+- Duration: 30 seconds
+- Time column: `start_time_unix_nano`
+
+**Aggregation:**
+- Counting `_open_tel_trace_id` → `n_failed_checkouts`
+
+This creates 30-second windows to count the number of failed checkout requests.""",
+
+    "n4": """**FilterNode (n4)** - Threshold Alert Filter
+
+Adding a threshold filter to detect high failure rates.
+
+**Filter Configuration:**
+- Column: `n_failed_checkouts`
+- Operator: `>=`
+- Value: `5`
+
+This filter triggers when 5 or more checkout failures occur within a 30-second window.""",
+
+    "n5": """**TriggerRCANode (n5)** - Root Cause Analysis Trigger
+
+Configuring the RCA trigger node to alert on threshold breaches.
+
+**Configuration:**
+- Metric description: "Number of failed checkout requests in a window of 30 seconds must be < 5"
+
+When the threshold is exceeded, this node will trigger root cause analysis and alert the user.""",
+
+    "n6": """**OpenTelLogsNode (n6)** - Log Data Input
+
+Adding a separate logs input node for analysis support.
+
+**Configuration:**
+- Bootstrap servers: `34.93.25.61:9092`
+- Consumer group: `test_group_logs`
+- Topic: `otlp_logs`
+
+This node collects log data that can be used for deeper RCA analysis. It's independent of the main pipeline flow.""",
+}
+
+# New workflow pipeline JSON (the checkout monitoring pipeline)
+NEW_WORKFLOW_PIPELINE: Dict[str, Any] = {
     "nodes": [
         {
             "id": "n1",
             "schema": {
                 "$defs": {
                     "RdKafkaSettings": {
-                        "description": "TypedDict for rdkafka configuration settings.\n\nCommon settings:\n- bootstrap.servers: Kafka broker addresses\n- security.protocol: Security protocol (PLAINTEXT, SSL, SASL_SSL, etc.)\n- sasl.mechanism: SASL mechanism (PLAIN, SCRAM-SHA-256, etc.)\n- sasl.username: SASL username\n- sasl.password: SASL password\n- group.id: Consumer group ID\n- auto.offset.reset: Offset reset policy (earliest, latest)",
+                        "description": "TypedDict for rdkafka configuration settings.",
                         "properties": {
                             "bootstrap_servers": {"title": "Bootstrap Servers", "type": "string"},
                             "security_protocol": {"anyOf": [{"type": "string"}, {"type": "null"}], "title": "Security Protocol"},
@@ -85,38 +166,277 @@ NEW_WORKFLOW_PIPELINE = {
                 "type": "object"
             },
             "type": "open_tel_spans_input",
-            "position": {"x": 2463.0672087821904, "y": 637.852314533222},
+            "position": {"x": -342.96, "y": 194.50},
             "node_id": "open_tel_spans_input",
             "category": "open_tel",
             "data": {
                 "ui": {"label": "OpenTelSpansNode Node", "iconUrl": ""},
                 "properties": {
-                    "tool_description": "Input node for span data from Kafka",
+                    "tool_description": "Collect open telemetry span nodes",
                     "trigger_description": "",
-                    "rdkafka_settings": {"bootstrap_servers": "host.docker.internal:9094"},
+                    "rdkafka_settings": {
+                        "bootstrap_servers": "34.93.25.61:9092",
+                        "group_id": "test_group_spans"
+                    },
                     "topic": "otlp_spans"
                 }
             },
-            "measured": {"width": 307, "height": 233},
+            "measured": {"width": 292, "height": 231},
+            "selected": False,
+            "dragging": False
+        },
+        {
+            "id": "n2",
+            "schema": {
+                "$defs": {
+                    "Filter": {
+                        "properties": {
+                            "col": {"title": "Col", "type": "string"},
+                            "op": {"enum": ["==", "<", "<=", ">=", ">", "!=", "startswith", "endswith", "find"], "title": "Op", "type": "string"},
+                            "value": {"anyOf": [{"type": "integer"}, {"type": "number"}, {"type": "string"}], "title": "Value"}
+                        },
+                        "required": ["col", "op", "value"],
+                        "title": "Filter",
+                        "type": "object"
+                    }
+                },
+                "properties": {
+                    "category": {"const": "table", "title": "Category", "type": "string"},
+                    "node_id": {"const": "filter", "title": "Node Id", "type": "string"},
+                    "tool_description": {"default": "", "title": "Tool Description", "type": "string"},
+                    "trigger_description": {"default": "", "title": "Trigger Description", "type": "string"},
+                    "filters": {"items": {"$ref": "#/$defs/Filter"}, "title": "Filters", "type": "array"},
+                    "n_inputs": {"const": 1, "default": 1, "title": "N Inputs", "type": "integer"}
+                },
+                "required": ["category", "node_id", "filters"],
+                "title": "FilterNode",
+                "type": "object"
+            },
+            "type": "filter",
+            "position": {"x": 136.21, "y": 679.37},
+            "node_id": "filter",
+            "category": "table",
+            "data": {
+                "ui": {"label": "FilterNode Node", "iconUrl": ""},
+                "properties": {
+                    "tool_description": "Filter out the request on the api/checkout end point",
+                    "trigger_description": "",
+                    "filters": [{"col": "name", "op": "==", "value": "POST /api/checkout"}]
+                }
+            },
+            "measured": {"width": 350, "height": 231},
+            "selected": False,
+            "dragging": False
+        },
+        {
+            "id": "n3",
+            "schema": {
+                "$defs": {
+                    "CommonBehaviour": {
+                        "properties": {
+                            "delay": {"anyOf": [{"type": "integer"}, {"type": "number"}, {"format": "duration", "type": "string"}, {"type": "null"}], "title": "Delay"},
+                            "cutoff": {"anyOf": [{"type": "integer"}, {"type": "number"}, {"format": "duration", "type": "string"}, {"type": "null"}], "title": "Cutoff"},
+                            "keep_results": {"title": "Keep Results", "type": "boolean"}
+                        },
+                        "required": ["delay", "cutoff", "keep_results"],
+                        "title": "CommonBehaviour",
+                        "type": "object"
+                    },
+                    "ReducerDict": {
+                        "properties": {
+                            "col": {"title": "Col", "type": "string"},
+                            "reducer": {"enum": ["any", "argmax", "argmin", "avg", "count", "count_distinct", "count_distinct_approximate", "earliest", "latest", "max", "min", "ndarray", "sorted_tuple", "stateful_many", "stateful_single", "sum", "tuple", "unique", "p90", "p95", "p99"], "title": "Reducer", "type": "string"},
+                            "new_col": {"title": "New Col", "type": "string"}
+                        },
+                        "required": ["col", "reducer", "new_col"],
+                        "title": "ReducerDict",
+                        "type": "object"
+                    },
+                    "Tumbling": {
+                        "properties": {
+                            "duration": {"anyOf": [{"type": "integer"}, {"type": "number"}, {"format": "duration", "type": "string"}, {"type": "null"}], "title": "Duration"},
+                            "origin": {"anyOf": [{"type": "integer"}, {"type": "number"}, {"format": "date-time", "type": "string"}, {"type": "null"}], "title": "Origin"},
+                            "window_type": {"const": "tumbling", "title": "Window Type", "type": "string"}
+                        },
+                        "required": ["duration", "origin", "window_type"],
+                        "title": "Tumbling",
+                        "type": "object"
+                    }
+                },
+                "properties": {
+                    "category": {"const": "temporal", "title": "Category", "type": "string"},
+                    "node_id": {"const": "window_by", "title": "Node Id", "type": "string"},
+                    "tool_description": {"default": "", "title": "Tool Description", "type": "string"},
+                    "trigger_description": {"default": "", "title": "Trigger Description", "type": "string"},
+                    "n_inputs": {"const": 1, "default": 1, "title": "N Inputs", "type": "integer"},
+                    "time_col": {"title": "Time Col", "type": "string"},
+                    "instance_col": {"title": "Instance Col", "type": "string"},
+                    "window": {"title": "Window"},
+                    "behaviour": {"$ref": "#/$defs/CommonBehaviour"},
+                    "reducers": {"items": {"$ref": "#/$defs/ReducerDict"}, "title": "Reducers", "type": "array"}
+                },
+                "required": ["category", "node_id", "time_col", "window", "reducers"],
+                "title": "WindowByNode",
+                "type": "object"
+            },
+            "type": "window_by",
+            "position": {"x": 561.86, "y": 184.27},
+            "node_id": "window_by",
+            "category": "temporal",
+            "data": {
+                "ui": {"label": "WindowByNode Node", "iconUrl": ""},
+                "properties": {
+                    "tool_description": "Divide a continuous data stream into fixed-size, non-overlapping, contiguous chunks (windows) of time",
+                    "trigger_description": "",
+                    "time_col": "start_time_unix_nano",
+                    "window": {"duration": {"$numberLong": "30000000000"}, "origin": 0, "window_type": "tumbling"},
+                    "reducers": [{"col": "_open_tel_trace_id", "reducer": "count", "new_col": "n_failed_checkouts"}]
+                }
+            },
+            "measured": {"width": 350, "height": 233},
+            "selected": False,
+            "dragging": False
+        },
+        {
+            "id": "n4",
+            "schema": {
+                "$defs": {
+                    "Filter": {
+                        "properties": {
+                            "col": {"title": "Col", "type": "string"},
+                            "op": {"enum": ["==", "<", "<=", ">=", ">", "!=", "startswith", "endswith", "find"], "title": "Op", "type": "string"},
+                            "value": {"anyOf": [{"type": "integer"}, {"type": "number"}, {"type": "string"}], "title": "Value"}
+                        },
+                        "required": ["col", "op", "value"],
+                        "title": "Filter",
+                        "type": "object"
+                    }
+                },
+                "properties": {
+                    "category": {"const": "table", "title": "Category", "type": "string"},
+                    "node_id": {"const": "filter", "title": "Node Id", "type": "string"},
+                    "tool_description": {"default": "", "title": "Tool Description", "type": "string"},
+                    "trigger_description": {"default": "", "title": "Trigger Description", "type": "string"},
+                    "filters": {"items": {"$ref": "#/$defs/Filter"}, "title": "Filters", "type": "array"},
+                    "n_inputs": {"const": 1, "default": 1, "title": "N Inputs", "type": "integer"}
+                },
+                "required": ["category", "node_id", "filters"],
+                "title": "FilterNode",
+                "type": "object"
+            },
+            "type": "filter",
+            "position": {"x": 1046.77, "y": 745.42},
+            "node_id": "filter",
+            "category": "table",
+            "data": {
+                "ui": {"label": "FilterNode Node", "iconUrl": ""},
+                "properties": {
+                    "tool_description": "Check if the n_failed_checkouts are greater then a threshold of 5",
+                    "trigger_description": "",
+                    "filters": [{"col": "n_failed_checkouts", "op": ">=", "value": 5}]
+                }
+            },
+            "measured": {"width": 350, "height": 231},
+            "selected": False,
+            "dragging": False
+        },
+        {
+            "id": "n5",
+            "schema": {
+                "properties": {
+                    "category": {"const": "agent", "title": "Category", "type": "string"},
+                    "node_id": {"const": "trigger_rca", "title": "Node Id", "type": "string"},
+                    "tool_description": {"default": "", "title": "Tool Description", "type": "string"},
+                    "trigger_description": {"default": "", "title": "Trigger Description", "type": "string"},
+                    "n_inputs": {"const": 1, "default": 1, "title": "N Inputs", "type": "integer"},
+                    "metric_description": {"title": "Metric Description", "type": "string"}
+                },
+                "required": ["category", "node_id", "metric_description"],
+                "title": "TriggerRCANode",
+                "type": "object"
+            },
+            "type": "trigger_rca",
+            "position": {"x": 1601.83, "y": 421.13},
+            "node_id": "trigger_rca",
+            "category": "agent",
+            "data": {
+                "ui": {"label": "TriggerRCANode Node", "iconUrl": ""},
+                "properties": {
+                    "tool_description": "Alert user then such a event is found.",
+                    "trigger_description": "",
+                    "metric_description": "Number of failed checkout requests in a window of 30 seconds must be < 5"
+                }
+            },
+            "measured": {"width": 350, "height": 231},
+            "selected": False,
+            "dragging": False
+        },
+        {
+            "id": "n6",
+            "schema": {
+                "$defs": {
+                    "RdKafkaSettings": {
+                        "description": "TypedDict for rdkafka configuration settings.",
+                        "properties": {
+                            "bootstrap_servers": {"title": "Bootstrap Servers", "type": "string"},
+                            "security_protocol": {"anyOf": [{"type": "string"}, {"type": "null"}], "title": "Security Protocol"},
+                            "sasl_mechanism": {"anyOf": [{"type": "string"}, {"type": "null"}], "title": "Sasl Mechanism"},
+                            "sasl_username": {"anyOf": [{"type": "string"}, {"type": "null"}], "title": "Sasl Username"},
+                            "sasl_password": {"anyOf": [{"type": "string"}, {"type": "null"}], "title": "Sasl Password"},
+                            "group_id": {"anyOf": [{"type": "string"}, {"type": "null"}], "title": "Group Id"},
+                            "auto_offset_reset": {"anyOf": [{"type": "string"}, {"type": "null"}], "title": "Auto Offset Reset"}
+                        },
+                        "title": "RdKafkaSettings",
+                        "type": "object"
+                    }
+                },
+                "description": "Input node for log data from Kafka.",
+                "properties": {
+                    "category": {"const": "open_tel", "default": "open_tel", "title": "Category", "type": "string"},
+                    "node_id": {"const": "open_tel_logs_input", "title": "Node Id", "type": "string"},
+                    "tool_description": {"default": "", "title": "Tool Description", "type": "string"},
+                    "trigger_description": {"default": "", "title": "Trigger Description", "type": "string"},
+                    "n_inputs": {"const": 0, "default": 0, "title": "N Inputs", "type": "integer"},
+                    "rdkafka_settings": {"$ref": "#/$defs/RdKafkaSettings"},
+                    "topic": {"default": "otlp_logs", "title": "Topic", "type": "string"}
+                },
+                "required": ["node_id", "rdkafka_settings"],
+                "title": "OpenTelLogsNode",
+                "type": "object"
+            },
+            "type": "open_tel_logs_input",
+            "position": {"x": -403.95, "y": 600.77},
+            "node_id": "open_tel_logs_input",
+            "category": "open_tel",
+            "data": {
+                "ui": {"label": "OpenTelLogsNode Node", "iconUrl": ""},
+                "properties": {
+                    "tool_description": "Collect the logs for analysis, we do not need to connect it to any node",
+                    "trigger_description": "",
+                    "rdkafka_settings": {
+                        "bootstrap_servers": "34.93.25.61:9092",
+                        "group_id": "test_group_logs"
+                    },
+                    "topic": "otlp_logs"
+                }
+            },
+            "measured": {"width": 350, "height": 231},
             "selected": False,
             "dragging": False
         }
     ],
-    "edges": [],
-    "viewport": {"x": -1159.3000351200717, "y": 31.876160688560844, "zoom": 0.5037816702442691},
-    "metadata": {
-        "pipelineName": "Pipeline 69345280b071ea88a0db03a7",
-        "pipelineId": "69345280b071ea88a0db03a7",
-        "versionId": "69345fad5d160a95eb0f23d3",
-        "exportedAt": "2025-12-06T17:20:19.114Z",
-        "exportedBy": "1"
-    }
+    "edges": [
+        {"source": "n1", "sourceHandle": "out", "target": "n2", "targetHandle": "in_0", "id": "n1-n2", "animated": True, "selected": False, "style": {"stroke": "#b1b1b7", "strokeWidth": 2}},
+        {"source": "n2", "sourceHandle": "out", "target": "n3", "targetHandle": "in_0", "id": "n2-n3", "animated": True, "selected": False, "style": {"stroke": "#b1b1b7", "strokeWidth": 2}},
+        {"source": "n3", "sourceHandle": "out", "target": "n4", "targetHandle": "in_0", "id": "n3-n4", "animated": True, "selected": False, "style": {"stroke": "#b1b1b7", "strokeWidth": 2}},
+        {"source": "n4", "sourceHandle": "out", "target": "n5", "targetHandle": "in_0", "id": "n4-n5", "animated": True, "selected": False, "style": {"stroke": "#b1b1b7", "strokeWidth": 2}}
+    ],
+    "viewport": {"x": 288.95, "y": -52.76, "zoom": 0.55}
 }
 
-# Load the new workflow JSON
-with open(Path(__file__).resolve().parent.parent / "new_workflow.json",
-          "r", encoding="utf-8") as _f:
-    DOWNTIME_FLOWCHART: Dict[str, Any] = json.load(_f)
+# Load the new workflow JSON - use NEW_WORKFLOW_PIPELINE for mock server
+# This is the checkout monitoring pipeline with 6 nodes
+DOWNTIME_FLOWCHART: Dict[str, Any] = NEW_WORKFLOW_PIPELINE
 
 
 @app.post("/upload-pdf")
@@ -159,38 +479,35 @@ class MockWSAgenticSession:
         self.output_dir = Path(output_dir)
         self.output_dir.mkdir(parents=True, exist_ok=True)
 
-        # Split nodes into Phase 1 (Input/Filter) and Phase 2 (Calculation)
-        self.all_nodes = DOWNTIME_FLOWCHART.get("nodes", [])
-        self.all_edges = [e for e in DOWNTIME_FLOWCHART.get("edges", [])]
+        # Use the NEW_WORKFLOW_PIPELINE with 6 nodes
+        self.all_nodes = NEW_WORKFLOW_PIPELINE.get("nodes", [])
+        self.all_edges = [e for e in NEW_WORKFLOW_PIPELINE.get("edges", [])]
         
         self.phase1_nodes = []
         self.phase2_nodes = []
         
-        # For the new workflow:
-        # Phase 1: n1 (input), n2, n2_dup_1765039643792 (filters)
-        # Phase 2: n4, n4_dup_1765039669808, n6, n7, n8, n9, n10 (in dependency order)
+        # For the checkout monitoring pipeline:
+        # Phase 1: n1 (spans input), n6 (logs input) - input nodes
+        # Phase 2: n2 (filter checkout), n3 (window), n4 (threshold filter), n5 (trigger RCA)
         
-        phase1_ids = ["n1", "n2", "n2_dup_1765039643792"]
+        phase1_ids = ["n1", "n6"]  # Input nodes
+        phase2_ids = ["n2", "n3", "n4", "n5"]  # Processing nodes in order
         
         for node in self.all_nodes:
             nid = node.get("id", "")
             if nid in phase1_ids:
                 self.phase1_nodes.append(node)
-            else:
-                # Phase 2 nodes - exclude alert node from step-by-step (it's added at the end)
-                if nid != "n10":
-                    self.phase2_nodes.append(node)
         
-        # Sort Phase 2 nodes by dependency order based on edges
-        # Order: n4, n4_dup_1765039669808, n6, n7, n8, n9
-        phase2_order = ["n4", "n4_dup_1765039669808", "n6", "n7", "n8", "n9"]
-        self.phase2_nodes.sort(key=lambda x: phase2_order.index(x["id"]) if x["id"] in phase2_order else 999)
+        # Sort phase1 nodes: n1 first, then n6
+        self.phase1_nodes.sort(key=lambda x: phase1_ids.index(x["id"]) if x["id"] in phase1_ids else 999)
         
-        # Add n10 (alert) at the end
         for node in self.all_nodes:
-            if node.get("id") == "n10":
+            nid = node.get("id", "")
+            if nid in phase2_ids:
                 self.phase2_nodes.append(node)
-                break
+        
+        # Sort Phase 2 nodes by dependency order
+        self.phase2_nodes.sort(key=lambda x: phase2_ids.index(x["id"]) if x["id"] in phase2_ids else 999)
 
         self.phase1_flowchart = {"nodes": [], "edges": []}
         self.phase2_graph = {"nodes": [], "edges": []}
@@ -221,62 +538,71 @@ class MockWSAgenticSession:
         await self.save_final_flowchart(ws)
 
     async def run_phase1_interactive(self, ws: WebSocket) -> bool:
-        """Run Phase 1 interactively via WebSocket (Mocked)."""
+        """Run Phase 1 interactively via WebSocket (Mocked) - Input nodes only."""
         print("\n[SERVER] Phase 1.1: Sending phase announcement")
         await ws.send_json({
             "type": "phase",
             "phase": 1,
-            "message": "Starting Phase 1: Input & Filter Builder (multi-metric)"
+            "message": "Starting Phase 1: Input Node Configuration"
         })
+
+        # Add random delay
+        delay = await random_delay()
+        print(f"[SERVER] Random delay: {delay:.2f}s")
 
         print("\n[SERVER] Phase 1.2: Sending metrics summary")
         await ws.send_json({
             "type": "metrics_summary",
             "metrics": self.metrics_list,
-            "message": f"Loaded {len(self.metrics_list)} metrics for negotiation"
+            "message": f"Loaded {len(self.metrics_list)} metrics for processing"
         })
 
-        # --- Scripted Conversation Start ---
+        # --- Simplified Scripted Conversation for Checkout Monitoring ---
 
-        # Message 1: Initial agent introduction and question
-        msg_1 = """Okay, I understand. I am the SLA Input Builder agent. My goal is to determine how to select the relevant OpenTelemetry spans for your "Maximum Downtime" metric using filter nodes and then output the necessary JSON flowchart and metric mapping.
+        # Message 1: Initial agent introduction
+        msg_1 = """I am the Pipeline Builder agent. I'll help you create a monitoring pipeline for checkout failures.
 
-Let's start with your metric: "Maximum Downtime."
-This metric refers to both "Account Aggregator (AA)" and "Financial Information Provider (FIP)" services.
+Based on your requirements, I'll configure:
+1. **OpenTelemetry Spans Input** - to collect span data from Kafka
+2. **OpenTelemetry Logs Input** - to collect log data for RCA analysis
 
-How do you identify the OpenTelemetry spans that belong to the "Account Aggregator (AA)" service? Is there a specific `_open_tel_service_name` or `resource_attributes` key/value that identifies them?
-Similarly, how do you identify the OpenTelemetry spans that belong to the "Financial Information Provider (FIP)" service?"""
+Let's start by setting up the input nodes. The spans input will read from the `otlp_spans` topic and the logs input from `otlp_logs`.
+
+Do you want to proceed with the default Kafka configuration (bootstrap servers: `34.93.25.61:9092`)?"""
         if not await self._send_and_wait(ws, msg_1): return False
 
-        # Message 2: Response to user's filter suggestion
-        msg_2 = """Okay, I understand. For the "Maximum Downtime" metric, you want to identify spans with the name `payment healthcheck`.
+        # Message 2: Confirmation
+        msg_2 = """I'll now configure the input nodes with the specified settings.
 
-So, for both the "Account Aggregator (AA)" and "Financial Information Provider (FIP)" aspects of the "Maximum Downtime" metric, we will filter for spans where the `name` column is exactly `payment healthcheck`.
+**Configuration Summary:**
+- **Spans Input (n1):** Topic `otlp_spans`, Group ID `test_group_spans`
+- **Logs Input (n6):** Topic `otlp_logs`, Group ID `test_group_logs`
 
-Does this single filter (`name == "payment healthcheck"`) correctly identify the relevant health check spans for *both* the Account Aggregator and Financial Information Provider services, or do we need additional conditions to differentiate or further specify the health checks for each service?"""
+I'll propose each node for your approval. You can review the configuration and approve or modify as needed."""
         if not await self._send_and_wait(ws, msg_2): return False
-
-        # Message 3: Confirmation and plan summary
-        msg_3 = """Excellent. You've confirmed that a single filter `name == "payment healthcheck"` is sufficient for the "Maximum Downtime" metric.
-
-Here is the confirmation of the plan:
-*   **Input:** One `open_tel_spans_input` node reading from Kafka topic `otlp_spans`.
-*   **Filter:** One `filter` node, let's call it "Filter for Maximum Downtime", with the condition `name == "payment healthcheck"`. This node will select the relevant health check spans for your "Maximum Downtime" metric.
-*   **Edges:** An edge from the input node to this filter node.
-
-I have sufficient information to generate the flowchart and metric mapping."""
-        if not await self._send_and_wait(ws, msg_3): return False
 
         # --- Scripted Conversation End ---
 
         try:
-            # Send Phase 1 nodes one at a time (like Phase 2)
-            # Order: n1 (input), n2, n2_dup_1765039643792 (filters)
+            # Send Phase 1 nodes one at a time with hardcoded agent outputs
             print("\n[SERVER] Phase 1.5: Sending Phase 1 nodes one at a time")
             
             for node_index, next_node in enumerate(self.phase1_nodes):
                 node_id = next_node.get("id", "")
                 print(f"\n[SERVER] Phase 1 - Proposing node {node_index + 1}/{len(self.phase1_nodes)}: {node_id}")
+                
+                # Send hardcoded agent output for this node
+                agent_output = NODE_AGENT_OUTPUTS.get(node_id, f"Configuring node {node_id}...")
+                await ws.send_json({
+                    "type": "agent_response",
+                    "phase": 1,
+                    "node_id": node_id,
+                    "message": agent_output
+                })
+                
+                # Add random delay to simulate agent thinking
+                delay = await random_delay()
+                print(f"[SERVER] Random delay after agent output: {delay:.2f}s")
                 
                 # Calculate edges for this node (edges where target is next_node['id'])
                 relevant_edges = [
@@ -301,9 +627,9 @@ I have sufficient information to generate the flowchart and metric mapping."""
                     "edges": valid_edges,
                 })
 
-                # Add 1 second delay to show "Rendering node..." in frontend
-                print("[SERVER] Waiting 1 second after node proposal...")
-                await asyncio.sleep(1)
+                # Add random delay
+                delay = await random_delay()
+                print(f"[SERVER] Random delay after node proposal: {delay:.2f}s")
 
                 await ws.send_json({
                     "type": "await_approval",
@@ -333,9 +659,9 @@ I have sufficient information to generate the flowchart and metric mapping."""
                         "message": f"Phase 1 node {node_index + 1} approved",
                     })
                     
-                    # Add 1 second delay to show "Rendering node..." in frontend
-                    print("[SERVER] Waiting 1 second after node approval...")
-                    await asyncio.sleep(1)
+                    # Add random delay
+                    delay = await random_delay()
+                    print(f"[SERVER] Random delay after approval: {delay:.2f}s")
                     
                     await ws.send_json({
                         "type": "flowchart_update",
@@ -402,13 +728,17 @@ I have sufficient information to generate the flowchart and metric mapping."""
             return False
 
     async def run_phase2_iterative(self, ws: WebSocket) -> bool:
-        """Run Phase 2 iteratively via WebSocket (Mocked)."""
+        """Run Phase 2 iteratively via WebSocket (Mocked) - Processing nodes."""
         print("\n[SERVER] Phase 2.1: Sending Phase 2 announcement")
         await ws.send_json({
             "type": "phase",
             "phase": 2,
-            "message": "Starting Phase 2: Metric Calculation Builder"
+            "message": "Starting Phase 2: Pipeline Processing Nodes"
         })
+
+        # Add random delay
+        delay = await random_delay()
+        print(f"[SERVER] Random delay: {delay:.2f}s")
 
         print("\n[SERVER] Phase 2.2: Sending filter assignments")
         await ws.send_json({
@@ -430,19 +760,15 @@ I have sufficient information to generate the flowchart and metric mapping."""
                 "filter_context": filter_context,
             })
 
-            # Mock Macro Plan - matches the new workflow structure
+            # Macro Plan for the checkout monitoring pipeline
             macro_plan = [
-                "Window failed healthchecks (30s)",      # n4
-                "Window total healthchecks (30s)",       # n4_dup_1765039669808
-                "Join streams",                           # n6
-                "Calculate downtime percentage",          # n7
-                "Filter downtime < 1%",                   # n8
-                "Trigger RCA",                            # n9
-                "Alert"                                   # n10
+                "Filter checkout requests",           # n2
+                "Window aggregation (30s)",           # n3
+                "Threshold filter (>= 5 failures)",   # n4
+                "Trigger RCA on threshold breach",    # n5
             ]
             
-            # The phase2_nodes list should map to these steps
-            # n4, n4_dup_1765039669808, n6, n7, n8, n9, n10 -> 7 nodes
+            # The phase2_nodes list: n2, n3, n4, n5
 
             await ws.send_json({
                 "type": "macro_plan",
@@ -456,6 +782,7 @@ I have sufficient information to generate the flowchart and metric mapping."""
             while step_index < len(macro_plan) and step_index < len(self.phase2_nodes):
                 step_desc = macro_plan[step_index]
                 next_node = self.phase2_nodes[step_index]
+                node_id = next_node.get("id", "")
                 
                 await ws.send_json({
                     "type": "step_start",
@@ -465,6 +792,19 @@ I have sufficient information to generate the flowchart and metric mapping."""
                     "step": step_desc,
                 })
 
+                # Send hardcoded agent output for this node
+                agent_output = NODE_AGENT_OUTPUTS.get(node_id, f"Configuring node {node_id}...")
+                await ws.send_json({
+                    "type": "agent_response",
+                    "phase": 2,
+                    "node_id": node_id,
+                    "message": agent_output
+                })
+                
+                # Add random delay to simulate agent thinking
+                delay = await random_delay()
+                print(f"[SERVER] Random delay after agent output: {delay:.2f}s")
+
                 # Calculate edges for this node
                 # Edges where target is next_node['id']
                 relevant_edges = [
@@ -473,8 +813,6 @@ I have sufficient information to generate the flowchart and metric mapping."""
                 ]
                 
                 # We need to make sure the source nodes exist in current graph (Phase 1 + Phase 2 so far)
-                # In the mock, they should, because we are following the order.
-                # Build current graph to check
                 current_node_ids = {n["id"] for n in self.phase1_flowchart.get("nodes", [])}
                 current_node_ids.update({n["id"] for n in self.phase2_graph.get("nodes", [])})
                 
@@ -492,9 +830,9 @@ I have sufficient information to generate the flowchart and metric mapping."""
                     "edges": valid_edges,
                 })
 
-                # Add 1 second delay to show "Rendering node..." in frontend
-                print("[SERVER] Waiting 1 second after node proposal...")
-                await asyncio.sleep(1)
+                # Add random delay
+                delay = await random_delay()
+                print(f"[SERVER] Random delay after node proposal: {delay:.2f}s")
 
                 await ws.send_json({
                     "type": "await_approval",
@@ -515,14 +853,10 @@ I have sufficient information to generate the flowchart and metric mapping."""
                     self._finalize_node(next_node, valid_edges, step_index)
                     
                     # Send flowchart update with all nodes (Phase 1 + Phase 2 so far)
-                    # Don't apply layout here - preserve original positions from JSON
-                    # Layout will be applied only at the final step
                     merged_flowchart = {
                         "nodes": self.phase1_flowchart.get("nodes", []) + self.phase2_graph.get("nodes", []),
                         "edges": self.phase1_flowchart.get("edges", []) + self.phase2_graph.get("edges", []),
                     }
-                    # Preserve positions from original nodes - don't apply layout yet
-                    # This ensures nodes appear at the correct positions from the start
                     
                     phase1_nodes = self.phase1_flowchart.get("nodes", [])
                     phase2_nodes = self.phase2_graph.get("nodes", [])
@@ -535,7 +869,6 @@ I have sufficient information to generate the flowchart and metric mapping."""
                     print(f"  - Newly approved node: {next_node.get('id', '?')} at position: {next_node.get('position', {})}")
                     
                     # Send node_approved first, then flowchart_update
-                    # This ensures the frontend knows the node is approved before merging
                     await ws.send_json({
                         "type": "node_approved",
                         "metric_index": metric_index,
@@ -543,11 +876,11 @@ I have sufficient information to generate the flowchart and metric mapping."""
                         "message": f"Step {step_index + 1} approved",
                     })
                     
-                    # Add 1 second delay to show "Rendering node..." in frontend
-                    print("[SERVER] Waiting 1 second after node approval...")
-                    await asyncio.sleep(1)
+                    # Add random delay
+                    delay = await random_delay()
+                    print(f"[SERVER] Random delay after approval: {delay:.2f}s")
                     
-                    # Then send flowchart_update with all nodes (this will merge and keep all previous nodes)
+                    # Then send flowchart_update with all nodes
                     await ws.send_json({
                         "type": "flowchart_update",
                         "flowchart": merged_flowchart,
@@ -713,15 +1046,25 @@ async def websocket_endpoint(ws: WebSocket):
             pass
 
 if __name__ == "__main__":
+    import argparse
+    
     print("=" * 60)
     print(" AGENTIC SERVER (Mock, deterministic flowchart) ")
     print("=" * 60)
-    port = int(os.getenv("CONTRACT_PARSER_PORT", "8001"))
+    
+    parser = argparse.ArgumentParser(description="Mock Agentic Server")
+    parser.add_argument("--port", type=int, default=int(os.getenv("CONTRACT_PARSER_PORT", "8001")), 
+                        help="Port to run the server on (default: 8001 or CONTRACT_PARSER_PORT env)")
+    parser.add_argument("--host", type=str, default="0.0.0.0",
+                        help="Host to bind to (default: 0.0.0.0)")
+    args = parser.parse_args()
+    
+    print(f"Starting server on {args.host}:{args.port}")
 
     uvicorn.run(
         "mock_server:app",
-        host="0.0.0.0",
-        port=port,
+        host=args.host,
+        port=args.port,
         reload=True,
         ws_ping_interval=None,
         ws_ping_timeout=None,

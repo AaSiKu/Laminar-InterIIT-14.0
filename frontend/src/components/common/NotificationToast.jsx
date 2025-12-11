@@ -48,8 +48,52 @@ const NotificationToast = () => {
   const [currentToast, setCurrentToast] = useState(null);
   const [open, setOpen] = useState(false);
 
-  // Track seen notification/log IDs to avoid showing duplicates (using ref to avoid infinite loops)
-  const seenIdsRef = useRef(new Set());
+  // Track seen notification/log IDs using sessionStorage to persist across refresh
+  const seenIdsRef = useRef(() => {
+    try {
+      const stored = sessionStorage.getItem('seenNotificationIds');
+      return stored ? new Set(JSON.parse(stored)) : new Set();
+    } catch {
+      return new Set();
+    }
+  });
+  
+  // Initialize seenIds from sessionStorage on mount
+  const [seenIds, setSeenIds] = useState(() => {
+    try {
+      const stored = sessionStorage.getItem('seenNotificationIds');
+      return stored ? new Set(JSON.parse(stored)) : new Set();
+    } catch {
+      return new Set();
+    }
+  });
+  
+  // Keep ref in sync with state
+  useEffect(() => {
+    seenIdsRef.current = seenIds;
+  }, [seenIds]);
+  
+  // Persist seenIds to sessionStorage when they change
+  const addSeenId = useCallback((id) => {
+    setSeenIds(prev => {
+      const newSet = new Set(prev);
+      newSet.add(id);
+      // Keep only last 500 IDs to prevent storage bloat
+      const idsArray = Array.from(newSet);
+      if (idsArray.length > 500) {
+        const trimmed = idsArray.slice(-500);
+        const trimmedSet = new Set(trimmed);
+        try {
+          sessionStorage.setItem('seenNotificationIds', JSON.stringify(trimmed));
+        } catch {}
+        return trimmedSet;
+      }
+      try {
+        sessionStorage.setItem('seenNotificationIds', JSON.stringify(idsArray));
+      } catch {}
+      return newSet;
+    });
+  }, []);
   
   // Track if initial data has been loaded (to avoid showing toasts for pre-existing items)
   const initialLoadCompleteRef = useRef(false);
@@ -58,7 +102,7 @@ const NotificationToast = () => {
   useEffect(() => {
     const timer = setTimeout(() => {
       initialLoadCompleteRef.current = true;
-    }, 1000); // Wait 1 second for initial data to load
+    }, 2000); // Wait 2 seconds for initial data to load
     return () => clearTimeout(timer);
   }, []);
 
@@ -131,7 +175,9 @@ const NotificationToast = () => {
       if (!initialLoadCompleteRef.current) {
         logs.forEach(log => {
           const logId = extractId(log, 'log');
-          seenIdsRef.current.add(logId);
+          if (!seenIds.has(logId)) {
+            addSeenId(logId);
+          }
         });
         return;
       }
@@ -139,8 +185,8 @@ const NotificationToast = () => {
       const latestLog = logs[0];
       const logId = extractId(latestLog, 'log');
 
-      if (!seenIdsRef.current.has(logId)) {
-        seenIdsRef.current.add(logId);
+      if (!seenIds.has(logId)) {
+        addSeenId(logId);
         setToastQueue((prev) => [
           ...prev,
           {
@@ -152,7 +198,7 @@ const NotificationToast = () => {
         ]);
       }
     }
-  }, [logs]); // Only depend on logs
+  }, [logs, seenIds, addSeenId]); // Depend on logs, seenIds, and addSeenId
 
   // Handle new notifications/alerts - show popup only if NOT on overview page (and not for initially loaded notifications)
   useEffect(() => {
@@ -161,7 +207,9 @@ const NotificationToast = () => {
       if (!initialLoadCompleteRef.current) {
         notifications.forEach(n => {
           const notifId = extractId(n, 'notif');
-          seenIdsRef.current.add(notifId);
+          if (!seenIds.has(notifId)) {
+            addSeenId(notifId);
+          }
         });
         return;
       }
@@ -170,8 +218,8 @@ const NotificationToast = () => {
         const latestNotification = notifications[0];
         const notifId = extractId(latestNotification, 'notif');
 
-        if (!seenIdsRef.current.has(notifId)) {
-          seenIdsRef.current.add(notifId);
+        if (!seenIds.has(notifId)) {
+          addSeenId(notifId);
           setToastQueue((prev) => [
             ...prev,
             {
@@ -184,7 +232,7 @@ const NotificationToast = () => {
         }
       }
     }
-  }, [notifications, isOverviewPage]); // Only depend on notifications and isOverviewPage
+  }, [notifications, isOverviewPage, seenIds, addSeenId]); // Depend on seenIds and addSeenId
 
   // Handle new RCA events - always show popup (but not for initially loaded RCA events)
   useEffect(() => {
@@ -193,7 +241,9 @@ const NotificationToast = () => {
       if (!initialLoadCompleteRef.current) {
         rcaEvents.forEach(rca => {
           const rcaId = extractId(rca, 'rca');
-          seenIdsRef.current.add(rcaId);
+          if (!seenIds.has(rcaId)) {
+            addSeenId(rcaId);
+          }
         });
         return;
       }
@@ -201,8 +251,8 @@ const NotificationToast = () => {
       const latestRca = rcaEvents[0];
       const rcaId = extractId(latestRca, 'rca');
 
-      if (!seenIdsRef.current.has(rcaId)) {
-        seenIdsRef.current.add(rcaId);
+      if (!seenIds.has(rcaId)) {
+        addSeenId(rcaId);
         setToastQueue((prev) => [
           ...prev,
           {
@@ -215,7 +265,7 @@ const NotificationToast = () => {
         ]);
       }
     }
-  }, [rcaEvents]); // Only depend on rcaEvents
+  }, [rcaEvents, seenIds, addSeenId]); // Depend on seenIds and addSeenId
 
   // Process toast queue - show next toast when current one closes
   useEffect(() => {

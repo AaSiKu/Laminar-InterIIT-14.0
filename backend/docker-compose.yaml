@@ -26,6 +26,7 @@ services:
       MONGO_COLLECTION: ${MONGO_COLLECTION}
       LOGS_COLLECTION: ${LOGS_COLLECTION}
       NOTIFICATION_COLLECTION: ${NOTIFICATION_COLLECTION}
+      RCA_COLLECTION: ${RCA_COLLECTION:-rca_events}
     volumes:
       - ./pipeline:/app/pipeline:ro
       - ./lib:/app/lib:ro

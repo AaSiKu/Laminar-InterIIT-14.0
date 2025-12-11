@@ -24,7 +24,8 @@ WORKFLOW_COLLECTION = os.getenv("WORKFLOW_COLLECTION", "workflows")
 # Actions are actions from rule book, in our notation there are alerts which are a specific type of notifications
 
 NOTIFICATION_COLLECTION = os.getenv("NOTIFICATION_COLLECTION", "notifications")
-LOG_COLLECTION = os.getenv("LOG_COLLECTION", "logs")  # Commented out - logs not implemented yet
+# Support both LOG_COLLECTION and LOGS_COLLECTION for backwards compatibility
+LOG_COLLECTION = os.getenv("LOG_COLLECTION", os.getenv("LOGS_COLLECTION", "logs"))
 VERSION_COLLECTION = os.getenv("VERSION_COLLECTION", "versions")
 RCA_COLLECTION = os.getenv("RCA_COLLECTION", "rca_events")  # RCA events collection
 # Global variables

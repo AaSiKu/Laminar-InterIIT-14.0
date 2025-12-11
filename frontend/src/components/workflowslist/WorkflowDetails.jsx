@@ -11,11 +11,18 @@ import {
   ListItemText,
   CircularProgress,
   useTheme,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  Chip,
+  alpha,
 } from "@mui/material";
 import EditIcon from "@mui/icons-material/Edit";
 import FileCopyIcon from "@mui/icons-material/FileCopy";
-import DownloadIcon from "@mui/icons-material/Download";
+import OpenInNewIcon from "@mui/icons-material/OpenInNew";
 import DescriptionIcon from "@mui/icons-material/Description";
+import CloseIcon from "@mui/icons-material/Close";
+import Markdown from "react-markdown";
 import PipelinePreview from "./PipelinePreview";
 import MetricCard from "./MetricCard";
 import ActionRequired from "./ActionRequired";
@@ -46,7 +53,12 @@ const WorkflowDetails = ({
   const [reportMenuAnchor, setReportMenuAnchor] = useState(null);
   const [reports, setReports] = useState([]);
   const [loadingReports, setLoadingReports] = useState(false);
-  const [downloadingReport, setDownloadingReport] = useState(null);
+  const [viewingReport, setViewingReport] = useState(null);
+  
+  // Report dialog state
+  const [reportDialogOpen, setReportDialogOpen] = useState(false);
+  const [reportContent, setReportContent] = useState("");
+  const [reportMetadata, setReportMetadata] = useState(null);
 
   // Handle report menu open
   const handleReportMenuOpen = async (event) => {
@@ -80,36 +92,54 @@ const WorkflowDetails = ({
     setReportMenuAnchor(null);
   };
 
-  // Handle report download
-  const handleDownloadReport = async (reportId) => {
+  // Handle report view - opens markdown in dialog
+  const handleViewReport = async (reportId) => {
     if (!workflow?.id) return;
     
-    setDownloadingReport(reportId);
+    setViewingReport(reportId);
     try {
       const workflowId = String(workflow.id || workflow._id);
       const response = await fetch(
-        `${import.meta.env.VITE_API_SERVER}/agentic/${workflowId}/reports/${reportId}/download`,
+        `${import.meta.env.VITE_API_SERVER}/agentic/${workflowId}/reports/${reportId}`,
         { credentials: "include" }
       );
       
       if (response.ok) {
-        const blob = await response.blob();
-        const url = window.URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = `${reportId}.md`;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        window.URL.revokeObjectURL(url);
+        const data = await response.json();
+        setReportContent(data.content || "");
+        setReportMetadata({ ...data.metadata, report_id: reportId });
+        setReportDialogOpen(true);
       } else {
-        console.error("Failed to download report:", response.statusText);
+        console.error("Failed to fetch report:", response.statusText);
       }
     } catch (error) {
-      console.error("Error downloading report:", error);
+      console.error("Error viewing report:", error);
     } finally {
-      setDownloadingReport(null);
+      setViewingReport(null);
       handleReportMenuClose();
+    }
+  };
+
+  // Handle report dialog close
+  const handleReportDialogClose = () => {
+    setReportDialogOpen(false);
+    setReportContent("");
+    setReportMetadata(null);
+  };
+
+  // Get severity color for chip
+  const getSeverityColor = (severity) => {
+    switch (severity?.toLowerCase()) {
+      case "critical":
+        return "error";
+      case "high":
+        return "warning";
+      case "medium":
+        return "info";
+      case "low":
+        return "success";
+      default:
+        return "default";
     }
   };
 
@@ -401,11 +431,11 @@ const WorkflowDetails = ({
                 reports.map((report) => (
                   <MenuItem
                     key={report.report_id}
-                    onClick={() => handleDownloadReport(report.report_id)}
-                    disabled={downloadingReport === report.report_id}
+                    onClick={() => handleViewReport(report.report_id)}
+                    disabled={viewingReport === report.report_id}
                   >
                     <ListItemIcon>
-                      {downloadingReport === report.report_id ? (
+                      {viewingReport === report.report_id ? (
                         <CircularProgress size={20} />
                       ) : (
                         <DescriptionIcon fontSize="small" />
@@ -419,7 +449,7 @@ const WorkflowDetails = ({
                           : "N/A"
                       }`}
                     />
-                    <DownloadIcon fontSize="small" sx={{ ml: 1, color: "text.secondary" }} />
+                    <OpenInNewIcon fontSize="small" sx={{ ml: 1, color: "text.secondary" }} />
                   </MenuItem>
                 ))
               )}
@@ -521,6 +551,189 @@ const WorkflowDetails = ({
         />
         <LogsSection workflow={workflow} />
       </Box>
+
+      {/* Report Dialog */}
+      <Dialog
+        open={reportDialogOpen}
+        onClose={handleReportDialogClose}
+        maxWidth="md"
+        fullWidth
+        PaperProps={{
+          sx: {
+            borderRadius: 2,
+            maxHeight: "85vh",
+          },
+        }}
+      >
+        <DialogTitle
+          sx={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            borderBottom: "1px solid",
+            borderColor: "divider",
+            pb: 2,
+          }}
+        >
+          <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
+            <DescriptionIcon color="primary" />
+            <Box>
+              <Typography variant="h6" fontWeight={600}>
+                Incident Report
+              </Typography>
+              {reportMetadata?.report_id && (
+                <Typography variant="caption" color="text.secondary">
+                  {reportMetadata.report_id}
+                </Typography>
+              )}
+            </Box>
+          </Box>
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+            {reportMetadata?.severity && (
+              <Chip
+                label={reportMetadata.severity.toUpperCase()}
+                color={getSeverityColor(reportMetadata.severity)}
+                size="small"
+                sx={{ fontWeight: 600 }}
+              />
+            )}
+            {reportMetadata?.primary_service && (
+              <Chip
+                label={reportMetadata.primary_service}
+                variant="outlined"
+                size="small"
+              />
+            )}
+            <IconButton onClick={handleReportDialogClose} size="small">
+              <CloseIcon />
+            </IconButton>
+          </Box>
+        </DialogTitle>
+        <DialogContent sx={{ p: 0 }}>
+          {/* Report Metadata */}
+          {reportMetadata?.timestamp && (
+            <Box
+              sx={{
+                px: 3,
+                py: 1.5,
+                bgcolor: alpha(theme.palette.primary.main, 0.04),
+                borderBottom: "1px solid",
+                borderColor: "divider",
+              }}
+            >
+              <Typography variant="caption" color="text.secondary">
+                Generated: {new Date(reportMetadata.timestamp).toLocaleString()}
+              </Typography>
+            </Box>
+          )}
+          
+          {/* Markdown Content */}
+          <Box
+            sx={{
+              p: 3,
+              overflow: "auto",
+              maxHeight: "calc(85vh - 180px)",
+              "& h1": {
+                fontSize: "1.75rem",
+                fontWeight: 700,
+                mb: 2,
+                mt: 0,
+                pb: 1,
+                borderBottom: "1px solid",
+                borderColor: "divider",
+              },
+              "& h2": {
+                fontSize: "1.375rem",
+                fontWeight: 600,
+                mb: 1.5,
+                mt: 3,
+              },
+              "& h3": {
+                fontSize: "1.125rem",
+                fontWeight: 600,
+                mb: 1,
+                mt: 2,
+              },
+              "& p": {
+                m: 0,
+                mb: 1.5,
+                lineHeight: 1.7,
+                color: "text.secondary",
+              },
+              "& ul, & ol": {
+                pl: 3,
+                mb: 1.5,
+              },
+              "& li": {
+                mb: 0.5,
+                color: "text.secondary",
+              },
+              "& code": {
+                px: 0.75,
+                py: 0.25,
+                borderRadius: 0.5,
+                bgcolor: alpha(theme.palette.action.hover, 0.8),
+                fontFamily: "monospace",
+                fontSize: "0.8125rem",
+              },
+              "& pre": {
+                p: 2,
+                borderRadius: 1,
+                bgcolor: alpha(theme.palette.action.hover, 0.5),
+                overflow: "auto",
+                "& code": {
+                  p: 0,
+                  bgcolor: "transparent",
+                },
+              },
+              "& blockquote": {
+                borderLeft: "4px solid",
+                borderColor: "primary.main",
+                pl: 2,
+                ml: 0,
+                my: 2,
+                color: "text.secondary",
+                fontStyle: "italic",
+              },
+              "& table": {
+                width: "100%",
+                borderCollapse: "collapse",
+                mb: 2,
+              },
+              "& th, & td": {
+                border: "1px solid",
+                borderColor: "divider",
+                px: 2,
+                py: 1,
+                textAlign: "left",
+              },
+              "& th": {
+                bgcolor: alpha(theme.palette.primary.main, 0.04),
+                fontWeight: 600,
+              },
+              "& hr": {
+                border: "none",
+                borderTop: "1px solid",
+                borderColor: "divider",
+                my: 3,
+              },
+              "& a": {
+                color: "primary.main",
+                textDecoration: "none",
+                "&:hover": {
+                  textDecoration: "underline",
+                },
+              },
+              "& strong": {
+                fontWeight: 600,
+                color: "text.primary",
+              },
+            }}
+          >
+            <Markdown>{reportContent}</Markdown>
+          </Box>
+        </DialogContent>
+      </Dialog>
     </Box>
   );
 };

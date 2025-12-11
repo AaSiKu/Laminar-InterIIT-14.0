@@ -11,13 +11,16 @@ def get_rca_logger():
     Get or initialize the RCA logger.
     Logger is only created when this function is explicitly called.
     No automatic event detection or logging occurs.
+    
+    Important logs (WARNING and above) are sent to MongoDB for visibility.
+    All logs go to PostgreSQL.
     """
     global _rca_logger, _logger_initialized
     if not _logger_initialized:
         from lib.logger import setup_logging
         _rca_logger = setup_logging(
             level=logging.INFO,
-            mongo_level=logging.INFO,
+            mongo_level=logging.WARNING,  # Only critical/important logs go to MongoDB
             fallback_file="rca_logs.log",
             mongo_collection="rca_events",
         )

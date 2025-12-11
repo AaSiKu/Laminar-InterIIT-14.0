@@ -406,7 +406,7 @@ const AIChatbot = ({
           mb: 2, // Add margin bottom to prevent border clipping
         }}
       >
-        {!hasGeneratedWorkflow ? (
+        {/* {!hasGeneratedWorkflow ? (
           // Analyze Button - Show before workflow is generated
           <Box
             sx={{
@@ -532,7 +532,7 @@ const AIChatbot = ({
               </Button>
             </Box>
           </>
-        )}
+        )} */}
       </Box>
     </Box>
   );

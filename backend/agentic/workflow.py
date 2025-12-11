@@ -1,6 +1,5 @@
 from langgraph.graph import StateGraph, END
 from langgraph.graph.state import CompiledStateGraph
-from langchain_core.messages import HumanMessage
 from langchain.agents import create_agent
 from langchain.agents.structured_output import ToolStrategy
 from typing import List, Union
@@ -116,12 +115,12 @@ def create_workflow(agents: List[AgentPayload]):
     
     
 
-    def planning_node(state: GraphState) -> GraphState:
+    async def planning_node(state: GraphState) -> GraphState:
         """Generate initial plan or handle CANNOT_EXECUTE"""
         query = state["query"]
         
         # Invoke planner
-        result = planner.invoke({"messages": [HumanMessage(content=query)]})
+        result = await planner.ainvoke({"messages": [{"role": "user", "content": query}]})
         plan_output = result["structured_response"]
         
         # Check if it's CANNOT_EXECUTE
@@ -140,7 +139,7 @@ def create_workflow(agents: List[AgentPayload]):
             "execution_strategy": plan.execution_strategy
         }
     
-    def replanning_node(state: GraphState) -> GraphState:
+    async def replanning_node(state: GraphState) -> GraphState:
         """Generate follow-up plan based on aggregator feedback"""
         query = state["query"]
         action_results = state["action_results"]
@@ -170,7 +169,7 @@ def create_workflow(agents: List[AgentPayload]):
         
         
         
-        result = replanner_agent.invoke({"messages": [HumanMessage(content=replanner_context)]})
+        result = await replanner_agent.ainvoke({"messages": [{"role": "user", "content": replanner_context}]})
         replan_output = result["structured_response"]
         
 
@@ -207,7 +206,7 @@ def create_workflow(agents: List[AgentPayload]):
             "action_results": all_results
         }
     
-    def aggregation_node(state: GraphState) -> GraphState:
+    async def aggregation_node(state: GraphState) -> GraphState:
         """Synthesize results and decide: finish or replan"""
         query = state["query"]
         plan_reasoning = state["plan_reasoning"]
@@ -255,7 +254,7 @@ def create_workflow(agents: List[AgentPayload]):
         )
         
         
-        result = aggregator_agent.invoke({"messages": [HumanMessage(content=aggregator_context)]})
+        result = await aggregator_agent.ainvoke({"messages": [{"role": "user", "content":aggregator_context}]})
         response = result["structured_response"]
         
 
@@ -357,7 +356,7 @@ async def run_agentic_query(query: str,workflow: CompiledStateGraph) -> dict:
     if final_state.get("error_message"):
         return {
             "success": False,
-            "error": final_state["error_message"],
+            "answer": final_state["error_message"],
             "query": query
         }
     

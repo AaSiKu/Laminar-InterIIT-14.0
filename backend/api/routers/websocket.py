@@ -11,7 +11,7 @@ from .auth.database import get_db
 from bson.json_util import dumps
 from bson import ObjectId
 from starlette.websockets import WebSocketDisconnect
-from backend.api.helper import send_critical_log_notification, send_rca_update_notification
+from ..helper import send_critical_log_notification, send_rca_update_notification
 import logging
 
 logger = logging.getLogger(__name__)
@@ -103,18 +103,25 @@ async def watch_notifications(notification_collection, workflow_collection):
     """
     condition = [{"$match": {"operationType": {"$in": ["insert", "update"]}}}]
     try:
+        logger.info(f"[CHANGE_STREAM] Starting notification watcher on collection: {notification_collection.name}")
         async with notification_collection.watch(
             condition,
             full_document="updateLookup"
         ) as stream:
-            logger.info("Notification change stream listener started")
+            logger.info("[CHANGE_STREAM] Notification change stream listener started successfully")
             async for change in stream:
+                operation_type = change.get("operationType")
                 doc = change.get("fullDocument")
+                doc_id = change.get("documentKey", {}).get("_id")
+                logger.info(f"[CHANGE_STREAM] Notification change detected: operation={operation_type}, doc_id={doc_id}")
+                
                 if not doc:
+                    logger.warning("[CHANGE_STREAM] Notification change has no fullDocument, skipping")
                     continue
 
                 # Fetch workflow details
                 pipeline_id = doc.get("pipeline_id")
+                logger.info(f"[CHANGE_STREAM] Notification for pipeline_id: {pipeline_id}")
                 if pipeline_id:
                     try:
                         workflow = await workflow_collection.find_one(
@@ -127,9 +134,11 @@ async def watch_notifications(notification_collection, workflow_collection):
                         doc["workflow"] = {}
 
                 # Broadcast notification/alert
+                logger.info(f"[CHANGE_STREAM] Broadcasting notification, type={doc.get('type')}, title={doc.get('title')}")
                 await broadcast(doc, message_type="notification")
     except Exception as e:
         logger.error(f"⚠ Notification ChangeStream NOT running: {e}")
+        logger.exception("Full traceback:")
 
 async def watch_workflows(workflow_collection):
     """
@@ -210,19 +219,24 @@ async def watch_rca(rca_collection, workflow_collection):
     """
     condition = [{"$match": {"operationType": {"$in": ["insert", "update"]}}}]
     try:
+        logger.info(f"Starting RCA change stream watcher on collection: {rca_collection.name}")
         async with rca_collection.watch(
             condition,
             full_document="updateLookup"
         ) as stream:
-            logger.info("RCA change stream listener started")
+            logger.info("RCA change stream listener started successfully")
             async for change in stream:
                 operation_type = change.get("operationType")
                 doc = change.get("fullDocument")
+                logger.info(f"RCA change detected: operation={operation_type}, doc_id={change.get('documentKey', {}).get('_id')}")
+                
                 if not doc:
+                    logger.warning("RCA change stream received event with no fullDocument")
                     continue
 
                 # Fetch workflow details
                 pipeline_id = doc.get("pipeline_id")
+                logger.info(f"RCA event for pipeline_id: {pipeline_id}")
                 if pipeline_id:
                     try:
                         workflow = await workflow_collection.find_one(
@@ -240,9 +254,11 @@ async def watch_rca(rca_collection, workflow_collection):
                     logger.error(f"Failed to send Slack notification for RCA: {e}")
 
                 # Broadcast RCA update
+                logger.info(f"Broadcasting RCA event to {len(active_connections)} WebSocket connections")
                 await broadcast(doc, message_type="rca")
     except Exception as e:
         logger.error(f"⚠ RCA ChangeStream NOT running: {e}")
+        logger.exception("Full traceback:")
 
 
 async def watch_changes(notification_collection, log_collection, workflow_collection, rca_collection=None):
@@ -280,8 +296,10 @@ async def broadcast(message: dict, message_type: str = "notification"):
     """
     current_time = time.time()
 
+    logger.info(f"[BROADCAST] Broadcasting {message_type} message, active connections: {len(active_connections)}")
+    
     if not active_connections:
-        logger.debug("No websocket connections to broadcast to")
+        logger.warning(f"[BROADCAST] No websocket connections to broadcast to for {message_type}")
         return
 
     # Track dropped connections
@@ -292,8 +310,9 @@ async def broadcast(message: dict, message_type: str = "notification"):
         try:
             # Add message type to the message
             message_with_type = {**message, "message_type": message_type}
-            print(f"Broadcasting {message_type} to user {ws_current_user.id}")
+            logger.info(f"[BROADCAST] Sending {message_type} to user {ws_current_user.id}")
             await websocket.send_text(dumps(message_with_type))
+            logger.info(f"[BROADCAST] Successfully sent {message_type} to user {ws_current_user.id}")
 
             # Update last activity
             active_connections.discard((websocket, ws_current_user, last_activity))

@@ -105,8 +105,8 @@ def run_pipeline_container(client: docker.DockerClient, pipeline_id: str):
 
     # Wait for PostgreSQL to be ready and initialization to complete
     logger.info("Waiting for PostgreSQL to be ready...")
-    max_retries = 30
-    retry_interval = 2  # seconds
+    max_retries = 3
+    retry_interval = 1  # seconds
     
     for attempt in range(max_retries):
         try:
@@ -242,7 +242,7 @@ def run_pipeline_container(client: docker.DockerClient, pipeline_id: str):
     )
 
     # Wait for port assignments with retry logic
-    max_retries = 10
+    max_retries = 5
     retry_delay = 0.5  # seconds
     
     assigned_pipeline_port = None

@@ -23,21 +23,13 @@ export const GlobalStateProvider = ({ children }) => {
   const [rcaEvents, setRcaEvents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [initialized, setInitialized] = useState(false);
-  const [messageQueue, setMessageQueue] = useState([]); // Queue for messages received while disconnected
+  
+  // Use ref for message queue to avoid dependency issues
+  const messageQueueRef = useRef([]);
+  const isProcessingQueueRef = useRef(false);
   
   const { isAuthenticated, user } = useContext(AuthContext);
   const { ws, isConnected } = useWebSocket();
-
-  // Helper function to check if item exists by _id
-  const itemExists = useCallback((array, item) => {
-    if (!item || !item._id) return false;
-    return array.some(existing => {
-      if (existing._id) {
-        return String(existing._id) === String(item._id);
-      }
-      return false;
-    });
-  }, []);
 
   // Fetch initial data from APIs
   useEffect(() => {
@@ -88,48 +80,37 @@ export const GlobalStateProvider = ({ children }) => {
     loadInitialData();
   }, [isAuthenticated, user, initialized]);
 
-  // Process a single WebSocket message
-  const processWebSocketMessage = useCallback((data) => {
+  // Process a single WebSocket message - stable function with no external dependencies
+  const processMessage = useCallback((data) => {
     const messageType = data.message_type || data.type;
 
     // Handle workflow updates
     if (messageType === "workflow" && data._id) {
       setWorkflows(prev => {
-        // Check if workflow already exists
-        const existingIndex = prev.findIndex(w => {
-          if (w._id && data._id) return String(w._id) === String(data._id);
-          return false;
-        });
-
+        const existingIndex = prev.findIndex(w => w._id && String(w._id) === String(data._id));
         if (existingIndex >= 0) {
-          // Update existing workflow
           const updated = [...prev];
           updated[existingIndex] = { ...updated[existingIndex], ...data };
           return updated;
-        } else {
-          // Add new workflow (avoid duplicates)
-          if (!itemExists(prev, data)) {
-            return [data, ...prev];
-          }
-          return prev;
+        } else if (!itemExistsById(prev, data)) {
+          return [data, ...prev];
         }
+        return prev;
       });
     }
 
     // Handle notifications (including alerts)
     if (messageType === "notification" || (data.type && data.type !== "workflow" && data.type !== "log")) {
       setNotifications(prev => {
-        // Add notification if it doesn't exist
-        if (!itemExists(prev, data)) {
+        if (!itemExistsById(prev, data)) {
           return [data, ...prev];
         }
         return prev;
       });
 
-      // If notification is an alert (type=="alert"), also add to alerts
       if (data.type === "alert") {
         setAlerts(prev => {
-          if (!itemExists(prev, data)) {
+          if (!itemExistsById(prev, data)) {
             return [data, ...prev];
           }
           return prev;
@@ -137,102 +118,59 @@ export const GlobalStateProvider = ({ children }) => {
       }
     }
 
-    // Handle logs
+    // Handle logs - deduplicate by _id
     if (messageType === "log") {
-      console.log("Processing log message:", data);
-      setLogs(prev => [data, ...prev]);
+      setLogs(prev => {
+        if (!itemExistsById(prev, data)) {
+          return [data, ...prev];
+        }
+        return prev;
+      });
     }
 
     // Handle RCA events
     if (messageType === "rca") {
-      console.log("Processing RCA event:", data);
       setRcaEvents(prev => {
-        // Update or add RCA event
-        const existingIndex = prev.findIndex(r => {
-          if (r._id && data._id) return String(r._id) === String(data._id);
-          return false;
-        });
+        const existingIndex = prev.findIndex(r => r._id && String(r._id) === String(data._id));
         if (existingIndex >= 0) {
-          // Update existing RCA
           const updated = [...prev];
           updated[existingIndex] = { ...updated[existingIndex], ...data };
           return updated;
-        } else {
-          // Add new RCA event
-          if (!itemExists(prev, data)) {
-            return [data, ...prev];
-          }
-          return prev;
+        } else if (!itemExistsById(prev, data)) {
+          return [data, ...prev];
         }
+        return prev;
       });
     }
-  }, [setWorkflows, setNotifications, setAlerts, setRcaEvents, itemExists]);
+  }, []); // No dependencies - uses only setState functions which are stable
 
-  // Process queued messages when connection is restored
-  const processMessageQueue = useCallback(() => {
-    if (messageQueue.length > 0) {
-      console.log(`Processing ${messageQueue.length} queued messages`);
-      messageQueue.forEach((data) => {
-        processWebSocketMessage(data);
-      });
-      setMessageQueue([]);
-    }
-  }, [messageQueue, processWebSocketMessage]);
-
-  // Handle WebSocket messages - ADD to existing arrays
+  // Handle WebSocket messages
   useEffect(() => {
     if (!ws) {
-      // If WebSocket is null, queue messages
       return;
     }
 
     const handleMessage = (event) => {
       try {
-        let data;
-        if (typeof event.data === 'string') {
-          data = JSON.parse(event.data);
-        } else {
-          data = event.data;
-        }
+        const data = typeof event.data === 'string' ? JSON.parse(event.data) : event.data;
 
         // Ignore ping/pong messages
         if (data.type === "ping" || data.type === "pong" || data.message_type === "ping" || data.message_type === "pong") {
           return;
         }
 
-        // If connected, process immediately; otherwise queue
-        if (isConnected) {
-          processWebSocketMessage(data);
-        } else {
-          console.log("WebSocket not connected, queuing message:", data);
-          setMessageQueue(prev => {
-            const updated = [...prev, data];
-            // Limit queue size to prevent memory issues
-            return updated.length > 100 ? updated.slice(-100) : updated;
-          });
-        }
+        // Process message directly
+        processMessage(data);
       } catch (error) {
-        console.error("Error handling WebSocket message in GlobalStateContext:", error);
+        console.error("Error handling WebSocket message:", error);
       }
     };
 
-    // Add message listener to WebSocket
     ws.addEventListener('message', handleMessage);
-
-    return () => {
-      ws.removeEventListener('message', handleMessage);
-    };
-  }, [ws, isConnected, processWebSocketMessage, setMessageQueue]);
-
-  // Process queued messages when connection is restored
-  useEffect(() => {
-    if (isConnected && messageQueue.length > 0) {
-      processMessageQueue();
-    }
-  }, [isConnected, messageQueue, processMessageQueue]);
+    return () => ws.removeEventListener('message', handleMessage);
+  }, [ws, processMessage]);
 
   const value = {
-    // State data
     workflows,
     setWorkflows,
     notifications,

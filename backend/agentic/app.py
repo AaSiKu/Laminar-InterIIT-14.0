@@ -5,6 +5,7 @@ from datetime import datetime, timezone
 import logging
 import os
 import asyncio
+import json
 from fastapi import FastAPI, HTTPException
 from contextlib import asynccontextmanager
 from pydantic import BaseModel, Field
@@ -208,8 +209,8 @@ class Prompt(BaseModel):
 async def infer(prompt: Prompt):
     if not planner_executor:
         raise HTTPException(status_code=502, detail="PIPELINE_ID not set in environment")
-    answer = await run_agentic_query(prompt,planner_executor)
-    return {"status": "ok", "answer": answer}
+    answer = await run_agentic_query(prompt.content, planner_executor)
+    return {"status": "ok", **answer}
 
 # ============ Report Generation Endpoints ============
 
@@ -407,6 +408,120 @@ async def create_weekly_report(request: WeeklyReportRequest):
                 "details": {"error": str(e)}
             }
         )
+
+
+# ============ Reports List and Access Endpoints ============
+from pathlib import Path
+from fastapi.responses import FileResponse, PlainTextResponse
+
+REPORTS_DIR = Path("reports")
+
+@app.get(
+    "/api/v1/reports/list",
+    summary="List Available Reports",
+    description="List all available incident reports with their metadata.",
+    tags=["reports"]
+)
+async def list_reports():
+    """
+    List all available incident reports from the reports directory.
+    Returns report IDs, severity, timestamps and filenames.
+    """
+    try:
+        reports = []
+        if REPORTS_DIR.exists():
+            # Get all JSON metadata files
+            for json_file in REPORTS_DIR.glob("incident_*.json"):
+                try:
+                    with open(json_file, "r") as f:
+                        metadata = json.load(f)
+                        report_id = json_file.stem  # filename without extension
+                        reports.append({
+                            "report_id": report_id,
+                            "incident_id": metadata.get("incident_id"),
+                            "severity": metadata.get("severity"),
+                            "primary_service": metadata.get("primary_service"),
+                            "affected_services": metadata.get("affected_services", []),
+                            "timestamp": metadata.get("timestamp"),
+                            "filename": metadata.get("filename")
+                        })
+                except Exception as e:
+                    logger.warning(f"Failed to read report metadata {json_file}: {e}")
+        
+        # Sort by timestamp (newest first)
+        reports.sort(key=lambda x: x.get("timestamp", ""), reverse=True)
+        
+        return {"success": True, "reports": reports, "count": len(reports)}
+    except Exception as e:
+        logger.error(f"Failed to list reports: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to list reports: {e}")
+
+
+@app.get(
+    "/api/v1/reports/{report_id}",
+    summary="Get Report Content",
+    description="Get the content of a specific incident report by ID.",
+    tags=["reports"]
+)
+async def get_report(report_id: str):
+    """
+    Get the content and metadata of a specific report.
+    """
+    try:
+        # Look for the markdown file
+        md_file = REPORTS_DIR / f"{report_id}.md"
+        json_file = REPORTS_DIR / f"{report_id}.json"
+        
+        if not md_file.exists():
+            raise HTTPException(status_code=404, detail=f"Report not found: {report_id}")
+        
+        with open(md_file, "r") as f:
+            content = f.read()
+        
+        metadata = {}
+        if json_file.exists():
+            with open(json_file, "r") as f:
+                metadata = json.load(f)
+        
+        return {
+            "success": True,
+            "report_id": report_id,
+            "content": content,
+            "metadata": metadata
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to get report {report_id}: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to get report: {e}")
+
+
+@app.get(
+    "/api/v1/reports/{report_id}/download",
+    summary="Download Report",
+    description="Download the report as a markdown file.",
+    tags=["reports"]
+)
+async def download_report(report_id: str):
+    """
+    Download the report markdown file.
+    """
+    try:
+        md_file = REPORTS_DIR / f"{report_id}.md"
+        
+        if not md_file.exists():
+            raise HTTPException(status_code=404, detail=f"Report not found: {report_id}")
+        
+        return FileResponse(
+            path=md_file,
+            filename=f"{report_id}.md",
+            media_type="text/markdown"
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to download report {report_id}: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to download report: {e}")
 
 
 # ============ Runbook Remediation Endpoints ============
