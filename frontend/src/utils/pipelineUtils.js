@@ -112,7 +112,8 @@ const saveDraftsAPI = async (
   pipeline_id,
   setLoading,
   setError,
-  description = ""
+  description = "",
+  existingPipeline = null // Optional: existing pipeline to preserve additional fields like 'agents'
 ) => {
   if (!version_id || !pipeline_id || !rfInstance) {
     if (setError)
@@ -126,6 +127,12 @@ const saveDraftsAPI = async (
   if (setLoading) setLoading(true);
   try {
     const flow = rfInstance.toObject();
+    
+    // Merge flow data with existing pipeline to preserve additional fields (e.g., agents)
+    const pipelineToSave = existingPipeline 
+      ? { ...existingPipeline, ...flow }  // Preserve existingPipeline fields, but override nodes/edges/viewport
+      : flow;
+    
     const response = await fetch(
       `${import.meta.env.VITE_API_SERVER}/version/save_draft`,
       {
@@ -138,7 +145,7 @@ const saveDraftsAPI = async (
           version_id: version_id,
           pipeline_id: pipeline_id,
           version_description: description || "",
-          pipeline: flow,
+          pipeline: pipelineToSave,
         }),
       }
     );
@@ -173,6 +180,7 @@ async function fetchAndSetPipeline(pipeline_id, version_id, setters) {
     setViewport,
     setCurrentPipelineStatus,
     setContainerId,
+    setFullPipeline, // Optional: for storing full pipeline data (including agents, etc.)
   } = setters;
 
   if (!pipeline_id || !version_id) {
@@ -302,12 +310,22 @@ async function fetchAndSetPipeline(pipeline_id, version_id, setters) {
         setViewport({ x: 0, y: 0, zoom: 1 });
       }
     }
+    
+    // Store full pipeline data (preserves additional fields like 'agents')
+    if (setFullPipeline) {
+      setFullPipeline(pipelineData);
+    }
   } else {
     console.warn("No pipeline data found in version:", {
       hasVersion: !!version,
       hasPipeline: !!version?.pipeline,
       pipelineDataType: typeof version?.pipeline,
     });
+    
+    // Clear full pipeline if no data
+    if (setFullPipeline) {
+      setFullPipeline(null);
+    }
   }
 
   setLoading(false);

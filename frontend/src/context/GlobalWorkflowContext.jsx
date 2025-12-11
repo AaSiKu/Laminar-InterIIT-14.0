@@ -15,6 +15,8 @@ export const GlobalWorkflowProvider = ({ children }) => {
   const [workflowData, setWorkflowData] = useState({})
   const [status, setStatus] = useState("Stopped");
   const [rfInstance, setRfInstance] = useState(null);
+  // Full pipeline data (preserves additional fields like 'agents' that React Flow doesn't track)
+  const [fullPipeline, setFullPipeline] = useState(null);
   const { setViewport } = useReactFlow();
 
   const value = {
@@ -33,7 +35,10 @@ export const GlobalWorkflowProvider = ({ children }) => {
     setRfInstance,
     setViewport,
     workflowData,
-    setWorkflowData
+    setWorkflowData,
+    // Full pipeline (for preserving extra fields like 'agents')
+    fullPipeline,
+    setFullPipeline
   };
 
   return (

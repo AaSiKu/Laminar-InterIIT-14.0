@@ -431,7 +431,14 @@ NEW_WORKFLOW_PIPELINE: Dict[str, Any] = {
         {"source": "n3", "sourceHandle": "out", "target": "n4", "targetHandle": "in_0", "id": "n3-n4", "animated": True, "selected": False, "style": {"stroke": "#b1b1b7", "strokeWidth": 2}},
         {"source": "n4", "sourceHandle": "out", "target": "n5", "targetHandle": "in_0", "id": "n4-n5", "animated": True, "selected": False, "style": {"stroke": "#b1b1b7", "strokeWidth": 2}}
     ],
-    "viewport": {"x": 288.95, "y": -52.76, "zoom": 0.55}
+    "viewport": {"x": 288.95, "y": -52.76, "zoom": 0.55},
+    "agents": [
+        {
+            "name": "Window by agent",
+            "description": "The table has access to the number of failures in a window of 30 sec, and timestamps",
+            "tools": ["n3"]
+        }
+    ]
 }
 
 # Load the new workflow JSON - use NEW_WORKFLOW_PIPELINE for mock server

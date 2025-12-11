@@ -66,6 +66,8 @@ export default function WorkflowPage() {
     setVersionId: setCurrentVersionId,
     workflowData: currentWorkflowData,
     setWorkflowData: setCurrentWorkflowData,
+    fullPipeline,
+    setFullPipeline,
   } = useGlobalWorkflow();
 
   // Track loaded pipeline to prevent re-loading
@@ -158,6 +160,7 @@ export default function WorkflowPage() {
           setViewport: null, // Don't use setViewport from context, we'll apply it via rfInstance
           setCurrentPipelineStatus,
           setContainerId,
+          setFullPipeline, // Store full pipeline data for preserving additional fields
         });
 
         // Store viewport data for applying when rfInstance is ready
@@ -304,7 +307,9 @@ export default function WorkflowPage() {
           setCurrentVersionId,
           currentPipelineId,
           () => {}, // Don't use global loading for auto-save
-          (err) => console.warn("Auto-save warning:", err)
+          (err) => console.warn("Auto-save warning:", err),
+          "", // description
+          fullPipeline // Pass full pipeline to preserve additional fields like 'agents'
         );
         lastSavedDataRef.current = currentFlowData;
         setAutoSaveStatus("saved");
@@ -330,6 +335,7 @@ export default function WorkflowPage() {
     currentVersionId,
     rfInstance,
     setCurrentVersionId,
+    fullPipeline,
   ]);
 
   useEffect(() => {
