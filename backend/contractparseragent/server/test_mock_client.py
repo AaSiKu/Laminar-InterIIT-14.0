@@ -7,12 +7,16 @@ Run mock_server.py first, then run this client.
 
 import asyncio
 import json
+import os
 import sys
 import websockets
 
 
 async def test_client():
-    uri = "ws://localhost:8000/ws"
+    # Use a different port for the contract parser agent server
+    # Default to 8001 if not specified, to avoid conflict with main API server on 8000
+    port = int(os.getenv("CONTRACT_PARSER_PORT", "8001"))
+    uri = f"ws://localhost:{port}/ws"
 
     # Local tracking of macro plan steps so we can eagerly
     # print the next step description immediately after the user
@@ -226,7 +230,8 @@ async def test_client():
             print("\nConnection closed.")
     
     except ConnectionRefusedError:
-        print("\n!!! Cannot connect to mock server at ws://localhost:8000/ws")
+        port = int(os.getenv("CONTRACT_PARSER_PORT", "8001"))
+        print(f"\n!!! Cannot connect to mock server at ws://localhost:{port}/ws")
         print("Make sure mock_server.py is running first: python mock_server.py")
     except Exception as e:
         print(f"\n!!! Connection error: {e}")

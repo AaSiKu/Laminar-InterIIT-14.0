@@ -102,7 +102,10 @@ def collect_metrics_interactively() -> list:
 
 
 async def test_client():
-    uri = "ws://localhost:8000/ws"
+    # Use a different port for the contract parser agent server
+    # Default to 8001 if not specified, to avoid conflict with main API server on 8000
+    port = int(os.getenv("CONTRACT_PARSER_PORT", "8001"))
+    uri = f"ws://localhost:{port}/ws"
 
     # Local tracking of macro plan steps so we can eagerly
     # print the next step description immediately after the user

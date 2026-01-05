@@ -19,7 +19,7 @@ class Sliding(TypedDict):
 
 class Tumbling(TypedDict):
     duration: TimedeltaType
-    origin: DateTimeType
+    origin: Optional[DateTimeType]
     window_type: Literal["tumbling"]
 
 class WindowByNode(TemporalNode):

@@ -1,5 +1,5 @@
 from pydantic import BaseModel
-from typing import Type
+from typing import Type, Literal
 
 # Base Tool Class
 class Tool(BaseModel):

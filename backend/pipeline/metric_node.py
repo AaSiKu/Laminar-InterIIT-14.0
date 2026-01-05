@@ -1,25 +1,14 @@
 from lib.node import Node
-from .mappings.open_tel.prefix import open_tel_trace_id
-from typing import Optional, Dict, List, Any
+from typing import Optional, Dict, List, Any, Tuple
 from .types import MetricNodeDescription, Graph
 from .mappings import mappings
 from lib.trigger_rca import TriggerRCANode
 import json
 
+
 prefixes = ["_pw_left_","_pw_right_","_pw_grouped_", "_pw_windowed_"]
 
 
-def is_special_column(column_name: str) -> bool:
-    """
-    Check if a column is special (contains the trace ID suffix).
-    
-    Args:
-        column_name: Name of the column to check
-    
-    Returns:
-        True if column is special, False otherwise
-    """
-    return open_tel_trace_id in column_name
 
 
 def is_rename_node(node: Node) -> bool:
@@ -36,7 +25,7 @@ def is_rename_node(node: Node) -> bool:
     transformation_types = {
         "join", "asof_join", "asof_now_join", 
         "interval_join", "window_join",
-        "groupby", "windowby"
+        "group_by", "window_by"
     }
     return node.node_id in transformation_types
 
@@ -154,10 +143,9 @@ def find_special_column_sources(
                     break
             else:
                 special_col = original_col
+        current_node_idx = incoming_edges.get(current_node_idx,[None])[0]
     if current_source is not None:
         sources.append(current_source)
-    
-    current_node_idx = incoming_edges.get(current_node_idx,[None])[0]
     return sources 
 
 
@@ -165,7 +153,7 @@ def find_special_column_sources(
 def build_parent_graph_description(
     metric_node_idx: int,
     graph: Graph
-) -> str:
+) -> Tuple[str, Dict[int,int]]:
     """
     Build a natural language description of the parent graph for a metric node.
     
@@ -272,11 +260,11 @@ def pretty_print_metric_nodes(metric_descriptions: Dict[int,MetricNodeDescriptio
         print(f"Metric Node Index: {metric_idx}")
         print(f"{'='*80}")
         
-        if 'description' in metric:
+        if 'pipeline_description' in metric:
             print("\nPipeline Description:")
             print(metric['pipeline_description'])
         
-        if 'description_indexes_mapping' in metric:
+        if 'pipeline_description_indexes_mapping' in metric:
             print("\nNode Index Mapping:")
             for idx, pos in metric['pipeline_description_indexes_mapping'].items():
                 print(f"  Node {idx} -> Position ${pos}")

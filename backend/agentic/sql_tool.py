@@ -1,10 +1,10 @@
 from langchain_community.utilities.sql_database import SQLDatabase
-import json
 from langchain_community.tools import QuerySQLDataBaseTool
 from pydantic import BaseModel
 from typing import List, Optional, Dict, Any
 from postgres_util import postgre_engine
 from langchain_core.tools import tool
+import asyncio
 
 class TablePayload(BaseModel):
     table_name: str

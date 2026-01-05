@@ -1,5 +1,6 @@
 # Use a lightweight Python base image
-FROM python:3.12-slim
+FROM pytorch/pytorch
+
 
 # Set working directory inside container
 WORKDIR /app

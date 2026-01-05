@@ -51,13 +51,25 @@ def extract_sla_metrics_with_claude(
     text: str,
     api_key: Optional[str] = None,
     max_chars: int = 30_000,
+    additional_context: Optional[str] = None,
 ) -> List[Dict[str, Any]]:
-    """Use Claude to summarize SLA metrics from raw contract text."""
+    """Use Claude to summarize SLA metrics from raw contract text.
+    
+    Args:
+        text: The contract text to extract metrics from
+        api_key: Optional Anthropic API key
+        max_chars: Maximum characters to process from text
+        additional_context: Optional additional context/description to help with extraction
+    """
 
     client = _get_claude_client(api_key)
     snippet = text[:max_chars]
+    
+    context_section = ""
+    if additional_context and additional_context.strip():
+        context_section = f"\n\nAdditional Context/Requirements:\n{additional_context.strip()}\n\nIMPORTANT: Use BOTH the contract text above AND this additional context/description to extract and understand the metrics. Combine information from both sources to get a complete picture of the requirements. The additional context may provide clarification, specific requirements, or additional details that complement the contract text."
 
-    user_prompt = f"""Extract all SLA (Service Level Agreement) metrics from the following contract text that can be classified into one of three performance categories.
+    user_prompt = f"""Extract all SLA (Service Level Agreement) metrics from the following contract text that can be classified into one of three performance categories.{context_section}
 
 Categories:
 - latency: Metrics measuring time durations for system responses, resolutions, processing, or fulfillment.
@@ -163,15 +175,23 @@ def generate_metrics_from_pdf(
     pdf_path: str,
     output_dir: Path,
     api_key: Optional[str] = None,
+    additional_context: Optional[str] = None,
 ) -> Tuple[List[Dict[str, Any]], Path]:
-    """Extract metrics from a PDF and save them into output_dir."""
+    """Extract metrics from a PDF and save them into output_dir.
+    
+    Args:
+        pdf_path: Path to the PDF file
+        output_dir: Directory to save extracted metrics
+        api_key: Optional Anthropic API key
+        additional_context: Optional additional context/description to help with extraction
+    """
 
     pdf_path_obj = Path(pdf_path)
     if not pdf_path_obj.exists():
         raise FileNotFoundError(f"PDF not found: {pdf_path}")
 
     text = extract_pdf_text(str(pdf_path_obj))
-    metrics = extract_sla_metrics_with_claude(text, api_key=api_key)
+    metrics = extract_sla_metrics_with_claude(text, api_key=api_key, additional_context=additional_context)
 
     output_path = output_dir / f"{pdf_path_obj.stem}_sla_metrics.json"
     save_metrics_json(metrics, output_path, pdf_path_obj.name, "pdf_extraction_claude")
