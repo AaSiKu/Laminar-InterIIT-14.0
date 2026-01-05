@@ -1,0 +1,216 @@
+{
+  "nodes": [
+    {
+      "id": "n0",
+      "node_id": "open_tel_spans_input",
+      "category": "io",
+      "data": {
+        "properties": {
+          "rdkafka_settings": {
+            "bootstrap_servers": "host.docker.internal:9094",
+            "group_id": "test_group_spans"
+          }
+        }
+      }
+    },
+    {
+      "id": "n1",
+      "node_id": "filter",
+      "category": "table",
+      "data": {
+        "properties": {
+          "name": "Healthcheck for payment service",
+          "filters": [
+            {
+              "col": "name",
+              "op": "==",
+              "value": "payment healthcheck"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "n2",
+      "node_id": "filter",
+      "category": "table",
+      "data": {
+        "properties": {
+          "name": "Filter failed healthchecks",
+          "filters": [
+            {
+              "col": "status_code",
+              "op": "==",
+              "value": 2
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "n3",
+      "node_id": "window_by",
+      "category": "temporal",
+      "data": {
+        "properties": {
+          "name": "Window of 30 seconds which counts number of failed requests",
+          "time_col": "start_time_unix_nano",
+          "window": {
+            "window_type": "tumbling",
+            "duration": 30000000000,
+            "origin": 1764978580112000000
+          },
+          "reducers": [
+            {
+              "col": "_open_tel_trace_id",
+              "reducer": "count",
+              "new_col": "n_failed_healthchecks"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "n4",
+      "node_id": "window_by",
+      "category": "temporal",
+      "data": {
+        "properties": {
+          "name": "Window of 30 seconds which counts total number of healthcheck requests",
+          "time_col": "start_time_unix_nano",
+          "window": {
+            "window_type": "tumbling",
+            "duration": 30000000000,
+            "origin": 1764978580112000000
+          },
+          "reducers": [
+            {
+              "col": "_open_tel_trace_id",
+              "reducer": "count",
+              "new_col": "n_healthchecks"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "n5",
+      "node_id": "join",
+      "category": "table",
+      "data": {
+        "properties": {
+          "name": "Joins based on _pw_window_start",
+          "on": [
+            ["_pw_window_start", "_pw_window_start"]
+          ]
+        }
+      }
+    },
+    {
+      "id": "n6",
+      "node_id": "arithmetic",
+      "category": "table",
+      "data": {
+        "properties": {
+          "col_a": "_pw_left_n_failed_healthchecks",
+          "col_b": "_pw_right_n_healthchecks",
+          "operator": "/",
+          "new_col": "downtime_percentage"
+        }
+      }
+    },
+    {
+      "id": "n7",
+      "node_id": "filter",
+      "category": "table",
+      "data": {
+        "properties": {
+          "name": "Filters downtime < 1%",
+          "filters": [
+            {
+              "col": "downtime_percentage",
+              "op": "<",
+              "value": 0.01
+            }
+          ],
+          "trigger_description": "Downtime percentage of payment service over 30 seconds was > 1%"
+        }
+      }
+    },
+    {
+      "id": "n8",
+      "node_id": "trigger_rca",
+      "category": "agent",
+      "data": {
+        "properties": {
+          "metric_description": "Downtime percentage of payment service over 30 seconds must be < 1%"
+        }
+      }
+    },
+    {
+      "id": "n9",
+      "node_id": "alert",
+      "category": "action",
+      "data": {
+        "properties": {
+          "alert_prompt": ""
+        }
+      }
+    },
+    {
+        "id": "n10",
+        "node_id": "open_tel_logs_input",
+        "category": "io",
+        "data": {
+          "properties": {
+            "rdkafka_settings": {
+              "bootstrap_servers": "host.docker.internal:9094",
+              "group_id": "test_group_logs"
+            }
+          }
+        }
+      }
+  ],
+  "edges": [
+    {
+      "source": "n0",
+      "target": "n1"
+    },
+    {
+      "source": "n1",
+      "target": "n2"
+    },
+    {
+      "source": "n2",
+      "target": "n3"
+    },
+    {
+      "source": "n1",
+      "target": "n4"
+    },
+    {
+      "source": "n3",
+      "target": "n5"
+    },
+    {
+      "source": "n4",
+      "target": "n5"
+    },
+    {
+      "source": "n5",
+      "target": "n6"
+    },
+    {
+      "source": "n6",
+      "target": "n7"
+    },
+    {
+      "source": "n7",
+      "target": "n8"
+    },
+    {
+      "source": "n7",
+      "target": "n9"
+    }
+  ]
+}

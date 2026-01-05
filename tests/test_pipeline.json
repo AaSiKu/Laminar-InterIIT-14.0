@@ -1,0 +1,935 @@
+{
+  "pipeline": {
+    "nodes": [
+      {
+        "id": "n1",
+        "schema": {
+          "properties": {
+            "category": {
+              "const": "io",
+              "title": "Category",
+              "type": "string"
+            },
+            "node_id": {
+              "const": "open_tel_spans_input",
+              "title": "Node Id",
+              "type": "string"
+            },
+            "tool_description": {
+              "default": "",
+              "title": "Tool Description",
+              "type": "string"
+            },
+            "trigger_description": {
+              "default": "",
+              "title": "Trigger Description",
+              "type": "string"
+            },
+            "name": {
+              "default": "",
+              "title": "Name",
+              "type": "string"
+            },
+            "n_inputs": {
+              "const": 0,
+              "default": 0,
+              "title": "N Inputs",
+              "type": "integer"
+            },
+            "topic": {
+              "title": "Topic",
+              "type": "string"
+            },
+            "rdkafka_settings": {
+              "title": "Rdkafka Settings",
+              "type": "object",
+              "properties": {
+                "bootstrap_servers": {
+                  "type": "string"
+                },
+                "group_id": {
+                  "type": "string"
+                },
+                "auto_offset_reset": {
+                  "enum": ["earliest", "latest"],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "required": ["category", "node_id", "topic"],
+          "title": "OpenTelSpansInputNode",
+          "type": "object"
+        },
+        "type": "open_tel_spans_input",
+        "position": {
+          "x": 0,
+          "y": 0
+        },
+        "node_id": "open_tel_spans_input",
+        "category": "io",
+        "data": {
+          "ui": {
+            "label": "OpenTelSpansInputNode Node",
+            "iconUrl": ""
+          },
+          "properties": {
+            "category": "io",
+            "node_id": "open_tel_spans_input",
+            "tool_description": "",
+            "trigger_description": "",
+            "name": "",
+            "n_inputs": 0,
+            "topic": "otlp_spans",
+            "rdkafka_settings": {
+              "bootstrap_servers": "localhost:9092",
+              "group_id": "pathway-consumer",
+              "auto_offset_reset": "earliest"
+            }
+          },
+          "isProposed": false
+        },
+        "measured": {
+          "width": 200,
+          "height": 249
+        },
+        "selected": false
+      },
+      {
+        "id": "n2",
+        "schema": {
+          "properties": {
+            "category": {
+              "const": "table",
+              "title": "Category",
+              "type": "string"
+            },
+            "node_id": {
+              "const": "filter",
+              "title": "Node Id",
+              "type": "string"
+            },
+            "tool_description": {
+              "default": "",
+              "title": "Tool Description",
+              "type": "string"
+            },
+            "trigger_description": {
+              "default": "",
+              "title": "Trigger Description",
+              "type": "string"
+            },
+            "name": {
+              "default": "",
+              "title": "Name",
+              "type": "string"
+            },
+            "n_inputs": {
+              "const": 1,
+              "default": 1,
+              "title": "N Inputs",
+              "type": "integer"
+            },
+            "filters": {
+              "title": "Filters",
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "col": {
+                    "type": "string"
+                  },
+                  "op": {
+                    "type": "string"
+                  },
+                  "value": {
+                    "type": ["string", "number", "boolean"]
+                  }
+                }
+              }
+            }
+          },
+          "required": ["category", "node_id", "filters"],
+          "title": "FilterNode",
+          "type": "object"
+        },
+        "type": "filter",
+        "position": {
+          "x": 400,
+          "y": 0
+        },
+        "node_id": "filter",
+        "category": "table",
+        "data": {
+          "ui": {
+            "label": "FilterNode Node",
+            "iconUrl": ""
+          },
+          "properties": {
+            "category": "table",
+            "node_id": "filter",
+            "tool_description": "",
+            "trigger_description": "",
+            "name": "server_spans_filter",
+            "n_inputs": 1,
+            "filters": [
+              {
+                "col": "span.kind",
+                "op": "==",
+                "value": "SERVER"
+              }
+            ]
+          },
+          "isProposed": false
+        },
+        "measured": {
+          "width": 200,
+          "height": 249
+        },
+        "selected": false
+      },
+      {
+        "id": "n3",
+        "schema": {
+          "properties": {
+            "category": {
+              "const": "table",
+              "title": "Category",
+              "type": "string"
+            },
+            "node_id": {
+              "const": "filter",
+              "title": "Node Id",
+              "type": "string"
+            },
+            "tool_description": {
+              "default": "",
+              "title": "Tool Description",
+              "type": "string"
+            },
+            "trigger_description": {
+              "default": "",
+              "title": "Trigger Description",
+              "type": "string"
+            },
+            "name": {
+              "default": "",
+              "title": "Name",
+              "type": "string"
+            },
+            "n_inputs": {
+              "const": 1,
+              "default": 1,
+              "title": "N Inputs",
+              "type": "integer"
+            },
+            "filters": {
+              "title": "Filters",
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "col": {
+                    "type": "string"
+                  },
+                  "op": {
+                    "type": "string"
+                  },
+                  "value": {
+                    "type": ["string", "number", "boolean"]
+                  }
+                }
+              }
+            }
+          },
+          "required": ["category", "node_id", "filters"],
+          "title": "FilterNode",
+          "type": "object"
+        },
+        "type": "filter",
+        "position": {
+          "x": 800,
+          "y": 0
+        },
+        "node_id": "filter",
+        "category": "table",
+        "data": {
+          "ui": {
+            "label": "FilterNode Node",
+            "iconUrl": ""
+          },
+          "properties": {
+            "category": "table",
+            "node_id": "filter",
+            "tool_description": "",
+            "trigger_description": "",
+            "name": "failed_spans_filter",
+            "n_inputs": 1,
+            "filters": [
+              {
+                "col": "status.code",
+                "op": "==",
+                "value": 2
+              }
+            ]
+          },
+          "isProposed": false
+        },
+        "measured": {
+          "width": 200,
+          "height": 231
+        },
+        "selected": false
+      },
+      {
+        "id": "n4",
+        "schema": {
+          "properties": {
+            "category": {
+              "const": "table",
+              "title": "Category",
+              "type": "string"
+            },
+            "node_id": {
+              "const": "group_by",
+              "title": "Node Id",
+              "type": "string"
+            },
+            "tool_description": {
+              "default": "",
+              "title": "Tool Description",
+              "type": "string"
+            },
+            "trigger_description": {
+              "default": "",
+              "title": "Trigger Description",
+              "type": "string"
+            },
+            "name": {
+              "default": "",
+              "title": "Name",
+              "type": "string"
+            },
+            "n_inputs": {
+              "const": 1,
+              "default": 1,
+              "title": "N Inputs",
+              "type": "integer"
+            },
+            "columns": {
+              "title": "Columns",
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "reducers": {
+              "title": "Reducers",
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "col": {
+                    "type": "string"
+                  },
+                  "reducer": {
+                    "type": "string"
+                  },
+                  "new_col": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          },
+          "required": ["category", "node_id", "columns", "reducers"],
+          "title": "GroupByNode",
+          "type": "object"
+        },
+        "type": "group_by",
+        "position": {
+          "x": 1200,
+          "y": 0
+        },
+        "node_id": "group_by",
+        "category": "table",
+        "data": {
+          "ui": {
+            "label": "GroupByNode Node",
+            "iconUrl": ""
+          },
+          "properties": {
+            "category": "table",
+            "node_id": "group_by",
+            "tool_description": "",
+            "trigger_description": "",
+            "name": "errors_by_service",
+            "n_inputs": 1,
+            "columns": ["service.name"],
+            "reducers": [
+              {
+                "col": "span_id",
+                "reducer": "count",
+                "new_col": "error_count"
+              }
+            ]
+          },
+          "isProposed": false
+        },
+        "measured": {
+          "width": 200,
+          "height": 231
+        },
+        "selected": false
+      },
+      {
+        "id": "n5",
+        "schema": {
+          "properties": {
+            "category": {
+              "const": "table",
+              "title": "Category",
+              "type": "string"
+            },
+            "node_id": {
+              "const": "join",
+              "title": "Node Id",
+              "type": "string"
+            },
+            "tool_description": {
+              "default": "",
+              "title": "Tool Description",
+              "type": "string"
+            },
+            "trigger_description": {
+              "default": "",
+              "title": "Trigger Description",
+              "type": "string"
+            },
+            "name": {
+              "default": "",
+              "title": "Name",
+              "type": "string"
+            },
+            "n_inputs": {
+              "const": 2,
+              "default": 2,
+              "title": "N Inputs",
+              "type": "integer"
+            },
+            "on": {
+              "title": "On",
+              "type": "array",
+              "items": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "minItems": 2,
+                "maxItems": 2
+              }
+            },
+            "how": {
+              "title": "How",
+              "enum": ["left", "right", "inner", "outer"],
+              "type": "string"
+            }
+          },
+          "required": ["category", "node_id", "on", "how"],
+          "title": "JoinNode",
+          "type": "object"
+        },
+        "type": "join",
+        "position": {
+          "x": 1600,
+          "y": 0
+        },
+        "node_id": "join",
+        "category": "table",
+        "data": {
+          "ui": {
+            "label": "JoinNode Node",
+            "iconUrl": ""
+          },
+          "properties": {
+            "category": "table",
+            "node_id": "join",
+            "tool_description": "",
+            "trigger_description": "",
+            "name": "error_rate_join",
+            "n_inputs": 2,
+            "on": [["service.name", "service.name"]],
+            "how": "left"
+          },
+          "isProposed": false
+        },
+        "measured": {
+          "width": 200,
+          "height": 231
+        },
+        "selected": false
+      },
+      {
+        "id": "n6",
+        "schema": {
+          "properties": {
+            "category": {
+              "const": "temporal",
+              "title": "Category",
+              "type": "string"
+            },
+            "node_id": {
+              "const": "window_by",
+              "title": "Node Id",
+              "type": "string"
+            },
+            "tool_description": {
+              "default": "",
+              "title": "Tool Description",
+              "type": "string"
+            },
+            "trigger_description": {
+              "default": "",
+              "title": "Trigger Description",
+              "type": "string"
+            },
+            "name": {
+              "default": "",
+              "title": "Name",
+              "type": "string"
+            },
+            "n_inputs": {
+              "const": 1,
+              "default": 1,
+              "title": "N Inputs",
+              "type": "integer"
+            },
+            "time_col": {
+              "title": "Time Col",
+              "type": "string"
+            },
+            "window": {
+              "title": "Window",
+              "type": "object",
+              "properties": {
+                "duration": {
+                  "type": "integer"
+                },
+                "window_type": {
+                  "enum": ["tumbling", "sliding", "session"],
+                  "type": "string"
+                }
+              }
+            },
+            "reducers": {
+              "title": "Reducers",
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "col": {
+                    "type": "string"
+                  },
+                  "reducer": {
+                    "type": "string"
+                  },
+                  "new_col": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          },
+          "required": ["category", "node_id", "time_col", "window", "reducers"],
+          "title": "WindowByNode",
+          "type": "object"
+        },
+        "type": "window_by",
+        "position": {
+          "x": 2000,
+          "y": 0
+        },
+        "node_id": "window_by",
+        "category": "temporal",
+        "data": {
+          "ui": {
+            "label": "WindowByNode Node",
+            "iconUrl": ""
+          },
+          "properties": {
+            "category": "temporal",
+            "node_id": "window_by",
+            "tool_description": "",
+            "trigger_description": "",
+            "name": "error_rate_window",
+            "n_inputs": 1,
+            "time_col": "_open_tel_start_time",
+            "window": {
+              "duration": {
+                "$numberLong": "300000000000"
+              },
+              "window_type": "tumbling"
+            },
+            "reducers": [
+              {
+                "col": "error_count",
+                "reducer": "sum",
+                "new_col": "total_errors"
+              }
+            ]
+          },
+          "isProposed": false
+        },
+        "measured": {
+          "width": 207,
+          "height": 231
+        },
+        "selected": false
+      },
+      {
+        "id": "n7",
+        "schema": {
+          "properties": {
+            "category": {
+              "const": "table",
+              "title": "Category",
+              "type": "string"
+            },
+            "node_id": {
+              "const": "flatten",
+              "title": "Node Id",
+              "type": "string"
+            },
+            "tool_description": {
+              "default": "",
+              "title": "Tool Description",
+              "type": "string"
+            },
+            "trigger_description": {
+              "default": "",
+              "title": "Trigger Description",
+              "type": "string"
+            },
+            "name": {
+              "default": "",
+              "title": "Name",
+              "type": "string"
+            },
+            "n_inputs": {
+              "const": 1,
+              "default": 1,
+              "title": "N Inputs",
+              "type": "integer"
+            },
+            "column": {
+              "title": "Column",
+              "type": "string"
+            }
+          },
+          "required": ["category", "node_id", "column"],
+          "title": "FlattenNode",
+          "type": "object"
+        },
+        "type": "flatten",
+        "position": {
+          "x": 2400,
+          "y": 0
+        },
+        "node_id": "flatten",
+        "category": "table",
+        "data": {
+          "ui": {
+            "label": "FlattenNode Node",
+            "iconUrl": ""
+          },
+          "properties": {
+            "category": "table",
+            "node_id": "flatten",
+            "tool_description": "",
+            "trigger_description": "",
+            "name": "flatten_error_data",
+            "n_inputs": 1,
+            "column": "error_metadata"
+          },
+          "isProposed": false
+        },
+        "measured": {
+          "width": 200,
+          "height": 231
+        },
+        "selected": false
+      },
+      {
+        "id": "n8",
+        "schema": {
+          "properties": {
+            "category": {
+              "const": "table",
+              "title": "Category",
+              "type": "string"
+            },
+            "node_id": {
+              "const": "json_select",
+              "title": "Node Id",
+              "type": "string"
+            },
+            "tool_description": {
+              "default": "",
+              "title": "Tool Description",
+              "type": "string"
+            },
+            "trigger_description": {
+              "default": "",
+              "title": "Trigger Description",
+              "type": "string"
+            },
+            "name": {
+              "default": "",
+              "title": "Name",
+              "type": "string"
+            },
+            "n_inputs": {
+              "const": 1,
+              "default": 1,
+              "title": "N Inputs",
+              "type": "integer"
+            },
+            "json_column": {
+              "title": "Json Column",
+              "type": "string"
+            },
+            "property": {
+              "title": "Property",
+              "type": ["string", "integer"]
+            },
+            "property_type": {
+              "enum": ["json", "str", "int", "float", "bool"],
+              "title": "Property Type",
+              "type": "string"
+            },
+            "new_column_name": {
+              "title": "New Column Name",
+              "type": "string"
+            }
+          },
+          "required": [
+            "category",
+            "node_id",
+            "json_column",
+            "property",
+            "property_type"
+          ],
+          "title": "JSONSelectNode",
+          "type": "object"
+        },
+        "type": "json_select",
+        "position": {
+          "x": 2800,
+          "y": 0
+        },
+        "node_id": "json_select",
+        "category": "table",
+        "data": {
+          "ui": {
+            "label": "JSONSelectNode Node",
+            "iconUrl": ""
+          },
+          "properties": {
+            "category": "table",
+            "node_id": "json_select",
+            "tool_description": "",
+            "trigger_description": "",
+            "name": "extract_error_rate",
+            "n_inputs": 1,
+            "json_column": "metadata",
+            "property": "error_rate",
+            "property_type": "float",
+            "new_column_name": "error_rate_percentage"
+          },
+          "isProposed": false
+        },
+        "measured": {
+          "width": 215,
+          "height": 231
+        },
+        "selected": false
+      },
+      {
+        "id": "n9",
+        "schema": {
+          "properties": {
+            "category": {
+              "const": "table",
+              "title": "Category",
+              "type": "string"
+            },
+            "node_id": {
+              "const": "filter",
+              "title": "Node Id",
+              "type": "string"
+            },
+            "tool_description": {
+              "default": "",
+              "title": "Tool Description",
+              "type": "string"
+            },
+            "trigger_description": {
+              "default": "",
+              "title": "Trigger Description",
+              "type": "string"
+            },
+            "name": {
+              "default": "",
+              "title": "Name",
+              "type": "string"
+            },
+            "n_inputs": {
+              "const": 1,
+              "default": 1,
+              "title": "N Inputs",
+              "type": "integer"
+            },
+            "filters": {
+              "title": "Filters",
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "col": {
+                    "type": "string"
+                  },
+                  "op": {
+                    "type": "string"
+                  },
+                  "value": {
+                    "type": ["string", "number", "boolean"]
+                  }
+                }
+              }
+            }
+          },
+          "required": ["category", "node_id", "filters"],
+          "title": "FilterNode",
+          "type": "object"
+        },
+        "type": "filter",
+        "position": {
+          "x": 3200,
+          "y": 0
+        },
+        "node_id": "filter",
+        "category": "table",
+        "data": {
+          "ui": {
+            "label": "FilterNode Node",
+            "iconUrl": ""
+          },
+          "properties": {
+            "category": "table",
+            "node_id": "filter",
+            "tool_description": "",
+            "trigger_description": "",
+            "name": "high_error_rate_filter",
+            "n_inputs": 1,
+            "filters": [
+              {
+                "col": "error_rate_percentage",
+                "op": ">",
+                "value": 1
+              }
+            ]
+          },
+          "isProposed": false
+        },
+        "measured": {
+          "width": 213,
+          "height": 231
+        },
+        "selected": false
+      }
+    ],
+    "edges": [
+      {
+        "source": "n1",
+        "sourceHandle": "out",
+        "target": "n2",
+        "targetHandle": "in_0",
+        "animated": true,
+        "id": "xy-edge__n1out-n2in_0"
+      },
+      {
+        "source": "n2",
+        "sourceHandle": "out",
+        "target": "n3",
+        "targetHandle": "in_0",
+        "animated": true,
+        "id": "xy-edge__n2out-n3in_0"
+      },
+      {
+        "source": "n3",
+        "sourceHandle": "out",
+        "target": "n4",
+        "targetHandle": "in_0",
+        "animated": true,
+        "id": "xy-edge__n3out-n4in_0"
+      },
+      {
+        "source": "n4",
+        "sourceHandle": "out",
+        "target": "n5",
+        "targetHandle": "in_0",
+        "animated": true,
+        "id": "xy-edge__n4out-n5in_0"
+      },
+      {
+        "source": "n5",
+        "sourceHandle": "out",
+        "target": "n6",
+        "targetHandle": "in_0",
+        "animated": true,
+        "id": "xy-edge__n5out-n6in_0"
+      },
+      {
+        "source": "n6",
+        "sourceHandle": "out",
+        "target": "n7",
+        "targetHandle": "in_0",
+        "animated": true,
+        "id": "xy-edge__n6out-n7in_0"
+      },
+      {
+        "source": "n7",
+        "sourceHandle": "out",
+        "target": "n8",
+        "targetHandle": "in_0",
+        "animated": true,
+        "id": "xy-edge__n7out-n8in_0"
+      },
+      {
+        "source": "n8",
+        "sourceHandle": "out",
+        "target": "n9",
+        "targetHandle": "in_0",
+        "animated": true,
+        "id": "xy-edge__n8out-n9in_0"
+      }
+    ],
+    "agents": [
+      {
+        "name": "I am testing agent node",
+        "description": "asdfghjkl",
+        "tools": ["n5", "n7", "n4"]
+      },
+      {
+        "name": "asdfg",
+        "description": "asdf",
+        "tools": ["n5"]
+      }
+    ],
+    "viewport": {
+      "x": 0,
+      "y": 0,
+      "zoom": 1
+    }
+  }
+}
