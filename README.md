@@ -2,6 +2,30 @@
 
 Real-time data pipeline platform with SLA-driven orchestration, visual workflow design, AI-powered agents, and automated monitoring built on Pathway's streaming engine.
 
+---
+
+## Project Report & Documentation
+
+> **For a comprehensive understanding of Laminar, please refer to the [Laminar Report Document](Laminar-Report-Doc.pdf).**
+
+The **Laminar-Report-Doc.pdf** provides in-depth coverage of:
+
+| Section | Description |
+|---------|-------------|
+| **Mindset & Vision** | The philosophy behind building Laminar and the problems it aims to solve |
+| **Approach & Methodology** | Technical decisions, architectural patterns, and implementation strategies |
+| **Results & Evaluation** | Performance benchmarks, testing outcomes, and key achievements |
+| **Demonstrations** | Step-by-step walkthroughs and use-case scenarios |
+| **Future Roadmap** | Planned enhancements and potential extensions |
+
+We strongly recommend reading the report alongside this README for:
+- Understanding the *"why"* behind design choices
+- Detailed explanations of the AI-powered RCA system
+- Comprehensive evaluation metrics and results
+- Visual demonstrations of each feature in action
+
+---
+
 ## Key Features
 
 **Visual Pipeline Designer**  
@@ -11,17 +35,20 @@ Drag-and-drop interface for building complex data pipelines by connecting pre-co
 Upload business documents to the UI and Laminar automatically extracts requirements, thresholds, and obligations to generate fully-configured metric monitoring and processing pipelines. This eliminates manual translation layers, ensuring direct alignment between business commitments and technical implementations.
 
 **Predictive Analytics with Streaming ML**  
-Continuous forecasting using online learning models (TiDE, ARF, Mamba) that adapt in real-time to data patterns. The platform predicts threshold breaches in advance, allowing for proactive intervention before issues impact operations and customers. Models update automatically with each data point without manual retraining.
+Continuous forecasting using online learning models (TiDE, ARF, Mamba) that adapt in real-time to data patterns. The platform predicts threshold breaches in advance, allowing for proactive intervention before issues impact operations and customers. Models update automatically with each data point without manual retraining.  
+> *See the [Laminar Report Document](Laminar-Report-Doc.pdf) for ML model evaluations, prediction accuracy metrics, and real-world performance results.*
 
 **Autonomous Root Cause Analysis**  
 Leveraging the extensive power of agentic AI and Pathway’s compatibility with streaming data sources, our platform gets rid of the need to manually correlate outputs from various tools when an incident occurs, through our Root Cause Analysis agent, which analyses relevant data sources and historical issues to diagnose the root cause. It then suggests
-confidence-scored fixes, and executes the ones it is confident about (without the need of human intervention).
+confidence-scored fixes, and executes the ones it is confident about (without the need of human intervention).  
+> *See the [Laminar Report Document](Laminar-Report-Doc.pdf) for detailed RCA architecture, evaluation results, and demonstration scenarios.*
 
 **Autonomous Execution of High-Confidence Fixes**
 Graduated automation framework that executes high-confidence fixes automatically while escalating ambiguous situations with recommended actions and supporting evidence. Organizations progressively expand automation as confidence builds, balancing efficiency with risk tolerance.
 
 **Production-Ready Guardrails**  
-Comprehensive 4-layer security gateway covering network (SSRF, TLS), access (rate limiting, RBAC, BOLA prevention), data (prompt injection detection, PII scanning, secrets detection), and process controls (human-in-the-loop approval, XSS prevention). Sub-200ms overhead maintains real-time responsiveness.
+Comprehensive 4-layer security gateway covering network (SSRF, TLS), access (rate limiting, RBAC, BOLA prevention), data (prompt injection detection, PII scanning, secrets detection), and process controls (human-in-the-loop approval, XSS prevention). Sub-200ms overhead maintains real-time responsiveness.  
+> *The [Laminar Report Document](Laminar-Report-Doc.pdf) contains detailed security layer breakdowns and performance benchmarks.*
 
 **Distributed Architecture**  
 Five-layer architecture with React frontend, FastAPI control layer, Pathway streaming engine in isolated Docker containers, LangGraph-orchestrated agentic services, and multi-database persistence (PostgreSQL, MongoDB, vector search). Sub-second end-to-end latency with exactly-once processing semantics.
@@ -202,6 +229,8 @@ One `.env` file in `backend/api/` contains all configuration: MongoDB, PostgreSQ
 
 ##  Complete Workflow
 
+> *The [Laminar Report Document](Laminar-Report-Doc.pdf) includes visual demonstrations and step-by-step walkthroughs of each workflow stage.*
+
 ### 1. User Authentication & Workspace Setup
 1. User signs up or logs in via the frontend
 2. HttpOnly cookie is set for authenticated API access
@@ -312,6 +341,8 @@ One `.env` file in `backend/api/` contains all configuration: MongoDB, PostgreSQ
 
 
 ##  Architecture
+
+> *For comprehensive architecture diagrams, design rationale, and detailed component explanations, refer to the [Laminar Report Document](Laminar-Report-Doc.pdf).*
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
